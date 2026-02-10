@@ -1,12 +1,12 @@
 
 import React from 'react';
 
-export const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'outline' }>(({
-  children,
-  variant = 'primary',
-  className = '',
-  ...props
-}, ref) => {
+export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'outline' }> = ({ 
+  children, 
+  variant = 'primary', 
+  className = '', 
+  ...props 
+}) => {
   const variants = {
     primary: 'bg-blue-600 text-white hover:bg-blue-700',
     secondary: 'bg-slate-800 text-white hover:bg-slate-900',
@@ -16,21 +16,20 @@ export const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttrib
 
   return (
     <button
-      ref={ref}
       className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${className}`}
       {...props}
     >
       {children}
     </button>
   );
-});
+};
 
-// Updated Card to accept HTML div attributes like onClick and support refs
-export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ children, className = '', ...props }, ref) => (
-  <div ref={ref} className={`bg-white border border-slate-200 rounded-xl shadow-sm ${className}`} {...props}>
+// Updated Card to accept HTML div attributes like onClick
+export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, className = '', ...props }) => (
+  <div className={`bg-white border border-slate-200 rounded-xl shadow-sm ${className}`} {...props}>
     {children}
   </div>
-));
+);
 
 export const Badge: React.FC<{ children: React.ReactNode; color?: 'blue' | 'green' | 'red' | 'yellow' | 'slate' }> = ({ children, color = 'slate' }) => {
   const colors = {

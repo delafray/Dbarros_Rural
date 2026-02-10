@@ -7,7 +7,8 @@ import type {
   Payment,
   TagCategory,
   Tag,
-  Photo
+  Photo,
+  PaginatedPhotos
 } from '../types';
 
 // Initialize Supabase client
@@ -398,7 +399,7 @@ export const supabaseService: SubControlService = {
     let query = supabase
       .from('tag_categories')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('order');
 
     if (!admin) {
       query = query.eq('user_id', userId);
@@ -412,8 +413,7 @@ export const supabaseService: SubControlService = {
       id: row.id,
       userId: row.user_id,
       name: row.name,
-      order: row.order,
-      createdAt: row.created_at
+      order: Number(row.order)
     }));
   },
 
@@ -436,8 +436,7 @@ export const supabaseService: SubControlService = {
       id: newCategory.id,
       userId: newCategory.user_id,
       name: newCategory.name,
-      order: newCategory.order,
-      createdAt: newCategory.created_at
+      order: newCategory.order
     };
   },
 
@@ -459,8 +458,7 @@ export const supabaseService: SubControlService = {
       id: updatedCategory.id,
       userId: updatedCategory.user_id,
       name: updatedCategory.name,
-      order: updatedCategory.order,
-      createdAt: updatedCategory.created_at
+      order: updatedCategory.order
     };
   },
 
@@ -495,8 +493,7 @@ export const supabaseService: SubControlService = {
       id: row.id,
       userId: row.user_id,
       name: row.name,
-      categoryId: row.category_id,
-      createdAt: row.created_at
+      categoryId: row.category_id
     }));
   },
 
@@ -519,8 +516,7 @@ export const supabaseService: SubControlService = {
       id: newTag.id,
       userId: newTag.user_id,
       name: newTag.name,
-      categoryId: newTag.category_id,
-      createdAt: newTag.created_at
+      categoryId: newTag.category_id
     };
   },
 
@@ -534,64 +530,6 @@ export const supabaseService: SubControlService = {
   },
 
   // ==================== PHOTOS ====================
-  getPhotoIndex: async () => {
-    const userId = getCurrentUserId();
-    const admin = isAdmin();
-
-    let query = supabase
-      .from('photos')
-      .select(`
-        id,
-        name,
-        photo_tags (
-          tag_id
-        )
-      `);
-
-    if (!admin) {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
-    if (error) throw new Error(`Failed to fetch index: ${error.message}`);
-
-    return data.map(row => ({
-      id: row.id,
-      name: row.name,
-      tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id)
-    }));
-  },
-
-  getPhotosByIds: async (ids: string[]) => {
-    if (ids.length === 0) return [];
-
-    const { data, error } = await supabase
-      .from('photos')
-      .select(`
-        *,
-        photo_tags (
-          tag_id
-        )
-      `)
-      .in('id', ids);
-
-    if (error) throw new Error(`Failed to fetch photos by IDs: ${error.message}`);
-
-    // Map manually to maintain order of IDs if possible, or just return set
-    const photoMap = new Map<string, Photo>(data.map(row => [row.id, {
-      id: row.id,
-      userId: row.user_id,
-      name: row.name,
-      url: row.url,
-      thumbnailUrl: row.thumbnail_url || undefined,
-      localPath: row.local_path || undefined,
-      tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id),
-      createdAt: row.created_at
-    }]));
-
-    return ids.map(id => photoMap.get(id)).filter((p): p is Photo => !!p);
-  },
-
   getPhotos: async () => {
     const userId = getCurrentUserId();
     const admin = isAdmin();
@@ -619,32 +557,10 @@ export const supabaseService: SubControlService = {
       userId: row.user_id,
       name: row.name,
       url: row.url,
-      thumbnailUrl: row.thumbnail_url,
       localPath: row.local_path,
       tagIds: row.photo_tags.map((pt: any) => pt.tag_id),
       createdAt: row.created_at
     }));
-  },
-
-  uploadPhotoFile: async (file: File) => {
-    const userId = getCurrentUserId();
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
-    const filePath = fileName;
-
-    const { error: uploadError } = await supabase.storage
-      .from('photos')
-      .upload(filePath, file);
-
-    if (uploadError) {
-      throw new Error(`Failed to upload photo: ${uploadError.message}`);
-    }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('photos')
-      .getPublicUrl(filePath);
-
-    return publicUrl;
   },
 
   createPhoto: async (data) => {
@@ -657,7 +573,6 @@ export const supabaseService: SubControlService = {
         user_id: userId,
         name: data.name,
         url: data.url,
-        thumbnail_url: data.thumbnailUrl,
         local_path: data.localPath
       })
       .select()
@@ -684,7 +599,6 @@ export const supabaseService: SubControlService = {
       userId: newPhoto.user_id,
       name: newPhoto.name,
       url: newPhoto.url,
-      thumbnailUrl: newPhoto.thumbnail_url,
       localPath: newPhoto.local_path,
       tagIds: data.tagIds,
       createdAt: newPhoto.created_at
@@ -695,7 +609,6 @@ export const supabaseService: SubControlService = {
     const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.url !== undefined) updateData.url = data.url;
-    if (data.thumbnailUrl !== undefined) updateData.thumbnail_url = data.thumbnailUrl;
     if (data.localPath !== undefined) updateData.local_path = data.localPath;
 
     const { data: updatedPhoto, error: photoError } = await supabase
@@ -749,7 +662,6 @@ export const supabaseService: SubControlService = {
       userId: photoWithTags.user_id,
       name: photoWithTags.name,
       url: photoWithTags.url,
-      thumbnailUrl: photoWithTags.thumbnail_url,
       localPath: photoWithTags.local_path,
       tagIds: photoWithTags.photo_tags.map((pt: any) => pt.tag_id),
       createdAt: photoWithTags.created_at
@@ -765,4 +677,77 @@ export const supabaseService: SubControlService = {
 
     if (error) throw new Error(`Failed to delete photo: ${error.message}`);
   },
+
+  searchPhotos: async (primaryTagIds: string[], subTagIds: string[], page: number = 1, limit: number = 20) => {
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+    const filterUserId = admin ? null : userId;
+
+    // Check minimum requirement: at least 1 primary tag AND 1 sub-tag
+    if (!primaryTagIds || primaryTagIds.length < 1 || !subTagIds || subTagIds.length < 1) {
+      return { photos: [], total: 0 };
+    }
+
+    const { data, error } = await supabase
+      .rpc('search_photos_by_tags', {
+        primary_tag_ids: primaryTagIds,
+        sub_tag_ids: subTagIds,
+        filter_user_id: filterUserId,
+        page_number: page,
+        items_per_page: limit
+      });
+
+    if (error) throw new Error(`Failed to search photos: ${error.message}`);
+
+    const photos: Photo[] = data.map((row: any) => ({
+      id: row.id,
+      userId: '',
+      name: row.name,
+      url: row.url,
+      localPath: row.local_path,
+      tagIds: [],
+      createdAt: row.created_at
+    }));
+
+    if (photos.length > 0) {
+      const photoIds = photos.map(p => p.id);
+      const { data: tagsData } = await supabase
+        .from('photo_tags')
+        .select('photo_id, tag_id')
+        .in('photo_id', photoIds);
+
+      if (tagsData) {
+        const tagsMap: Record<string, string[]> = {};
+        tagsData.forEach((item: any) => {
+          if (!tagsMap[item.photo_id]) tagsMap[item.photo_id] = [];
+          tagsMap[item.photo_id].push(item.tag_id);
+        });
+
+        photos.forEach(p => {
+          p.tagIds = tagsMap[p.id] || [];
+        });
+      }
+    }
+
+    const total = data.length > 0 ? Number(data[0].total_count) : 0;
+
+    return { photos, total };
+  },
+
+  getAvailableTags: async (primaryTagIds: string[], subTagIds: string[]) => {
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+    const filterUserId = admin ? null : userId;
+
+    const { data, error } = await supabase
+      .rpc('get_available_related_tags', {
+        primary_tag_ids: primaryTagIds,
+        sub_tag_ids: subTagIds,
+        filter_user_id: filterUserId
+      });
+
+    if (error) throw new Error(`Failed to get available tags: ${error.message}`);
+
+    return data.map((row: any) => row.tag_id);
+  }
 };

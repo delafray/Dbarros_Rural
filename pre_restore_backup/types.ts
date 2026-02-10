@@ -59,7 +59,6 @@ export interface TagCategory {
   userId: string;
   name: string;
   order: number; // Campo de hierarquia manual (1, 2, 3...)
-  createdAt: string;
 }
 
 export interface Tag {
@@ -67,7 +66,6 @@ export interface Tag {
   userId: string;
   name: string;
   categoryId: string; // Referência à categoria pai
-  createdAt: string;
 }
 
 export interface Photo {
@@ -77,7 +75,6 @@ export interface Photo {
   url: string; // Base64 string para o mock
   tagIds: string[];
   localPath?: string; // Novo campo para caminho do Windows/Rede
-  thumbnailUrl?: string; // Nova miniatura
   createdAt: string;
 }
 
@@ -124,11 +121,15 @@ export interface SubControlService {
   deleteTag: (id: string) => Promise<void>;
 
   // Photos
-  getPhotoIndex: () => Promise<Array<{ id: string; name: string; tagIds: string[] }>>;
-  getPhotosByIds: (ids: string[]) => Promise<Photo[]>;
   getPhotos: () => Promise<Photo[]>;
-  uploadPhotoFile: (file: File) => Promise<string>;
   createPhoto: (data: Omit<Photo, 'id' | 'createdAt'>) => Promise<Photo>;
   updatePhoto: (id: string, data: Partial<Photo>) => Promise<Photo>;
   deletePhoto: (id: string) => Promise<void>;
+  searchPhotos: (primaryTagIds: string[], subTagIds: string[], page?: number, limit?: number) => Promise<PaginatedPhotos>;
+  getAvailableTags: (primaryTagIds: string[], subTagIds: string[]) => Promise<string[]>;
+}
+
+export interface PaginatedPhotos {
+  photos: Photo[];
+  total: number;
 }

@@ -6,86 +6,33 @@ import { Card, LoadingSpinner, Badge, Button, Input, Modal } from '../components
 import Layout from '../components/Layout';
 
 const MAX_DIMENSION = 1280;
-const THUMB_SIZE = 300;
 const QUALITY = 0.8;
-
-const dataURLtoBlob = (dataurl: string) => {
-  const arr = dataurl.split(',');
-  const mime = arr[0].match(/:(.*?);/)?.[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-};
-
-const generateThumbnail = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > THUMB_SIZE) { height *= THUMB_SIZE / width; width = THUMB_SIZE; }
-        } else {
-          if (height > THUMB_SIZE) { width *= THUMB_SIZE / height; height = THUMB_SIZE; }
-        }
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject('Canvas error');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
-      };
-      img.onerror = reject;
-    };
-    reader.onerror = reject;
-  });
-};
-
-const PHOTOS_PER_PAGE = 24;
 
 const Photos: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [photoIndex, setPhotoIndex] = useState<Array<{ id: string; name: string; tagIds: string[] }>>([]);
-  const [hydratedPhotos, setHydratedPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [categories, setCategories] = useState<TagCategory[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]); // Lista de IDs de tags selecionados no filtro
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
 
-  // Pagination state based on filtered results
-  const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
-
+  // Form State para Upload/Edição
   const [formData, setFormData] = useState({
     name: '',
     url: '',
-    thumbnailUrl: '',
     tagIds: [] as string[],
-    localPath: '',
-    selectedFile: null as File | null
+    localPath: ''
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [index, t, c] = await Promise.all([
-        api.getPhotoIndex(),
-        api.getTags(),
-        api.getTagCategories()
-      ]);
-      setPhotoIndex(index);
+      const [p, t, c] = await Promise.all([api.getPhotos(), api.getTags(), api.getTagCategories()]);
+      setPhotos(p);
       setTags(t);
       setCategories(c.sort((a, b) => a.order - b.order));
     } finally {
@@ -97,106 +44,57 @@ const Photos: React.FC = () => {
     fetchData();
   }, []);
 
-  // --- LÓGICA DE FILTRAGEM USANDO O INDEX ---
+  // --- LÓGICA DE FILTRAGEM EM CASCATA ---
 
-  const filteredResult = useMemo(() => {
-    let currentIds = [...photoIndex];
+  const filteredData = useMemo(() => {
+    let currentPhotos = [...photos];
 
-    // 1. Filtro por texto
+    // 1. Filtro por texto (independente da hierarquia)
     if (searchTerm) {
-      currentIds = currentIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      currentPhotos = currentPhotos.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
 
-    // 2. Filtro Hierárquico
-    categories.forEach((cat) => {
+    // 2. Filtro Hierárquico (Nível por Nível)
+    const photosByLevel: { [order: number]: Photo[] } = {};
+    const availableTagsByLevel: { [order: number]: Set<string> } = {};
+
+    categories.forEach((cat, index) => {
       const catTags = tags.filter(t => t.categoryId === cat.id);
       const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
+
       if (selectedInCat.length > 0) {
-        currentIds = currentIds.filter(p =>
+        currentPhotos = currentPhotos.filter(p =>
           selectedInCat.some(tagId => p.tagIds.includes(tagId))
         );
       }
+
+      photosByLevel[cat.order] = [...currentPhotos];
     });
 
-    // Calcular tags disponíveis (Cascata)
-    const availableTagsByLevel: { [order: number]: Set<string> } = {};
-    let tempIds = photoIndex;
-    if (searchTerm) tempIds = tempIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    let tempPhotos = photos;
+    if (searchTerm) tempPhotos = tempPhotos.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    categories.forEach((cat) => {
+    categories.forEach((cat, index) => {
       const currentAvailableTags = new Set<string>();
-      tempIds.forEach(p => p.tagIds.forEach(tid => currentAvailableTags.add(tid)));
+      tempPhotos.forEach(p => {
+        p.tagIds.forEach(tid => currentAvailableTags.add(tid));
+      });
       availableTagsByLevel[cat.order] = currentAvailableTags;
 
       const catTags = tags.filter(t => t.categoryId === cat.id);
       const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
       if (selectedInCat.length > 0) {
-        tempIds = tempIds.filter(p => selectedInCat.some(tagId => p.tagIds.includes(tagId)));
+        tempPhotos = tempPhotos.filter(p =>
+          selectedInCat.some(tagId => p.tagIds.includes(tagId))
+        );
       }
     });
 
     return {
-      ids: currentIds.map(p => p.id),
+      photos: currentPhotos,
       availableTagsByLevel
     };
-  }, [photoIndex, categories, tags, selectedTagIds, searchTerm]);
-
-  // Reset pagination count when filter changes
-  useEffect(() => {
-    setDisplayCount(PHOTOS_PER_PAGE);
-  }, [filteredResult.ids]);
-
-  // --- HYDRATION LOGIC (Fetch full photo details for visible IDs) ---
-
-  const visibleIds = useMemo(() => {
-    return filteredResult.ids.slice(0, displayCount);
-  }, [filteredResult.ids, displayCount]);
-
-  useEffect(() => {
-    if (visibleIds.length === 0) {
-      setHydratedPhotos([]);
-      return;
-    }
-
-    const loadVisiblePhotos = async () => {
-      // Determine which IDs we don't have yet in hydratedPhotos
-      const existingMap = new Map(hydratedPhotos.map(p => [p.id, p]));
-      const newIds = visibleIds.filter(id => !existingMap.has(id));
-
-      if (newIds.length === 0) {
-        // We have everyone, just ensure the order and subset are correct
-        const ordered = visibleIds.map(id => existingMap.get(id)).filter((p): p is Photo => !!p);
-        // Only update if the list is actually different (different length or different IDs)
-        if (ordered.length !== hydratedPhotos.length ||
-          ordered.some((p, i) => p.id !== hydratedPhotos[i].id)) {
-          setHydratedPhotos(ordered);
-        }
-        return;
-      }
-
-      setLoadingMore(true);
-      try {
-        const newPhotos = await api.getPhotosByIds(newIds);
-        const updatedMap = new Map(existingMap);
-        newPhotos.forEach(p => updatedMap.set(p.id, p));
-
-        const finalOrdered = visibleIds.map(id => updatedMap.get(id)).filter((p): p is Photo => !!p);
-        setHydratedPhotos(finalOrdered);
-      } catch (err) {
-        console.error("Hydration error:", err);
-      } finally {
-        setLoadingMore(false);
-      }
-    };
-
-    loadVisiblePhotos();
-  }, [visibleIds]); // visibleIds already captures changes in filteredResult.ids and displayCount
-
-  const loadMore = () => {
-    if (displayCount < filteredResult.ids.length) {
-      setDisplayCount(prev => prev + PHOTOS_PER_PAGE);
-    }
-  };
+  }, [photos, categories, tags, selectedTagIds, searchTerm]);
 
   // --- HANDLERS ---
 
@@ -244,8 +142,7 @@ const Photos: React.FC = () => {
         ...prev,
         url: compressedUrl,
         name: prev.name || file.name.split('.')[0],
-        localPath: prev.localPath || autoPath,
-        selectedFile: file
+        localPath: prev.localPath || autoPath // Preenche apenas se estiver vazio
       }));
     } finally {
       setProcessingImage(false);
@@ -255,10 +152,10 @@ const Photos: React.FC = () => {
   const handleOpenModal = (photo: Photo | null = null) => {
     if (photo) {
       setEditingPhoto(photo);
-      setFormData({ name: photo.name, url: photo.url, thumbnailUrl: photo.thumbnailUrl || '', tagIds: photo.tagIds, localPath: photo.localPath || '', selectedFile: null });
+      setFormData({ name: photo.name, url: photo.url, tagIds: photo.tagIds, localPath: photo.localPath || '' });
     } else {
       setEditingPhoto(null);
-      setFormData({ name: '', url: '', thumbnailUrl: '', tagIds: [], localPath: '', selectedFile: null });
+      setFormData({ name: '', url: '', tagIds: [], localPath: '' });
     }
     setIsModalOpen(true);
   };
@@ -281,31 +178,10 @@ const Photos: React.FC = () => {
     if (!formData.url) return alert('Escolha uma foto');
     setSaving(true);
     try {
-      let finalUrl = formData.url;
-      let finalThumbUrl = formData.thumbnailUrl;
-
-      // Se for um novo registro ou uma nova foto carregada, faz o upload para o Storage
-      if (formData.selectedFile) {
-        // Upload original
-        const blob = dataURLtoBlob(formData.url);
-        const fileToUpload = new File([blob], formData.selectedFile.name, { type: blob.type });
-        finalUrl = await api.uploadPhotoFile(fileToUpload);
-
-        // Gerar e Upload miniatura
-        const thumbDataUrl = await generateThumbnail(formData.selectedFile);
-        const thumbBlob = dataURLtoBlob(thumbDataUrl);
-        const thumbToUpload = new File([thumbBlob], `thumb_${formData.selectedFile.name}`, { type: thumbBlob.type });
-        finalThumbUrl = await api.uploadPhotoFile(thumbToUpload);
-      }
-
-      if (editingPhoto) await api.updatePhoto(editingPhoto.id, { ...formData, url: finalUrl, thumbnailUrl: finalThumbUrl });
-      else await api.createPhoto({ ...formData, url: finalUrl, thumbnailUrl: finalThumbUrl });
-
+      if (editingPhoto) await api.updatePhoto(editingPhoto.id, formData);
+      else await api.createPhoto(formData);
       setIsModalOpen(false);
       await fetchData();
-    } catch (err: any) {
-      console.error(err);
-      alert('Erro ao salvar: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -352,7 +228,7 @@ const Photos: React.FC = () => {
             </h3>
 
             <div className="flex flex-col gap-1">
-              {categories.map((cat) => (
+              {categories.map((cat, idx) => (
                 <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-slate-50/30 border border-slate-100 rounded-xl px-3 py-1 transition-all hover:border-blue-100 hover:bg-white">
                   <div className="md:w-36 flex-shrink-0 flex items-center gap-2 mb-1 md:mb-0 border-b md:border-b-0 md:border-r border-slate-100 pb-1 md:pb-0 md:pr-3">
                     <span className="w-4 h-4 bg-slate-800 text-white text-[8px] font-black rounded flex items-center justify-center">
@@ -364,7 +240,7 @@ const Photos: React.FC = () => {
                   <div className="flex-1 md:pl-4 flex flex-wrap gap-x-1.5 gap-y-1 py-0.5">
                     {tags.filter(t => t.categoryId === cat.id).map(tag => {
                       const isSelected = selectedTagIds.includes(tag.id);
-                      const isAvailable = filteredResult.availableTagsByLevel[cat.order]?.has(tag.id);
+                      const isAvailable = filteredData.availableTagsByLevel[cat.order]?.has(tag.id);
 
                       if (!isAvailable && !isSelected) return null;
 
@@ -373,8 +249,8 @@ const Photos: React.FC = () => {
                           key={tag.id}
                           onClick={() => toggleFilterTag(tag.id)}
                           className={`px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all flex items-center gap-1 ${isSelected
-                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm scale-105'
-                            : 'bg-white border-slate-200 text-slate-500 hover:border-blue-300'
+                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm scale-105'
+                              : 'bg-white border-slate-200 text-slate-500 hover:border-blue-300'
                             }`}
                         >
                           {isSelected && <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
@@ -394,39 +270,15 @@ const Photos: React.FC = () => {
 
         {loading ? <LoadingSpinner /> : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {hydratedPhotos.map((photo, idx) => (
+            {filteredData.photos.map(photo => (
               <Card
                 key={photo.id}
                 className="overflow-hidden group flex flex-col h-full hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer shadow-sm bg-white"
                 onClick={() => handleOpenModal(photo)}
-                ref={idx === hydratedPhotos.length - 1 ? (el) => {
-                  if (el) {
-                    const observer = new IntersectionObserver((entries) => {
-                      if (entries[0].isIntersecting && displayCount < filteredResult.ids.length && !loadingMore) {
-                        loadMore();
-                        observer.disconnect();
-                      }
-                    }, { threshold: 0.1 });
-                    observer.observe(el);
-                  }
-                } : undefined}
               >
                 <div className="relative aspect-[4/3] bg-slate-50 overflow-hidden">
-                  <img src={photo.thumbnailUrl || photo.url} alt={photo.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                  <img src={photo.url} alt={photo.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                   <div className="absolute top-2 right-2 flex gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(photo.url, '_blank');
-                      }}
-                      className="p-1.5 bg-green-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-green-700"
-                      title="Abrir foto completa"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
                     {photo.localPath && (
                       <button onClick={(e) => copyToClipboard(e, photo.localPath!)} className="p-1.5 bg-blue-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-blue-700"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></button>
                     )}
@@ -451,7 +303,6 @@ const Photos: React.FC = () => {
             ))}
           </div>
         )}
-        {loadingMore && <div className="py-8 text-center"><LoadingSpinner /></div>}
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingPhoto ? 'Editar Arquivo' : 'Novo Registro'} maxWidth="max-w-[95vw]">
