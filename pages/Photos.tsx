@@ -2,9 +2,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../services/api';
 import { Photo, Tag, TagCategory } from '../types';
-import { Card, LoadingSpinner, Badge, Button, Input, Modal } from '../components/UI';
+import { Badge, Button, Card, Input, LoadingSpinner, Modal } from '../components/UI';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { jsPDF } from 'jspdf';
 
 const MAX_DIMENSION = 1280;
 const THUMB_SIZE = 300;
@@ -69,6 +70,7 @@ const Photos: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
 
   // Pagination state based on filtered results
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
@@ -273,6 +275,73 @@ const Photos: React.FC = () => {
     setIsPreviewOpen(true);
   };
 
+  const handleExportPDF = async () => {
+    const photosToExport = hydratedPhotos.filter(p => selectedExportIds.has(p.id));
+    if (photosToExport.length === 0) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const imageWidth = (pageWidth - (margin * 2));
+    const imageHeight = 100; // Fixed height for photos in PDF
+
+    setProcessingImage(true);
+
+    try {
+      for (let i = 0; i < photosToExport.length; i++) {
+        if (i > 0 && i % 2 === 0) {
+          doc.addPage();
+        }
+
+        const photo = photosToExport[i];
+        const yOffset = (i % 2) * 140 + margin;
+
+        // Draw Photo Name
+        doc.setFontSize(12);
+        doc.text(photo.name, margin, yOffset - 5);
+
+        // Load Image
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = photo.url;
+
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+
+        // Draw Image
+        doc.addImage(img, 'JPEG', margin, yOffset, imageWidth, imageHeight);
+      }
+
+      doc.save(`galeria_selecionada_${new Date().getTime()}.pdf`);
+      setSelectedExportIds(new Set());
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      alert('Erro ao gerar PDF. Verifique se as imagens estão acessíveis.');
+    } finally {
+      setProcessingImage(false);
+    }
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedExportIds(new Set(filteredResult.ids.map(id => id.id)));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedExportIds(new Set());
+  };
+
+  const toggleSelection = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedExportIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const toggleFilterTag = (tagId: string) => {
     setSelectedTagIds(prev =>
       prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
@@ -362,10 +431,19 @@ const Photos: React.FC = () => {
               </div>
             )}
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={selectAllFiltered}
+                className="py-1.5 text-xs border-blue-100 text-blue-600 hover:bg-blue-50"
+              >
+                Selecionar Tudo ({filteredResult.ids.length})
+              </Button>
               {selectedTagIds.length > 0 && (
                 <Button variant="outline" onClick={() => setSelectedTagIds([])} className="text-red-500 border-red-100 py-1.5 text-xs">Limpar Tudo</Button>
               )}
-              <Button onClick={() => handleOpenModal()} className="py-1.5 text-xs">+ Novo Registro</Button>
+              {!user?.isVisitor && (
+                <Button onClick={() => handleOpenModal()} className="py-1.5 text-xs">+ Novo Registro</Button>
+              )}
             </div>
           </div>
 
@@ -421,7 +499,7 @@ const Photos: React.FC = () => {
             {hydratedPhotos.map((photo, idx) => (
               <Card
                 key={photo.id}
-                className="overflow-hidden group flex flex-col h-full hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer shadow-sm bg-white"
+                className={`overflow-hidden group flex flex-col h-full hover:ring-2 transition-all cursor-pointer shadow-sm bg-white ${selectedExportIds.has(photo.id) ? 'ring-2 ring-blue-500 bg-blue-50/30' : 'hover:ring-blue-500'}`}
                 onClick={() => handleOpenPreview(photo)}
                 ref={idx === hydratedPhotos.length - 1 ? (el) => {
                   if (el) {
@@ -437,6 +515,19 @@ const Photos: React.FC = () => {
               >
                 <div className="relative aspect-[4/3] bg-slate-50 overflow-hidden">
                   <img src={photo.thumbnailUrl || photo.url} alt={photo.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+
+                  {/* Selection Checkbox */}
+                  <div
+                    className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center ${selectedExportIds.has(photo.id) ? 'bg-blue-600 border-blue-600' : 'bg-white/20 border-white/50 backdrop-blur-sm group-hover:bg-white/40'}`}
+                    onClick={(e) => toggleSelection(e, photo.id)}
+                  >
+                    {selectedExportIds.has(photo.id) && (
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+
                   <div className="absolute top-2 right-2 flex gap-1">
                     <button
                       onClick={(e) => {
@@ -448,13 +539,16 @@ const Photos: React.FC = () => {
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     </button>
                     {photo.localPath && (
-                      <button onClick={(e) => copyToClipboard(e, photo.localPath!)} className="p-1.5 bg-slate-800/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-slate-900" title="Copiar caminho local"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></button>
+                      <button onClick={(e) => copyToClipboard(e, photo.localPath!)} className="p-1.5 bg-slate-800/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-slate-900" title="Caminho local"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></button>
                     )}
-                    <button onClick={(e) => handleDelete(e, photo.id)} className="p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-700" title="Excluir"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                    {!user?.isVisitor && (
+                      <button onClick={(e) => handleDelete(e, photo.id)} className="p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-700" title="Excluir"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                    )}
                   </div>
                 </div>
                 <div className="p-3 flex flex-col flex-1">
@@ -556,48 +650,74 @@ const Photos: React.FC = () => {
           </div>
         </form>
       </Modal>
-      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={previewPhoto?.name || 'Vistas'} maxWidth="max-w-7xl">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative w-full max-h-[80vh] bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center">
+      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={previewPhoto?.name || 'Vistas'} maxWidth="max-w-4xl">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative w-full max-h-[60vh] bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-2xl">
             <img
               src={previewPhoto?.url}
               alt={previewPhoto?.name}
-              className="max-w-full max-h-[80vh] object-contain cursor-zoom-out"
+              className="max-w-full max-h-[60vh] object-contain cursor-zoom-out"
               onClick={() => setIsPreviewOpen(false)}
             />
             <button
               onClick={() => setIsPreviewOpen(false)}
-              className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-all shadow-xl backdrop-blur-md"
+              className="absolute top-4 right-4 p-1.5 bg-black/40 text-white rounded-full hover:bg-black/60 transition-all shadow-xl backdrop-blur-md border border-white/10"
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <div className="flex flex-wrap justify-center gap-2 mt-2">
+          <div className="flex flex-wrap justify-center gap-1.5 mt-1 max-w-full overflow-hidden">
             {previewPhoto?.tagIds.map(tagId => {
               const tag = tags.find(t => t.id === tagId);
               const cat = categories.find(c => c.id === tag?.categoryId);
               return (
-                <Badge key={tagId} color="blue">
+                <span key={tagId} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase whitespace-nowrap">
                   {cat?.name}: {tag?.name}
-                </Badge>
+                </span>
               );
             })}
           </div>
-          <div className="flex gap-4 mt-2">
-            <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <div className="flex gap-3 mt-1">
+            <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
-              Abrir Original
+              Original
             </Button>
-            <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }}>
-              Editar Registro
-            </Button>
+            {!user?.isVisitor && (
+              <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
+                Editar
+              </Button>
+            )}
           </div>
         </div>
       </Modal>
+
+      {/* Export Action Bar */}
+      {selectedExportIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
+          <div className="bg-slate-900 border border-slate-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 backdrop-blur-xl">
+            <div className="flex flex-col">
+              <span className="text-sm font-bold">{selectedExportIds.size} {selectedExportIds.size === 1 ? 'Foto selecionada' : 'Fotos selecionadas'}</span>
+              <span className="text-[10px] text-slate-400">Pronto para gerar PDF</span>
+            </div>
+            <div className="h-8 w-px bg-slate-700"></div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-white border-slate-600 hover:bg-slate-800 py-1.5 px-4 text-xs h-9">
+                Cancelar
+              </Button>
+              <Button onClick={handleExportPDF} className="bg-blue-600 hover:bg-blue-700 py-1.5 px-6 text-xs h-9 shadow-lg shadow-blue-500/20 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Gerar PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

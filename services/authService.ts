@@ -14,6 +14,7 @@ export interface User {
     name: string;
     email: string;
     isAdmin: boolean;
+    isVisitor: boolean;
     isActive: boolean;
     createdAt: string;
 }
@@ -29,7 +30,7 @@ async function hashPassword(password: string): Promise<string> {
 
 export const authService = {
     // Register new user
-    register: async (name: string, email: string, password: string, isAdmin: boolean = false): Promise<User> => {
+    register: async (name: string, email: string, password: string, isAdmin: boolean = false, isVisitor: boolean = false): Promise<User> => {
         const passwordHash = await hashPassword(password);
 
         const { data, error } = await supabase
@@ -39,6 +40,7 @@ export const authService = {
                 email,
                 password_hash: passwordHash,
                 is_admin: isAdmin,
+                is_visitor: isVisitor,
                 is_active: true
             })
             .select()
@@ -51,6 +53,7 @@ export const authService = {
             name: data.name,
             email: data.email,
             isAdmin: data.is_admin,
+            isVisitor: data.is_visitor,
             isActive: data.is_active,
             createdAt: data.created_at
         };
@@ -84,6 +87,7 @@ export const authService = {
             name: data.name,
             email: data.email,
             isAdmin: data.is_admin,
+            isVisitor: data.is_visitor,
             isActive: data.is_active,
             createdAt: data.created_at
         };
@@ -126,17 +130,19 @@ export const authService = {
             name: row.name,
             email: row.email,
             isAdmin: row.is_admin,
+            isVisitor: row.is_visitor,
             isActive: row.is_active,
             createdAt: row.created_at
         }));
     },
 
     // Update user
-    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isActive: boolean; password?: string }>): Promise<void> => {
+    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; password?: string }>): Promise<void> => {
         const updateData: any = {};
         if (updates.name !== undefined) updateData.name = updates.name;
         if (updates.email !== undefined) updateData.email = updates.email;
         if (updates.isAdmin !== undefined) updateData.is_admin = updates.isAdmin;
+        if (updates.isVisitor !== undefined) updateData.is_visitor = updates.isVisitor;
         if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
 
         if (updates.password) {
