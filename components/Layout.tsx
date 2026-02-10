@@ -11,10 +11,9 @@ const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: a
   <NavLink
     to={to}
     className={({ isActive }) =>
-      `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
-        isActive
-          ? 'bg-blue-600 text-white shadow-md'
-          : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
+      `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${isActive
+        ? 'bg-blue-600 text-white shadow-md'
+        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
       }`
     }
   >
@@ -40,16 +39,22 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
             SubControl
           </h1>
         </div>
-        
+
         <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto">
-          <NavItem to="/dashboard" label="Dashboard" icon={HomeIcon} />
-          <NavItem to="/clientes" label="Clientes" icon={UsersIcon} />
-          <NavItem to="/planos" label="Planos" icon={PackageIcon} />
-          <NavItem to="/assinaturas" label="Assinaturas" icon={CreditCardIcon} />
-          <NavItem to="/pagamentos" label="Pagamentos" icon={HistoryIcon} />
+          {/* <NavItem to="/dashboard" label="Dashboard" icon={HomeIcon} /> */}
           <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivos</div>
           <NavItem to="/fotos" label="Fotos" icon={CameraIcon} />
           <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />
+
+          {/* Hidden for now
+          <NavItem to="/clientes" label="Clientes" icon={UsersListIcon} />
+          <NavItem to="/planos" label="Planos" icon={PackageIcon} />
+          <NavItem to="/assinaturas" label="Assinaturas" icon={CreditCardIcon} />
+          <NavItem to="/pagamentos" label="Pagamentos" icon={HistoryIcon} />
+          */}
+
+          <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema</div>
+          <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />
         </nav>
 
         <div className="p-4 border-t border-slate-100">
@@ -76,6 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
 
 const HomeIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
 const UsersIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
+const UsersListIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 const PackageIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>;
 const CreditCardIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
 const HistoryIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;

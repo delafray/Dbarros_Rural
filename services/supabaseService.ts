@@ -20,18 +20,45 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Helper function to get current user ID
+function getCurrentUserId(): string {
+  const userJson = localStorage.getItem('subcontrol_user');
+  if (!userJson) throw new Error('User not authenticated');
+  const user = JSON.parse(userJson);
+  return user.id;
+}
+
+// Helper function to check if user is admin
+function isAdmin(): boolean {
+  const userJson = localStorage.getItem('subcontrol_user');
+  if (!userJson) return false;
+  const user = JSON.parse(userJson);
+  return user.isAdmin === true;
+}
+
 export const supabaseService: SubControlService = {
   // ==================== CUSTOMERS ====================
   getCustomers: async () => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('customers')
       .select('*')
       .order('created_at', { ascending: false });
+
+    // If not admin, filter by user_id
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch customers: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       name: row.name,
       email: row.email,
       status: row.status,
@@ -41,9 +68,12 @@ export const supabaseService: SubControlService = {
   },
 
   createCustomer: async (data) => {
+    const userId = getCurrentUserId();
+
     const { data: newCustomer, error } = await supabase
       .from('customers')
       .insert({
+        user_id: userId,
         name: data.name,
         email: data.email,
         status: data.status,
@@ -56,6 +86,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: newCustomer.id,
+      userId: newCustomer.user_id,
       name: newCustomer.name,
       email: newCustomer.email,
       status: newCustomer.status,
@@ -82,6 +113,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: updatedCustomer.id,
+      userId: updatedCustomer.user_id,
       name: updatedCustomer.name,
       email: updatedCustomer.email,
       status: updatedCustomer.status,
@@ -101,15 +133,25 @@ export const supabaseService: SubControlService = {
 
   // ==================== PLANS ====================
   getPlans: async () => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('plans')
       .select('*')
       .order('name');
+
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch plans: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       name: row.name,
       price: parseFloat(row.price),
       active: row.active
@@ -117,9 +159,12 @@ export const supabaseService: SubControlService = {
   },
 
   createPlan: async (data) => {
+    const userId = getCurrentUserId();
+
     const { data: newPlan, error } = await supabase
       .from('plans')
       .insert({
+        user_id: userId,
         name: data.name,
         price: data.price,
         active: data.active
@@ -131,6 +176,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: newPlan.id,
+      userId: newPlan.user_id,
       name: newPlan.name,
       price: parseFloat(newPlan.price),
       active: newPlan.active
@@ -154,6 +200,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: updatedPlan.id,
+      userId: updatedPlan.user_id,
       name: updatedPlan.name,
       price: parseFloat(updatedPlan.price),
       active: updatedPlan.active
@@ -171,15 +218,25 @@ export const supabaseService: SubControlService = {
 
   // ==================== SUBSCRIPTIONS ====================
   getSubscriptions: async () => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('subscriptions')
       .select('*')
       .order('start_date', { ascending: false });
+
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch subscriptions: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       customerId: row.customer_id,
       planId: row.plan_id,
       startDate: row.start_date,
@@ -189,9 +246,12 @@ export const supabaseService: SubControlService = {
   },
 
   createSubscription: async (data) => {
+    const userId = getCurrentUserId();
+
     const { data: newSubscription, error } = await supabase
       .from('subscriptions')
       .insert({
+        user_id: userId,
         customer_id: data.customerId,
         plan_id: data.planId,
         start_date: data.startDate,
@@ -205,6 +265,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: newSubscription.id,
+      userId: newSubscription.user_id,
       customerId: newSubscription.customer_id,
       planId: newSubscription.plan_id,
       startDate: newSubscription.start_date,
@@ -232,6 +293,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: updatedSubscription.id,
+      userId: updatedSubscription.user_id,
       customerId: updatedSubscription.customer_id,
       planId: updatedSubscription.plan_id,
       startDate: updatedSubscription.start_date,
@@ -251,15 +313,25 @@ export const supabaseService: SubControlService = {
 
   // ==================== PAYMENTS ====================
   getPayments: async () => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('payments')
       .select('*')
       .order('paid_at', { ascending: false });
+
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch payments: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       subscriptionId: row.subscription_id,
       amount: parseFloat(row.amount),
       paidAt: row.paid_at
@@ -267,9 +339,12 @@ export const supabaseService: SubControlService = {
   },
 
   createPayment: async (data) => {
+    const userId = getCurrentUserId();
+
     const { data: newPayment, error } = await supabase
       .from('payments')
       .insert({
+        user_id: userId,
         subscription_id: data.subscriptionId,
         amount: data.amount,
         paid_at: data.paidAt
@@ -281,6 +356,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: newPayment.id,
+      userId: newPayment.user_id,
       subscriptionId: newPayment.subscription_id,
       amount: parseFloat(newPayment.amount),
       paidAt: newPayment.paid_at
@@ -288,16 +364,26 @@ export const supabaseService: SubControlService = {
   },
 
   listPaymentsBySubscription: async (subscriptionId) => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('payments')
       .select('*')
       .eq('subscription_id', subscriptionId)
       .order('paid_at', { ascending: false });
 
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
+
     if (error) throw new Error(`Failed to fetch payments: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       subscriptionId: row.subscription_id,
       amount: parseFloat(row.amount),
       paidAt: row.paid_at
@@ -306,24 +392,37 @@ export const supabaseService: SubControlService = {
 
   // ==================== TAG CATEGORIES ====================
   getTagCategories: async () => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('tag_categories')
       .select('*')
       .order('order');
+
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch tag categories: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       name: row.name,
       order: row.order
     }));
   },
 
   createTagCategory: async (name, order) => {
+    const userId = getCurrentUserId();
+
     const { data: newCategory, error } = await supabase
       .from('tag_categories')
       .insert({
+        user_id: userId,
         name: name,
         order: order
       })
@@ -334,6 +433,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: newCategory.id,
+      userId: newCategory.user_id,
       name: newCategory.name,
       order: newCategory.order
     };
@@ -355,6 +455,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: updatedCategory.id,
+      userId: updatedCategory.user_id,
       name: updatedCategory.name,
       order: updatedCategory.order
     };
@@ -371,24 +472,37 @@ export const supabaseService: SubControlService = {
 
   // ==================== TAGS ====================
   getTags: async () => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('tags')
       .select('*')
       .order('name');
+
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to fetch tags: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       name: row.name,
       categoryId: row.category_id
     }));
   },
 
   createTag: async (name, categoryId) => {
+    const userId = getCurrentUserId();
+
     const { data: newTag, error } = await supabase
       .from('tags')
       .insert({
+        user_id: userId,
         name: name,
         category_id: categoryId
       })
@@ -399,6 +513,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: newTag.id,
+      userId: newTag.user_id,
       name: newTag.name,
       categoryId: newTag.category_id
     };
@@ -415,7 +530,10 @@ export const supabaseService: SubControlService = {
 
   // ==================== PHOTOS ====================
   getPhotos: async () => {
-    const { data, error } = await supabase
+    const userId = getCurrentUserId();
+    const admin = isAdmin();
+
+    let query = supabase
       .from('photos')
       .select(`
         *,
@@ -425,10 +543,17 @@ export const supabaseService: SubControlService = {
       `)
       .order('created_at', { ascending: false });
 
+    if (!admin) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
+
     if (error) throw new Error(`Failed to fetch photos: ${error.message}`);
 
     return data.map(row => ({
       id: row.id,
+      userId: row.user_id,
       name: row.name,
       url: row.url,
       localPath: row.local_path,
@@ -438,10 +563,13 @@ export const supabaseService: SubControlService = {
   },
 
   createPhoto: async (data) => {
+    const userId = getCurrentUserId();
+
     // First, create the photo
     const { data: newPhoto, error: photoError } = await supabase
       .from('photos')
       .insert({
+        user_id: userId,
         name: data.name,
         url: data.url,
         local_path: data.localPath
@@ -467,6 +595,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: newPhoto.id,
+      userId: newPhoto.user_id,
       name: newPhoto.name,
       url: newPhoto.url,
       localPath: newPhoto.local_path,
@@ -529,6 +658,7 @@ export const supabaseService: SubControlService = {
 
     return {
       id: photoWithTags.id,
+      userId: photoWithTags.user_id,
       name: photoWithTags.name,
       url: photoWithTags.url,
       localPath: photoWithTags.local_path,

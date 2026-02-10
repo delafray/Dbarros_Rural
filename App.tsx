@@ -2,6 +2,8 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import Users from './pages/Users';
+import { useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Plans from './pages/Plans';
@@ -15,8 +17,13 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const isAuth = localStorage.getItem('subcontrol_auth') === 'true';
-  return isAuth ? <>{children}</> : <Navigate to="/login" />;
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-screen">Carregando...</div>;
+  }
+
+  return user ? <>{children}</> : <Navigate to="/login" />;
 };
 
 const App: React.FC = () => {
@@ -24,7 +31,8 @@ const App: React.FC = () => {
     <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+        <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/clientes" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
         <Route path="/planos" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
@@ -33,7 +41,7 @@ const App: React.FC = () => {
         <Route path="/fotos" element={<ProtectedRoute><Photos /></ProtectedRoute>} />
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
 
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/" element={<Navigate to="/fotos" />} />
       </Routes>
     </HashRouter>
   );

@@ -2,8 +2,25 @@
 export type CustomerStatus = 'ativo' | 'inativo';
 export type SubscriptionStatus = 'ativa' | 'vencida' | 'cancelada';
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  isAdmin: boolean;
+  createdAt: string;
+}
+
+export interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  register: (name: string, email: string, password: string, isAdmin: boolean) => Promise<void>;
+  isLoading: boolean;
+}
+
 export interface Customer {
   id: string;
+  userId: string;
   name: string;
   email: string;
   status: CustomerStatus;
@@ -13,6 +30,7 @@ export interface Customer {
 
 export interface Plan {
   id: string;
+  userId: string;
   name: string;
   price: number;
   active: boolean;
@@ -20,6 +38,7 @@ export interface Plan {
 
 export interface Subscription {
   id: string;
+  userId: string;
   customerId: string;
   planId: string;
   startDate: string;
@@ -29,6 +48,7 @@ export interface Subscription {
 
 export interface Payment {
   id: string;
+  userId: string;
   subscriptionId: string;
   amount: number;
   paidAt: string;
@@ -36,18 +56,21 @@ export interface Payment {
 
 export interface TagCategory {
   id: string;
+  userId: string;
   name: string;
   order: number; // Campo de hierarquia manual (1, 2, 3...)
 }
 
 export interface Tag {
   id: string;
+  userId: string;
   name: string;
   categoryId: string; // Referência à categoria pai
 }
 
 export interface Photo {
   id: string;
+  userId: string;
   name: string;
   url: string; // Base64 string para o mock
   tagIds: string[];

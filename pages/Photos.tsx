@@ -45,10 +45,10 @@ const Photos: React.FC = () => {
   }, []);
 
   // --- LÓGICA DE FILTRAGEM EM CASCATA ---
-  
+
   const filteredData = useMemo(() => {
     let currentPhotos = [...photos];
-    
+
     // 1. Filtro por texto (independente da hierarquia)
     if (searchTerm) {
       currentPhotos = currentPhotos.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -61,17 +61,17 @@ const Photos: React.FC = () => {
     categories.forEach((cat, index) => {
       const catTags = tags.filter(t => t.categoryId === cat.id);
       const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
-      
+
       if (selectedInCat.length > 0) {
-        currentPhotos = currentPhotos.filter(p => 
+        currentPhotos = currentPhotos.filter(p =>
           selectedInCat.some(tagId => p.tagIds.includes(tagId))
         );
       }
-      
+
       photosByLevel[cat.order] = [...currentPhotos];
     });
 
-    let tempPhotos = photos; 
+    let tempPhotos = photos;
     if (searchTerm) tempPhotos = tempPhotos.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     categories.forEach((cat, index) => {
@@ -84,7 +84,7 @@ const Photos: React.FC = () => {
       const catTags = tags.filter(t => t.categoryId === cat.id);
       const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
       if (selectedInCat.length > 0) {
-        tempPhotos = tempPhotos.filter(p => 
+        tempPhotos = tempPhotos.filter(p =>
           selectedInCat.some(tagId => p.tagIds.includes(tagId))
         );
       }
@@ -132,15 +132,15 @@ const Photos: React.FC = () => {
     setProcessingImage(true);
     try {
       const compressedUrl = await processAndCompressImage(file);
-      
+
       // Como o navegador não fornece o caminho real por segurança,
       // criamos um placeholder automático baseado no nome do arquivo
       // Ex: se o arquivo for "projeto_sala.jpg", vira "C:\PROJETOS\projeto_sala.jpg"
       const autoPath = `C:\\PROJETOS\\${file.name}`;
-      
-      setFormData(prev => ({ 
-        ...prev, 
-        url: compressedUrl, 
+
+      setFormData(prev => ({
+        ...prev,
+        url: compressedUrl,
         name: prev.name || file.name.split('.')[0],
         localPath: prev.localPath || autoPath // Preenche apenas se estiver vazio
       }));
@@ -161,7 +161,7 @@ const Photos: React.FC = () => {
   };
 
   const toggleFilterTag = (tagId: string) => {
-    setSelectedTagIds(prev => 
+    setSelectedTagIds(prev =>
       prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
     );
   };
@@ -206,27 +206,27 @@ const Photos: React.FC = () => {
         <Card className="p-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4 border-b border-slate-100 pb-4">
             <div className="flex-1 w-full max-w-md">
-              <Input 
-                placeholder="Pesquisar por nome do projeto..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
+              <Input
+                placeholder="Pesquisar por nome do projeto..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="py-1.5"
               />
             </div>
             <div className="flex gap-2">
-               {selectedTagIds.length > 0 && (
-                 <Button variant="outline" onClick={() => setSelectedTagIds([])} className="text-red-500 border-red-100 py-1.5 text-xs">Limpar Tudo</Button>
-               )}
-               <Button onClick={() => handleOpenModal()} className="py-1.5 text-xs">+ Novo Registro</Button>
+              {selectedTagIds.length > 0 && (
+                <Button variant="outline" onClick={() => setSelectedTagIds([])} className="text-red-500 border-red-100 py-1.5 text-xs">Limpar Tudo</Button>
+              )}
+              <Button onClick={() => handleOpenModal()} className="py-1.5 text-xs">+ Novo Registro</Button>
             </div>
           </div>
-          
+
           <div className="space-y-3">
             <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h18M3 12h18m-7 8h7" /></svg>
               Matriz de Filtragem Hierárquica
             </h3>
-            
+
             <div className="flex flex-col gap-1">
               {categories.map((cat, idx) => (
                 <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-slate-50/30 border border-slate-100 rounded-xl px-3 py-1 transition-all hover:border-blue-100 hover:bg-white">
@@ -236,23 +236,22 @@ const Photos: React.FC = () => {
                     </span>
                     <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-tighter truncate">{cat.name}</h4>
                   </div>
-                  
+
                   <div className="flex-1 md:pl-4 flex flex-wrap gap-x-1.5 gap-y-1 py-0.5">
                     {tags.filter(t => t.categoryId === cat.id).map(tag => {
                       const isSelected = selectedTagIds.includes(tag.id);
                       const isAvailable = filteredData.availableTagsByLevel[cat.order]?.has(tag.id);
-                      
+
                       if (!isAvailable && !isSelected) return null;
 
                       return (
                         <button
                           key={tag.id}
                           onClick={() => toggleFilterTag(tag.id)}
-                          className={`px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all flex items-center gap-1 ${
-                            isSelected
+                          className={`px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all flex items-center gap-1 ${isSelected
                               ? 'bg-blue-600 border-blue-600 text-white shadow-sm scale-105'
                               : 'bg-white border-slate-200 text-slate-500 hover:border-blue-300'
-                          }`}
+                            }`}
                         >
                           {isSelected && <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
                           {tag.name}
@@ -272,12 +271,12 @@ const Photos: React.FC = () => {
         {loading ? <LoadingSpinner /> : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filteredData.photos.map(photo => (
-              <Card 
-                key={photo.id} 
+              <Card
+                key={photo.id}
                 className="overflow-hidden group flex flex-col h-full hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer shadow-sm bg-white"
                 onClick={() => handleOpenModal(photo)}
               >
-                <div className="relative aspect-square bg-slate-50 overflow-hidden">
+                <div className="relative aspect-[4/3] bg-slate-50 overflow-hidden">
                   <img src={photo.url} alt={photo.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                   <div className="absolute top-2 right-2 flex gap-1">
                     {photo.localPath && (
@@ -290,13 +289,13 @@ const Photos: React.FC = () => {
                   <h4 className="text-[10px] font-black text-slate-800 truncate mb-2">{photo.name}</h4>
                   <div className="flex flex-wrap gap-1 mt-auto">
                     {photo.tagIds.slice(0, 3).map(tagId => {
-                       const tag = tags.find(t => t.id === tagId);
-                       const cat = categories.find(c => c.id === tag?.categoryId);
-                       return (
-                         <span key={tagId} className="px-1 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 rounded text-[7px] font-black uppercase">
-                           {cat?.order}.{tag?.name}
-                         </span>
-                       );
+                      const tag = tags.find(t => t.id === tagId);
+                      const cat = categories.find(c => c.id === tag?.categoryId);
+                      return (
+                        <span key={tagId} className="px-1 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 rounded text-[7px] font-black uppercase">
+                          {cat?.order}.{tag?.name}
+                        </span>
+                      );
                     })}
                   </div>
                 </div>
@@ -317,7 +316,7 @@ const Photos: React.FC = () => {
                       <img src={formData.url} className="w-full h-full object-cover" alt="Preview" />
                       {!editingPhoto && !processingImage && (
                         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center">
-                           <button type="button" onClick={() => setFormData(p => ({...p, url: '', name: ''}))} className="bg-white px-6 py-2 rounded-xl font-black text-[10px] uppercase shadow-2xl">Trocar</button>
+                          <button type="button" onClick={() => setFormData(p => ({ ...p, url: '', name: '' }))} className="bg-white px-6 py-2 rounded-xl font-black text-[10px] uppercase shadow-2xl">Trocar</button>
                         </div>
                       )}
                     </div>
@@ -331,10 +330,10 @@ const Photos: React.FC = () => {
                 </div>
               </div>
               <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5 shadow-sm">
-                <Input label="Título do Registro" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+                <Input label="Título do Registro" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">Caminho do Arquivo (Disco)</label>
-                  <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-mono min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500" placeholder="H:\PROJETOS\..." value={formData.localPath} onChange={e => setFormData({...formData, localPath: e.target.value})} />
+                  <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-mono min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500" placeholder="H:\PROJETOS\..." value={formData.localPath} onChange={e => setFormData({ ...formData, localPath: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -346,8 +345,8 @@ const Photos: React.FC = () => {
                   <div key={cat.id} className="flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden group/cat hover:border-blue-200 transition-all">
                     <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                         <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
-                         <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
+                        <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
+                        <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
                       </div>
                     </div>
                     <div className="p-4 flex flex-wrap gap-x-2 gap-y-1 min-h-[80px]">
@@ -358,9 +357,8 @@ const Photos: React.FC = () => {
                             key={tag.id}
                             type="button"
                             onClick={() => toggleModalTag(tag.id)}
-                            className={`px-4 py-2 rounded-2xl text-[10px] font-black border transition-all flex items-center gap-2 ${
-                              isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-blue-400 hover:text-blue-600'
-                            }`}
+                            className={`px-4 py-2 rounded-2xl text-[10px] font-black border transition-all flex items-center gap-2 ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-blue-400 hover:text-blue-600'
+                              }`}
                           >
                             {isSelected && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
                             {tag.name}

@@ -1,24 +1,29 @@
-
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { Button, Input, Card } from '../components/UI';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      localStorage.setItem('subcontrol_auth', 'true');
+    setError('');
+
+    try {
+      await login(email, password);
+      navigate('/fotos');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao fazer login');
+    } finally {
       setLoading(false);
-      navigate('/dashboard');
-    }, 1000);
+    }
   };
 
   return (
@@ -33,25 +38,31 @@ const Login: React.FC = () => {
 
       <Card className="w-full max-w-md p-8">
         <form onSubmit={handleLogin} className="space-y-6">
-          <Input 
-            label="Email" 
-            type="email" 
-            placeholder="seu@email.com" 
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <Input
+            label="Email ou Nome de Usuário"
+            type="text"
+            placeholder="admin"
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
           />
-          <Input 
-            label="Senha" 
-            type="password" 
-            placeholder="••••••••" 
+          <Input
+            label="Senha"
+            type="password"
+            placeholder="••••••••"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
           />
-          <Button 
-            type="submit" 
-            className="w-full py-3 text-lg" 
+          <Button
+            type="submit"
+            className="w-full py-3 text-lg"
             disabled={loading}
           >
             {loading ? 'Entrando...' : 'Entrar na plataforma'}
@@ -60,15 +71,17 @@ const Login: React.FC = () => {
 
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
           <p className="text-sm text-slate-400">
-            Ambiente de demonstração. Use qualquer dado para logar.
+            Acesso restrito a usuários autorizados.
+            <br />
+            <strong>Login padrão:</strong> admin / admin
           </p>
         </div>
       </Card>
-      
+
       <p className="mt-8 text-sm text-slate-400">
         &copy; {new Date().getFullYear()} SubControl Inc. Todos os direitos reservados.
       </p>
-    </div>
+    </div >
   );
 };
 
