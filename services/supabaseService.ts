@@ -489,7 +489,7 @@ export const supabaseService: SubControlService = {
     let query = supabase
       .from('tags')
       .select('*')
-      .order('name');
+      .order('created_at', { ascending: true });
 
     if (!admin && !isVisitor()) {
       query = query.eq('user_id', userId);
