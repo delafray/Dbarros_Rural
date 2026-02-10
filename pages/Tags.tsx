@@ -1,11 +1,12 @@
-
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Tag, TagCategory } from '../types';
 import { Card, LoadingSpinner, Button, Input, Modal } from '../components/UI';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 const Tags: React.FC = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<TagCategory[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -31,8 +32,10 @@ const Tags: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!user?.isVisitor) {
+      fetchData();
+    }
+  }, [user]);
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +95,17 @@ const Tags: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
+  if (user?.isVisitor) {
+    return (
+      <Layout title="Acesso Negado">
+        <div className="text-center py-12">
+          <h2 className="text-xl font-bold text-red-600">Visitantes não têm permissão para gerenciar tags.</h2>
+          <p className="text-slate-500 mt-2">Esta seção é reservada para administradores e editores.</p>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="Hierarquia de Tags">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -100,18 +114,18 @@ const Tags: React.FC = () => {
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Gerenciar Hierarquia</h3>
             <form onSubmit={handleCreateCategory} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
               <p className="text-[10px] font-bold text-blue-600 uppercase">Nova Categoria de Nível</p>
-              <Input 
+              <Input
                 label="Nome da Categoria"
-                placeholder="Ex: Tipologia, Tamanho..." 
-                value={newCatName} 
+                placeholder="Ex: Tipologia, Tamanho..."
+                value={newCatName}
                 onChange={e => setNewCatName(e.target.value)}
                 required
               />
-              <Input 
+              <Input
                 label="Prioridade (1 = Primário)"
                 type="number"
                 min="1"
-                value={newCatOrder} 
+                value={newCatOrder}
                 onChange={e => setNewCatOrder(parseInt(e.target.value) || 1)}
                 required
               />
@@ -119,7 +133,7 @@ const Tags: React.FC = () => {
                 Definir Categoria
               </Button>
             </form>
-            
+
             <div className="space-y-2">
               <p className="text-[10px] font-bold text-slate-400 uppercase px-1">Ordem de Filtro</p>
               {categories.map(cat => (
@@ -147,9 +161,9 @@ const Tags: React.FC = () => {
             <Card className="p-6">
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Adicionar Tags ao Nível {categories.find(c => c.id === selectedCatId)?.order}</h3>
               <form onSubmit={handleCreateTag} className="space-y-4">
-                <Input 
-                  placeholder="Ex: Construído, 20m²..." 
-                  value={newTagName} 
+                <Input
+                  placeholder="Ex: Construído, 20m²..."
+                  value={newTagName}
                   onChange={e => setNewTagName(e.target.value)}
                   required
                 />
@@ -165,16 +179,16 @@ const Tags: React.FC = () => {
           {loading ? <LoadingSpinner /> : (
             <div className="space-y-3">
               <div className="flex items-center gap-3 bg-blue-50 p-4 rounded-2xl border border-blue-100 text-blue-700 mb-4">
-                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                 <p className="text-xs font-medium">Os filtros da galeria seguirão a numeração abaixo. O Nível 1 filtra o Nível 2, e assim por diante.</p>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <p className="text-xs font-medium">Os filtros da galeria seguirão a numeração abaixo. O Nível 1 filtra o Nível 2, e assim por diante.</p>
               </div>
-              
+
               {categories.map(cat => (
                 <Card key={cat.id} className={selectedCatId === cat.id ? 'ring-2 ring-blue-500 shadow-lg' : ''}>
                   <div className="px-6 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div className="flex items-center gap-4">
-                       <span className="bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter">Nível {cat.order}</span>
-                       <h3 className="text-lg font-bold text-slate-800">{cat.name}</h3>
+                      <span className="bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter">Nível {cat.order}</span>
+                      <h3 className="text-lg font-bold text-slate-800">{cat.name}</h3>
                     </div>
                     <span className="text-xs font-semibold text-slate-400 uppercase">{tags.filter(t => t.categoryId === cat.id).length} OPÇÕES</span>
                   </div>
@@ -182,7 +196,7 @@ const Tags: React.FC = () => {
                     {tags.filter(t => t.categoryId === cat.id).map(tag => (
                       <div key={tag.id} className="group flex items-center bg-white text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all">
                         <span className="font-bold text-sm">{tag.name}</span>
-                        <button 
+                        <button
                           onClick={() => handleDeleteTag(tag.id)}
                           className="ml-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -202,28 +216,28 @@ const Tags: React.FC = () => {
       </div>
 
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Nível Hierárquico">
-         {editingCat && (
-            <form onSubmit={handleUpdateCategory} className="space-y-4">
-               <Input 
-                  label="Nome"
-                  value={editingCat.name}
-                  onChange={e => setEditingCat({...editingCat, name: e.target.value})}
-                  required
-               />
-               <Input 
-                  label="Nível de Prioridade"
-                  type="number"
-                  min="1"
-                  value={editingCat.order}
-                  onChange={e => setEditingCat({...editingCat, order: parseInt(e.target.value) || 1})}
-                  required
-               />
-               <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" type="button" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" disabled={saving}>Salvar Alterações</Button>
-               </div>
-            </form>
-         )}
+        {editingCat && (
+          <form onSubmit={handleUpdateCategory} className="space-y-4">
+            <Input
+              label="Nome"
+              value={editingCat.name}
+              onChange={e => setEditingCat({ ...editingCat, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Nível de Prioridade"
+              type="number"
+              min="1"
+              value={editingCat.order}
+              onChange={e => setEditingCat({ ...editingCat, order: parseInt(e.target.value) || 1 })}
+              required
+            />
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" type="button" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>Salvar Alterações</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </Layout>
   );

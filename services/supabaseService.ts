@@ -36,6 +36,14 @@ function isAdmin(): boolean {
   return user.isAdmin === true;
 }
 
+// Helper function to check if user is visitor
+function isVisitor(): boolean {
+  const userJson = localStorage.getItem('subcontrol_user');
+  if (!userJson) return false;
+  const user = JSON.parse(userJson);
+  return user.isVisitor === true;
+}
+
 export const supabaseService: SubControlService = {
   // ==================== CUSTOMERS ====================
   getCustomers: async () => {
@@ -400,7 +408,7 @@ export const supabaseService: SubControlService = {
       .select('*')
       .order('created_at', { ascending: true });
 
-    if (!admin) {
+    if (!admin && !isVisitor()) {
       query = query.eq('user_id', userId);
     }
 
@@ -483,7 +491,7 @@ export const supabaseService: SubControlService = {
       .select('*')
       .order('name');
 
-    if (!admin) {
+    if (!admin && !isVisitor()) {
       query = query.eq('user_id', userId);
     }
 
@@ -548,7 +556,7 @@ export const supabaseService: SubControlService = {
         )
       `);
 
-    if (!admin || onlyMine) {
+    if ((!admin && !isVisitor()) || onlyMine) {
       query = query.eq('user_id', userId);
     }
 

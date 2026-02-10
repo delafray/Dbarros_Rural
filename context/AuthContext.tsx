@@ -3,7 +3,7 @@ import { authService, User } from '../services/authService';
 
 interface AuthContextType {
     user: User | null;
-    login: (email: string, password: string) => Promise<void>;
+    login: (identifier: string, password: string) => Promise<void>;
     logout: () => void;
     register: (name: string, email: string, password: string, isAdmin: boolean) => Promise<void>;
     isLoading: boolean;
@@ -22,8 +22,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
     }, []);
 
-    const login = async (email: string, password: string) => {
-        const user = await authService.login(email, password);
+    const login = async (identifier: string, password: string) => {
+        const user = await authService.login(identifier, password);
         setUser(user);
         localStorage.setItem('subcontrol_auth', 'true'); // For backward compatibility
     };

@@ -60,26 +60,22 @@ export const authService = {
     },
 
     // Login user
-    login: async (email: string, password: string): Promise<User> => {
+    login: async (identifier: string, password: string): Promise<User> => {
         const passwordHash = await hashPassword(password);
 
         const { data, error } = await supabase
             .from('users')
             .select('*')
-            .eq('email', email)
+            .or(`email.eq.${identifier},name.ilike.${identifier}`)
             .eq('password_hash', passwordHash)
             .single();
 
         if (error || !data) {
-            throw new Error('Email ou senha inválidos');
+            throw new Error('E-mail, usuário ou senha inválidos');
         }
 
         if (data.is_active === false) {
             throw new Error('Conta inativa. Contate o administrador.');
-        }
-
-        if (error || !data) {
-            throw new Error('Email ou senha inválidos');
         }
 
         const user: User = {

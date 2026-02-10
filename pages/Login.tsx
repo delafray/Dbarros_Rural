@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button, Input, Card } from '../components/UI';
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ const Login: React.FC = () => {
     setError('');
 
     try {
-      await login(email, password);
+      await login(identifier, password);
       navigate('/fotos');
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
@@ -48,8 +48,8 @@ const Login: React.FC = () => {
             label="Email ou Nome de Usuário"
             type="text"
             placeholder="admin"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
+            value={identifier}
+            onChange={e => setIdentifier(e.target.value)}
             required
           />
           <Input
