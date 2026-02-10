@@ -64,6 +64,8 @@ const Photos: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
 
   // Pagination state based on filtered results
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
@@ -263,6 +265,11 @@ const Photos: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleOpenPreview = (photo: Photo) => {
+    setPreviewPhoto(photo);
+    setIsPreviewOpen(true);
+  };
+
   const toggleFilterTag = (tagId: string) => {
     setSelectedTagIds(prev =>
       prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
@@ -398,7 +405,7 @@ const Photos: React.FC = () => {
               <Card
                 key={photo.id}
                 className="overflow-hidden group flex flex-col h-full hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer shadow-sm bg-white"
-                onClick={() => handleOpenModal(photo)}
+                onClick={() => handleOpenPreview(photo)}
                 ref={idx === hydratedPhotos.length - 1 ? (el) => {
                   if (el) {
                     const observer = new IntersectionObserver((entries) => {
@@ -417,10 +424,10 @@ const Photos: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        window.open(photo.url, '_blank');
+                        handleOpenModal(photo);
                       }}
-                      className="p-1.5 bg-green-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-green-700"
-                      title="Abrir foto completa"
+                      className="p-1.5 bg-blue-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-blue-700"
+                      title="Editar registro"
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -428,9 +435,9 @@ const Photos: React.FC = () => {
                       </svg>
                     </button>
                     {photo.localPath && (
-                      <button onClick={(e) => copyToClipboard(e, photo.localPath!)} className="p-1.5 bg-blue-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-blue-700"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></button>
+                      <button onClick={(e) => copyToClipboard(e, photo.localPath!)} className="p-1.5 bg-slate-800/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-slate-900" title="Copiar caminho local"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></button>
                     )}
-                    <button onClick={(e) => handleDelete(e, photo.id)} className="p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-700"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                    <button onClick={(e) => handleDelete(e, photo.id)} className="p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-700" title="Excluir"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                   </div>
                 </div>
                 <div className="p-3 flex flex-col flex-1">
@@ -531,6 +538,48 @@ const Photos: React.FC = () => {
             </div>
           </div>
         </form>
+      </Modal>
+      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={previewPhoto?.name || 'Vistas'} maxWidth="max-w-7xl">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-full max-h-[80vh] bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center">
+            <img
+              src={previewPhoto?.url}
+              alt={previewPhoto?.name}
+              className="max-w-full max-h-[80vh] object-contain cursor-zoom-out"
+              onClick={() => setIsPreviewOpen(false)}
+            />
+            <button
+              onClick={() => setIsPreviewOpen(false)}
+              className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-all shadow-xl backdrop-blur-md"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2 mt-2">
+            {previewPhoto?.tagIds.map(tagId => {
+              const tag = tags.find(t => t.id === tagId);
+              const cat = categories.find(c => c.id === tag?.categoryId);
+              return (
+                <Badge key={tagId} color="blue">
+                  {cat?.name}: {tag?.name}
+                </Badge>
+              );
+            })}
+          </div>
+          <div className="flex gap-4 mt-2">
+            <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Abrir Original
+            </Button>
+            <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }}>
+              Editar Registro
+            </Button>
+          </div>
+        </div>
       </Modal>
     </Layout>
   );
