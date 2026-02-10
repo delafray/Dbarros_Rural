@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { Photo, Tag, TagCategory } from '../types';
 import { Card, LoadingSpinner, Badge, Button, Input, Modal } from '../components/UI';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 const MAX_DIMENSION = 1280;
 const THUMB_SIZE = 300;
@@ -52,6 +53,7 @@ const generateThumbnail = (file: File): Promise<string> => {
 const PHOTOS_PER_PAGE = 24;
 
 const Photos: React.FC = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [photoIndex, setPhotoIndex] = useState<Array<{ id: string; name: string; tagIds: string[] }>>([]);
@@ -66,6 +68,7 @@ const Photos: React.FC = () => {
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
+  const [onlyMine, setOnlyMine] = useState(false);
 
   // Pagination state based on filtered results
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
@@ -83,7 +86,7 @@ const Photos: React.FC = () => {
     setLoading(true);
     try {
       const [index, t, c] = await Promise.all([
-        api.getPhotoIndex(),
+        api.getPhotoIndex(onlyMine),
         api.getTags(),
         api.getTagCategories()
       ]);
@@ -97,7 +100,7 @@ const Photos: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [onlyMine]);
 
   // --- LÓGICA DE FILTRAGEM USANDO O INDEX ---
 
@@ -344,6 +347,20 @@ const Photos: React.FC = () => {
                 className="py-1.5"
               />
             </div>
+            {user?.isAdmin && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
+                <input
+                  type="checkbox"
+                  id="onlyMine"
+                  checked={onlyMine}
+                  onChange={e => setOnlyMine(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                />
+                <label htmlFor="onlyMine" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
+                  Apenas meus registros
+                </label>
+              </div>
+            )}
             <div className="flex gap-2">
               {selectedTagIds.length > 0 && (
                 <Button variant="outline" onClick={() => setSelectedTagIds([])} className="text-red-500 border-red-100 py-1.5 text-xs">Limpar Tudo</Button>

@@ -124,7 +124,7 @@ export interface SubControlService {
   deleteTag: (id: string) => Promise<void>;
 
   // Photos
-  getPhotoIndex: () => Promise<Array<{ id: string; name: string; tagIds: string[] }>>;
+  getPhotoIndex: (onlyMine?: boolean) => Promise<Array<{ id: string; name: string; tagIds: string[] }>>;
   getPhotosByIds: (ids: string[]) => Promise<Photo[]>;
   getPhotos: () => Promise<Photo[]>;
   uploadPhotoFile: (file: File) => Promise<string>;

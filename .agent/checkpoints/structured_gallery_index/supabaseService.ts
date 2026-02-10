@@ -534,7 +534,7 @@ export const supabaseService: SubControlService = {
   },
 
   // ==================== PHOTOS ====================
-  getPhotoIndex: async () => {
+  getPhotoIndex: async (onlyMine?: boolean) => {
     const userId = getCurrentUserId();
     const admin = isAdmin();
 
@@ -548,7 +548,7 @@ export const supabaseService: SubControlService = {
         )
       `);
 
-    if (!admin) {
+    if (!admin || onlyMine) {
       query = query.eq('user_id', userId);
     }
 
