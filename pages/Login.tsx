@@ -33,7 +33,7 @@ const Login: React.FC = () => {
           S
         </div>
         <h1 className="text-3xl font-bold text-slate-900">SubControl</h1>
-        <p className="text-slate-500">Gestão simplificada de assinaturas</p>
+        <p className="text-slate-500">Gestão simplificada de projetos</p>
       </div>
 
       <Card className="w-full max-w-md p-8">

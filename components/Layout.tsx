@@ -57,7 +57,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
           {/* Hidden for now
           <NavItem to="/clientes" label="Clientes" icon={UsersListIcon} />
           <NavItem to="/planos" label="Planos" icon={PackageIcon} />
-          <NavItem to="/assinaturas" label="Assinaturas" icon={CreditCardIcon} />
+          <NavItem to="/projetos" label="Projetos" icon={CreditCardIcon} />
           <NavItem to="/pagamentos" label="Pagamentos" icon={HistoryIcon} />
           */}
 
