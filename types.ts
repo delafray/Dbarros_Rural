@@ -79,6 +79,7 @@ export interface Photo {
   localPath?: string; // Novo campo para caminho do Windows/Rede
   thumbnailUrl?: string; // Nova miniatura
   createdAt: string;
+  userName?: string;
 }
 
 export interface DashboardStats {

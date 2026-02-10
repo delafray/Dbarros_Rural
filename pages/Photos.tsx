@@ -680,7 +680,13 @@ const Photos: React.FC = () => {
               );
             })}
           </div>
-          <div className="flex gap-3 mt-1">
+          <div className="flex items-center gap-3 mt-1">
+            {previewPhoto?.userName && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 mr-2">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cadastrado por:</span>
+                <span className="text-[9px] font-bold text-slate-600">{previewPhoto.userName}</span>
+              </div>
+            )}
             <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />

@@ -577,6 +577,9 @@ export const supabaseService: SubControlService = {
       .from('photos')
       .select(`
         *,
+        users (
+          name
+        ),
         photo_tags (
           tag_id
         )
@@ -590,6 +593,7 @@ export const supabaseService: SubControlService = {
       id: row.id,
       userId: row.user_id,
       name: row.name,
+      userName: row.users?.name,
       url: row.url,
       thumbnailUrl: row.thumbnail_url || undefined,
       localPath: row.local_path || undefined,
@@ -608,6 +612,9 @@ export const supabaseService: SubControlService = {
       .from('photos')
       .select(`
         *,
+        users (
+          name
+        ),
         photo_tags (
           tag_id
         )
@@ -626,6 +633,7 @@ export const supabaseService: SubControlService = {
       id: row.id,
       userId: row.user_id,
       name: row.name,
+      userName: row.users?.name,
       url: row.url,
       thumbnailUrl: row.thumbnail_url,
       localPath: row.local_path,
