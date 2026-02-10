@@ -281,44 +281,84 @@ const Photos: React.FC = () => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 20;
-    const imageWidth = (pageWidth - (margin * 2));
-    const imageHeight = 100; // Fixed height for photos in PDF
 
     setProcessingImage(true);
 
     try {
+      // Helper to load images
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = src;
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+        });
+      };
+
+      // Load Masks
+      const maskTopo = await loadImage('/assets/mascara_topo.jpg');
+      const maskBase = await loadImage('/assets/mascara_base.jpg');
+
+      const addMasks = () => {
+        // Top Mask - Full width, maintaining aspect ratio or fixed height?
+        // Let's assume user wants them to cover the full width.
+        const topoHeight = (maskTopo.height * pageWidth) / maskTopo.width;
+        doc.addImage(maskTopo, 'JPEG', 0, 0, pageWidth, topoHeight);
+
+        // Bottom Mask
+        const baseHeight = (maskBase.height * pageWidth) / maskBase.width;
+        doc.addImage(maskBase, 'JPEG', 0, pageHeight - baseHeight, pageWidth, baseHeight);
+
+        return { topoHeight, baseHeight };
+      };
+
+      let masks = addMasks();
+
+      // Adjust photo layout area
+      const availableHeight = pageHeight - masks.topoHeight - masks.baseHeight - (margin * 2);
+      const photosPerPage = 2; // Keep 2 per page for now
+      const imageHeight = (availableHeight - margin) / photosPerPage;
+      const imageWidth = (pageWidth - (margin * 2));
+
       for (let i = 0; i < photosToExport.length; i++) {
-        if (i > 0 && i % 2 === 0) {
+        if (i > 0 && i % photosPerPage === 0) {
           doc.addPage();
+          masks = addMasks();
         }
 
         const photo = photosToExport[i];
-        const yOffset = (i % 2) * 140 + margin;
+        const relativeIdx = i % photosPerPage;
+        const yOffset = masks.topoHeight + margin + (relativeIdx * (imageHeight + margin));
 
         // Draw Photo Name
-        doc.setFontSize(12);
+        doc.setFontSize(10);
         doc.text(photo.name, margin, yOffset - 5);
 
-        // Load Image
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = photo.url;
+        // Load Photo
+        const img = await loadImage(photo.url);
 
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-        });
+        // Calculate aspect ratio for photo to fit in box
+        let drawWidth = imageWidth;
+        let drawHeight = (img.height * imageWidth) / img.width;
 
-        // Draw Image
-        doc.addImage(img, 'JPEG', margin, yOffset, imageWidth, imageHeight);
+        if (drawHeight > imageHeight) {
+          drawHeight = imageHeight;
+          drawWidth = (img.width * imageHeight) / img.height;
+        }
+
+        // Draw Image (Centered horizontally in its slot)
+        const xOffset = margin + (imageWidth - drawWidth) / 2;
+        doc.addImage(img, 'JPEG', xOffset, yOffset, drawWidth, drawHeight);
       }
 
       doc.save(`galeria_selecionada_${new Date().getTime()}.pdf`);
       setSelectedExportIds(new Set());
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
-      alert('Erro ao gerar PDF. Verifique se as imagens estão acessíveis.');
+      alert('Erro ao gerar PDF. Verifique se as imagens das máscaras e das fotos estão acessíveis.');
     } finally {
       setProcessingImage(false);
     }
