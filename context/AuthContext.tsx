@@ -38,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(newUser);
         localStorage.setItem('subcontrol_auth', 'true');
         localStorage.setItem('subcontrol_user', JSON.stringify(newUser));
+        localStorage.setItem('subcontrol_login_time', Date.now().toString());
+
     };
 
     return (

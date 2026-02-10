@@ -9,6 +9,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+const SESSION_DURATION = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
+const LOGIN_TIME_KEY = 'subcontrol_login_time';
+
+
 export interface User {
     id: string;
     name: string;
@@ -88,8 +92,10 @@ export const authService = {
             createdAt: data.created_at
         };
 
-        // Store user in localStorage
+        // Store user and login time in localStorage
         localStorage.setItem('subcontrol_user', JSON.stringify(user));
+        localStorage.setItem(LOGIN_TIME_KEY, Date.now().toString());
+
 
         return user;
     },
@@ -98,12 +104,25 @@ export const authService = {
     logout: (): void => {
         localStorage.removeItem('subcontrol_user');
         localStorage.removeItem('subcontrol_auth');
+        localStorage.removeItem(LOGIN_TIME_KEY);
     },
+
 
     // Get current logged in user
     getCurrentUser: (): User | null => {
         const userJson = localStorage.getItem('subcontrol_user');
-        if (!userJson) return null;
+        const loginTime = localStorage.getItem(LOGIN_TIME_KEY);
+
+        if (!userJson || !loginTime) return null;
+
+        // Check for session expiration
+        const currentTime = Date.now();
+        const sessionAge = currentTime - parseInt(loginTime, 10);
+
+        if (sessionAge > SESSION_DURATION) {
+            authService.logout();
+            return null;
+        }
 
         try {
             return JSON.parse(userJson) as User;
@@ -111,6 +130,7 @@ export const authService = {
             return null;
         }
     },
+
 
     // Get all users (admin only)
     getAllUsers: async (): Promise<User[]> => {
