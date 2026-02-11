@@ -100,7 +100,8 @@ When auto-applying an agent, inform the user:
 When user's prompt is NOT in English:
 
 1. **Internally translate** for better comprehension
-2. **Respond in user's language** - match their communication
+2. **Respond in user's language** - match their communication.
+   - **MANDATORY**: For Portuguese, all responses and `.md` files must follow the standard **Português (Brasil)** style. Refer to `@[agents/brazilian-dev]` for style guidelines.
 3. **Code comments/variables** remain in English
 
 ### 🧹 Clean Code (Global Mandatory)
