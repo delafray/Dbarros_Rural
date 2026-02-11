@@ -29,11 +29,12 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="mb-8 text-center">
-        <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-          S
-        </div>
-        <h1 className="text-3xl font-bold text-slate-900">SubControl</h1>
-        <p className="text-slate-500">Gestão simplificada de projetos</p>
+        <img
+          src="assets/logo.jpg"
+          alt="Logo Galeria de Fotos"
+          className="w-24 h-24 object-contain mx-auto mb-4 rounded-2xl shadow-lg"
+        />
+        <h1 className="text-3xl font-bold text-slate-900">Galeria de Fotos</h1>
       </div>
 
       <Card className="w-full max-w-md p-8">
@@ -79,7 +80,7 @@ const Login: React.FC = () => {
       </Card>
 
       <p className="mt-8 text-sm text-slate-400">
-        &copy; {new Date().getFullYear()} SubControl Inc. Todos os direitos reservados.
+        &copy; {new Date().getFullYear()} Galeria de Fotos. Todos os direitos reservados.
       </p>
     </div >
   );

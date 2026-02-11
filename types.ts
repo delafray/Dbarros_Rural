@@ -18,42 +18,6 @@ export interface AuthContextType {
   isLoading: boolean;
 }
 
-export interface Customer {
-  id: string;
-  userId: string;
-  name: string;
-  email: string;
-  status: CustomerStatus;
-  notes?: string;
-  createdAt: string;
-}
-
-export interface Plan {
-  id: string;
-  userId: string;
-  name: string;
-  price: number;
-  active: boolean;
-}
-
-export interface Subscription {
-  id: string;
-  userId: string;
-  customerId: string;
-  planId: string;
-  startDate: string;
-  nextRenewal: string;
-  status: SubscriptionStatus;
-}
-
-export interface Payment {
-  id: string;
-  userId: string;
-  subscriptionId: string;
-  amount: number;
-  paidAt: string;
-}
-
 export interface TagCategory {
   id: string;
   userId: string;
@@ -74,7 +38,7 @@ export interface Photo {
   id: string;
   userId: string;
   name: string;
-  url: string; // Base64 string para o mock
+  url: string; // Base64 string para o mock ou URL real
   tagIds: string[];
   localPath?: string; // Novo campo para caminho do Windows/Rede
   thumbnailUrl?: string; // Nova miniatura
@@ -82,37 +46,7 @@ export interface Photo {
   userName?: string;
 }
 
-export interface DashboardStats {
-  totalCustomers: number;
-  activeSubscriptions: number;
-  overdueSubscriptions: number;
-  mrr: number;
-}
-
-export interface SubControlService {
-  // Customers
-  getCustomers: () => Promise<Customer[]>;
-  createCustomer: (data: Omit<Customer, 'id' | 'createdAt'>) => Promise<Customer>;
-  updateCustomer: (id: string, data: Partial<Customer>) => Promise<Customer>;
-  deleteCustomer: (id: string) => Promise<void>;
-
-  // Plans
-  getPlans: () => Promise<Plan[]>;
-  createPlan: (data: Omit<Plan, 'id'>) => Promise<Plan>;
-  updatePlan: (id: string, data: Partial<Plan>) => Promise<Plan>;
-  deletePlan: (id: string) => Promise<void>;
-
-  // Subscriptions
-  getSubscriptions: () => Promise<Subscription[]>;
-  createSubscription: (data: Omit<Subscription, 'id'>) => Promise<Subscription>;
-  updateSubscription: (id: string, data: Partial<Subscription>) => Promise<Subscription>;
-  deleteSubscription: (id: string) => Promise<void>;
-
-  // Payments
-  getPayments: () => Promise<Payment[]>;
-  createPayment: (data: Omit<Payment, 'id'>) => Promise<Payment>;
-  listPaymentsBySubscription: (subscriptionId: string) => Promise<Payment[]>;
-
+export interface GalleryService {
   // Tag Categories
   getTagCategories: () => Promise<TagCategory[]>;
   createTagCategory: (name: string, order: number) => Promise<TagCategory>;

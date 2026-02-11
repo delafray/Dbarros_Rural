@@ -4,11 +4,6 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Users from './pages/Users';
 import { useAuth } from './context/AuthContext';
-import Dashboard from './pages/Dashboard';
-import Customers from './pages/Customers';
-import Plans from './pages/Plans';
-import Subscriptions from './pages/Subscriptions';
-import Payments from './pages/Payments';
 import Photos from './pages/Photos';
 import Tags from './pages/Tags';
 
@@ -33,11 +28,6 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
 
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/clientes" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-        <Route path="/planos" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
-        <Route path="/assinaturas" element={<ProtectedRoute><Subscriptions /></ProtectedRoute>} />
-        <Route path="/pagamentos" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
         <Route path="/fotos" element={<ProtectedRoute><Photos /></ProtectedRoute>} />
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
 

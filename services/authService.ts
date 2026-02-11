@@ -10,7 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const SESSION_DURATION = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
-const LOGIN_TIME_KEY = 'subcontrol_login_time';
+const LOGIN_TIME_KEY = 'gallery_login_time';
 
 
 export interface User {
@@ -93,7 +93,7 @@ export const authService = {
         };
 
         // Store user and login time in localStorage
-        localStorage.setItem('subcontrol_user', JSON.stringify(user));
+        localStorage.setItem('gallery_user', JSON.stringify(user));
         localStorage.setItem(LOGIN_TIME_KEY, Date.now().toString());
 
 
@@ -102,15 +102,15 @@ export const authService = {
 
     // Logout user
     logout: (): void => {
-        localStorage.removeItem('subcontrol_user');
-        localStorage.removeItem('subcontrol_auth');
+        localStorage.removeItem('gallery_user');
+        localStorage.removeItem('gallery_auth');
         localStorage.removeItem(LOGIN_TIME_KEY);
     },
 
 
     // Get current logged in user
     getCurrentUser: (): User | null => {
-        const userJson = localStorage.getItem('subcontrol_user');
+        const userJson = localStorage.getItem('gallery_user');
         const loginTime = localStorage.getItem(LOGIN_TIME_KEY);
 
         if (!userJson || !loginTime) return null;

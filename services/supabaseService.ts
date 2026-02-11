@@ -1,10 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type {
-  SubControlService,
-  Customer,
-  Plan,
-  Subscription,
-  Payment,
+  GalleryService,
   TagCategory,
   Tag,
   Photo
@@ -22,7 +18,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper function to get current user ID
 function getCurrentUserId(): string {
-  const userJson = localStorage.getItem('subcontrol_user');
+  const userJson = localStorage.getItem('gallery_user');
   if (!userJson) throw new Error('User not authenticated');
   const user = JSON.parse(userJson);
   return user.id;
@@ -30,7 +26,7 @@ function getCurrentUserId(): string {
 
 // Helper function to check if user is admin
 function isAdmin(): boolean {
-  const userJson = localStorage.getItem('subcontrol_user');
+  const userJson = localStorage.getItem('gallery_user');
   if (!userJson) return false;
   const user = JSON.parse(userJson);
   return user.isAdmin === true;
@@ -38,366 +34,13 @@ function isAdmin(): boolean {
 
 // Helper function to check if user is visitor
 function isVisitor(): boolean {
-  const userJson = localStorage.getItem('subcontrol_user');
+  const userJson = localStorage.getItem('gallery_user');
   if (!userJson) return false;
   const user = JSON.parse(userJson);
   return user.isVisitor === true;
 }
 
-export const supabaseService: SubControlService = {
-  // ==================== CUSTOMERS ====================
-  getCustomers: async () => {
-    const userId = getCurrentUserId();
-    const admin = isAdmin();
-
-    let query = supabase
-      .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    // If not admin, filter by user_id
-    if (!admin) {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw new Error(`Failed to fetch customers: ${error.message}`);
-
-    return data.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      name: row.name,
-      email: row.email,
-      status: row.status,
-      notes: row.notes,
-      createdAt: row.created_at
-    }));
-  },
-
-  createCustomer: async (data) => {
-    const userId = getCurrentUserId();
-
-    const { data: newCustomer, error } = await supabase
-      .from('customers')
-      .insert({
-        user_id: userId,
-        name: data.name,
-        email: data.email,
-        status: data.status,
-        notes: data.notes
-      })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create customer: ${error.message}`);
-
-    return {
-      id: newCustomer.id,
-      userId: newCustomer.user_id,
-      name: newCustomer.name,
-      email: newCustomer.email,
-      status: newCustomer.status,
-      notes: newCustomer.notes,
-      createdAt: newCustomer.created_at
-    };
-  },
-
-  updateCustomer: async (id, data) => {
-    const updateData: any = {};
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.email !== undefined) updateData.email = data.email;
-    if (data.status !== undefined) updateData.status = data.status;
-    if (data.notes !== undefined) updateData.notes = data.notes;
-
-    const { data: updatedCustomer, error } = await supabase
-      .from('customers')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to update customer: ${error.message}`);
-
-    return {
-      id: updatedCustomer.id,
-      userId: updatedCustomer.user_id,
-      name: updatedCustomer.name,
-      email: updatedCustomer.email,
-      status: updatedCustomer.status,
-      notes: updatedCustomer.notes,
-      createdAt: updatedCustomer.created_at
-    };
-  },
-
-  deleteCustomer: async (id) => {
-    const { error } = await supabase
-      .from('customers')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw new Error(`Failed to delete customer: ${error.message}`);
-  },
-
-  // ==================== PLANS ====================
-  getPlans: async () => {
-    const userId = getCurrentUserId();
-    const admin = isAdmin();
-
-    let query = supabase
-      .from('plans')
-      .select('*')
-      .order('name');
-
-    if (!admin) {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw new Error(`Failed to fetch plans: ${error.message}`);
-
-    return data.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      name: row.name,
-      price: parseFloat(row.price),
-      active: row.active
-    }));
-  },
-
-  createPlan: async (data) => {
-    const userId = getCurrentUserId();
-
-    const { data: newPlan, error } = await supabase
-      .from('plans')
-      .insert({
-        user_id: userId,
-        name: data.name,
-        price: data.price,
-        active: data.active
-      })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create plan: ${error.message}`);
-
-    return {
-      id: newPlan.id,
-      userId: newPlan.user_id,
-      name: newPlan.name,
-      price: parseFloat(newPlan.price),
-      active: newPlan.active
-    };
-  },
-
-  updatePlan: async (id, data) => {
-    const updateData: any = {};
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.price !== undefined) updateData.price = data.price;
-    if (data.active !== undefined) updateData.active = data.active;
-
-    const { data: updatedPlan, error } = await supabase
-      .from('plans')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to update plan: ${error.message}`);
-
-    return {
-      id: updatedPlan.id,
-      userId: updatedPlan.user_id,
-      name: updatedPlan.name,
-      price: parseFloat(updatedPlan.price),
-      active: updatedPlan.active
-    };
-  },
-
-  deletePlan: async (id) => {
-    const { error } = await supabase
-      .from('plans')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw new Error(`Failed to delete plan: ${error.message}`);
-  },
-
-  // ==================== SUBSCRIPTIONS ====================
-  getSubscriptions: async () => {
-    const userId = getCurrentUserId();
-    const admin = isAdmin();
-
-    let query = supabase
-      .from('subscriptions')
-      .select('*')
-      .order('start_date', { ascending: false });
-
-    if (!admin) {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw new Error(`Failed to fetch subscriptions: ${error.message}`);
-
-    return data.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      customerId: row.customer_id,
-      planId: row.plan_id,
-      startDate: row.start_date,
-      nextRenewal: row.next_renewal,
-      status: row.status
-    }));
-  },
-
-  createSubscription: async (data) => {
-    const userId = getCurrentUserId();
-
-    const { data: newSubscription, error } = await supabase
-      .from('subscriptions')
-      .insert({
-        user_id: userId,
-        customer_id: data.customerId,
-        plan_id: data.planId,
-        start_date: data.startDate,
-        next_renewal: data.nextRenewal,
-        status: data.status
-      })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create subscription: ${error.message}`);
-
-    return {
-      id: newSubscription.id,
-      userId: newSubscription.user_id,
-      customerId: newSubscription.customer_id,
-      planId: newSubscription.plan_id,
-      startDate: newSubscription.start_date,
-      nextRenewal: newSubscription.next_renewal,
-      status: newSubscription.status
-    };
-  },
-
-  updateSubscription: async (id, data) => {
-    const updateData: any = {};
-    if (data.customerId !== undefined) updateData.customer_id = data.customerId;
-    if (data.planId !== undefined) updateData.plan_id = data.planId;
-    if (data.startDate !== undefined) updateData.start_date = data.startDate;
-    if (data.nextRenewal !== undefined) updateData.next_renewal = data.nextRenewal;
-    if (data.status !== undefined) updateData.status = data.status;
-
-    const { data: updatedSubscription, error } = await supabase
-      .from('subscriptions')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to update subscription: ${error.message}`);
-
-    return {
-      id: updatedSubscription.id,
-      userId: updatedSubscription.user_id,
-      customerId: updatedSubscription.customer_id,
-      planId: updatedSubscription.plan_id,
-      startDate: updatedSubscription.start_date,
-      nextRenewal: updatedSubscription.next_renewal,
-      status: updatedSubscription.status
-    };
-  },
-
-  deleteSubscription: async (id) => {
-    const { error } = await supabase
-      .from('subscriptions')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw new Error(`Failed to delete subscription: ${error.message}`);
-  },
-
-  // ==================== PAYMENTS ====================
-  getPayments: async () => {
-    const userId = getCurrentUserId();
-    const admin = isAdmin();
-
-    let query = supabase
-      .from('payments')
-      .select('*')
-      .order('paid_at', { ascending: false });
-
-    if (!admin) {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw new Error(`Failed to fetch payments: ${error.message}`);
-
-    return data.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      subscriptionId: row.subscription_id,
-      amount: parseFloat(row.amount),
-      paidAt: row.paid_at
-    }));
-  },
-
-  createPayment: async (data) => {
-    const userId = getCurrentUserId();
-
-    const { data: newPayment, error } = await supabase
-      .from('payments')
-      .insert({
-        user_id: userId,
-        subscription_id: data.subscriptionId,
-        amount: data.amount,
-        paid_at: data.paidAt
-      })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create payment: ${error.message}`);
-
-    return {
-      id: newPayment.id,
-      userId: newPayment.user_id,
-      subscriptionId: newPayment.subscription_id,
-      amount: parseFloat(newPayment.amount),
-      paidAt: newPayment.paid_at
-    };
-  },
-
-  listPaymentsBySubscription: async (subscriptionId) => {
-    const userId = getCurrentUserId();
-    const admin = isAdmin();
-
-    let query = supabase
-      .from('payments')
-      .select('*')
-      .eq('subscription_id', subscriptionId)
-      .order('paid_at', { ascending: false });
-
-    if (!admin) {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw new Error(`Failed to fetch payments: ${error.message}`);
-
-    return data.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      subscriptionId: row.subscription_id,
-      amount: parseFloat(row.amount),
-      paidAt: row.paid_at
-    }));
-  },
-
+export const supabaseService: GalleryService = {
   // ==================== TAG CATEGORIES ====================
   getTagCategories: async () => {
     const userId = getCurrentUserId();
@@ -588,7 +231,6 @@ export const supabaseService: SubControlService = {
 
     if (error) throw new Error(`Failed to fetch photos by IDs: ${error.message}`);
 
-    // Map manually to maintain order of IDs if possible, or just return set
     const photoMap = new Map<string, Photo>(data.map(row => [row.id, {
       id: row.id,
       userId: row.user_id,
@@ -666,7 +308,6 @@ export const supabaseService: SubControlService = {
   createPhoto: async (data) => {
     const userId = getCurrentUserId();
 
-    // First, create the photo
     const { data: newPhoto, error: photoError } = await supabase
       .from('photos')
       .insert({
@@ -681,7 +322,6 @@ export const supabaseService: SubControlService = {
 
     if (photoError) throw new Error(`Failed to create photo: ${photoError.message}`);
 
-    // Then, create the photo_tags relationships
     if (data.tagIds && data.tagIds.length > 0) {
       const photoTagsData = data.tagIds.map(tagId => ({
         photo_id: newPhoto.id,
@@ -723,15 +363,12 @@ export const supabaseService: SubControlService = {
 
     if (photoError) throw new Error(`Failed to update photo: ${photoError.message}`);
 
-    // If tagIds are provided, update the photo_tags relationships
     if (data.tagIds !== undefined) {
-      // Delete existing tags
       await supabase
         .from('photo_tags')
         .delete()
         .eq('photo_id', id);
 
-      // Insert new tags
       if (data.tagIds.length > 0) {
         const photoTagsData = data.tagIds.map(tagId => ({
           photo_id: id,
@@ -746,7 +383,6 @@ export const supabaseService: SubControlService = {
       }
     }
 
-    // Fetch the updated photo with tags
     const { data: photoWithTags, error: fetchError } = await supabase
       .from('photos')
       .select(`
@@ -773,7 +409,6 @@ export const supabaseService: SubControlService = {
   },
 
   deletePhoto: async (id) => {
-    // photo_tags will be deleted automatically via CASCADE
     const { error } = await supabase
       .from('photos')
       .delete()
