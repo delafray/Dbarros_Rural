@@ -70,6 +70,8 @@ const Photos: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>('all');
+  const [usersWithPhotos, setUsersWithPhotos] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
 
   // Pagination state based on filtered results
@@ -87,14 +89,16 @@ const Photos: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [index, t, c] = await Promise.all([
+      const [index, t, c, u] = await Promise.all([
         api.getPhotoIndex(onlyMine),
         api.getTags(),
-        api.getTagCategories()
+        api.getTagCategories(),
+        api.getUsersWithPhotos()
       ]);
       setPhotoIndex(index);
       setTags(t);
       setCategories(c.sort((a, b) => a.order - b.order));
+      setUsersWithPhotos(u);
     } finally {
       setLoading(false);
     }
@@ -114,6 +118,11 @@ const Photos: React.FC = () => {
       currentIds = currentIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
 
+    // 1.2 Filtro por usuário selecionado
+    if (selectedUserId !== 'all') {
+      currentIds = currentIds.filter(p => p.userId === selectedUserId);
+    }
+
     // 2. Filtro Hierárquico
     categories.forEach((cat) => {
       const catTags = tags.filter(t => t.categoryId === cat.id);
@@ -129,6 +138,7 @@ const Photos: React.FC = () => {
     const availableTagsByLevel: { [order: number]: Set<string> } = {};
     let tempIds = photoIndex;
     if (searchTerm) tempIds = tempIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (selectedUserId !== 'all') tempIds = tempIds.filter(p => p.userId === selectedUserId);
 
     categories.forEach((cat) => {
       const currentAvailableTags = new Set<string>();
@@ -146,7 +156,7 @@ const Photos: React.FC = () => {
       ids: currentIds.map(p => p.id),
       availableTagsByLevel
     };
-  }, [photoIndex, categories, tags, selectedTagIds, searchTerm]);
+  }, [photoIndex, categories, tags, selectedTagIds, searchTerm, selectedUserId]);
 
   // Reset pagination count when filter changes
   useEffect(() => {
@@ -457,17 +467,40 @@ const Photos: React.FC = () => {
               />
             </div>
             {user?.isAdmin && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                <input
-                  type="checkbox"
-                  id="onlyMine"
-                  checked={onlyMine}
-                  onChange={e => setOnlyMine(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                />
-                <label htmlFor="onlyMine" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
-                  Apenas meus registros
-                </label>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
+                  <input
+                    type="checkbox"
+                    id="onlyMine"
+                    checked={onlyMine}
+                    onChange={e => {
+                      setOnlyMine(e.target.checked);
+                      if (e.target.checked) setSelectedUserId('all');
+                    }}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  <label htmlFor="onlyMine" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
+                    Apenas meus registros
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-200">
+                  <label htmlFor="userFilter" className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Autor:</label>
+                  <select
+                    id="userFilter"
+                    value={selectedUserId}
+                    onChange={(e) => {
+                      setSelectedUserId(e.target.value);
+                      if (e.target.value !== 'all') setOnlyMine(false);
+                    }}
+                    className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">Todos os Autores</option>
+                    {usersWithPhotos.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
             <div className="flex gap-2">

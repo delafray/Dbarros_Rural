@@ -194,6 +194,10 @@ export const supabaseService: GalleryService = {
       .select(`
         id,
         name,
+        user_id,
+        users (
+          name
+        ),
         photo_tags (
           tag_id
         )
@@ -209,6 +213,8 @@ export const supabaseService: GalleryService = {
     return data.map(row => ({
       id: row.id,
       name: row.name,
+      userId: row.user_id,
+      userName: Array.isArray(row.users) ? row.users[0]?.name : (row.users as any)?.name,
       tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id)
     }));
   },
@@ -415,5 +421,28 @@ export const supabaseService: GalleryService = {
       .eq('id', id);
 
     if (error) throw new Error(`Failed to delete photo: ${error.message}`);
+  },
+
+  // ==================== USERS ====================
+  getUsersWithPhotos: async () => {
+    const { data, error } = await supabase
+      .from('photos')
+      .select('user_id, users(name)')
+      .not('user_id', 'is', null);
+
+    if (error) throw new Error(`Failed to fetch users with photos: ${error.message}`);
+
+    // De-duplicate users
+    const userMap = new Map<string, string>();
+    data.forEach((row: any) => {
+      if (row.user_id && row.users?.name) {
+        userMap.set(row.user_id, row.users.name);
+      } else if (row.user_id) {
+        // Fallback case
+        userMap.set(row.user_id, 'Usuário Desconhecido');
+      }
+    });
+
+    return Array.from(userMap.entries()).map(([id, name]) => ({ id, name }));
   },
 };

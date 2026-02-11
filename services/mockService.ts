@@ -90,31 +90,47 @@ export const mockService: GalleryService = {
     setStorageItem(STORAGE_KEYS.TAGS, tags.filter(t => t.id !== id));
   },
 
-  getPhotoIndex: async (onlyMine?: boolean) => {
+  getPhotoIndex: async (onlyMine) => {
     await delay();
-    const photos = getStorageItem<Photo[]>(STORAGE_KEYS.PHOTOS, []);
-    return photos.map(p => ({ id: p.id, name: p.name, tagIds: p.tagIds }));
+    const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []) as Photo[];
+    const filtered = onlyMine ? photos.filter(p => p.userId === 'mock-admin') : photos;
+    return filtered.map(p => ({
+      id: p.id,
+      name: p.name,
+      tagIds: p.tagIds,
+      userId: p.userId,
+      userName: p.userName || 'Sistema'
+    }));
   },
-  getPhotosByIds: async (ids: string[]) => {
+  getPhotosByIds: async (ids) => {
     await delay();
-    const photos = getStorageItem<Photo[]>(STORAGE_KEYS.PHOTOS, []);
-    return photos.filter(p => ids.includes(p.id));
+    const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []) as Photo[];
+    return ids.map(id => photos.find(p => p.id === id)).filter((p): p is Photo => !!p);
   },
-  getPhotos: async () => { await delay(); return getStorageItem(STORAGE_KEYS.PHOTOS, []); },
-  uploadPhotoFile: async (file: File) => {
+  getPhotos: async () => {
+    await delay();
+    return getStorageItem(STORAGE_KEYS.PHOTOS, []);
+  },
+  uploadPhotoFile: async (file) => {
     await delay();
     return URL.createObjectURL(file);
   },
   createPhoto: async (data) => {
     await delay();
-    const photos = getStorageItem<Photo[]>(STORAGE_KEYS.PHOTOS, []);
-    const newPhoto: Photo = { ...data, id: Math.random().toString(36).substr(2, 9), createdAt: new Date().toISOString() };
-    setStorageItem(STORAGE_KEYS.PHOTOS, [...photos, newPhoto]);
+    const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []);
+    const newPhoto: Photo = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9),
+      userId: 'mock-admin',
+      createdAt: new Date().toISOString()
+    };
+    photos.push(newPhoto);
+    setStorageItem(STORAGE_KEYS.PHOTOS, photos);
     return newPhoto;
   },
   updatePhoto: async (id, data) => {
     await delay();
-    const photos = getStorageItem<Photo[]>(STORAGE_KEYS.PHOTOS, []);
+    const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []) as Photo[];
     const index = photos.findIndex(p => p.id === id);
     if (index === -1) throw new Error('Photo not found');
     photos[index] = { ...photos[index], ...data };
@@ -123,7 +139,12 @@ export const mockService: GalleryService = {
   },
   deletePhoto: async (id) => {
     await delay();
-    const photos = getStorageItem<Photo[]>(STORAGE_KEYS.PHOTOS, []);
-    setStorageItem(STORAGE_KEYS.PHOTOS, photos.filter(p => p.id !== id));
+    const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []) as Photo[];
+    const filtered = photos.filter(p => p.id !== id);
+    setStorageItem(STORAGE_KEYS.PHOTOS, filtered);
+  },
+  getUsersWithPhotos: async () => {
+    await delay();
+    return [{ id: 'mock-admin', name: 'Administrador' }, { id: 'user-1', name: 'João Silva' }];
   }
 };
