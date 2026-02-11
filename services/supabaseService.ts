@@ -207,6 +207,8 @@ export const supabaseService: GalleryService = {
       query = query.eq('user_id', userId);
     }
 
+    query = query.order('created_at', { ascending: false });
+
     const { data, error } = await query;
     if (error) throw new Error(`Failed to fetch index: ${error.message}`);
 
@@ -293,7 +295,8 @@ export const supabaseService: GalleryService = {
   uploadPhotoFile: async (file: File) => {
     const userId = getCurrentUserId();
     const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
+    const fileName = `${userId}/${Date.now()}_${randomSuffix}.${fileExt}`;
     const filePath = fileName;
 
     const { error: uploadError } = await supabase.storage

@@ -51,12 +51,26 @@ const generateThumbnail = (file: File): Promise<string> => {
   });
 };
 
-const shuffleArray = <T,>(array: T[]): T[] => {
+
+const seededShuffle = <T,>(array: T[], seed: number): T[] => {
   const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  let m = newArray.length, t, i;
+
+  // Linear Congruential Generator (LCG) for simple, fast, seeded randomness
+  // Microsoft Visual C++ constants
+  let state = seed;
+  const rand = () => {
+    state = (state * 214013 + 2531011) & 0x7FFFFFFF;
+    return state / 0x7FFFFFFF;
+  };
+
+  while (m) {
+    i = Math.floor(rand() * m--);
+    t = newArray[m];
+    newArray[m] = newArray[i];
+    newArray[i] = t;
   }
+
   return newArray;
 };
 
@@ -105,7 +119,7 @@ const Photos: React.FC = () => {
         api.getTagCategories(),
         api.getUsersWithPhotos()
       ]);
-      setPhotoIndex(shuffleArray(index));
+      setPhotoIndex(index);
       setTags(t);
       setCategories(c.sort((a, b) => a.order - b.order));
       setUsersWithPhotos(u);
@@ -114,14 +128,23 @@ const Photos: React.FC = () => {
     }
   };
 
+  // Seed for deterministic shuffling (generated once per session/mount)
+  const shuffleSeed = React.useRef(Math.floor(Math.random() * 2147483647));
+
+
   useEffect(() => {
     fetchData();
   }, [onlyMine]);
 
+  // --- Memoized Shuffled Index to Prevent Re-Shuffling on Every Render ---
+  const shuffledPhotoIndex = useMemo(() => {
+    return seededShuffle(photoIndex, shuffleSeed.current);
+  }, [photoIndex]);
+
   // --- LÓGICA DE FILTRAGEM USANDO O INDEX ---
 
   const filteredResult = useMemo(() => {
-    let currentIds = [...photoIndex];
+    let currentIds = [...shuffledPhotoIndex];
 
     // 1. Filtro por texto
     if (searchTerm) {
@@ -146,7 +169,7 @@ const Photos: React.FC = () => {
 
     // Calcular tags disponíveis (Cascata)
     const availableTagsByLevel: { [order: number]: Set<string> } = {};
-    let tempIds = photoIndex;
+    let tempIds = shuffledPhotoIndex;
     if (searchTerm) tempIds = tempIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
     if (selectedUserId !== 'all') tempIds = tempIds.filter(p => p.userId === selectedUserId);
 
@@ -166,7 +189,7 @@ const Photos: React.FC = () => {
       ids: currentIds.map(p => p.id),
       availableTagsByLevel
     };
-  }, [photoIndex, categories, tags, selectedTagIds, searchTerm, selectedUserId]);
+  }, [shuffledPhotoIndex, categories, tags, selectedTagIds, searchTerm, selectedUserId]);
 
   // Reset pagination count when filter changes
   useEffect(() => {
@@ -180,6 +203,8 @@ const Photos: React.FC = () => {
   }, [filteredResult.ids, displayCount]);
 
   useEffect(() => {
+    let isMounted = true;
+
     if (visibleIds.length === 0) {
       setHydratedPhotos([]);
       return;
@@ -193,10 +218,13 @@ const Photos: React.FC = () => {
       if (newIds.length === 0) {
         // We have everyone, just ensure the order and subset are correct
         const ordered = visibleIds.map(id => existingMap.get(id)).filter((p): p is Photo => !!p);
-        // Only update if the list is actually different (different length or different IDs)
-        if (ordered.length !== hydratedPhotos.length ||
-          ordered.some((p, i) => p.id !== hydratedPhotos[i].id)) {
-          setHydratedPhotos(ordered);
+
+        // Only update if mounted and the list is actually different
+        if (isMounted) {
+          if (ordered.length !== hydratedPhotos.length ||
+            ordered.some((p, i) => p.id !== hydratedPhotos[i].id)) {
+            setHydratedPhotos(ordered);
+          }
         }
         return;
       }
@@ -204,6 +232,9 @@ const Photos: React.FC = () => {
       setLoadingMore(true);
       try {
         const newPhotos = await api.getPhotosByIds(newIds);
+
+        if (!isMounted) return;
+
         const updatedMap = new Map(existingMap);
         newPhotos.forEach(p => updatedMap.set(p.id, p));
 
@@ -212,12 +243,16 @@ const Photos: React.FC = () => {
       } catch (err) {
         console.error("Hydration error:", err);
       } finally {
-        setLoadingMore(false);
+        if (isMounted) setLoadingMore(false);
       }
     };
 
     loadVisiblePhotos();
-  }, [visibleIds]); // visibleIds already captures changes in filteredResult.ids and displayCount
+
+    return () => {
+      isMounted = false;
+    };
+  }, [visibleIds]); // visibleIds captures changes in filteredResult.ids and displayCount
 
   const loadMore = () => {
     if (displayCount < filteredResult.ids.length) {
@@ -296,8 +331,7 @@ const Photos: React.FC = () => {
   };
 
   const handleExportPDF = async () => {
-    const photosToExport = hydratedPhotos.filter(p => selectedExportIds.has(p.id));
-    if (photosToExport.length === 0) return;
+    if (selectedExportIds.size === 0) return;
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
