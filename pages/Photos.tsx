@@ -455,9 +455,9 @@ const Photos: React.FC = () => {
 
   return (
     <Layout title="Galeria Estruturada">
-      <div className="flex flex-col gap-4">
-        <Card className="p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4 border-b border-slate-100 pb-4">
+      <div className="flex flex-col gap-2">
+        <Card className="p-3">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-2 border-b border-slate-100 pb-2">
             <div className="flex-1 w-full max-w-md">
               <Input
                 placeholder="Pesquisar por nome do projeto..."
@@ -520,20 +520,20 @@ const Photos: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-1">
             <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h18M3 12h18m-7 8h7" /></svg>
               Matriz de Filtragem Hierárquica
             </h3>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               {categories.map((cat) => (
-                <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-slate-50/30 border border-slate-100 rounded-xl px-3 py-1 transition-all hover:border-blue-100 hover:bg-white">
+                <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-white border border-slate-200 rounded-xl px-3 py-0.5 transition-all hover:border-blue-400 hover:shadow-md">
                   <div className="md:w-36 flex-shrink-0 flex items-center gap-2 mb-1 md:mb-0 border-b md:border-b-0 md:border-r border-slate-100 pb-1 md:pb-0 md:pr-3">
-                    <span className="w-4 h-4 bg-slate-800 text-white text-[8px] font-black rounded flex items-center justify-center">
+                    <span className="w-5 h-5 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-sm">
                       {cat.order}
                     </span>
-                    <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-tighter truncate">{cat.name}</h4>
+                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{cat.name}</h4>
                   </div>
 
                   <div className="flex-1 md:pl-4 flex flex-wrap gap-x-1.5 gap-y-1 py-0.5">
@@ -547,9 +547,9 @@ const Photos: React.FC = () => {
                         <button
                           key={tag.id}
                           onClick={() => toggleFilterTag(tag.id)}
-                          className={`px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all flex items-center gap-1 ${isSelected
-                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm scale-105'
-                            : 'bg-white border-slate-200 text-slate-500 hover:border-blue-300'
+                          className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1.5 ${isSelected
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600'
                             }`}
                         >
                           {isSelected && <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
@@ -625,19 +625,8 @@ const Photos: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <div className="p-3 flex flex-col flex-1">
-                  <h4 className="text-[10px] font-black text-slate-800 truncate mb-2">{photo.name}</h4>
-                  <div className="flex flex-wrap gap-1 mt-auto">
-                    {photo.tagIds.slice(0, 3).map(tagId => {
-                      const tag = tags.find(t => t.id === tagId);
-                      const cat = categories.find(c => c.id === tag?.categoryId);
-                      return (
-                        <span key={tagId} className="px-1 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 rounded text-[7px] font-black uppercase">
-                          {cat?.order}.{tag?.name}
-                        </span>
-                      );
-                    })}
-                  </div>
+                <div className="p-2 flex flex-col justify-center">
+                  <h4 className="text-[10px] font-black text-slate-800 tracking-tight truncate">{photo.name}</h4>
                 </div>
               </Card>
             ))}

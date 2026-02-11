@@ -89,8 +89,8 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 w-full max-w-full overflow-hidden">
-        <header className="mb-8 flex justify-between items-center gap-4">
+      <main className="flex-1 md:ml-64 p-4 md:pt-4 md:px-8 w-full max-w-full overflow-hidden">
+        <header className="mb-4 flex justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             {/* Hamburger Button for Mobile */}
             <button

@@ -97,8 +97,8 @@ export const mockService: GalleryService = {
     return filtered.map(p => ({
       id: p.id,
       name: p.name,
-      tagIds: p.tagIds,
-      userId: p.userId,
+      tagIds: Array.isArray(p.tagIds) ? p.tagIds : [],
+      userId: p.userId || 'unknown',
       userName: p.userName || 'Sistema'
     }));
   },
@@ -145,6 +145,15 @@ export const mockService: GalleryService = {
   },
   getUsersWithPhotos: async () => {
     await delay();
-    return [{ id: 'mock-admin', name: 'Administrador' }, { id: 'user-1', name: 'João Silva' }];
+    const photos = getStorageItem<Photo[]>(STORAGE_KEYS.PHOTOS, []);
+    const userMap = new Map<string, string>();
+
+    photos.forEach(p => {
+      if (p.userId && p.userName) {
+        userMap.set(p.userId, p.userName);
+      }
+    });
+
+    return Array.from(userMap.entries()).map(([id, name]) => ({ id, name }));
   }
 };
