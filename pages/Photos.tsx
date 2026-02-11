@@ -51,6 +51,15 @@ const generateThumbnail = (file: File): Promise<string> => {
   });
 };
 
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
 const PHOTOS_PER_PAGE = 24;
 
 const Photos: React.FC = () => {
@@ -66,6 +75,7 @@ const Photos: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
@@ -95,7 +105,7 @@ const Photos: React.FC = () => {
         api.getTagCategories(),
         api.getUsersWithPhotos()
       ]);
-      setPhotoIndex(index);
+      setPhotoIndex(shuffleArray(index));
       setTags(t);
       setCategories(c.sort((a, b) => a.order - b.order));
       setUsersWithPhotos(u);
@@ -308,64 +318,104 @@ const Photos: React.FC = () => {
         });
       };
 
-      // Load Masks
-      const maskTopo = await loadImage('/assets/mascara_topo.jpg');
-      const maskBase = await loadImage('/assets/mascara_base.jpg');
+      // 1. Pre-load Masks and Photo Data in parallel
+      const [maskTopo, maskBase, allPhotosToExport] = await Promise.all([
+        loadImage('/assets/mascara_topo.jpg'),
+        loadImage('/assets/mascara_base.jpg'),
+        api.getPhotosByIds(Array.from(selectedExportIds))
+      ]);
+
+      const totalPhotos = allPhotosToExport.length;
+      const loadedImages: Record<string, HTMLImageElement> = {};
+
+      // 2. Parallel Image Loading with Concurrency Limit (e.g., 5)
+      const concurrencyLimit = 5;
+      for (let i = 0; i < allPhotosToExport.length; i += concurrencyLimit) {
+        const batch = allPhotosToExport.slice(i, i + concurrencyLimit);
+        await Promise.all(batch.map(async (photo) => {
+          try {
+            loadedImages[photo.id] = await loadImage(photo.url);
+          } catch (e) {
+            console.error(`Error pre-loading ${photo.id}`, e);
+          }
+          // Update progress (5% to 85%)
+          setExportProgress(5 + Math.round(((i + batch.length) / totalPhotos) * 80));
+        }));
+      }
 
       const addMasks = () => {
-        // Top Mask - Full width, maintaining aspect ratio or fixed height?
-        // Let's assume user wants them to cover the full width.
-        const topoHeight = (maskTopo.height * pageWidth) / maskTopo.width;
-        doc.addImage(maskTopo, 'JPEG', 0, 0, pageWidth, topoHeight);
-
-        // Bottom Mask
-        const baseHeight = (maskBase.height * pageWidth) / maskBase.width;
-        doc.addImage(maskBase, 'JPEG', 0, pageHeight - baseHeight, pageWidth, baseHeight);
-
-        return { topoHeight, baseHeight };
+        try {
+          const topoHeight = (maskTopo.height * pageWidth) / maskTopo.width;
+          doc.addImage(maskTopo, 'JPEG', 0, 0, pageWidth, topoHeight);
+          const baseHeight = (maskBase.height * pageWidth) / maskBase.width;
+          doc.addImage(maskBase, 'JPEG', 0, pageHeight - baseHeight, pageWidth, baseHeight);
+          return { topoHeight, baseHeight };
+        } catch (e) {
+          return { topoHeight: 0, baseHeight: 0 };
+        }
       };
 
       let masks = addMasks();
+      const photosPerPage = 2;
+      const marginY = 10;
 
-      // Adjust photo layout area
-      const availableHeight = pageHeight - masks.topoHeight - masks.baseHeight - (margin * 2);
-      const photosPerPage = 2; // Keep 2 per page for now
-      const imageHeight = (availableHeight - margin) / photosPerPage;
-      const imageWidth = (pageWidth - (margin * 2));
+      // 3. Instant PDF Compilation (Images are already in memory)
+      for (let i = 0; i < allPhotosToExport.length; i++) {
+        const photo = allPhotosToExport[i];
+        const img = loadedImages[photo.id];
 
-      for (let i = 0; i < photosToExport.length; i++) {
         if (i > 0 && i % photosPerPage === 0) {
           doc.addPage();
           masks = addMasks();
         }
 
-        const photo = photosToExport[i];
         const relativeIdx = i % photosPerPage;
-        const yOffset = masks.topoHeight + margin + (relativeIdx * (imageHeight + margin));
+        const availableHeight = pageHeight - masks.topoHeight - masks.baseHeight - (marginY * 3);
+        const slotHeight = availableHeight / photosPerPage;
+        const slotY = masks.topoHeight + marginY + (relativeIdx * (slotHeight + marginY));
 
-        // Draw Photo Name
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
-        doc.text(photo.name, margin, yOffset - 5);
+        doc.setTextColor(50, 50, 50);
+        doc.text(photo.name.toUpperCase(), margin, slotY + 5);
 
-        // Load Photo
-        const img = await loadImage(photo.url);
+        if (img) {
+          const imageAreaY = slotY + 8;
+          const imageAreaHeight = slotHeight - 12;
+          const imageAreaWidth = pageWidth - (margin * 2);
 
-        // Calculate aspect ratio for photo to fit in box
-        let drawWidth = imageWidth;
-        let drawHeight = (img.height * imageWidth) / img.width;
+          let drawWidth = imageAreaWidth;
+          let drawHeight = (img.height * imageAreaWidth) / img.width;
 
-        if (drawHeight > imageHeight) {
-          drawHeight = imageHeight;
-          drawWidth = (img.width * imageHeight) / img.height;
+          if (drawHeight > imageAreaHeight) {
+            drawHeight = imageAreaHeight;
+            drawWidth = (img.width * imageAreaHeight) / img.height;
+          }
+
+          const xOffset = margin + (imageAreaWidth - drawWidth) / 2;
+          const yOffset = imageAreaY + (imageAreaHeight - drawHeight) / 2;
+          doc.addImage(img, 'JPEG', xOffset, yOffset, drawWidth, drawHeight);
+        } else {
+          doc.setTextColor(200, 0, 0);
+          doc.text("[Erro ao carregar imagem]", margin, slotY + 15);
         }
 
-        // Draw Image (Centered horizontally in its slot)
-        const xOffset = margin + (imageWidth - drawWidth) / 2;
-        doc.addImage(img, 'JPEG', xOffset, yOffset, drawWidth, drawHeight);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        const pageNum = doc.internal.pages.length - 1;
+        doc.text(`Página ${pageNum}`, pageWidth / 2, pageHeight - (masks.baseHeight / 2), { align: 'center' });
+
+        // Final rapid progress update
+        setExportProgress(85 + Math.round(((i + 1) / totalPhotos) * 15));
       }
 
-      doc.save(`galeria_selecionada_${new Date().getTime()}.pdf`);
-      setSelectedExportIds(new Set());
+      doc.save(`galeria_exportada_${new Date().getTime()}.pdf`);
+      setExportProgress(100);
+      setTimeout(() => {
+        setSelectedExportIds(new Set());
+        setExportProgress(0);
+      }, 500);
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
       alert('Erro ao gerar PDF. Verifique se as imagens das máscaras e das fotos estão acessíveis.');
@@ -785,6 +835,46 @@ const Photos: React.FC = () => {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Progress UI Overlay */}
+      {exportProgress > 0 && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <Card className="max-w-md w-full p-8 space-y-6 text-center shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Gerando PDF Profissional</h3>
+              <p className="text-sm text-slate-500 font-medium">Isso pode levar alguns segundos dependendo da quantidade de fotos.</p>
+            </div>
+
+            <div className="relative pt-1">
+              <div className="flex mb-2 items-center justify-between">
+                <div>
+                  <span className="text-xs font-black inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-50">
+                    Processando
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-black inline-block text-blue-600">
+                    {exportProgress}%
+                  </span>
+                </div>
+              </div>
+              <div className="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-slate-100 border border-slate-200">
+                <div
+                  style={{ width: `${exportProgress}%` }}
+                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600 transition-all duration-300 ease-out"
+                ></div>
+              </div>
+            </div>
+
+            <div className="flex justify-center items-center gap-3 text-slate-400">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Otimizando Imagens...</span>
+            </div>
+          </Card>
         </div>
       )}
     </Layout>
