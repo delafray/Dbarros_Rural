@@ -40,20 +40,25 @@ function isVisitor(): boolean {
   return user.isVisitor === true;
 }
 
+// Helper function to apply user-based filter for non-admin/non-visitor users
+function applyUserFilter<T>(query: T, userId: string): T {
+  if (!isAdmin() && !isVisitor()) {
+    return (query as any).eq('user_id', userId);
+  }
+  return query;
+}
+
 export const supabaseService: GalleryService = {
   // ==================== TAG CATEGORIES ====================
   getTagCategories: async () => {
     const userId = getCurrentUserId();
-    const admin = isAdmin();
 
     let query = supabase
       .from('tag_categories')
       .select('*')
       .order('created_at', { ascending: true });
 
-    if (!admin && !isVisitor()) {
-      query = query.eq('user_id', userId);
-    }
+    query = applyUserFilter(query, userId);
 
     const { data, error } = await query;
 
@@ -127,16 +132,13 @@ export const supabaseService: GalleryService = {
   // ==================== TAGS ====================
   getTags: async () => {
     const userId = getCurrentUserId();
-    const admin = isAdmin();
 
     let query = supabase
       .from('tags')
       .select('*')
       .order('created_at', { ascending: true });
 
-    if (!admin && !isVisitor()) {
-      query = query.eq('user_id', userId);
-    }
+    query = applyUserFilter(query, userId);
 
     const { data, error } = await query;
 

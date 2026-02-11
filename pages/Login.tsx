@@ -73,8 +73,6 @@ const Login: React.FC = () => {
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
           <p className="text-sm text-slate-400">
             Acesso restrito a usuários autorizados.
-            <br />
-            <strong>Login padrão:</strong> admin / admin
           </p>
         </div>
       </Card>

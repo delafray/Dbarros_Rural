@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -23,13 +24,14 @@ export interface User {
     createdAt: string;
 }
 
-// Hash password using SHA-256
+// Hash password using bcrypt
 async function hashPassword(password: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return await bcrypt.hash(password, 10);
+}
+
+// Compare password with hash
+async function comparePassword(password: string, hash: string): Promise<boolean> {
+    return await bcrypt.compare(password, hash);
 }
 
 export const authService = {
@@ -65,14 +67,12 @@ export const authService = {
 
     // Login user
     login: async (identifier: string, password: string): Promise<User> => {
-        const passwordHash = await hashPassword(password);
-
         const { data, error } = await supabase
             .from('users')
             .select('*')
             .or(`email.eq.${identifier},name.ilike.${identifier}`)
-            .eq('password_hash', passwordHash)
-            .single();
+            .limit(1)
+            .maybeSingle();
 
         if (error || !data) {
             throw new Error('E-mail, usuário ou senha inválidos');
@@ -80,6 +80,13 @@ export const authService = {
 
         if (data.is_active === false) {
             throw new Error('Conta inativa. Contate o administrador.');
+        }
+
+        // Verificar senha com bcrypt
+        const isValidPassword = await comparePassword(password, data.password_hash);
+
+        if (!isValidPassword) {
+            throw new Error('E-mail, usuário ou senha inválidos');
         }
 
         const user: User = {
@@ -103,7 +110,6 @@ export const authService = {
     // Logout user
     logout: (): void => {
         localStorage.removeItem('gallery_user');
-        localStorage.removeItem('gallery_auth');
         localStorage.removeItem(LOGIN_TIME_KEY);
     },
 

@@ -1,10 +1,11 @@
 
+
 import {
   Tag,
   TagCategory,
   Photo,
   GalleryService
-} from '../types';
+} from '../../types';
 
 const STORAGE_KEYS = {
   TAG_CATEGORIES: 'gallery_tag_categories',
