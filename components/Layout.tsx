@@ -90,11 +90,20 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
           {user?.isAdmin && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-slate-100 flex flex-col gap-4">
           <button onClick={handleLogout} className="flex items-center space-x-3 px-4 py-3 w-full text-left rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all">
             <LogOutIcon className="w-5 h-5" />
             <span className="font-medium">Sair</span>
           </button>
+
+          <div className="px-4 pb-2">
+            <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+              Desenvolvido por Ronaldo Borba. A reprodução, distribuição ou utilização deste software é permitida somente mediante autorização prévia.
+            </p>
+            <p className="text-[9px] text-slate-400 font-black mt-1 tracking-wider">
+              CONTATO: <span className="lowercase font-medium">ronaldo@ronaldoborba.com.br</span>
+            </p>
+          </div>
         </div>
       </aside>
 
