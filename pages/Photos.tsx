@@ -1170,14 +1170,14 @@ const Photos: React.FC = () => {
                 placeholder="Título do Registro..."
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-medium focus:ring-1 focus:ring-blue-400 outline-none transition-all"
+                className="flex-1 min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
                 required
               />
               <input
                 placeholder="Caminho (Local)..."
                 value={formData.localPath}
                 onChange={e => setFormData({ ...formData, localPath: e.target.value })}
-                className="hidden sm:block flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-mono focus:ring-1 focus:ring-blue-400 outline-none transition-all"
+                className="hidden sm:block flex-1 min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
               />
             </div>
           </div>
