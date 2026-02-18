@@ -238,6 +238,7 @@ export const supabaseService: GalleryService = {
         name,
         user_id,
         created_at,
+        video_url,
         users (
           name
         ),
@@ -261,6 +262,7 @@ export const supabaseService: GalleryService = {
       userId: row.user_id,
       userName: Array.isArray(row.users) ? row.users[0]?.name : (row.users as any)?.name,
       tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id),
+      videoUrl: row.video_url,
       createdAt: row.created_at
     }));
   },
@@ -291,6 +293,7 @@ export const supabaseService: GalleryService = {
       url: row.url,
       thumbnailUrl: row.thumbnail_url || undefined,
       localPath: row.local_path || undefined,
+      videoUrl: row.video_url || undefined,
       tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id),
       createdAt: row.created_at
     }]));
@@ -331,6 +334,7 @@ export const supabaseService: GalleryService = {
       url: row.url,
       thumbnailUrl: row.thumbnail_url,
       localPath: row.local_path,
+      videoUrl: row.video_url,
       tagIds: row.photo_tags.map((pt: any) => pt.tag_id),
       createdAt: row.created_at
     }));
@@ -370,7 +374,8 @@ export const supabaseService: GalleryService = {
         name: data.name,
         url: data.url,
         thumbnail_url: data.thumbnailUrl,
-        local_path: data.localPath
+        local_path: data.localPath,
+        video_url: data.videoUrl
       })
       .select()
       .single();
@@ -397,6 +402,7 @@ export const supabaseService: GalleryService = {
       url: newPhoto.url,
       thumbnailUrl: newPhoto.thumbnail_url,
       localPath: newPhoto.local_path,
+      videoUrl: newPhoto.video_url,
       tagIds: data.tagIds,
       createdAt: newPhoto.created_at
     };
@@ -409,6 +415,7 @@ export const supabaseService: GalleryService = {
     if (data.thumbnailUrl !== undefined) updateData.thumbnail_url = data.thumbnailUrl;
     if (data.localPath !== undefined) updateData.local_path = data.localPath;
     if (data.userId !== undefined) updateData.user_id = data.userId;
+    if (data.videoUrl !== undefined) updateData.video_url = data.videoUrl;
 
     const { data: updatedPhoto, error: photoError } = await supabase
       .from('photos')
@@ -459,6 +466,7 @@ export const supabaseService: GalleryService = {
       url: photoWithTags.url,
       thumbnailUrl: photoWithTags.thumbnail_url,
       localPath: photoWithTags.local_path,
+      videoUrl: photoWithTags.video_url,
       tagIds: photoWithTags.photo_tags.map((pt: any) => pt.tag_id),
       createdAt: photoWithTags.created_at
     };

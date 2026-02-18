@@ -41,10 +41,11 @@ export interface Photo {
   id: string;
   userId: string;
   name: string;
-  url: string; // Base64 string para o mock ou URL real
+  url: string; // Base64 ou URL da imagem/capa
   tagIds: string[];
-  localPath?: string; // Novo campo para caminho do Windows/Rede
-  thumbnailUrl?: string; // Nova miniatura
+  localPath?: string;
+  thumbnailUrl?: string;
+  videoUrl?: string; // Link original do Instagram
   createdAt: string;
   userName?: string;
 }
