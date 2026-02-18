@@ -197,6 +197,7 @@ export const supabaseService: GalleryService = {
         id,
         name,
         user_id,
+        created_at,
         users (
           name
         ),
@@ -219,7 +220,8 @@ export const supabaseService: GalleryService = {
       name: row.name,
       userId: row.user_id,
       userName: Array.isArray(row.users) ? row.users[0]?.name : (row.users as any)?.name,
-      tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id)
+      tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id),
+      createdAt: row.created_at
     }));
   },
 
@@ -317,12 +319,14 @@ export const supabaseService: GalleryService = {
   },
 
   createPhoto: async (data) => {
-    const userId = getCurrentUserId();
+    const currentUserId = getCurrentUserId();
+    // Use provided userId if available (and valid?), otherwise default to current user
+    const targetUserId = data.userId || currentUserId;
 
     const { data: newPhoto, error: photoError } = await supabase
       .from('photos')
       .insert({
-        user_id: userId,
+        user_id: targetUserId,
         name: data.name,
         url: data.url,
         thumbnail_url: data.thumbnailUrl,
@@ -364,6 +368,7 @@ export const supabaseService: GalleryService = {
     if (data.url !== undefined) updateData.url = data.url;
     if (data.thumbnailUrl !== undefined) updateData.thumbnail_url = data.thumbnailUrl;
     if (data.localPath !== undefined) updateData.local_path = data.localPath;
+    if (data.userId !== undefined) updateData.user_id = data.userId;
 
     const { data: updatedPhoto, error: photoError } = await supabase
       .from('photos')
@@ -449,5 +454,19 @@ export const supabaseService: GalleryService = {
     });
 
     return Array.from(userMap.entries()).map(([id, name]) => ({ id, name }));
+  },
+
+  getUsers: async () => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name')
+      // Exclude visitors and temporary users from the author selection list
+      .neq('is_visitor', true)
+      .neq('is_temp', true)
+      .order('name');
+
+    if (error) throw new Error(`Failed to fetch users: ${error.message}`);
+
+    return data.map(u => ({ id: u.id, name: u.name }));
   },
 };

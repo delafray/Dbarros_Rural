@@ -59,14 +59,15 @@ export interface GalleryService {
   deleteTag: (id: string) => Promise<void>;
 
   // Photos
-  getPhotoIndex: (onlyMine?: boolean) => Promise<Array<{ id: string; name: string; tagIds: string[]; userId: string; userName?: string }>>;
+  getPhotoIndex: (onlyMine?: boolean) => Promise<Array<{ id: string; name: string; tagIds: string[]; userId: string; userName?: string; createdAt: string }>>;
   getPhotosByIds: (ids: string[]) => Promise<Photo[]>;
   getPhotos: () => Promise<Photo[]>;
   uploadPhotoFile: (file: File) => Promise<string>;
-  createPhoto: (data: Omit<Photo, 'id' | 'userId' | 'createdAt'>) => Promise<Photo>;
+  createPhoto: (data: Omit<Photo, 'id' | 'createdAt'>) => Promise<Photo>;
   updatePhoto: (id: string, data: Partial<Photo>) => Promise<Photo>;
   deletePhoto: (id: string) => Promise<void>;
 
   // Users
   getUsersWithPhotos: () => Promise<Array<{ id: string; name: string }>>;
+  getUsers: () => Promise<Array<{ id: string; name: string }>>;
 }

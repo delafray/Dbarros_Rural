@@ -8,7 +8,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Missing Supabase environment variables');
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const SESSION_DURATION = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
 const LOGIN_TIME_KEY = 'gallery_login_time';
@@ -22,6 +22,8 @@ export interface User {
     isVisitor: boolean;
     isActive: boolean;
     createdAt: string;
+    expiresAt?: string;
+    isTemp?: boolean;
 }
 
 // Hash password using bcrypt
@@ -61,7 +63,9 @@ export const authService = {
             isAdmin: data.is_admin,
             isVisitor: data.is_visitor,
             isActive: data.is_active,
-            createdAt: data.created_at
+            createdAt: data.created_at,
+            expiresAt: data.expires_at,
+            isTemp: data.is_temp
         };
     },
 
@@ -82,6 +86,13 @@ export const authService = {
             throw new Error('Conta inativa. Contate o administrador.');
         }
 
+        if (data.expires_at) {
+            const expirationDate = new Date(data.expires_at);
+            if (expirationDate < new Date()) {
+                throw new Error('Conta temporária expirada.');
+            }
+        }
+
         // Verificar senha com bcrypt
         const isValidPassword = await comparePassword(password, data.password_hash);
 
@@ -96,7 +107,9 @@ export const authService = {
             isAdmin: data.is_admin,
             isVisitor: data.is_visitor,
             isActive: data.is_active,
-            createdAt: data.created_at
+            createdAt: data.created_at,
+            expiresAt: data.expires_at,
+            isTemp: data.is_temp
         };
 
         // Store user and login time in localStorage
@@ -105,6 +118,49 @@ export const authService = {
 
 
         return user;
+    },
+
+    // Create temporary user
+    createTempUser: async (days: number): Promise<{ user: User, passwordRaw: string }> => {
+        const tempName = `temp_${Math.random().toString(36).substring(7)}`;
+        const tempEmail = `${tempName}@temp.local`;
+        const tempPassword = Math.random().toString(36).substring(2, 10);
+        const passwordHash = await hashPassword(tempPassword);
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + days);
+
+        const { data, error } = await supabase
+            .from('users')
+            .insert({
+                name: tempName,
+                email: tempEmail,
+                password_hash: passwordHash,
+                is_admin: false,
+                is_visitor: true,
+                is_active: true,
+                is_temp: true,
+                expires_at: expiresAt.toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw new Error(`Failed to create temp user: ${error.message}`);
+
+        return {
+            user: {
+                id: data.id,
+                name: data.name,
+                email: data.email,
+                isAdmin: data.is_admin,
+                isVisitor: data.is_visitor,
+                isActive: data.is_active,
+                createdAt: data.created_at,
+                expiresAt: data.expires_at,
+                isTemp: data.is_temp
+            },
+            passwordRaw: tempPassword
+        };
     },
 
     // Logout user
@@ -154,7 +210,9 @@ export const authService = {
             isAdmin: row.is_admin,
             isVisitor: row.is_visitor,
             isActive: row.is_active,
-            createdAt: row.created_at
+            createdAt: row.created_at,
+            expiresAt: row.expires_at,
+            isTemp: row.is_temp
         }));
     },
 
@@ -187,6 +245,19 @@ export const authService = {
             .eq('id', userId);
 
         if (error) throw new Error(`Failed to update user: ${error.message}`);
+    },
+
+    // Terminate temporary user immediately
+    terminateTempUser: async (userId: string): Promise<void> => {
+        const { error } = await supabase
+            .from('users')
+            .update({
+                is_active: false,
+                expires_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+
+        if (error) throw new Error(`Failed to terminate user: ${error.message}`);
     },
 
     // Delete user

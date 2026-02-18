@@ -318,9 +318,11 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string
+          expires_at: string | null
           id: string
           is_active: boolean | null
           is_admin: boolean | null
+          is_temp: boolean | null
           is_visitor: boolean | null
           name: string
           password_hash: string
@@ -328,9 +330,11 @@ export type Database = {
         Insert: {
           created_at?: string | null
           email: string
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
           is_admin?: boolean | null
+          is_temp?: boolean | null
           is_visitor?: boolean | null
           name: string
           password_hash: string
@@ -338,9 +342,11 @@ export type Database = {
         Update: {
           created_at?: string | null
           email?: string
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
           is_admin?: boolean | null
+          is_temp?: boolean | null
           is_visitor?: boolean | null
           name?: string
           password_hash?: string
@@ -352,19 +358,89 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_available_related_tags: {
+      get_available_related_tags:
+      | {
+        Args: { current_tag_ids: string[] }
+        Returns: {
+          error: true
+        } & "Could not choose the best candidate function between: public.get_available_related_tags(current_tag_ids => _text), public.get_available_related_tags(current_tag_ids => _uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
+      }
+      | {
+        Args: { current_tag_ids: string[] }
+        Returns: {
+          error: true
+        } & "Could not choose the best candidate function between: public.get_available_related_tags(current_tag_ids => _text), public.get_available_related_tags(current_tag_ids => _uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
+      }
+      | {
         Args: { current_tag_ids: string[]; filter_user_id?: string }
         Returns: {
           tag_id: string
         }[]
       }
-      search_photos_by_tags: {
+      | {
+        Args: {
+          filter_user_id?: string
+          primary_tag_ids: string[]
+          sub_tag_ids: string[]
+        }
+        Returns: {
+          tag_id: string
+        }[]
+      }
+      search_photos_by_tags:
+      | {
         Args: {
           filter_user_id?: string
           items_per_page?: number
           page_number?: number
           primary_tag_ids: string[]
           sub_tag_ids: string[]
+        }
+        Returns: {
+          created_at: string
+          id: string
+          local_path: string
+          name: string
+          total_count: number
+          url: string
+        }[]
+      }
+      | {
+        Args: {
+          items_per_page?: number
+          page_number?: number
+          tag_ids: string[]
+        }
+        Returns: {
+          created_at: string
+          id: string
+          local_path: string
+          name: string
+          total_count: number
+          url: string
+        }[]
+      }
+      | {
+        Args: {
+          filter_user_id?: string
+          items_per_page?: number
+          page_number?: number
+          tag_ids: string[]
+        }
+        Returns: {
+          created_at: string
+          id: string
+          local_path: string
+          name: string
+          total_count: number
+          url: string
+        }[]
+      }
+      | {
+        Args: {
+          items_per_page?: number
+          page_number?: number
+          tag_ids: string[]
         }
         Returns: {
           created_at: string
@@ -507,4 +583,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

@@ -398,7 +398,7 @@ const Photos: React.FC = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
+    const margin = 6; // Further reduced to maximize width as requested
 
     setProcessingImage(true);
 
@@ -453,7 +453,7 @@ const Photos: React.FC = () => {
 
       let masks = addMasks();
       const photosPerPage = 2;
-      const marginY = 10;
+      const marginY = 4;
 
       // 3. Instant PDF Compilation (Images are already in memory)
       for (let i = 0; i < allPhotosToExport.length; i++) {
@@ -472,12 +472,12 @@ const Photos: React.FC = () => {
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
-        doc.setTextColor(50, 50, 50);
-        doc.text(photo.name.toUpperCase(), margin, slotY + 5);
+        doc.setTextColor(30, 41, 59); // Slate-800
+        doc.text(photo.name, margin, slotY + 2); // Title at top of slot
 
         if (img) {
-          const imageAreaY = slotY + 8;
-          const imageAreaHeight = slotHeight - 12;
+          const imageAreaY = slotY + 5; // Start image just below title
+          const imageAreaHeight = slotHeight - 7;
           const imageAreaWidth = pageWidth - (margin * 2);
 
           let drawWidth = imageAreaWidth;
@@ -489,7 +489,7 @@ const Photos: React.FC = () => {
           }
 
           const xOffset = margin + (imageAreaWidth - drawWidth) / 2;
-          const yOffset = imageAreaY + (imageAreaHeight - drawHeight) / 2;
+          const yOffset = imageAreaY; // PINNED to top to standardize gap with title
           doc.addImage(img, 'JPEG', xOffset, yOffset, drawWidth, drawHeight);
         } else {
           doc.setTextColor(200, 0, 0);
@@ -608,6 +608,21 @@ const Photos: React.FC = () => {
 
   const headerActions = (
     <div className="flex gap-2">
+      {/* Botão de Redundância: Gerar PDF */}
+      <Button
+        variant="default"
+        onClick={handleExportPDF}
+        disabled={selectedExportIds.size === 0}
+        className={`py-2 px-4 text-xs font-bold transition-all ${selectedExportIds.size === 0
+          ? 'opacity-50 cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
+          : effectiveSelectionCount > 30
+            ? 'bg-red-600 text-white shadow-lg shadow-red-500/30 border-red-600 hover:bg-red-700'
+            : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 border-blue-600 hover:bg-blue-700'
+          }`}
+      >
+        Gerar PDF ({selectedExportIds.size})
+      </Button>
+
       {/* Select All Button - Always visible, disabled if no results */}
       <Button
         variant={filteredResult.ids.length > 0 ? 'default' : 'outline'}
@@ -996,7 +1011,13 @@ const Photos: React.FC = () => {
                 <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-white border-slate-600 hover:bg-slate-800 py-1.5 px-4 text-xs h-9">
                   Cancelar
                 </Button>
-                <Button onClick={handleExportPDF} className="bg-blue-600 hover:bg-blue-700 py-1.5 px-6 text-xs h-9 shadow-lg shadow-blue-500/20 flex items-center gap-2">
+                <Button
+                  onClick={handleExportPDF}
+                  className={`py-1.5 px-6 text-xs h-9 shadow-lg flex items-center gap-2 transition-all ${effectiveSelectionCount > 30
+                      ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
+                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
+                    }`}
+                >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>

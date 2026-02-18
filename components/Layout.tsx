@@ -7,6 +7,7 @@ import { APP_VERSION } from '../version';
 interface LayoutProps {
   children: ReactNode;
   title?: string;
+  headerActions?: ReactNode; // New prop for custom header buttons
 }
 
 const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: any }) => (
@@ -24,7 +25,7 @@ const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: a
   </NavLink>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children, title }) => {
+const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -114,13 +115,22 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
             <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate">{title}</h2>
           </div>
 
-          <div className="bg-white px-3 md:px-4 py-2 rounded-xl border border-slate-200 flex items-center shadow-sm flex-shrink-0">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm mr-2 uppercase flex-shrink-0">
-              {user?.name?.substring(0, 2) || 'US'}
-            </div>
-            <div className="hidden sm:flex flex-col text-left">
-              <span className="text-sm font-bold text-slate-700 truncate max-w-[120px]">{user?.name || 'Usuário'}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">{getRoleLabel()}</span>
+          <div className="flex items-center gap-4">
+            {/* Custom Header Actions */}
+            {headerActions && (
+              <div className="hidden md:flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-500">
+                {headerActions}
+              </div>
+            )}
+
+            <div className="bg-white px-3 md:px-4 py-2 rounded-xl border border-slate-200 flex items-center shadow-sm flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm mr-2 uppercase flex-shrink-0">
+                {user?.name?.substring(0, 2) || 'US'}
+              </div>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-sm font-bold text-slate-700 truncate max-w-[120px]">{user?.name || 'Usuário'}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">{getRoleLabel()}</span>
+              </div>
             </div>
           </div>
         </header>
