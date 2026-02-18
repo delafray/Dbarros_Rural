@@ -49,7 +49,7 @@ const Tags: React.FC = () => {
     if (!newCatName.trim()) return;
     setSaving(true);
     try {
-      await api.createTagCategory(newCatName.trim(), newCatOrder);
+      await api.createTagCategory(newCatName.trim(), newCatOrder, newCatRequired);
       // Note: We need to update createTagCategory to accept isRequired if we want it on creation
       // For now, let's update handleUpdateCategory as it's the primary way to edit existing ones
       setNewCatName('');

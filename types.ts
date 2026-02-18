@@ -51,7 +51,7 @@ export interface Photo {
 export interface GalleryService {
   // Tag Categories
   getTagCategories: () => Promise<TagCategory[]>;
-  createTagCategory: (name: string, order: number) => Promise<TagCategory>;
+  createTagCategory: (name: string, order: number, isRequired?: boolean) => Promise<TagCategory>;
   updateTagCategory: (id: string, data: Partial<TagCategory>) => Promise<TagCategory>;
   deleteTagCategory: (id: string) => Promise<void>;
 
