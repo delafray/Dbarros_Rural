@@ -80,7 +80,7 @@ const Photos: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [photoIndex, setPhotoIndex] = useState<Array<{ id: string; name: string; tagIds: string[] }>>([]);
+  const [photoIndex, setPhotoIndex] = useState<Array<{ id: string; name: string; tagIds: string[]; userId: string; createdAt: string }>>([]);
   const [hydratedPhotos, setHydratedPhotos] = useState<Photo[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [categories, setCategories] = useState<TagCategory[]>([]);
@@ -95,7 +95,9 @@ const Photos: React.FC = () => {
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
+  const [sortByDate, setSortByDate] = useState(false);
   const [usersWithPhotos, setUsersWithPhotos] = useState<Array<{ id: string; name: string }>>([]);
+  const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string }>>([]); // For the author dropdown
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
 
   // Pagination state based on filtered results
@@ -107,22 +109,25 @@ const Photos: React.FC = () => {
     thumbnailUrl: '',
     tagIds: [] as string[],
     localPath: '',
+    userId: '', // Author
     selectedFile: null as File | null
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [index, t, c, u] = await Promise.all([
+      const [index, t, c, u, allU] = await Promise.all([
         api.getPhotoIndex(onlyMine),
         api.getTags(),
         api.getTagCategories(),
-        api.getUsersWithPhotos()
+        api.getUsersWithPhotos(),
+        api.getUsers()
       ]);
       setPhotoIndex(index);
       setTags(t);
       setCategories(c.sort((a, b) => a.order - b.order));
       setUsersWithPhotos(u);
+      setAllUsers(allU);
     } finally {
       setLoading(false);
     }
@@ -167,9 +172,27 @@ const Photos: React.FC = () => {
       }
     });
 
+    // 3. Sorting
+    if (sortByDate) {
+      // Sort by created_at DESC (newest first)
+      currentIds = [...currentIds].sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+    } else {
+      // If not sorting by date, maintain the shuffled order from shuffledPhotoIndex
+      // To do this, we need to re-apply the original shuffled order to the filtered set.
+      // A simpler approach is to just use shuffledPhotoIndex as the base if not sorting by date.
+      // However, if filters are applied, the shuffled order is already broken.
+      // The current implementation implicitly keeps the order of `currentIds` as it's filtered.
+      // If `sortByDate` is false, the order is determined by the filtering process on `shuffledPhotoIndex`.
+      // No explicit action needed here for "random" if `sortByDate` is false, as `shuffledPhotoIndex` is the base.
+    }
+
     // Calcular tags disponíveis (Cascata)
     const availableTagsByLevel: { [order: number]: Set<string> } = {};
-    let tempIds = shuffledPhotoIndex;
+    let tempIds = [...shuffledPhotoIndex]; // Use a copy for calculating available tags
     if (searchTerm) tempIds = tempIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
     if (selectedUserId !== 'all') tempIds = tempIds.filter(p => p.userId === selectedUserId);
 
@@ -189,7 +212,7 @@ const Photos: React.FC = () => {
       ids: currentIds.map(p => p.id),
       availableTagsByLevel
     };
-  }, [shuffledPhotoIndex, categories, tags, selectedTagIds, searchTerm, selectedUserId]);
+  }, [shuffledPhotoIndex, categories, tags, selectedTagIds, searchTerm, selectedUserId, sortByDate]);
 
   // Reset pagination count when filter changes
   useEffect(() => {
@@ -317,10 +340,26 @@ const Photos: React.FC = () => {
   const handleOpenModal = (photo: Photo | null = null) => {
     if (photo) {
       setEditingPhoto(photo);
-      setFormData({ name: photo.name, url: photo.url, thumbnailUrl: photo.thumbnailUrl || '', tagIds: photo.tagIds, localPath: photo.localPath || '', selectedFile: null });
+      setFormData({
+        name: photo.name,
+        url: photo.url,
+        thumbnailUrl: photo.thumbnailUrl || '',
+        tagIds: photo.tagIds || [],
+        localPath: photo.localPath || '',
+        userId: photo.userId, // Pass the selected author
+        selectedFile: null
+      });
     } else {
       setEditingPhoto(null);
-      setFormData({ name: '', url: '', thumbnailUrl: '', tagIds: [], localPath: '', selectedFile: null });
+      setFormData({
+        name: '',
+        url: '',
+        thumbnailUrl: '',
+        tagIds: [],
+        localPath: '',
+        userId: user?.id || '', // Default to current user
+        selectedFile: null
+      });
     }
     setIsModalOpen(true);
   };
@@ -331,7 +370,30 @@ const Photos: React.FC = () => {
   };
 
   const handleExportPDF = async () => {
-    if (selectedExportIds.size === 0) return;
+    // Determine which IDs to export:
+    // 1. If selection exists: INTERSECTION of Selection AND Current Filter
+    // 2. If no selection: ALL Current Filter results
+    let idsToExport: string[] = [];
+
+    if (selectedExportIds.size > 0) {
+      // Only export selected items that are currently visible/filtered
+      idsToExport = filteredResult.ids.filter(id => selectedExportIds.has(id));
+    } else {
+      // Export all filtered results
+      idsToExport = filteredResult.ids;
+    }
+
+    const photosToExportCount = idsToExport.length;
+
+    if (photosToExportCount === 0) {
+      alert('Nenhuma foto selecionada ou visível para exportação.');
+      return;
+    }
+
+    if (photosToExportCount > 30) {
+      alert(`Limite de exportação excedido. Selecione no máximo 30 fotos para gerar o PDF. (Atual: ${photosToExportCount})`);
+      return;
+    }
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -356,7 +418,7 @@ const Photos: React.FC = () => {
       const [maskTopo, maskBase, allPhotosToExport] = await Promise.all([
         loadImage('/assets/mascara_topo.jpg'),
         loadImage('/assets/mascara_base.jpg'),
-        api.getPhotosByIds(Array.from(selectedExportIds))
+        api.getPhotosByIds(idsToExport)
       ]);
 
       const totalPhotos = allPhotosToExport.length;
@@ -537,8 +599,56 @@ const Photos: React.FC = () => {
     alert('Caminho copiado!');
   };
 
+  const effectiveSelectionCount = useMemo(() => {
+    if (selectedExportIds.size === 0) return 0;
+    return filteredResult.ids.filter(id => selectedExportIds.has(id)).length;
+  }, [selectedExportIds, filteredResult.ids]);
+
+
+
+  const headerActions = (
+    <div className="flex gap-2">
+      {/* Select All Button - Always visible, disabled if no results */}
+      <Button
+        variant={filteredResult.ids.length > 0 ? 'default' : 'outline'}
+        onClick={selectAllFiltered}
+        disabled={filteredResult.ids.length === 0}
+        className={`py-2 px-4 text-xs font-bold transition-all ${filteredResult.ids.length === 0
+          ? 'opacity-50 cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
+          : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 border-blue-600 hover:bg-blue-700 hover:border-blue-700'
+          }`}
+      >
+        {selectedExportIds.size > 0 && selectedExportIds.size === filteredResult.ids.length ? 'Todos Selecionados' : `Selecionar Tudo (${filteredResult.ids.length})`}
+      </Button>
+
+      {/* Clear All Button - Always visible, disabled if no filters/selections active */}
+      <Button
+        variant="outline"
+        onClick={() => {
+          setSelectedTagIds([]);
+          setSelectedExportIds(new Set());
+          setSearchTerm('');
+          if (user?.isAdmin) {
+            setOnlyMine(false);
+            setSelectedUserId('all');
+          }
+          // Note: We DO NOT reset sortByDate here, as requested by user.
+        }}
+        disabled={selectedTagIds.length === 0 && selectedExportIds.size === 0 && searchTerm === '' && selectedUserId === 'all' && !onlyMine}
+        className={`py-2 px-4 text-xs font-bold transition-all ${selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || (user?.isAdmin && (selectedUserId !== 'all' || onlyMine))
+          ? 'text-white bg-red-500 border-red-500 hover:bg-red-600 hover:border-red-600 shadow-lg shadow-red-500/30'
+          : 'text-slate-400 border-slate-200 bg-white opacity-50 cursor-not-allowed'
+          }`}
+      >
+        Limpar Tudo
+      </Button>
+
+
+    </div>
+  );
+
   return (
-    <Layout title="Galeria Estruturada">
+    <Layout title="Galeria Estruturada" headerActions={headerActions}>
       <div className="flex flex-col gap-2">
         <Card className="p-3">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-2 border-b border-slate-100 pb-2">
@@ -585,19 +695,22 @@ const Photos: React.FC = () => {
                     ))}
                   </select>
                 </div>
+
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200" title="Ordena do mais recente para o mais antigo">
+                  <input
+                    type="checkbox"
+                    id="sortByDate"
+                    checked={sortByDate}
+                    onChange={e => setSortByDate(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  <label htmlFor="sortByDate" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
+                    Ordem de Cadastro
+                  </label>
+                </div>
               </div>
             )}
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={selectAllFiltered}
-                className="py-1.5 text-xs border-blue-100 text-blue-600 hover:bg-blue-50"
-              >
-                Selecionar Tudo ({filteredResult.ids.length})
-              </Button>
-              {selectedTagIds.length > 0 && (
-                <Button variant="outline" onClick={() => setSelectedTagIds([])} className="text-red-500 border-red-100 py-1.5 text-xs">Limpar Tudo</Button>
-              )}
               {!user?.isVisitor && (
                 <Button onClick={() => handleOpenModal()} className="py-1.5 text-xs">+ Novo Registro</Button>
               )}
@@ -723,6 +836,23 @@ const Photos: React.FC = () => {
         <form onSubmit={handleSave} className="flex flex-col gap-6 max-h-[85vh]">
           <div className="flex flex-col lg:flex-row gap-10 overflow-y-auto pr-4 pb-4 scrollbar-thin">
             <div className="w-full lg:w-96 flex-shrink-0 space-y-6">
+              {/* Author Selection */}
+              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">Autoria do Registro</label>
+                <select
+                  className="w-full rounded-xl border-slate-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs py-2 px-3 font-bold text-slate-700 bg-white"
+                  value={formData.userId}
+                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                >
+                  {allUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} {u.id === user?.id ? '(Você)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Image Upload/Preview */}
               <div className="space-y-3">
                 <div className={`aspect-video lg:aspect-square bg-slate-50 border-2 border-dashed rounded-3xl overflow-hidden flex items-center justify-center relative transition-all duration-300 ${formData.url ? 'border-blue-200' : 'border-slate-200 hover:border-blue-400'}`}>
                   {formData.url ? (
@@ -743,175 +873,185 @@ const Photos: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5 shadow-sm">
-                <Input label="Título do Registro" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">Caminho do Arquivo (Disco)</label>
-                  <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-mono min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500" placeholder="H:\PROJETOS\..." value={formData.localPath} onChange={e => setFormData({ ...formData, localPath: e.target.value })} />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-6">
-              <h3 className="text-xl font-black text-slate-800 flex items-center tracking-tighter"><div className="w-2 h-6 bg-blue-600 rounded-full mr-3"></div>Atribuição Hierárquica</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {categories.map(cat => (
-                  <div key={cat.id} className="flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden group/cat hover:border-blue-200 transition-all">
-                    <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
-                        <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
-                      </div>
-                    </div>
-                    <div className="p-4 flex flex-wrap gap-x-2 gap-y-1 min-h-[80px]">
-                      {tags.filter(t => t.categoryId === cat.id).map(tag => {
-                        const isSelected = formData.tagIds.includes(tag.id);
-                        return (
-                          <button
-                            key={tag.id}
-                            type="button"
-                            onClick={() => toggleModalTag(tag.id)}
-                            className={`px-4 py-2 rounded-2xl text-[10px] font-black border transition-all flex items-center gap-2 ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-blue-400 hover:text-blue-600'
-                              }`}
-                          >
-                            {isSelected && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
-                            {tag.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-8 border-t border-slate-100 bg-white mt-auto">
-            <div className="bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100"><p className="text-[10px] font-bold text-blue-700 leading-tight uppercase">Salvamento com compactação inteligente ativa</p></div>
-            <div className="flex gap-4 w-full sm:w-auto">
-              <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-4 px-10">Cancelar</Button>
-              <Button type="submit" disabled={saving || !formData.url || processingImage} className="flex-1 sm:flex-none px-20 py-4 shadow-2xl shadow-blue-500/30 text-base font-black uppercase tracking-widest">
-                {saving ? 'Gravando...' : 'Finalizar Registro'}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </Modal>
-      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={previewPhoto?.name || 'Vistas'} maxWidth="max-w-4xl">
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative w-full max-h-[60vh] bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-2xl">
-            <img
-              src={previewPhoto?.url}
-              alt={previewPhoto?.name}
-              className="max-w-full max-h-[60vh] object-contain cursor-zoom-out"
-              onClick={() => setIsPreviewOpen(false)}
-            />
-            <button
-              onClick={() => setIsPreviewOpen(false)}
-              className="absolute top-4 right-4 p-1.5 bg-black/40 text-white rounded-full hover:bg-black/60 transition-all shadow-xl backdrop-blur-md border border-white/10"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="flex flex-wrap justify-center gap-1.5 mt-1 max-w-full overflow-hidden">
-            {previewPhoto?.tagIds.map(tagId => {
-              const tag = tags.find(t => t.id === tagId);
-              const cat = categories.find(c => c.id === tag?.categoryId);
-              return (
-                <span key={tagId} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase whitespace-nowrap">
-                  {cat?.name}: {tag?.name}
-                </span>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-3 mt-1">
-            {previewPhoto?.userName && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 mr-2">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cadastrado por:</span>
-                <span className="text-[9px] font-bold text-slate-600">{previewPhoto.userName}</span>
-              </div>
-            )}
-            <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Original
-            </Button>
-            {!user?.isVisitor && (
-              <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
-                Editar
-              </Button>
-            )}
-          </div>
-        </div>
-      </Modal>
-
-      {/* Export Action Bar */}
-      {selectedExportIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
-          <div className="bg-slate-900 border border-slate-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 backdrop-blur-xl">
-            <div className="flex flex-col">
-              <span className="text-sm font-bold">{selectedExportIds.size} {selectedExportIds.size === 1 ? 'Foto selecionada' : 'Fotos selecionadas'}</span>
-              <span className="text-[10px] text-slate-400">Pronto para gerar PDF</span>
-            </div>
-            <div className="h-8 w-px bg-slate-700"></div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-white border-slate-600 hover:bg-slate-800 py-1.5 px-4 text-xs h-9">
-                Cancelar
-              </Button>
-              <Button onClick={handleExportPDF} className="bg-blue-600 hover:bg-blue-700 py-1.5 px-6 text-xs h-9 shadow-lg shadow-blue-500/20 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Gerar PDF
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Progress UI Overlay */}
-      {exportProgress > 0 && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <Card className="max-w-md w-full p-8 space-y-6 text-center shadow-2xl animate-in fade-in zoom-in duration-300">
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5 shadow-sm">
+            <Input label="Título do Registro" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
             <div className="space-y-2">
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Gerando PDF Profissional</h3>
-              <p className="text-sm text-slate-500 font-medium">Isso pode levar alguns segundos dependendo da quantidade de fotos.</p>
+              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">Caminho do Arquivo (Disco)</label>
+              <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-mono min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500" placeholder="H:\PROJETOS\..." value={formData.localPath} onChange={e => setFormData({ ...formData, localPath: e.target.value })} />
             </div>
-
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <div>
-                  <span className="text-xs font-black inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-50">
-                    Processando
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-black inline-block text-blue-600">
-                    {exportProgress}%
-                  </span>
-                </div>
-              </div>
-              <div className="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-slate-100 border border-slate-200">
-                <div
-                  style={{ width: `${exportProgress}%` }}
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600 transition-all duration-300 ease-out"
-                ></div>
-              </div>
-            </div>
-
-            <div className="flex justify-center items-center gap-3 text-slate-400">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Otimizando Imagens...</span>
-            </div>
-          </Card>
+          </div>
         </div>
-      )}
-    </Layout>
+
+        <div className="flex-1 space-y-6">
+          <h3 className="text-xl font-black text-slate-800 flex items-center tracking-tighter"><div className="w-2 h-6 bg-blue-600 rounded-full mr-3"></div>Atribuição Hierárquica</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {categories.map(cat => (
+              <div key={cat.id} className="flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden group/cat hover:border-blue-200 transition-all">
+                <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
+                    <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
+                  </div>
+                </div>
+                <div className="p-4 flex flex-wrap gap-x-2 gap-y-1 min-h-[80px]">
+                  {tags.filter(t => t.categoryId === cat.id).map(tag => {
+                    const isSelected = formData.tagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleModalTag(tag.id)}
+                        className={`px-4 py-2 rounded-2xl text-[10px] font-black border transition-all flex items-center gap-2 ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-blue-400 hover:text-blue-600'
+                          }`}
+                      >
+                        {isSelected && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div >
+
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-8 border-t border-slate-100 bg-white mt-auto">
+        <div className="bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100"><p className="text-[10px] font-bold text-blue-700 leading-tight uppercase">Salvamento com compactação inteligente ativa</p></div>
+        <div className="flex gap-4 w-full sm:w-auto">
+          <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-4 px-10">Cancelar</Button>
+          <Button type="submit" disabled={saving || !formData.url || processingImage} className="flex-1 sm:flex-none px-20 py-4 shadow-2xl shadow-blue-500/30 text-base font-black uppercase tracking-widest">
+            {saving ? 'Gravando...' : 'Finalizar Registro'}
+          </Button>
+        </div>
+      </div>
+    </form >
+      </Modal >
+  <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={previewPhoto?.name || 'Vistas'} maxWidth="max-w-4xl">
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative w-full max-h-[60vh] bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-2xl">
+        <img
+          src={previewPhoto?.url}
+          alt={previewPhoto?.name}
+          className="max-w-full max-h-[60vh] object-contain cursor-zoom-out"
+          onClick={() => setIsPreviewOpen(false)}
+        />
+        <button
+          onClick={() => setIsPreviewOpen(false)}
+          className="absolute top-4 right-4 p-1.5 bg-black/40 text-white rounded-full hover:bg-black/60 transition-all shadow-xl backdrop-blur-md border border-white/10"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div className="flex flex-wrap justify-center gap-1.5 mt-1 max-w-full overflow-hidden">
+        {previewPhoto?.tagIds.map(tagId => {
+          const tag = tags.find(t => t.id === tagId);
+          const cat = categories.find(c => c.id === tag?.categoryId);
+          return (
+            <span key={tagId} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase whitespace-nowrap">
+              {cat?.name}: {tag?.name}
+            </span>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-3 mt-1">
+        {previewPhoto?.userName && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 mr-2">
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cadastrado por:</span>
+            <span className="text-[9px] font-bold text-slate-600">{previewPhoto.userName}</span>
+          </div>
+        )}
+        <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          Original
+        </Button>
+        {!user?.isVisitor && (
+          <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
+            Editar
+          </Button>
+        )}
+      </div>
+    </div>
+  </Modal>
+
+{/* Export Action Bar */ }
+{
+  selectedExportIds.size > 0 && (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
+      <div className="bg-slate-900 border border-slate-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 backdrop-blur-xl">
+        <div className="flex flex-col">
+          <span className="text-sm font-bold">{effectiveSelectionCount} {effectiveSelectionCount === 1 ? 'Foto para PDF' : 'Fotos para PDF'}</span>
+          <span className="text-[10px] text-slate-400">
+            {selectedExportIds.size !== effectiveSelectionCount
+              ? `(Filtrado de ${selectedExportIds.size} selecionadas)`
+              : 'Pronto para gerar PDF'}
+          </span>
+        </div>
+        <div className="h-8 w-px bg-slate-700"></div>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-white border-slate-600 hover:bg-slate-800 py-1.5 px-4 text-xs h-9">
+            Cancelar
+          </Button>
+          <Button onClick={handleExportPDF} className="bg-blue-600 hover:bg-blue-700 py-1.5 px-6 text-xs h-9 shadow-lg shadow-blue-500/20 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Gerar PDF
+          </Button>
+        </div>
+      </div>
+    </div >
+  )
+}
+{/* Progress UI Overlay */ }
+{
+  exportProgress > 0 && (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+      <Card className="max-w-md w-full p-8 space-y-6 text-center shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div className="space-y-2">
+          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Gerando PDF Profissional</h3>
+          <p className="text-sm text-slate-500 font-medium">Isso pode levar alguns segundos dependendo da quantidade de fotos.</p>
+        </div>
+
+        <div className="relative pt-1">
+          <div className="flex mb-2 items-center justify-between">
+            <div>
+              <span className="text-xs font-black inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-50">
+                Processando
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-black inline-block text-blue-600">
+                {exportProgress}%
+              </span>
+            </div>
+          </div>
+          <div className="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-slate-100 border border-slate-200">
+            <div
+              style={{ width: `${exportProgress}%` }}
+              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600 transition-all duration-300 ease-out"
+            ></div>
+          </div>
+        </div>
+
+        <div className="flex justify-center items-center gap-3 text-slate-400">
+          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Otimizando Imagens...</span>
+        </div>
+      </Card>
+    </div>
+  )
+}
+    </Layout >
   );
 };
 
