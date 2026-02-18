@@ -555,6 +555,20 @@ const Photos: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.url) return alert('Escolha uma foto');
+
+    // Validation for Mandatory Categories
+    const requiredCats = categories.filter(c => c.isRequired);
+    const missingCats = requiredCats.filter(cat => {
+      const tagsInCat = tags.filter(t => t.categoryId === cat.id).map(t => t.id);
+      return !formData.tagIds.some(id => tagsInCat.includes(id));
+    });
+
+    if (missingCats.length > 0) {
+      const names = missingCats.map(c => `"${c.name}"`).join(', ');
+      alert(`Atenção: A seleção nos seguintes níveis é obrigatória: ${names}`);
+      return;
+    }
+
     setSaving(true);
     try {
       let finalUrl = formData.url;
@@ -929,6 +943,7 @@ const Photos: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
                         <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
+                        {cat.isRequired && <span className="text-[10px] text-red-600 font-black animate-pulse">*</span>}
                       </div>
                     </div>
                     <div className="p-4 flex flex-wrap gap-x-2 gap-y-1 min-h-[80px]">

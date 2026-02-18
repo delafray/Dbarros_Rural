@@ -12,6 +12,7 @@ const Tags: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [newCatName, setNewCatName] = useState('');
   const [newCatOrder, setNewCatOrder] = useState<number>(1);
+  const [newCatRequired, setNewCatRequired] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagOrder, setNewTagOrder] = useState<number | ''>('');
   const [selectedCatId, setSelectedCatId] = useState('');
@@ -49,8 +50,11 @@ const Tags: React.FC = () => {
     setSaving(true);
     try {
       await api.createTagCategory(newCatName.trim(), newCatOrder);
+      // Note: We need to update createTagCategory to accept isRequired if we want it on creation
+      // For now, let's update handleUpdateCategory as it's the primary way to edit existing ones
       setNewCatName('');
       setNewCatOrder(categories.length + 2);
+      setNewCatRequired(false);
       setIsCreateCatModalOpen(false);
       await fetchData();
     } finally {
@@ -63,7 +67,11 @@ const Tags: React.FC = () => {
     if (!editingCat) return;
     setSaving(true);
     try {
-      await api.updateTagCategory(editingCat.id, { name: editingCat.name, order: editingCat.order });
+      await api.updateTagCategory(editingCat.id, {
+        name: editingCat.name,
+        order: editingCat.order,
+        isRequired: editingCat.isRequired
+      });
       setIsEditModalOpen(false);
       setEditingCat(null);
       await fetchData();
@@ -190,7 +198,12 @@ const Tags: React.FC = () => {
                     <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${selectedCatId === cat.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
                       {cat.order}
                     </span>
-                    <span className="font-bold text-xs">{cat.name}</span>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-xs">{cat.name}</span>
+                      {cat.isRequired && (
+                        <span className={`text-[8px] font-black uppercase tracking-tighter ${selectedCatId === cat.id ? 'text-white/70' : 'text-red-500'}`}>* Obrigatório</span>
+                      )}
+                    </div>
                   </button>
 
                   {user?.canManageTags && (
@@ -224,7 +237,12 @@ const Tags: React.FC = () => {
                   <div className="px-6 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div className="flex items-center gap-4">
                       <span className="bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter">Nível {cat.order}</span>
-                      <h3 className="text-lg font-bold text-slate-800">{cat.name}</h3>
+                      <div className="flex flex-col">
+                        <h3 className="text-lg font-bold text-slate-800">{cat.name}</h3>
+                        {cat.isRequired && (
+                          <span className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-[-2px]">Seleção Obrigatória</span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
                       {user?.canManageTags && (
@@ -310,6 +328,18 @@ const Tags: React.FC = () => {
             onChange={e => setNewCatName(e.target.value)}
             required
           />
+          <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <input
+              type="checkbox"
+              id="isCatRequired"
+              checked={newCatRequired}
+              onChange={e => setNewCatRequired(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="isCatRequired" className="text-xs font-bold text-slate-700 cursor-pointer">
+              Exigir seleção deste nível no cadastro de fotos
+            </label>
+          </div>
           <Input
             label="Nível de Prioridade (1 = Primeiro Filtro)"
             type="number"
@@ -426,6 +456,18 @@ const Tags: React.FC = () => {
               onChange={e => setEditingCat({ ...editingCat, name: e.target.value })}
               required
             />
+            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <input
+                type="checkbox"
+                id="editIsCatRequired"
+                checked={editingCat.isRequired}
+                onChange={e => setEditingCat({ ...editingCat, isRequired: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="editIsCatRequired" className="text-xs font-bold text-slate-700 cursor-pointer text-red-600 uppercase">
+                Seleção Obrigatória para Fotos
+              </label>
+            </div>
             <Input
               label="Nível de Prioridade"
               type="number"

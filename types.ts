@@ -22,7 +22,8 @@ export interface TagCategory {
   id: string;
   userId: string;
   name: string;
-  order: number; // Campo de hierarquia manual (1, 2, 3...)
+  order: number;
+  isRequired: boolean; // New field
   createdAt: string;
 }
 

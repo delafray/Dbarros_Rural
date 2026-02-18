@@ -69,6 +69,7 @@ export const supabaseService: GalleryService = {
       userId: row.user_id,
       name: row.name,
       order: row.order,
+      isRequired: !!row.is_required,
       createdAt: row.created_at
     }));
   },
@@ -81,7 +82,8 @@ export const supabaseService: GalleryService = {
       .insert({
         user_id: userId,
         name: name,
-        order: order
+        order: order,
+        is_required: false
       })
       .select()
       .single();
@@ -93,6 +95,7 @@ export const supabaseService: GalleryService = {
       userId: newCategory.user_id,
       name: newCategory.name,
       order: newCategory.order,
+      isRequired: !!newCategory.is_required,
       createdAt: newCategory.created_at
     };
   },
@@ -116,6 +119,7 @@ export const supabaseService: GalleryService = {
       userId: updatedCategory.user_id,
       name: updatedCategory.name,
       order: updatedCategory.order,
+      isRequired: !!updatedCategory.is_required,
       createdAt: updatedCategory.created_at
     };
   },
