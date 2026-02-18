@@ -26,13 +26,29 @@ const Tags: React.FC = () => {
   const [editingCat, setEditingCat] = useState<TagCategory | null>(null);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [isEditTagModalOpen, setIsEditTagModalOpen] = useState(false);
+  const [pdfLimit, setPdfLimit] = useState<number>(30);
+  const [lastSavedLimit, setLastSavedLimit] = useState<number>(30);
+  const [configSaving, setConfigSaving] = useState(false);
 
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [cats, t] = await Promise.all([api.getTagCategories(), api.getTags()]);
-      const sortedCats = cats.sort((a, b) => (a.order - b.order) || (a.createdAt || '').localeCompare(b.createdAt || ''));
+      const [cats, t, configLimit] = await Promise.all([
+        api.getTagCategories(),
+        api.getTags(),
+        api.getSystemConfig('pdf_limit')
+      ]);
+
+      if (configLimit) {
+        const val = parseInt(configLimit);
+        setPdfLimit(val);
+        setLastSavedLimit(val);
+      }
+
+      const sortedCats = cats
+        .filter(c => c.name !== '__SYSCONFIG__')
+        .sort((a, b) => (a.order - b.order) || (a.createdAt || '').localeCompare(b.createdAt || ''));
       const sortedTags = t.sort((a, b) => (a.order - b.order) || a.createdAt.localeCompare(b.createdAt));
       setCategories(sortedCats);
       setTags(sortedTags);
@@ -47,6 +63,19 @@ const Tags: React.FC = () => {
       fetchData();
     }
   }, [user]);
+
+  const handleSaveConfig = async () => {
+    setConfigSaving(true);
+    try {
+      await api.updateSystemConfig('pdf_limit', String(pdfLimit));
+      setLastSavedLimit(pdfLimit);
+    } catch (err: any) {
+      console.error('Failed to update PDF limit:', err);
+      alert('Erro ao salvar limite de PDF: ' + err.message);
+    } finally {
+      setTimeout(() => setConfigSaving(false), 800);
+    }
+  };
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,8 +213,40 @@ const Tags: React.FC = () => {
     );
   }
 
+  const headerActions = user?.isAdmin ? (
+    <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+      <div className="flex items-center gap-2">
+        <label htmlFor="pdfLimitHeader" className="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap leading-none">
+          Limite PDF:
+        </label>
+        <input
+          id="pdfLimitHeader"
+          type="number"
+          min="1"
+          className="w-12 h-8 px-1 text-[11px] font-bold border-2 border-slate-100 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-all text-center bg-slate-50"
+          value={pdfLimit}
+          onChange={(e) => setPdfLimit(parseInt(e.target.value) || 0)}
+          title="Limite de fotos por PDF"
+        />
+      </div>
+      <div className="w-px h-4 bg-slate-100"></div>
+      <Button
+        onClick={handleSaveConfig}
+        disabled={configSaving || pdfLimit === lastSavedLimit}
+        className={`h-8 px-4 text-[9px] font-black uppercase tracking-widest transition-all shadow-sm ${pdfLimit === lastSavedLimit
+          ? 'bg-green-500 border-green-500 cursor-default opacity-100 text-white'
+          : configSaving
+            ? 'bg-blue-400 border-blue-400 cursor-wait'
+            : 'bg-blue-600 border-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95'
+          }`}
+      >
+        {pdfLimit === lastSavedLimit ? 'Salvo!' : configSaving ? '...' : 'Salvar'}
+      </Button>
+    </div>
+  ) : null;
+
   return (
-    <Layout title="Hierarquia de Tags">
+    <Layout title="Hierarquia de Tags" headerActions={headerActions}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6 md:sticky md:top-6 self-start z-10">
           <Card className="p-4">
@@ -245,6 +306,7 @@ const Tags: React.FC = () => {
               ))}
             </div>
           </Card>
+
 
           {/* Tag creation sidebar card removed in favor of Modal */}
         </div>

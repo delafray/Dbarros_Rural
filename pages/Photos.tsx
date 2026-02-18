@@ -178,6 +178,7 @@ const Photos: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [pdfLimit, setPdfLimit] = useState<number>(30);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
@@ -213,16 +214,20 @@ const Photos: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [index, t, c, u, allU] = await Promise.all([
+      const [index, t, c, u, allU, configLimit] = await Promise.all([
         api.getPhotoIndex(onlyMine),
         api.getTags(),
         api.getTagCategories(),
         api.getUsersWithPhotos(),
-        api.getUsers()
+        api.getUsers(),
+        api.getSystemConfig('pdf_limit') // Fetch system config for pdf_limit
       ]);
+
+      if (configLimit) setPdfLimit(parseInt(configLimit));
+
       setPhotoIndex(index);
       setTags(t.sort((a, b) => (a.order - b.order) || a.createdAt.localeCompare(b.createdAt)));
-      setCategories(c.sort((a, b) => (a.order - b.order) || (a.createdAt || '').localeCompare(b.createdAt || '')));
+      setCategories(c.filter(cat => cat.name !== '__SYSCONFIG__').sort((a, b) => (a.order - b.order) || (a.createdAt || '').localeCompare(b.createdAt || '')));
       setUsersWithPhotos(u);
       setAllUsers(allU);
     } finally {
@@ -545,11 +550,11 @@ const Photos: React.FC = () => {
       return;
     }
 
-    if (photosToExportCount > 30) {
+    if (photosToExportCount > pdfLimit) {
       setErrorModal({
         isOpen: true,
         title: 'Limite de Exportação',
-        message: `Limite de exportação excedido. Selecione no máximo 30 fotos para gerar o PDF. (Atual: ${photosToExportCount})`
+        message: `Limite de exportação excedido. Selecione no máximo ${pdfLimit} fotos para gerar o PDF. (Atual: ${photosToExportCount})`
       });
       return;
     }
@@ -634,9 +639,17 @@ const Photos: React.FC = () => {
         doc.setTextColor(30, 41, 59); // Slate-800
         doc.text(photo.name, margin, slotY + 2); // Title at top of slot
 
+        // Meta Info (Tags and Author) for PDF
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139); // Slate-500
+        const tagNames = photo.tagIds.map(id => tags.find(t => t.id === id)?.name).filter(Boolean).join(' • ');
+        const authorText = photo.userName ? ` | Cadastrado por: ${photo.userName}` : '';
+        doc.text(`${tagNames}${authorText}`, margin, slotY + 6);
+
         if (img) {
-          const imageAreaY = slotY + 5; // Start image just below title
-          const imageAreaHeight = slotHeight - 7;
+          const imageAreaY = slotY + 9; // Shifted from 5 to 9 to give space for meta info
+          const imageAreaHeight = slotHeight - 11; // Adjusted from 7 to 11 to fit within slot
           const imageAreaWidth = pageWidth - (margin * 2);
 
           let drawWidth = imageAreaWidth;
@@ -869,7 +882,7 @@ const Photos: React.FC = () => {
         disabled={effectiveSelectionCount === 0}
         className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
           ? 'opacity-50 cursor-not-allowed shadow-none'
-          : effectiveSelectionCount > 30
+          : effectiveSelectionCount > pdfLimit
             ? 'bg-red-600 text-white border-red-600 shadow-red-500/30 hover:bg-red-700'
             : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30 hover:bg-blue-700'
           }`}
@@ -884,7 +897,7 @@ const Photos: React.FC = () => {
         disabled={filteredResult.ids.length === 0}
         className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
           ? 'opacity-50 shadow-none'
-          : effectiveSelectionCount > 30
+          : effectiveSelectionCount > pdfLimit
             ? 'bg-red-600 text-white border-red-600 shadow-red-500/30 hover:bg-red-700'
             : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30 hover:bg-blue-700'
           } ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
@@ -910,7 +923,7 @@ const Photos: React.FC = () => {
             disabled={!hasActiveFilters}
             className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${!hasActiveFilters
               ? 'opacity-50 shadow-none cursor-not-allowed'
-              : effectiveSelectionCount > 30
+              : effectiveSelectionCount > pdfLimit
                 ? 'bg-red-600 text-white border-red-600 shadow-red-500/30 hover:bg-red-700'
                 : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30 hover:bg-blue-700'
               }`}
@@ -1455,7 +1468,7 @@ const Photos: React.FC = () => {
                 </Button>
                 <Button
                   onClick={handleExportPDF}
-                  className={`py-1.5 px-6 text-xs h-9 shadow-lg flex items-center gap-2 transition-all ${effectiveSelectionCount > 30
+                  className={`py-1.5 px-6 text-xs h-9 shadow-lg flex items-center gap-2 transition-all ${effectiveSelectionCount > pdfLimit
                     ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
                     }`}

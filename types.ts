@@ -75,4 +75,8 @@ export interface GalleryService {
   // Users
   getUsersWithPhotos: () => Promise<Array<{ id: string; name: string }>>;
   getUsers: () => Promise<Array<{ id: string; name: string }>>;
+
+  // System Config
+  getSystemConfig: (key: string) => Promise<string | null>;
+  updateSystemConfig: (key: string, value: string) => Promise<void>;
 }

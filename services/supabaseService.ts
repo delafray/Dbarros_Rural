@@ -516,9 +516,94 @@ export const supabaseService: GalleryService = {
       .neq('is_visitor', true)
       .neq('is_temp', true)
       .order('name');
-
     if (error) throw new Error(`Failed to fetch users: ${error.message}`);
 
     return data.map(u => ({ id: u.id, name: u.name }));
+  },
+
+  // ==================== SYSTEM CONFIG ====================
+  getSystemConfig: async (key: string) => {
+    try {
+      // 1. Find the system config category
+      const { data: cat } = await supabase
+        .from('tag_categories')
+        .select('id')
+        .eq('name', '__SYSCONFIG__')
+        .limit(1)
+        .maybeSingle();
+
+      if (!cat) return null;
+
+      // 2. Find the tag (config key)
+      const { data: tag } = await supabase
+        .from('tags')
+        .select('order')
+        .eq('category_id', cat.id)
+        .eq('name', key)
+        .limit(1)
+        .maybeSingle();
+
+      return tag ? String(tag.order) : null;
+    } catch (err) {
+      console.error('Error fetching system config:', err);
+      return null;
+    }
+  },
+
+  updateSystemConfig: async (key: string, value: string) => {
+    try {
+      const valNumber = parseInt(value);
+      if (isNaN(valNumber)) throw new Error('Value must be a number');
+
+      // 1. Ensure category exists
+      let { data: cat } = await supabase
+        .from('tag_categories')
+        .select('id')
+        .eq('name', '__SYSCONFIG__')
+        .limit(1)
+        .maybeSingle();
+
+      if (!cat) {
+        const { data: newCat, error: catErr } = await supabase
+          .from('tag_categories')
+          .insert({
+            name: '__SYSCONFIG__',
+            order: 999, // Stay at the end
+            user_id: getCurrentUserId()
+          })
+          .select()
+          .single();
+        if (catErr) throw catErr;
+        cat = newCat;
+      }
+
+      // 2. Ensure tag exists or update it
+      const { data: tag } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('category_id', cat.id)
+        .eq('name', key)
+        .limit(1)
+        .maybeSingle();
+
+      if (tag) {
+        await supabase
+          .from('tags')
+          .update({ order: valNumber })
+          .eq('id', tag.id);
+      } else {
+        await supabase
+          .from('tags')
+          .insert({
+            name: key,
+            category_id: cat.id,
+            order: valNumber,
+            user_id: getCurrentUserId()
+          });
+      }
+    } catch (err) {
+      console.error('Error updating system config:', err);
+      throw err;
+    }
   },
 };
