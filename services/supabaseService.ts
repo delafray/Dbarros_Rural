@@ -70,11 +70,12 @@ export const supabaseService: GalleryService = {
       name: row.name,
       order: row.order,
       isRequired: !!row.is_required,
+      commonGroup: row.common_group || undefined,
       createdAt: row.created_at
     }));
   },
 
-  createTagCategory: async (name, order, isRequired = false) => {
+  createTagCategory: async (name, order, isRequired = false, commonGroup) => {
     const userId = getCurrentUserId();
 
     const { data: newCategory, error } = await supabase
@@ -83,7 +84,8 @@ export const supabaseService: GalleryService = {
         user_id: userId,
         name: name,
         order: order,
-        is_required: isRequired
+        is_required: isRequired,
+        common_group: commonGroup || null
       })
       .select()
       .single();
@@ -105,6 +107,7 @@ export const supabaseService: GalleryService = {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.order !== undefined) updateData.order = data.order;
     if (data.isRequired !== undefined) updateData.is_required = data.isRequired;
+    if (data.commonGroup !== undefined) updateData.common_group = data.commonGroup || null;
 
     const { data: updatedCategory, error } = await supabase
       .from('tag_categories')
@@ -121,6 +124,7 @@ export const supabaseService: GalleryService = {
       name: updatedCategory.name,
       order: updatedCategory.order,
       isRequired: !!updatedCategory.is_required,
+      commonGroup: updatedCategory.common_group || undefined,
       createdAt: updatedCategory.created_at
     };
   },

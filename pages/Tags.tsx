@@ -13,6 +13,7 @@ const Tags: React.FC = () => {
   const [newCatName, setNewCatName] = useState('');
   const [newCatOrder, setNewCatOrder] = useState<number>(1);
   const [newCatRequired, setNewCatRequired] = useState(false);
+  const [newCatGroup, setNewCatGroup] = useState('');
   const [newTagName, setNewTagName] = useState('');
   const [newTagOrder, setNewTagOrder] = useState<number | ''>('');
   const [selectedCatId, setSelectedCatId] = useState('');
@@ -49,12 +50,11 @@ const Tags: React.FC = () => {
     if (!newCatName.trim()) return;
     setSaving(true);
     try {
-      await api.createTagCategory(newCatName.trim(), newCatOrder, newCatRequired);
-      // Note: We need to update createTagCategory to accept isRequired if we want it on creation
-      // For now, let's update handleUpdateCategory as it's the primary way to edit existing ones
+      await api.createTagCategory(newCatName.trim(), newCatOrder, newCatRequired, newCatGroup.trim());
       setNewCatName('');
       setNewCatOrder(categories.length + 2);
       setNewCatRequired(false);
+      setNewCatGroup('');
       setIsCreateCatModalOpen(false);
       await fetchData();
     } finally {
@@ -70,7 +70,8 @@ const Tags: React.FC = () => {
       await api.updateTagCategory(editingCat.id, {
         name: editingCat.name,
         order: editingCat.order,
-        isRequired: editingCat.isRequired
+        isRequired: editingCat.isRequired,
+        commonGroup: editingCat.commonGroup
       });
       setIsEditModalOpen(false);
       setEditingCat(null);
@@ -203,9 +204,14 @@ const Tags: React.FC = () => {
                     </span>
                     <div className="flex flex-col">
                       <span className="font-bold text-xs">{cat.name}</span>
-                      {cat.isRequired && (
-                        <span className={`text-[8px] font-black uppercase tracking-tighter ${selectedCatId === cat.id ? 'text-white/70' : 'text-red-500'}`}>* Obrigatório</span>
-                      )}
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        {cat.isRequired && (
+                          <span className={`text-[8px] font-black uppercase tracking-tighter shrink-0 ${selectedCatId === cat.id ? 'text-white/70' : 'text-red-500'}`}>* Obrigatório</span>
+                        )}
+                        {cat.commonGroup && (
+                          <span className={`text-[8px] font-bold truncate opacity-60 italic ${selectedCatId === cat.id ? 'text-white' : 'text-slate-500'}`}>({cat.commonGroup})</span>
+                        )}
+                      </div>
                     </div>
                   </button>
 
@@ -242,9 +248,14 @@ const Tags: React.FC = () => {
                       <span className="bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter">Nível {cat.order}</span>
                       <div className="flex flex-col">
                         <h3 className="text-lg font-bold text-slate-800">{cat.name}</h3>
-                        {cat.isRequired && (
-                          <span className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-[-2px]">Seleção Obrigatória</span>
-                        )}
+                        <div className="flex items-center gap-2 mt-[-2px]">
+                          {cat.isRequired && (
+                            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Seleção Obrigatória</span>
+                          )}
+                          {cat.commonGroup && (
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Grupo: {cat.commonGroup}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -330,6 +341,12 @@ const Tags: React.FC = () => {
             value={newCatName}
             onChange={e => setNewCatName(e.target.value)}
             required
+          />
+          <Input
+            label="Grupo Comum (Opcional)"
+            placeholder="Ex: Tamanho (Agrupa níveis 3 e 4)"
+            value={newCatGroup}
+            onChange={e => setNewCatGroup(e.target.value)}
           />
           <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
             <input
@@ -458,6 +475,12 @@ const Tags: React.FC = () => {
               value={editingCat.name}
               onChange={e => setEditingCat({ ...editingCat, name: e.target.value })}
               required
+            />
+            <Input
+              label="Grupo Comum (Opcional)"
+              placeholder="Ex: Tamanho"
+              value={editingCat.commonGroup || ''}
+              onChange={e => setEditingCat({ ...editingCat, commonGroup: e.target.value })}
             />
             <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
               <input

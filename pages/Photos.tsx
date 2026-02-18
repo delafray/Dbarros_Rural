@@ -556,16 +556,28 @@ const Photos: React.FC = () => {
     e.preventDefault();
     if (!formData.url) return alert('Escolha uma foto');
 
-    // Validation for Mandatory Categories
+    // Validation for Mandatory Categories (Group Aware)
     const requiredCats = categories.filter(c => c.isRequired);
-    const missingCats = requiredCats.filter(cat => {
-      const tagsInCat = tags.filter(t => t.categoryId === cat.id).map(t => t.id);
-      return !formData.tagIds.some(id => tagsInCat.includes(id));
+
+    // Agrupar categorias obrigatórias por Grupo Comum ou por ID (se não houver grupo)
+    const mandatoryRequirements: Record<string, { name: string, catIds: string[] }> = {};
+
+    requiredCats.forEach(cat => {
+      const key = cat.commonGroup || `individual_${cat.id}`;
+      if (!mandatoryRequirements[key]) {
+        mandatoryRequirements[key] = { name: cat.commonGroup || cat.name, catIds: [] };
+      }
+      mandatoryRequirements[key].catIds.push(cat.id);
     });
 
-    if (missingCats.length > 0) {
-      const names = missingCats.map(c => `"${c.name}"`).join(', ');
-      alert(`Atenção: A seleção nos seguintes níveis é obrigatória: ${names}`);
+    const missingRequirements = Object.values(mandatoryRequirements).filter(req => {
+      const allTagsInGroup = tags.filter(t => req.catIds.includes(t.categoryId)).map(t => t.id);
+      return !formData.tagIds.some(id => allTagsInGroup.includes(id));
+    });
+
+    if (missingRequirements.length > 0) {
+      const names = missingRequirements.map(r => `"${r.name}"`).join(', ');
+      alert(`Atenção: A seleção nos seguintes níveis/grupos é obrigatória: ${names}`);
       return;
     }
 

@@ -23,7 +23,8 @@ export interface TagCategory {
   userId: string;
   name: string;
   order: number;
-  isRequired: boolean; // New field
+  isRequired: boolean;
+  commonGroup?: string; // New field
   createdAt: string;
 }
 
@@ -51,7 +52,7 @@ export interface Photo {
 export interface GalleryService {
   // Tag Categories
   getTagCategories: () => Promise<TagCategory[]>;
-  createTagCategory: (name: string, order: number, isRequired?: boolean) => Promise<TagCategory>;
+  createTagCategory: (name: string, order: number, isRequired?: boolean, commonGroup?: string) => Promise<TagCategory>;
   updateTagCategory: (id: string, data: Partial<TagCategory>) => Promise<TagCategory>;
   deleteTagCategory: (id: string) => Promise<void>;
 
