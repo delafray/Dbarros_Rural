@@ -239,6 +239,8 @@ export const supabaseService: GalleryService = {
         user_id,
         created_at,
         video_url,
+        url,
+        thumbnail_url,
         users (
           name
         ),
@@ -263,6 +265,8 @@ export const supabaseService: GalleryService = {
       userName: Array.isArray(row.users) ? row.users[0]?.name : (row.users as any)?.name,
       tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id),
       videoUrl: row.video_url,
+      url: row.url,
+      thumbnailUrl: row.thumbnail_url,
       createdAt: row.created_at
     }));
   },

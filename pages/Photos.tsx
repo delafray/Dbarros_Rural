@@ -803,8 +803,13 @@ const Photos: React.FC = () => {
       }
 
       const saveData = { ...formData, url: finalUrl, thumbnailUrl: finalThumbUrl, videoUrl: finalVideoUrl };
-      if (editingPhoto) await api.updatePhoto(editingPhoto.id, saveData);
-      else await api.createPhoto(saveData);
+      if (editingPhoto) {
+        await api.updatePhoto(editingPhoto.id, saveData);
+        // Invalidate hydration cache for this specific photo
+        setHydratedPhotos(prev => prev.filter(p => p.id !== editingPhoto.id));
+      } else {
+        await api.createPhoto(saveData);
+      }
 
       setIsModalOpen(false);
       await fetchData();
