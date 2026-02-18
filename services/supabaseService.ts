@@ -136,6 +136,7 @@ export const supabaseService: GalleryService = {
     let query = supabase
       .from('tags')
       .select('*')
+      .order('order', { ascending: true })
       .order('created_at', { ascending: true });
 
     query = applyUserFilter(query, userId);
@@ -149,11 +150,12 @@ export const supabaseService: GalleryService = {
       userId: row.user_id,
       name: row.name,
       categoryId: row.category_id,
+      order: row.order || 0,
       createdAt: row.created_at
     }));
   },
 
-  createTag: async (name, categoryId) => {
+  createTag: async (name, categoryId, order) => {
     const userId = getCurrentUserId();
 
     const { data: newTag, error } = await supabase
@@ -161,7 +163,8 @@ export const supabaseService: GalleryService = {
       .insert({
         user_id: userId,
         name: name,
-        category_id: categoryId
+        category_id: categoryId,
+        order: order || 0
       })
       .select()
       .single();
@@ -173,7 +176,33 @@ export const supabaseService: GalleryService = {
       userId: newTag.user_id,
       name: newTag.name,
       categoryId: newTag.category_id,
+      order: newTag.order || 0,
       createdAt: newTag.created_at
+    };
+  },
+
+  updateTag: async (id, data) => {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.order !== undefined) updateData.order = data.order;
+    if (data.categoryId !== undefined) updateData.category_id = data.categoryId;
+
+    const { data: updatedTag, error } = await supabase
+      .from('tags')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update tag: ${error.message}`);
+
+    return {
+      id: updatedTag.id,
+      userId: updatedTag.user_id,
+      name: updatedTag.name,
+      categoryId: updatedTag.category_id,
+      order: updatedTag.order || 0,
+      createdAt: updatedTag.created_at
     };
   },
 

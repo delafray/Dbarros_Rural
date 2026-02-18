@@ -31,6 +31,7 @@ export interface Tag {
   userId: string;
   name: string;
   categoryId: string; // Referência à categoria pai
+  order: number; // Novo campo de ordenação manual
   createdAt: string;
 }
 
@@ -55,7 +56,8 @@ export interface GalleryService {
 
   // Tags
   getTags: () => Promise<Tag[]>;
-  createTag: (name: string, categoryId: string) => Promise<Tag>;
+  createTag: (name: string, categoryId: string, order?: number) => Promise<Tag>;
+  updateTag: (id: string, data: Partial<Tag>) => Promise<Tag>;
   deleteTag: (id: string) => Promise<void>;
 
   // Photos

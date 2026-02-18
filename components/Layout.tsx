@@ -99,7 +99,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-64 p-4 md:pt-4 md:px-8 w-full max-w-full overflow-hidden">
+      <main className="flex-1 md:ml-64 p-4 md:pt-4 md:px-8 w-full max-w-full">
         <header className="mb-4 flex justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             {/* Hamburger Button for Mobile */}
