@@ -873,184 +873,182 @@ const Photos: React.FC = () => {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5 shadow-sm">
-            <Input label="Título do Registro" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">Caminho do Arquivo (Disco)</label>
-              <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-mono min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500" placeholder="H:\PROJETOS\..." value={formData.localPath} onChange={e => setFormData({ ...formData, localPath: e.target.value })} />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 space-y-6">
-          <h3 className="text-xl font-black text-slate-800 flex items-center tracking-tighter"><div className="w-2 h-6 bg-blue-600 rounded-full mr-3"></div>Atribuição Hierárquica</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {categories.map(cat => (
-              <div key={cat.id} className="flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden group/cat hover:border-blue-200 transition-all">
-                <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
-                    <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
-                  </div>
-                </div>
-                <div className="p-4 flex flex-wrap gap-x-2 gap-y-1 min-h-[80px]">
-                  {tags.filter(t => t.categoryId === cat.id).map(tag => {
-                    const isSelected = formData.tagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => toggleModalTag(tag.id)}
-                        className={`px-4 py-2 rounded-2xl text-[10px] font-black border transition-all flex items-center gap-2 ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-blue-400 hover:text-blue-600'
-                          }`}
-                      >
-                        {isSelected && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
-                        {tag.name}
-                      </button>
-                    );
-                  })}
+              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5 shadow-sm">
+                <Input label="Título do Registro" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">Caminho do Arquivo (Disco)</label>
+                  <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-mono min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500" placeholder="H:\PROJETOS\..." value={formData.localPath} onChange={e => setFormData({ ...formData, localPath: e.target.value })} />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div >
+            </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-8 border-t border-slate-100 bg-white mt-auto">
-        <div className="bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100"><p className="text-[10px] font-bold text-blue-700 leading-tight uppercase">Salvamento com compactação inteligente ativa</p></div>
-        <div className="flex gap-4 w-full sm:w-auto">
-          <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-4 px-10">Cancelar</Button>
-          <Button type="submit" disabled={saving || !formData.url || processingImage} className="flex-1 sm:flex-none px-20 py-4 shadow-2xl shadow-blue-500/30 text-base font-black uppercase tracking-widest">
-            {saving ? 'Gravando...' : 'Finalizar Registro'}
-          </Button>
-        </div>
-      </div>
-    </form >
+            <div className="flex-1 space-y-6">
+              <h3 className="text-xl font-black text-slate-800 flex items-center tracking-tighter"><div className="w-2 h-6 bg-blue-600 rounded-full mr-3"></div>Atribuição Hierárquica</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {categories.map(cat => (
+                  <div key={cat.id} className="flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden group/cat hover:border-blue-200 transition-all">
+                    <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
+                        <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
+                      </div>
+                    </div>
+                    <div className="p-4 flex flex-wrap gap-x-2 gap-y-1 min-h-[80px]">
+                      {tags.filter(t => t.categoryId === cat.id).map(tag => {
+                        const isSelected = formData.tagIds.includes(tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => toggleModalTag(tag.id)}
+                            className={`px-4 py-2 rounded-2xl text-[10px] font-black border transition-all flex items-center gap-2 ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-blue-400 hover:text-blue-600'
+                              }`}
+                          >
+                            {isSelected && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div >
+
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-8 border-t border-slate-100 bg-white mt-auto">
+            <div className="bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100"><p className="text-[10px] font-bold text-blue-700 leading-tight uppercase">Salvamento com compactação inteligente ativa</p></div>
+            <div className="flex gap-4 w-full sm:w-auto">
+              <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-4 px-10">Cancelar</Button>
+              <Button type="submit" disabled={saving || !formData.url || processingImage} className="flex-1 sm:flex-none px-20 py-4 shadow-2xl shadow-blue-500/30 text-base font-black uppercase tracking-widest">
+                {saving ? 'Gravando...' : 'Finalizar Registro'}
+              </Button>
+            </div>
+          </div>
+        </form >
       </Modal >
-  <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={previewPhoto?.name || 'Vistas'} maxWidth="max-w-4xl">
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative w-full max-h-[60vh] bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-2xl">
-        <img
-          src={previewPhoto?.url}
-          alt={previewPhoto?.name}
-          className="max-w-full max-h-[60vh] object-contain cursor-zoom-out"
-          onClick={() => setIsPreviewOpen(false)}
-        />
-        <button
-          onClick={() => setIsPreviewOpen(false)}
-          className="absolute top-4 right-4 p-1.5 bg-black/40 text-white rounded-full hover:bg-black/60 transition-all shadow-xl backdrop-blur-md border border-white/10"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <div className="flex flex-wrap justify-center gap-1.5 mt-1 max-w-full overflow-hidden">
-        {previewPhoto?.tagIds.map(tagId => {
-          const tag = tags.find(t => t.id === tagId);
-          const cat = categories.find(c => c.id === tag?.categoryId);
-          return (
-            <span key={tagId} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase whitespace-nowrap">
-              {cat?.name}: {tag?.name}
-            </span>
-          );
-        })}
-      </div>
-      <div className="flex items-center gap-3 mt-1">
-        {previewPhoto?.userName && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 mr-2">
-            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cadastrado por:</span>
-            <span className="text-[9px] font-bold text-slate-600">{previewPhoto.userName}</span>
+      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={previewPhoto?.name || 'Vistas'} maxWidth="max-w-4xl">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative w-full max-h-[60vh] bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-2xl">
+            <img
+              src={previewPhoto?.url}
+              alt={previewPhoto?.name}
+              className="max-w-full max-h-[60vh] object-contain cursor-zoom-out"
+              onClick={() => setIsPreviewOpen(false)}
+            />
+            <button
+              onClick={() => setIsPreviewOpen(false)}
+              className="absolute top-4 right-4 p-1.5 bg-black/40 text-white rounded-full hover:bg-black/60 transition-all shadow-xl backdrop-blur-md border border-white/10"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        )}
-        <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-          Original
-        </Button>
-        {!user?.isVisitor && (
-          <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
-            Editar
-          </Button>
-        )}
-      </div>
-    </div>
-  </Modal>
+          <div className="flex flex-wrap justify-center gap-1.5 mt-1 max-w-full overflow-hidden">
+            {previewPhoto?.tagIds.map(tagId => {
+              const tag = tags.find(t => t.id === tagId);
+              const cat = categories.find(c => c.id === tag?.categoryId);
+              return (
+                <span key={tagId} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase whitespace-nowrap">
+                  {cat?.name}: {tag?.name}
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-3 mt-1">
+            {previewPhoto?.userName && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 mr-2">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cadastrado por:</span>
+                <span className="text-[9px] font-bold text-slate-600">{previewPhoto.userName}</span>
+              </div>
+            )}
+            <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Original
+            </Button>
+            {!user?.isVisitor && (
+              <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
+                Editar
+              </Button>
+            )}
+          </div>
+        </div>
+      </Modal>
 
-{/* Export Action Bar */ }
-{
-  selectedExportIds.size > 0 && (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
-      <div className="bg-slate-900 border border-slate-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 backdrop-blur-xl">
-        <div className="flex flex-col">
-          <span className="text-sm font-bold">{effectiveSelectionCount} {effectiveSelectionCount === 1 ? 'Foto para PDF' : 'Fotos para PDF'}</span>
-          <span className="text-[10px] text-slate-400">
-            {selectedExportIds.size !== effectiveSelectionCount
-              ? `(Filtrado de ${selectedExportIds.size} selecionadas)`
-              : 'Pronto para gerar PDF'}
-          </span>
-        </div>
-        <div className="h-8 w-px bg-slate-700"></div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-white border-slate-600 hover:bg-slate-800 py-1.5 px-4 text-xs h-9">
-            Cancelar
-          </Button>
-          <Button onClick={handleExportPDF} className="bg-blue-600 hover:bg-blue-700 py-1.5 px-6 text-xs h-9 shadow-lg shadow-blue-500/20 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Gerar PDF
-          </Button>
-        </div>
-      </div>
-    </div >
-  )
-}
-{/* Progress UI Overlay */ }
-{
-  exportProgress > 0 && (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-      <Card className="max-w-md w-full p-8 space-y-6 text-center shadow-2xl animate-in fade-in zoom-in duration-300">
-        <div className="space-y-2">
-          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Gerando PDF Profissional</h3>
-          <p className="text-sm text-slate-500 font-medium">Isso pode levar alguns segundos dependendo da quantidade de fotos.</p>
-        </div>
-
-        <div className="relative pt-1">
-          <div className="flex mb-2 items-center justify-between">
-            <div>
-              <span className="text-xs font-black inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-50">
-                Processando
-              </span>
+      {/* Export Action Bar */}
+      {
+        selectedExportIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
+            <div className="bg-slate-900 border border-slate-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 backdrop-blur-xl">
+              <div className="flex flex-col">
+                <span className="text-sm font-bold">{effectiveSelectionCount} {effectiveSelectionCount === 1 ? 'Foto para PDF' : 'Fotos para PDF'}</span>
+                <span className="text-[10px] text-slate-400">
+                  {selectedExportIds.size !== effectiveSelectionCount
+                    ? `(Filtrado de ${selectedExportIds.size} selecionadas)`
+                    : 'Pronto para gerar PDF'}
+                </span>
+              </div>
+              <div className="h-8 w-px bg-slate-700"></div>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-white border-slate-600 hover:bg-slate-800 py-1.5 px-4 text-xs h-9">
+                  Cancelar
+                </Button>
+                <Button onClick={handleExportPDF} className="bg-blue-600 hover:bg-blue-700 py-1.5 px-6 text-xs h-9 shadow-lg shadow-blue-500/20 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Gerar PDF
+                </Button>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-xs font-black inline-block text-blue-600">
-                {exportProgress}%
-              </span>
-            </div>
-          </div>
-          <div className="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-slate-100 border border-slate-200">
-            <div
-              style={{ width: `${exportProgress}%` }}
-              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600 transition-all duration-300 ease-out"
-            ></div>
-          </div>
-        </div>
+          </div >
+        )
+      }
+      {/* Progress UI Overlay */}
+      {
+        exportProgress > 0 && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <Card className="max-w-md w-full p-8 space-y-6 text-center shadow-2xl animate-in fade-in zoom-in duration-300">
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Gerando PDF Profissional</h3>
+                <p className="text-sm text-slate-500 font-medium">Isso pode levar alguns segundos dependendo da quantidade de fotos.</p>
+              </div>
 
-        <div className="flex justify-center items-center gap-3 text-slate-400">
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Otimizando Imagens...</span>
-        </div>
-      </Card>
-    </div>
-  )
-}
+              <div className="relative pt-1">
+                <div className="flex mb-2 items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-50">
+                      Processando
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black inline-block text-blue-600">
+                      {exportProgress}%
+                    </span>
+                  </div>
+                </div>
+                <div className="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-slate-100 border border-slate-200">
+                  <div
+                    style={{ width: `${exportProgress}%` }}
+                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600 transition-all duration-300 ease-out"
+                  ></div>
+                </div>
+              </div>
+
+              <div className="flex justify-center items-center gap-3 text-slate-400">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Otimizando Imagens...</span>
+              </div>
+            </Card>
+          </div>
+        )
+      }
     </Layout >
   );
 };
