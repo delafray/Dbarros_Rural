@@ -849,7 +849,8 @@ const Photos: React.FC = () => {
     if (!user) return false;
     if (user.isAdmin) return true; // Admins can edit any photo
     if (user.isVisitor) return false; // Visitors cannot edit
-    return photo.userId === user.id; // Projetista can only edit their own
+    if (user.isProjetista) return photo.userId === user.id; // Projetista can only edit their own
+    return photo.userId === user.id; // Fallback for other non-admins
   };
 
   const copyToClipboard = (e: React.MouseEvent, text: string) => {
@@ -917,7 +918,7 @@ const Photos: React.FC = () => {
 
       {/* Clear All Button - Always visible, disabled if no filters/selections active */}
       {(() => {
-        const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || (user?.isAdmin && (selectedUserId !== 'all' || onlyMine));
+        const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
         return (
           <Button
             variant="primary"
@@ -925,7 +926,7 @@ const Photos: React.FC = () => {
               setSelectedTagIds([]);
               setSelectedExportIds(new Set());
               setSearchTerm('');
-              if (user?.isAdmin) {
+              if (user?.isAdmin || user?.isProjetista) {
                 setOnlyMine(false);
                 setSelectedUserId('all');
               }
@@ -960,7 +961,7 @@ const Photos: React.FC = () => {
                 className="py-1.5"
               />
             </div>
-            {user?.isAdmin && (
+            {(user?.isAdmin || user?.isProjetista) && (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
                   <input
@@ -1449,7 +1450,7 @@ const Photos: React.FC = () => {
               </svg>
               Original
             </Button>
-            {!user?.isVisitor && (
+            {previewPhoto && canEditPhoto(previewPhoto) && (
               <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
                 Editar
               </Button>

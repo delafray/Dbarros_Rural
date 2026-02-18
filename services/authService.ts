@@ -17,6 +17,7 @@ export interface User {
     expiresAt?: string;
     isTemp?: boolean;
     canManageTags: boolean;
+    isProjetista: boolean;
 }
 
 // Hash password using bcrypt
@@ -31,7 +32,7 @@ async function comparePassword(password: string, hash: string): Promise<boolean>
 
 export const authService = {
     // Register new user
-    register: async (name: string, email: string, password: string, isAdmin: boolean = false, isVisitor: boolean = false): Promise<User> => {
+    register: async (name: string, email: string, password: string, isAdmin: boolean = false, isVisitor: boolean = false, canManageTags: boolean = false, isProjetista: boolean = false): Promise<User> => {
         const passwordHash = await hashPassword(password);
 
         const insertData: TablesInsert<'users'> = {
@@ -40,8 +41,10 @@ export const authService = {
             password_hash: passwordHash,
             is_admin: isAdmin,
             is_visitor: isVisitor,
-            is_active: true
-        };
+            is_active: true,
+            can_manage_tags: canManageTags,
+            is_projetista: isProjetista
+        } as any;
 
         const { data, error } = await supabase
             .from('users')
@@ -61,7 +64,8 @@ export const authService = {
             createdAt: data.created_at,
             expiresAt: data.expires_at,
             isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags ?? false
+            canManageTags: (data as any).can_manage_tags ?? false,
+            isProjetista: (data as any).is_projetista ?? false
         };
     },
 
@@ -106,7 +110,8 @@ export const authService = {
             createdAt: data.created_at,
             expiresAt: data.expires_at,
             isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags ?? false
+            canManageTags: (data as any).can_manage_tags ?? false,
+            isProjetista: (data as any).is_projetista ?? false
         };
 
         // Store user and login time in localStorage
@@ -157,7 +162,8 @@ export const authService = {
                 createdAt: data.created_at,
                 expiresAt: data.expires_at,
                 isTemp: data.is_temp,
-                canManageTags: (data as any).can_manage_tags ?? false
+                canManageTags: (data as any).can_manage_tags ?? false,
+                isProjetista: (data as any).is_projetista ?? false
             },
             passwordRaw: tempPassword
         };
@@ -213,11 +219,12 @@ export const authService = {
             createdAt: row.created_at,
             expiresAt: row.expires_at,
             isTemp: row.is_temp,
-            canManageTags: (row as any).can_manage_tags ?? false
+            canManageTags: (row as any).can_manage_tags ?? false,
+            isProjetista: (row as any).is_projetista ?? false
         }));
     },
 
-    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; canManageTags: boolean; password?: string }>): Promise<void> => {
+    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; canManageTags: boolean; isProjetista: boolean; password?: string }>): Promise<void> => {
         const updateData: TablesUpdate<'users'> = {};
         if (updates.name !== undefined) updateData.name = updates.name;
         if (updates.email !== undefined) updateData.email = updates.email;
@@ -225,6 +232,7 @@ export const authService = {
         if (updates.isVisitor !== undefined) updateData.is_visitor = updates.isVisitor;
         if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
         if (updates.canManageTags !== undefined) (updateData as any).can_manage_tags = updates.canManageTags;
+        if (updates.isProjetista !== undefined) (updateData as any).is_projetista = updates.isProjetista;
 
         if (updates.password) {
             updateData.password_hash = await hashPassword(updates.password);

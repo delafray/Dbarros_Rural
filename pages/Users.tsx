@@ -24,6 +24,7 @@ const Users: React.FC = () => {
     const [isVisitor, setIsVisitor] = useState(false);
     const [isActive, setIsActive] = useState(true);
     const [canManageTags, setCanManageTags] = useState(false);
+    const [isProjetista, setIsProjetista] = useState(false);
     const [formError, setFormError] = useState('');
     const [formLoading, setFormLoading] = useState(false);
 
@@ -62,6 +63,7 @@ const Users: React.FC = () => {
             setIsVisitor(user.isVisitor || false);
             setIsActive(user.isActive ?? true);
             setCanManageTags(user.canManageTags || false);
+            setIsProjetista(user.isProjetista || false);
             setPassword(''); // Password empty means no change
         } else {
             resetForm();
@@ -91,6 +93,7 @@ const Users: React.FC = () => {
                     isVisitor,
                     isActive,
                     canManageTags,
+                    isProjetista,
                     password: password || undefined
                 });
             } else {
@@ -98,7 +101,7 @@ const Users: React.FC = () => {
                 if (!password) {
                     throw new Error('Senha é obrigatória para novos usuários');
                 }
-                await authService.register(name, email, password, isAdmin, isVisitor);
+                await authService.register(name, email, password, isAdmin, isVisitor, canManageTags, isProjetista);
             }
 
             await fetchUsers();
@@ -133,6 +136,7 @@ const Users: React.FC = () => {
         setIsVisitor(false);
         setIsActive(true);
         setCanManageTags(false);
+        setIsProjetista(false);
         setFormError('');
     };
 
@@ -187,71 +191,114 @@ const Users: React.FC = () => {
                             </div>
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label="Nome"
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                required
-                            />
-                            <Input
-                                label="Email"
-                                type="email"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                                required
-                            />
-                            <Input
-                                label={editingId ? "Senha (deixe em branco para manter)" : "Senha"}
-                                type="password"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                required={!editingId}
-                                minLength={4}
-                            />
-                            <div className="flex flex-col justify-center space-y-3 pt-6">
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={isAdmin}
-                                        onChange={e => setIsAdmin(e.target.checked)}
-                                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                    />
-                                    <span className="text-slate-700 font-medium">Conta de Administrador</span>
-                                </label>
+                            <div className="space-y-4">
+                                <Input
+                                    label="Nome"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    required
+                                />
+                                <Input
+                                    label="Email"
+                                    type="email"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                    required
+                                />
+                                <Input
+                                    label={editingId ? "Senha (deixe em branco para manter)" : "Senha"}
+                                    type="password"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    required={!editingId}
+                                    minLength={4}
+                                />
+                            </div>
 
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={isVisitor}
-                                        onChange={e => setIsVisitor(e.target.checked)}
-                                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                    />
-                                    <span className="text-slate-700 font-medium">Visitante (Apenas Leitura + PDF)</span>
-                                </label>
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={isActive}
-                                        onChange={e => setIsActive(e.target.checked)}
-                                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                    />
-                                    <span className={`font-medium ${isActive ? 'text-green-600' : 'text-red-500'}`}>
-                                        {isActive ? 'Usuário Ativo' : 'Usuário Inativo (Sem acesso)'}
-                                    </span>
-                                </label>
+                            <div className="flex flex-col space-y-4 pt-1">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 px-1">Status da Conta</label>
+                                    <label className="flex items-center space-x-2 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={isActive}
+                                            onChange={e => setIsActive(e.target.checked)}
+                                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span className={`font-bold text-sm ${isActive ? 'text-green-600' : 'text-red-500'}`}>
+                                            {isActive ? 'Usuário Ativo' : 'Usuário Inativo (Sem acesso)'}
+                                        </span>
+                                    </label>
+                                </div>
 
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={canManageTags}
-                                        onChange={e => setCanManageTags(e.target.checked)}
-                                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                    />
-                                    <span className="text-slate-700 font-medium italic">Pode gerenciar Tags e Hierarquia</span>
-                                </label>
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Papel do Usuário</label>
+
+                                    <label className="flex items-center space-x-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAdmin}
+                                            onChange={e => {
+                                                setIsAdmin(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setIsVisitor(false);
+                                                    setIsProjetista(false);
+                                                }
+                                            }}
+                                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span className="text-slate-700 font-medium tracking-tight">Administrador <span className="text-[10px] text-slate-400 font-normal">(Acesso total)</span></span>
+                                    </label>
+
+                                    <label className="flex items-center space-x-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isProjetista}
+                                            onChange={e => {
+                                                setIsProjetista(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setIsAdmin(false);
+                                                    setIsVisitor(false);
+                                                    setCanManageTags(false);
+                                                }
+                                            }}
+                                            className="w-5 h-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
+                                        />
+                                        <span className="text-slate-700 font-medium tracking-tight">Projetista <span className="text-[10px] text-orange-400 font-normal">(Cadastra e edita suas fotos)</span></span>
+                                    </label>
+
+                                    <label className="flex items-center space-x-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isVisitor}
+                                            onChange={e => {
+                                                setIsVisitor(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setIsAdmin(false);
+                                                    setIsProjetista(false);
+                                                    setCanManageTags(false);
+                                                }
+                                            }}
+                                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span className="text-slate-700 font-medium tracking-tight">Visitante <span className="text-[10px] text-slate-400 font-normal">(Visualiza e PDF)</span></span>
+                                    </label>
+                                </div>
+
+                                {isAdmin && (
+                                    <label className="flex items-center space-x-2 cursor-pointer p-2 rounded-xl bg-purple-50 border border-purple-100 animate-in fade-in slide-in-from-top-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={canManageTags}
+                                            onChange={e => setCanManageTags(e.target.checked)}
+                                            className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                                        />
+                                        <span className="text-purple-800 text-sm font-bold italic">Pode gerenciar Tags e Hierarquia (Master)</span>
+                                    </label>
+                                )}
                             </div>
                         </div>
-                        <div className="flex justify-end pt-2 space-x-3">
+                        <div className="flex justify-end pt-2 space-x-3 border-t border-slate-100 pt-6">
                             <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                                 Cancelar
                             </Button>
@@ -260,96 +307,101 @@ const Users: React.FC = () => {
                             </Button>
                         </div>
                     </form>
-                </Card >
+                </Card>
             )}
 
-            <Card className="overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Nome</th>
-                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Email</th>
-                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Status</th>
-                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Função</th>
-                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={5} className="p-8 text-center text-slate-500">Carregando...</td></tr>
-                        ) : users.length === 0 ? (
-                            <tr><td colSpan={5} className="p-8 text-center text-slate-500">Nenhum usuário encontrado.</td></tr>
-                        ) : (
-                            users.map(user => (
-                                <tr key={user.id} className="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
-                                    <td className="px-4 py-2.5 font-bold text-sm text-slate-800">
-                                        {user.name}
-                                        {user.isTemp && <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full font-black">TEMP</span>}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-slate-600 text-sm font-medium">{user.email}</td>
-                                    <td className="px-4 py-2.5">
-                                        <div className="flex flex-col">
-                                            <span className={`px-2 py-0.5 rounded-full text-xs font-black w-fit uppercase tracking-tighter ${user.isActive !== false
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-red-100 text-red-700'
-                                                }`}>
-                                                {user.isActive !== false ? 'Ativo' : 'Inativo'}
-                                            </span>
-                                            {user.expiresAt && (
-                                                <span className="text-[10px] text-slate-400 mt-0.5 font-bold uppercase tracking-tighter">
-                                                    Vence: {new Date(user.expiresAt).toLocaleDateString()}
+            <Card className="overflow-hidden border-slate-200 shadow-xl shadow-slate-200/50">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Nome</th>
+                                <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Email</th>
+                                <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Status</th>
+                                <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Função</th>
+                                <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {loading ? (
+                                <tr><td colSpan={5} className="p-8 text-center text-slate-500">Carregando...</td></tr>
+                            ) : users.length === 0 ? (
+                                <tr><td colSpan={5} className="p-8 text-center text-slate-500">Nenhum usuário encontrado.</td></tr>
+                            ) : (
+                                users.map(user => (
+                                    <tr key={user.id} className="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group">
+                                        <td className="px-4 py-3 font-bold text-sm text-slate-800">
+                                            {user.name}
+                                            {user.isTemp && <span className="ml-2 text-[9px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full font-black">TEMP</span>}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-600 text-sm font-medium">{user.email}</td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-col">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black w-fit uppercase tracking-tighter ${user.isActive !== false
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-red-100 text-red-700'
+                                                    }`}>
+                                                    {user.isActive !== false ? 'Ativo' : 'Inativo'}
                                                 </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-2.5">
-                                        <div className="flex flex-wrap gap-1">
-                                            {user.isAdmin && user.canManageTags && (
-                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-700 uppercase tracking-tighter">Master</span>
-                                            )}
-                                            {user.isAdmin && !user.canManageTags && (
-                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-indigo-100 text-indigo-700 uppercase tracking-tighter">Admin</span>
-                                            )}
-                                            {user.isVisitor && (
-                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-700 uppercase tracking-tighter">Visitante</span>
-                                            )}
-                                            {!user.isAdmin && !user.isVisitor && (
-                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-orange-100 text-orange-700 uppercase tracking-tighter">Projetista</span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-2.5 text-right">
-                                        <div className="flex gap-1.5 justify-end">
-                                            <Button
-                                                className="px-2.5 py-0.5 text-xs font-black h-auto bg-blue-600 text-white border-2 border-blue-600 hover:bg-blue-700 hover:border-blue-700 uppercase tracking-wider transition-all shadow-sm"
-                                                onClick={() => handleOpenForm(user)}
-                                            >
-                                                Editar
-                                            </Button>
-                                            {user.isTemp && user.isActive !== false && (
+                                                {user.expiresAt && (
+                                                    <span className="text-[9px] text-slate-400 mt-0.5 font-bold uppercase tracking-tighter">
+                                                        Vence: {new Date(user.expiresAt).toLocaleDateString()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <div className="flex flex-wrap gap-1">
+                                                {user.isAdmin && user.canManageTags && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 uppercase tracking-tighter">Master</span>
+                                                )}
+                                                {user.isAdmin && !user.canManageTags && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700 uppercase tracking-tighter">Admin</span>
+                                                )}
+                                                {user.isProjetista && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-700 uppercase tracking-tighter">Projetista</span>
+                                                )}
+                                                {user.isVisitor && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 uppercase tracking-tighter">Visitante</span>
+                                                )}
+                                                {!user.isAdmin && !user.isVisitor && !user.isProjetista && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-700 uppercase tracking-tighter">Usuário</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex gap-1.5 justify-end transition-opacity">
                                                 <Button
-                                                    className="px-2.5 py-0.5 text-xs font-bold h-auto bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-800 uppercase tracking-wider"
-                                                    onClick={async () => {
-                                                        if (confirm('Tem certeza que deseja encerrar o acesso deste usuário temporário imediatamente?')) { // Using native confirm for speed/simplicity as requested "immediate"
-                                                            try {
-                                                                await authService.terminateTempUser(user.id);
-                                                                await fetchUsers(); // Refresh list (will hide expired based on filter)
-                                                            } catch (e: any) {
-                                                                alert('Erro ao encerrar usuário: ' + e.message);
-                                                            }
-                                                        }
-                                                    }}
+                                                    className="px-2.5 py-1 text-[10px] font-black h-auto bg-blue-600 text-white border-2 border-blue-600 hover:bg-blue-700 hover:border-blue-700 uppercase tracking-wider transition-all shadow-sm"
+                                                    onClick={() => handleOpenForm(user)}
                                                 >
-                                                    Parar
+                                                    Editar
                                                 </Button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                                                {user.isTemp && user.isActive !== false && (
+                                                    <Button
+                                                        className="px-2.5 py-1 text-[10px] font-bold h-auto bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-800 uppercase tracking-wider"
+                                                        onClick={async () => {
+                                                            if (confirm('Tem certeza que deseja encerrar o acesso deste usuário temporário imediatamente?')) { // Using native confirm for speed/simplicity as requested "immediate"
+                                                                try {
+                                                                    await authService.terminateTempUser(user.id);
+                                                                    await fetchUsers(); // Refresh list (will hide expired based on filter)
+                                                                } catch (e: any) {
+                                                                    alert('Erro ao encerrar usuário: ' + e.message);
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
+                                                        Parar
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </Card>
 
             {/* Modal de Usuário Temporário */}
@@ -383,7 +435,7 @@ const Users: React.FC = () => {
                                 </div>
                                 <div>
                                     <span className="block text-xs font-bold text-slate-400 uppercase">Validade</span>
-                                    <span className="text-slate-600 text-sm">
+                                    <span className="text-slate-600 text-sm font-medium">
                                         {tempDays} dias (até {new Date(createdTempUser.user.expiresAt!).toLocaleDateString()})
                                     </span>
                                 </div>
@@ -398,19 +450,19 @@ const Users: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        <p className="text-slate-600">
+                        <p className="text-slate-600 text-sm">
                             Gere um usuário temporário que expirará automaticamente após o período selecionado.
                             Este usuário terá permissões de <strong>Visitante</strong>.
                         </p>
 
                         <div className="space-y-3">
-                            <label className="block text-sm font-bold text-slate-700">Duração do Acesso (Dias)</label>
+                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest px-1">Duração do Acesso (Dias)</label>
                             <div className="flex gap-2">
                                 {[1, 2, 3, 5, 7].map(days => (
                                     <button
                                         key={days}
                                         onClick={() => setTempDays(days)}
-                                        className={`flex-1 py-2 rounded-lg border font-bold transition-all ${tempDays === days
+                                        className={`flex-1 py-2.5 rounded-xl border font-black text-sm transition-all ${tempDays === days
                                             ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-105'
                                             : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
                                             }`}
@@ -423,16 +475,15 @@ const Users: React.FC = () => {
 
                         <div className="pt-4 flex justify-end gap-3">
                             <Button variant="outline" onClick={() => setShowTempModal(false)}>Cancelar</Button>
-                            <Button onClick={handleCreateTempUser} disabled={formLoading} className="px-8">
+                            <Button onClick={handleCreateTempUser} disabled={formLoading} className="px-8 shadow-lg shadow-blue-200">
                                 {formLoading ? 'Gerando...' : 'Gerar Acesso'}
                             </Button>
                         </div>
                     </div>
                 )}
             </Modal>
-        </Layout >
+        </Layout>
     );
 };
-
 
 export default Users;
