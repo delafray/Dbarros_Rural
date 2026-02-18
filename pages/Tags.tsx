@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../services/api';
 import { Tag, TagCategory } from '../types';
 import { Card, LoadingSpinner, Button, Input, Modal } from '../components/UI';
@@ -24,6 +24,14 @@ const Tags: React.FC = () => {
   const [isCollisionModalOpen, setIsCollisionModalOpen] = useState(false);
   const [pendingTagData, setPendingTagData] = useState<{ name: string, categoryId: string, order: number } | null>(null);
   const [editingCat, setEditingCat] = useState<TagCategory | null>(null);
+
+  // Obter lista de grupos comuns existentes para sugestão
+  const commonGroups = useMemo(() => {
+    const groups = categories
+      .map(c => c.commonGroup)
+      .filter((g): g is string => !!g);
+    return Array.from(new Set(groups)).sort();
+  }, [categories]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -335,6 +343,11 @@ const Tags: React.FC = () => {
 
       <Modal isOpen={isCreateCatModalOpen} onClose={() => setIsCreateCatModalOpen(false)} title="Criar Novo Nível Hierárquico">
         <form onSubmit={handleCreateCategory} className="space-y-4">
+          <datalist id="commonGroupsList">
+            {commonGroups.map(group => (
+              <option key={group} value={group} />
+            ))}
+          </datalist>
           <Input
             label="Nome da Categoria"
             placeholder="Ex: Tipologia, Tamanho, Ano..."
@@ -347,6 +360,7 @@ const Tags: React.FC = () => {
             placeholder="Ex: Tamanho (Agrupa níveis 3 e 4)"
             value={newCatGroup}
             onChange={e => setNewCatGroup(e.target.value)}
+            list="commonGroupsList"
           />
           <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
             <input
@@ -481,6 +495,7 @@ const Tags: React.FC = () => {
               placeholder="Ex: Tamanho"
               value={editingCat.commonGroup || ''}
               onChange={e => setEditingCat({ ...editingCat, commonGroup: e.target.value })}
+              list="commonGroupsList"
             />
             <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
               <input
