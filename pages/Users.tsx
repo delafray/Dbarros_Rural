@@ -304,14 +304,17 @@ const Users: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-2.5">
                                         <div className="flex flex-wrap gap-1">
-                                            {user.isAdmin && (
-                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-700 uppercase tracking-tighter">Admin</span>
+                                            {user.isAdmin && user.canManageTags && (
+                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-700 uppercase tracking-tighter">Master</span>
+                                            )}
+                                            {user.isAdmin && !user.canManageTags && (
+                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-indigo-100 text-indigo-700 uppercase tracking-tighter">Admin</span>
                                             )}
                                             {user.isVisitor && (
                                                 <span className="px-2 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-700 uppercase tracking-tighter">Visitante</span>
                                             )}
                                             {!user.isAdmin && !user.isVisitor && (
-                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-slate-100 text-slate-700 uppercase tracking-tighter">Usuário</span>
+                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-orange-100 text-orange-700 uppercase tracking-tighter">Projetista</span>
                                             )}
                                         </div>
                                     </td>
