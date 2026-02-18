@@ -1,7 +1,7 @@
 {
   "name": "galeria-de-fotos",
   "private": true,
-  "version": "0.2026.02.0022",
+  "version": "0.2026.02.0023",
   "type": "module",
   "scripts": {
     "dev": "vite",

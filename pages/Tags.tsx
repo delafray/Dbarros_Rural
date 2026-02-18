@@ -384,9 +384,9 @@ const Tags: React.FC = () => {
                               title="Ordem"
                             />
                           )}
-                          <span className="font-bold text-xs mr-2">{tag.name}</span>
+                          <span className="font-bold text-xs mr-1">{tag.name}</span>
                           {user?.canManageTags && (
-                            <div className="flex items-center gap-1.5 ml-1 border-l border-slate-100 pl-1.5 opacity-50 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-0.5 ml-0.5 border-l border-slate-100 pl-1 opacity-50 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => {
                                   setEditingTag({ ...tag });
