@@ -23,7 +23,6 @@ const Users: React.FC = () => {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isVisitor, setIsVisitor] = useState(false);
     const [isActive, setIsActive] = useState(true);
-    const [canManageTags, setCanManageTags] = useState(false);
     const [formError, setFormError] = useState('');
     const [formLoading, setFormLoading] = useState(false);
 
@@ -61,7 +60,6 @@ const Users: React.FC = () => {
             setIsAdmin(user.isAdmin);
             setIsVisitor(user.isVisitor || false);
             setIsActive(user.isActive ?? true);
-            setCanManageTags(user.canManageTags || false);
             setPassword(''); // Password empty means no change
         } else {
             resetForm();
@@ -90,7 +88,6 @@ const Users: React.FC = () => {
                     isAdmin,
                     isVisitor,
                     isActive,
-                    canManageTags,
                     password: password || undefined
                 });
             } else {
@@ -132,7 +129,6 @@ const Users: React.FC = () => {
         setIsAdmin(false);
         setIsVisitor(false);
         setIsActive(true);
-        setCanManageTags(false);
         setFormError('');
     };
 
@@ -228,7 +224,6 @@ const Users: React.FC = () => {
                                     />
                                     <span className="text-slate-700 font-medium">Visitante (Apenas Leitura + PDF)</span>
                                 </label>
-
                                 <label className="flex items-center space-x-2 cursor-pointer">
                                     <input
                                         type="checkbox"
@@ -239,16 +234,6 @@ const Users: React.FC = () => {
                                     <span className={`font-medium ${isActive ? 'text-green-600' : 'text-red-500'}`}>
                                         {isActive ? 'Usuário Ativo' : 'Usuário Inativo (Sem acesso)'}
                                     </span>
-                                </label>
-
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={canManageTags}
-                                        onChange={e => setCanManageTags(e.target.checked)}
-                                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                    />
-                                    <span className="text-slate-700 font-medium italic">Pode gerenciar Tags e Hierarquia</span>
                                 </label>
                             </div>
                         </div>
@@ -261,7 +246,7 @@ const Users: React.FC = () => {
                             </Button>
                         </div>
                     </form>
-                </Card>
+                </Card >
             )}
 
             <Card className="overflow-hidden">
@@ -428,7 +413,7 @@ const Users: React.FC = () => {
                     </div>
                 )}
             </Modal>
-        </Layout>
+        </Layout >
     );
 };
 

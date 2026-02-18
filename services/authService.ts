@@ -16,7 +16,6 @@ export interface User {
     createdAt: string;
     expiresAt?: string;
     isTemp?: boolean;
-    canManageTags: boolean;
 }
 
 // Hash password using bcrypt
@@ -60,8 +59,7 @@ export const authService = {
             isActive: data.is_active,
             createdAt: data.created_at,
             expiresAt: data.expires_at,
-            isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags
+            isTemp: data.is_temp
         };
     },
 
@@ -105,8 +103,7 @@ export const authService = {
             isActive: data.is_active,
             createdAt: data.created_at,
             expiresAt: data.expires_at,
-            isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags
+            isTemp: data.is_temp
         };
 
         // Store user and login time in localStorage
@@ -156,8 +153,7 @@ export const authService = {
                 isActive: data.is_active,
                 createdAt: data.created_at,
                 expiresAt: data.expires_at,
-                isTemp: data.is_temp,
-                canManageTags: (data as any).can_manage_tags
+                isTemp: data.is_temp
             },
             passwordRaw: tempPassword
         };
@@ -187,12 +183,7 @@ export const authService = {
         }
 
         try {
-            const user = JSON.parse(userJson) as User;
-            // Migration fallback: Ensure admins always have tag management rights
-            if (user && user.isAdmin) {
-                user.canManageTags = true;
-            }
-            return user;
+            return JSON.parse(userJson) as User;
         } catch {
             return null;
         }
@@ -217,32 +208,43 @@ export const authService = {
             isActive: row.is_active,
             createdAt: row.created_at,
             expiresAt: row.expires_at,
-            isTemp: row.is_temp,
-            canManageTags: (row as any).can_manage_tags
+            isTemp: row.is_temp
         }));
     },
 
-    // Update user
-    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; canManageTags: boolean; password?: string }>): Promise<void> => {
+    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; password?: string }>): Promise<void> => {
         const updateData: TablesUpdate<'users'> = {};
         if (updates.name !== undefined) updateData.name = updates.name;
         if (updates.email !== undefined) updateData.email = updates.email;
         if (updates.isAdmin !== undefined) updateData.is_admin = updates.isAdmin;
         if (updates.isVisitor !== undefined) updateData.is_visitor = updates.isVisitor;
         if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
-        // @ts-ignore - map legacy field
-        if (updates.canManageTags !== undefined) updateData.can_manage_tags = updates.canManageTags;
 
         if (updates.password) {
             updateData.password_hash = await hashPassword(updates.password);
         }
 
-        const { error } = await supabase
+        console.log(`📡 [authService] Atualizando usuário ${userId}:`, updateData);
+
+        const { data, error, status } = await supabase
             .from('users')
             .update(updateData)
-            .eq('id', userId);
+            .eq('id', userId)
+            .select();
 
-        if (error) throw new Error(`Failed to update user: ${error.message}`);
+        console.log(`📡 [authService] Resposta do Supabase (Status ${status}):`, { data, error });
+
+        if (error) {
+            console.error('❌ [authService] Erro ao atualizar usuário:', error);
+            throw new Error(`Failed to update user: ${error.message}`);
+        }
+
+        if (!data || data.length === 0) {
+            console.warn('⚠️ [authService] Nenhuma linha foi alterada. Verifique as políticas de RLS!');
+            throw new Error('A alteração não foi salva. Possível restrição de segurança (RLS).');
+        }
+
+        console.log('✅ [authService] Usuário atualizado com sucesso no banco.');
     },
 
     // Update user admin status
