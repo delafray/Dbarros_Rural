@@ -556,28 +556,32 @@ const Photos: React.FC = () => {
     e.preventDefault();
     if (!formData.url) return alert('Escolha uma foto');
 
-    // Validation for Mandatory Categories (Group Aware)
-    const requiredCats = categories.filter(c => c.isRequired);
+    // Validation for Mandatory Categories (with Peer support)
+    const processedGroups = new Set<string>();
+    const missingRequirements: string[] = [];
 
-    // Agrupar categorias obrigatórias por Grupo Comum ou por ID (se não houver grupo)
-    const mandatoryRequirements: Record<string, { name: string, catIds: string[] }> = {};
+    categories.filter(cat => cat.isRequired).forEach(cat => {
+      // Create a sorted list of all IDs in this peer group to identify the group uniquely
+      const peerGroupIds = [cat.id, ...(cat.peerCategoryIds || [])].sort();
+      const groupKey = peerGroupIds.join('|');
 
-    requiredCats.forEach(cat => {
-      const key = cat.commonGroup || `individual_${cat.id}`;
-      if (!mandatoryRequirements[key]) {
-        mandatoryRequirements[key] = { name: cat.commonGroup || cat.name, catIds: [] };
+      if (processedGroups.has(groupKey)) return;
+      processedGroups.add(groupKey);
+
+      // Check if any tag from any category in this group is selected
+      const allTagsInGroup = tags.filter(t => peerGroupIds.includes(t.categoryId)).map(t => t.id);
+      const isSatisfied = formData.tagIds.some(id => allTagsInGroup.includes(id));
+
+      if (!isSatisfied) {
+        // Find all names in this group for a better error message
+        const groupNames = categories.filter(c => peerGroupIds.includes(c.id)).map(c => `"${c.name}"`).join(' ou ');
+        missingRequirements.push(groupNames);
       }
-      mandatoryRequirements[key].catIds.push(cat.id);
-    });
-
-    const missingRequirements = Object.values(mandatoryRequirements).filter(req => {
-      const allTagsInGroup = tags.filter(t => req.catIds.includes(t.categoryId)).map(t => t.id);
-      return !formData.tagIds.some(id => allTagsInGroup.includes(id));
     });
 
     if (missingRequirements.length > 0) {
-      const names = missingRequirements.map(r => `"${r.name}"`).join(', ');
-      alert(`Atenção: A seleção nos seguintes níveis/grupos é obrigatória: ${names}`);
+      const list = missingRequirements.join('\n- ');
+      alert(`Atenção: A seleção nos seguintes grupos/níveis é obrigatória:\n- ${list}`);
       return;
     }
 
@@ -772,7 +776,13 @@ const Photos: React.FC = () => {
             )}
             <div className="flex gap-2">
               {!user?.isVisitor && (
-                <Button onClick={() => handleOpenModal()} className="py-1.5 text-xs">+ Novo Registro</Button>
+                <Button
+                  onClick={() => handleOpenModal()}
+                  variant="danger"
+                  className="py-1.5 text-xs font-bold shadow-sm hover:scale-105 transition-transform"
+                >
+                  + Novo Registro
+                </Button>
               )}
             </div>
           </div>
@@ -896,7 +906,39 @@ const Photos: React.FC = () => {
         {loadingMore && <div className="py-8 text-center"><LoadingSpinner /></div>}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingPhoto ? 'Editar Arquivo' : 'Novo Registro'} maxWidth="max-w-[95vw]">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={
+          <div className="flex flex-col md:flex-row md:items-center gap-4 w-full min-w-0">
+            <div className="flex items-center gap-4 flex-shrink-0">
+              <span className="text-lg font-black text-slate-800 whitespace-nowrap">{editingPhoto ? 'EDITAR' : 'NOVO REGISTRO'}</span>
+              <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
+              <div className="hidden lg:flex items-center text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                <div className="w-1.5 h-4 bg-blue-600 rounded-full mr-2"></div>
+                Atribuição
+              </div>
+            </div>
+
+            <div className="flex-1 flex gap-2 min-w-0">
+              <input
+                placeholder="Título do Registro..."
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-medium focus:ring-1 focus:ring-blue-400 outline-none transition-all"
+                required
+              />
+              <input
+                placeholder="Caminho (Local)..."
+                value={formData.localPath}
+                onChange={e => setFormData({ ...formData, localPath: e.target.value })}
+                className="hidden sm:block flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-mono focus:ring-1 focus:ring-blue-400 outline-none transition-all"
+              />
+            </div>
+          </div>
+        }
+        maxWidth="max-w-[95vw]"
+      >
         <form onSubmit={handleSave} className="flex flex-col gap-6 max-h-[85vh]">
           <div className="flex flex-col lg:flex-row gap-10 overflow-y-auto pr-4 pb-4 scrollbar-thin">
             <div className="w-full lg:w-96 flex-shrink-0 space-y-6">
@@ -937,17 +979,9 @@ const Photos: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5 shadow-sm">
-                <Input label="Título do Registro" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">Caminho do Arquivo (Disco)</label>
-                  <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-mono min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500" placeholder="H:\PROJETOS\..." value={formData.localPath} onChange={e => setFormData({ ...formData, localPath: e.target.value })} />
-                </div>
-              </div>
             </div>
 
-            <div className="flex-1 space-y-6">
-              <h3 className="text-xl font-black text-slate-800 flex items-center tracking-tighter"><div className="w-2 h-6 bg-blue-600 rounded-full mr-3"></div>Atribuição Hierárquica</h3>
+            <div className="flex-1 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {categories.map(cat => (
                   <div key={cat.id} className="flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden group/cat hover:border-blue-200 transition-all">
@@ -983,9 +1017,9 @@ const Photos: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-8 border-t border-slate-100 bg-white mt-auto">
             <div className="bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100"><p className="text-[10px] font-bold text-blue-700 leading-tight uppercase">Salvamento com compactação inteligente ativa</p></div>
-            <div className="flex gap-4 w-full sm:w-auto">
-              <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-4 px-10">Cancelar</Button>
-              <Button type="submit" disabled={saving || !formData.url || processingImage} className="flex-1 sm:flex-none px-20 py-4 shadow-2xl shadow-blue-500/30 text-base font-black uppercase tracking-widest">
+            <div className="flex gap-3 w-full sm:w-auto">
+              <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-2 px-6 text-xs h-10">Cancelar</Button>
+              <Button type="submit" disabled={saving || !formData.url || processingImage} className="flex-1 sm:flex-none px-10 py-2 shadow-xl shadow-blue-500/20 text-xs font-black uppercase tracking-widest h-10">
                 {saving ? 'Gravando...' : 'Finalizar Registro'}
               </Button>
             </div>

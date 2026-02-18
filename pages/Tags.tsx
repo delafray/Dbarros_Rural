@@ -13,7 +13,7 @@ const Tags: React.FC = () => {
   const [newCatName, setNewCatName] = useState('');
   const [newCatOrder, setNewCatOrder] = useState<number>(1);
   const [newCatRequired, setNewCatRequired] = useState(false);
-  const [newCatGroup, setNewCatGroup] = useState('');
+  const [newCatPeerIds, setNewCatPeerIds] = useState<string[]>([]);
   const [newTagName, setNewTagName] = useState('');
   const [newTagOrder, setNewTagOrder] = useState<number | ''>('');
   const [selectedCatId, setSelectedCatId] = useState('');
@@ -24,14 +24,9 @@ const Tags: React.FC = () => {
   const [isCollisionModalOpen, setIsCollisionModalOpen] = useState(false);
   const [pendingTagData, setPendingTagData] = useState<{ name: string, categoryId: string, order: number } | null>(null);
   const [editingCat, setEditingCat] = useState<TagCategory | null>(null);
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [isEditTagModalOpen, setIsEditTagModalOpen] = useState(false);
 
-  // Obter lista de grupos comuns existentes para sugestão
-  const commonGroups = useMemo(() => {
-    const groups = categories
-      .map(c => c.commonGroup)
-      .filter((g): g is string => !!g);
-    return Array.from(new Set(groups)).sort();
-  }, [categories]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -58,11 +53,11 @@ const Tags: React.FC = () => {
     if (!newCatName.trim()) return;
     setSaving(true);
     try {
-      await api.createTagCategory(newCatName.trim(), newCatOrder, newCatRequired, newCatGroup.trim());
+      await api.createTagCategory(newCatName.trim(), newCatOrder, newCatRequired, newCatPeerIds);
       setNewCatName('');
       setNewCatOrder(categories.length + 2);
       setNewCatRequired(false);
-      setNewCatGroup('');
+      setNewCatPeerIds([]);
       setIsCreateCatModalOpen(false);
       await fetchData();
     } finally {
@@ -79,7 +74,7 @@ const Tags: React.FC = () => {
         name: editingCat.name,
         order: editingCat.order,
         isRequired: editingCat.isRequired,
-        commonGroup: editingCat.commonGroup
+        peerCategoryIds: editingCat.peerCategoryIds
       });
       setIsEditModalOpen(false);
       setEditingCat(null);
@@ -109,7 +104,6 @@ const Tags: React.FC = () => {
       return;
     }
 
-    setSaving(true);
     try {
       await api.createTag(newTagName.trim(), selectedCatId, finalOrder);
       setNewTagName('');
@@ -139,6 +133,23 @@ const Tags: React.FC = () => {
       setIsCreateTagModalOpen(false);
       setIsCollisionModalOpen(false);
       setPendingTagData(null);
+      await fetchData();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTag || !editingTag.name.trim()) return;
+    setSaving(true);
+    try {
+      await api.updateTag(editingTag.id, {
+        name: editingTag.name,
+        order: editingTag.order
+      });
+      setIsEditTagModalOpen(false);
+      setEditingTag(null);
       await fetchData();
     } finally {
       setSaving(false);
@@ -216,9 +227,6 @@ const Tags: React.FC = () => {
                         {cat.isRequired && (
                           <span className={`text-[8px] font-black uppercase tracking-tighter shrink-0 ${selectedCatId === cat.id ? 'text-white/70' : 'text-red-500'}`}>* Obrigatório</span>
                         )}
-                        {cat.commonGroup && (
-                          <span className={`text-[8px] font-bold truncate opacity-60 italic ${selectedCatId === cat.id ? 'text-white' : 'text-slate-500'}`}>({cat.commonGroup})</span>
-                        )}
                       </div>
                     </div>
                   </button>
@@ -260,9 +268,6 @@ const Tags: React.FC = () => {
                           {cat.isRequired && (
                             <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Seleção Obrigatória</span>
                           )}
-                          {cat.commonGroup && (
-                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Grupo: {cat.commonGroup}</span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -301,32 +306,38 @@ const Tags: React.FC = () => {
                                 if (isNaN(newOrder) || newOrder === tag.order) return;
 
                                 try {
-                                  // Update DB
                                   await api.updateTag(tag.id, { order: newOrder });
-                                  // Refresh all data to trigger a clean re-sort of everything
                                   await fetchData();
                                 } catch (err) {
                                   console.error('Failed to update tag order:', err);
                                   fetchData();
                                 }
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  (e.target as HTMLInputElement).blur();
-                                }
-                              }}
                               className="w-10 h-6 text-[10px] font-black bg-slate-100 border-none rounded focus:ring-1 focus:ring-blue-500 mr-2 text-center"
-                              title="Clique fora ou aperte Enter para salvar e reordenar"
+                              title="Clique fora para salvar e reordenar"
                             />
                           )}
                           <span className="font-bold text-sm mr-2">{tag.name}</span>
                           {user?.canManageTags && (
-                            <button
-                              onClick={() => handleDeleteTag(tag.id)}
-                              className="text-slate-300 hover:text-red-500 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
+                            <div className="flex items-center gap-1.5 ml-1 border-l border-slate-100 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  setEditingTag({ ...tag });
+                                  setIsEditTagModalOpen(true);
+                                }}
+                                className="text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Editar Tag"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTag(tag.id)}
+                                className="text-slate-300 hover:text-red-500 transition-colors"
+                                title="Excluir Tag"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -343,24 +354,12 @@ const Tags: React.FC = () => {
 
       <Modal isOpen={isCreateCatModalOpen} onClose={() => setIsCreateCatModalOpen(false)} title="Criar Novo Nível Hierárquico">
         <form onSubmit={handleCreateCategory} className="space-y-4">
-          <datalist id="commonGroupsList">
-            {commonGroups.map(group => (
-              <option key={group} value={group} />
-            ))}
-          </datalist>
           <Input
             label="Nome da Categoria"
             placeholder="Ex: Tipologia, Tamanho, Ano..."
             value={newCatName}
             onChange={e => setNewCatName(e.target.value)}
             required
-          />
-          <Input
-            label="Grupo Comum (Opcional)"
-            placeholder="Ex: Tamanho (Agrupa níveis 3 e 4)"
-            value={newCatGroup}
-            onChange={e => setNewCatGroup(e.target.value)}
-            list="commonGroupsList"
           />
           <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
             <input
@@ -373,6 +372,27 @@ const Tags: React.FC = () => {
             <label htmlFor="isCatRequired" className="text-xs font-bold text-slate-700 cursor-pointer">
               Exigir seleção deste nível no cadastro de fotos
             </label>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Vincular a outros níveis (Obrigatoriedade Compartilhada)</label>
+            <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 max-h-32 overflow-y-auto">
+              {categories.map(cat => (
+                <div key={cat.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id={`peer-new-cat-${cat.id}`}
+                    checked={newCatPeerIds.includes(cat.id)}
+                    onChange={e => {
+                      if (e.target.checked) setNewCatPeerIds([...newCatPeerIds, cat.id]);
+                      else setNewCatPeerIds(newCatPeerIds.filter(id => id !== cat.id));
+                    }}
+                    className="w-3 h-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor={`peer-new-cat-${cat.id}`} className="text-[10px] font-bold text-slate-600 truncate uppercase">{cat.name}</label>
+                </div>
+              ))}
+            </div>
+            <p className="text-[9px] text-slate-400 italic px-1">Se escolher uma tag em qualquer um desses níveis, este nível será considerado preenchido.</p>
           </div>
           <Input
             label="Nível de Prioridade (1 = Primeiro Filtro)"
@@ -420,9 +440,6 @@ const Tags: React.FC = () => {
               onChange={e => setNewTagOrder(e.target.value === '' ? '' : parseInt(e.target.value))}
               className="py-1 text-sm font-bold border-red-100 focus:border-red-500 focus:ring-red-500 bg-red-50/30"
             />
-            <p className="text-[10px] text-red-600 font-black uppercase tracking-tighter pl-1 animate-pulse">
-              Você pode mudar a exibição na galeria (opcional)
-            </p>
           </div>
           <div className="flex justify-end pt-2">
             <Button className="px-10 py-3 font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 h-auto text-sm" type="submit" disabled={saving}>
@@ -490,13 +507,6 @@ const Tags: React.FC = () => {
               onChange={e => setEditingCat({ ...editingCat, name: e.target.value })}
               required
             />
-            <Input
-              label="Grupo Comum (Opcional)"
-              placeholder="Ex: Tamanho"
-              value={editingCat.commonGroup || ''}
-              onChange={e => setEditingCat({ ...editingCat, commonGroup: e.target.value })}
-              list="commonGroupsList"
-            />
             <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
               <input
                 type="checkbox"
@@ -509,6 +519,30 @@ const Tags: React.FC = () => {
                 Seleção Obrigatória para Fotos
               </label>
             </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Vincular a outros níveis (Obrigatoriedade Compartilhada)</label>
+              <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 max-h-32 overflow-y-auto">
+                {categories.filter(c => c.id !== editingCat.id).map(cat => (
+                  <div key={cat.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`peer-edit-cat-${cat.id}`}
+                      checked={editingCat.peerCategoryIds?.includes(cat.id)}
+                      onChange={e => {
+                        const currentPeers = editingCat.peerCategoryIds || [];
+                        const nextPeers = e.target.checked
+                          ? [...currentPeers, cat.id]
+                          : currentPeers.filter(id => id !== cat.id);
+                        setEditingCat({ ...editingCat, peerCategoryIds: nextPeers });
+                      }}
+                      className="w-3 h-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor={`peer-edit-cat-${cat.id}`} className="text-[10px] font-bold text-slate-600 truncate uppercase">{cat.name}</label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[9px] text-slate-400 italic px-1">Se escolher uma tag em qualquer um desses níveis, este nível será considerado preenchido.</p>
+            </div>
             <Input
               label="Nível de Prioridade"
               type="number"
@@ -519,6 +553,37 @@ const Tags: React.FC = () => {
             />
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" type="button" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>Salvar Alterações</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={isEditTagModalOpen}
+        onClose={() => {
+          setIsEditTagModalOpen(false);
+          setEditingTag(null);
+        }}
+        title="Editar Sub Tag"
+      >
+        {editingTag && (
+          <form onSubmit={handleUpdateTag} className="space-y-4">
+            <Input
+              label="Nome da Tag"
+              value={editingTag.name}
+              onChange={e => setEditingTag({ ...editingTag, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Ordem de Exibição"
+              type="number"
+              value={editingTag.order}
+              onChange={e => setEditingTag({ ...editingTag, order: parseInt(e.target.value) || 0 })}
+              required
+            />
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" type="button" onClick={() => setIsEditTagModalOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={saving}>Salvar Alterações</Button>
             </div>
           </form>

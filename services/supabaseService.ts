@@ -70,12 +70,12 @@ export const supabaseService: GalleryService = {
       name: row.name,
       order: row.order,
       isRequired: !!row.is_required,
-      commonGroup: row.common_group || undefined,
+      peerCategoryIds: row.peer_category_ids || [],
       createdAt: row.created_at
     }));
   },
 
-  createTagCategory: async (name, order, isRequired = false, commonGroup) => {
+  createTagCategory: async (name, order, isRequired = false, peerCategoryIds = []) => {
     const userId = getCurrentUserId();
 
     const { data: newCategory, error } = await supabase
@@ -85,7 +85,7 @@ export const supabaseService: GalleryService = {
         name: name,
         order: order,
         is_required: isRequired,
-        common_group: commonGroup || null
+        peer_category_ids: peerCategoryIds
       })
       .select()
       .single();
@@ -98,6 +98,7 @@ export const supabaseService: GalleryService = {
       name: newCategory.name,
       order: newCategory.order,
       isRequired: !!newCategory.is_required,
+      peerCategoryIds: newCategory.peer_category_ids || [],
       createdAt: newCategory.created_at
     };
   },
@@ -107,7 +108,7 @@ export const supabaseService: GalleryService = {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.order !== undefined) updateData.order = data.order;
     if (data.isRequired !== undefined) updateData.is_required = data.isRequired;
-    if (data.commonGroup !== undefined) updateData.common_group = data.commonGroup || null;
+    if (data.peerCategoryIds !== undefined) updateData.peer_category_ids = data.peerCategoryIds;
 
     const { data: updatedCategory, error } = await supabase
       .from('tag_categories')
@@ -124,7 +125,7 @@ export const supabaseService: GalleryService = {
       name: updatedCategory.name,
       order: updatedCategory.order,
       isRequired: !!updatedCategory.is_required,
-      commonGroup: updatedCategory.common_group || undefined,
+      peerCategoryIds: updatedCategory.peer_category_ids || [],
       createdAt: updatedCategory.created_at
     };
   },
@@ -195,6 +196,7 @@ export const supabaseService: GalleryService = {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.order !== undefined) updateData.order = data.order;
     if (data.categoryId !== undefined) updateData.category_id = data.categoryId;
+    // if (data.requiresSubTags !== undefined) updateData.requires_sub_tags = data.requiresSubTags; // Removed from Tag
 
     const { data: updatedTag, error } = await supabase
       .from('tags')
