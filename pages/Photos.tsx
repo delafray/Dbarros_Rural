@@ -214,10 +214,11 @@ const Photos: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      if (!user?.id) return;
       const [index, t, c, u, allU, configLimit] = await Promise.all([
-        api.getPhotoIndex(onlyMine),
-        api.getTags(),
-        api.getTagCategories(),
+        api.getPhotoIndex(user.id, onlyMine),
+        api.getTags(user.id),
+        api.getTagCategories(user.id),
         api.getUsersWithPhotos(),
         api.getUsers(),
         api.getSystemConfig('pdf_limit') // Fetch system config for pdf_limit
@@ -791,7 +792,7 @@ const Photos: React.FC = () => {
           try {
             const thumbBlob = dataURLtoBlob(videoPreviewDataUrl);
             const thumbFile = new File([thumbBlob], `video_thumb_${Date.now()}.jpg`, { type: 'image/jpeg' });
-            finalUrl = await api.uploadPhotoFile(thumbFile);
+            finalUrl = await api.uploadPhotoFile(user.id, thumbFile);
             finalThumbUrl = finalUrl;
           } catch {
             // Fallback: store the data URL directly (not ideal but functional)
@@ -808,20 +809,21 @@ const Photos: React.FC = () => {
         // Normal photo upload
         const blob = dataURLtoBlob(formData.url);
         const fileToUpload = new File([blob], formData.selectedFile.name, { type: blob.type });
-        finalUrl = await api.uploadPhotoFile(fileToUpload);
+        finalUrl = await api.uploadPhotoFile(user.id, fileToUpload);
         const thumbDataUrl = await generateThumbnail(formData.selectedFile);
         const thumbBlob = dataURLtoBlob(thumbDataUrl);
         const thumbToUpload = new File([thumbBlob], `thumb_${formData.selectedFile.name}`, { type: thumbBlob.type });
-        finalThumbUrl = await api.uploadPhotoFile(thumbToUpload);
+        finalThumbUrl = await api.uploadPhotoFile(user.id, thumbToUpload);
       }
 
+      if (!user?.id) return;
       const saveData = { ...formData, url: finalUrl, thumbnailUrl: finalThumbUrl, videoUrl: finalVideoUrl };
       if (editingPhoto) {
         await api.updatePhoto(editingPhoto.id, saveData);
         // Invalidate hydration cache for this specific photo
         setHydratedPhotos(prev => prev.filter(p => p.id !== editingPhoto.id));
       } else {
-        await api.createPhoto(saveData);
+        await api.createPhoto(user.id, saveData);
       }
 
       setIsModalOpen(false);

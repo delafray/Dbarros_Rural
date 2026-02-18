@@ -1,5 +1,21 @@
-// import { mockService } from './mockService';
-import { supabaseService } from './supabaseService';
+import { tagService } from './api/tagService';
+import { photoService } from './api/photoService';
+import { userService } from './api/userService';
+import { configService } from './api/configService';
+import type { GalleryService } from '../types';
 
-// Toggle this to switch between Mock and real backend
-export const api = supabaseService;
+/**
+ * Consolidated API Service
+ * 
+ * This object aggregates all specialized services (Tag, Photo, User, Config)
+ * into a single point of entry, implementing the GalleryService interface.
+ * 
+ * Future-proof architecture: 
+ * If a particular service becomes too complex, it's already isolated.
+ */
+export const api: GalleryService = {
+    ...tagService,
+    ...photoService,
+    ...userService,
+    ...configService
+};

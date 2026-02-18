@@ -52,23 +52,23 @@ export interface Photo {
 
 export interface GalleryService {
   // Tag Categories
-  getTagCategories: (userId: string) => Promise<TagCategory[]>;
-  createTagCategory: (userId: string, name: string, order: number, isRequired?: boolean, peerCategoryIds?: string[]) => Promise<TagCategory>;
+  getTagCategories: () => Promise<TagCategory[]>;
+  createTagCategory: (name: string, order: number, isRequired?: boolean, peerCategoryIds?: string[]) => Promise<TagCategory>;
   updateTagCategory: (id: string, data: Partial<TagCategory>) => Promise<TagCategory>;
   deleteTagCategory: (id: string) => Promise<void>;
 
   // Tags
-  getTags: (userId: string) => Promise<Tag[]>;
-  createTag: (userId: string, name: string, categoryId: string, order?: number) => Promise<Tag>;
+  getTags: () => Promise<Tag[]>;
+  createTag: (name: string, categoryId: string, order?: number) => Promise<Tag>;
   updateTag: (id: string, data: Partial<Tag>) => Promise<Tag>;
   deleteTag: (id: string) => Promise<void>;
 
   // Photos
-  getPhotoIndex: (userId: string, onlyMine?: boolean) => Promise<Array<{ id: string; name: string; tagIds: string[]; userId: string; userName?: string; createdAt: string }>>;
+  getPhotoIndex: (onlyMine?: boolean) => Promise<Array<{ id: string; name: string; tagIds: string[]; userId: string; userName?: string; createdAt: string }>>;
   getPhotosByIds: (ids: string[]) => Promise<Photo[]>;
-  getPhotos: (userId: string) => Promise<Photo[]>;
-  uploadPhotoFile: (userId: string, file: File) => Promise<string>;
-  createPhoto: (userId: string, data: Omit<Photo, 'id' | 'createdAt' | 'userId'>) => Promise<Photo>;
+  getPhotos: () => Promise<Photo[]>;
+  uploadPhotoFile: (file: File) => Promise<string>;
+  createPhoto: (data: Omit<Photo, 'id' | 'createdAt'>) => Promise<Photo>;
   updatePhoto: (id: string, data: Partial<Photo>) => Promise<Photo>;
   deletePhoto: (id: string) => Promise<void>;
 
@@ -78,5 +78,5 @@ export interface GalleryService {
 
   // System Config
   getSystemConfig: (key: string) => Promise<string | null>;
-  updateSystemConfig: (userId: string, key: string, value: string) => Promise<void>;
+  updateSystemConfig: (key: string, value: string) => Promise<void>;
 }

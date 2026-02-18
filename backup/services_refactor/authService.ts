@@ -1,6 +1,14 @@
-import { supabase } from './supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import type { TablesInsert, TablesUpdate } from '../database.types';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const SESSION_DURATION = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
 const LOGIN_TIME_KEY = 'gallery_login_time';
@@ -34,18 +42,16 @@ export const authService = {
     register: async (name: string, email: string, password: string, isAdmin: boolean = false, isVisitor: boolean = false): Promise<User> => {
         const passwordHash = await hashPassword(password);
 
-        const insertData: TablesInsert<'users'> = {
-            name,
-            email,
-            password_hash: passwordHash,
-            is_admin: isAdmin,
-            is_visitor: isVisitor,
-            is_active: true
-        };
-
         const { data, error } = await supabase
             .from('users')
-            .insert(insertData)
+            .insert({
+                name,
+                email,
+                password_hash: passwordHash,
+                is_admin: isAdmin,
+                is_visitor: isVisitor,
+                is_active: true
+            })
             .select()
             .single();
 
@@ -61,7 +67,7 @@ export const authService = {
             createdAt: data.created_at,
             expiresAt: data.expires_at,
             isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags
+            canManageTags: data.can_manage_tags
         };
     },
 
@@ -106,7 +112,7 @@ export const authService = {
             createdAt: data.created_at,
             expiresAt: data.expires_at,
             isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags
+            canManageTags: data.can_manage_tags
         };
 
         // Store user and login time in localStorage
@@ -127,20 +133,18 @@ export const authService = {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
 
-        const insertData: TablesInsert<'users'> = {
-            name: tempName,
-            email: tempEmail,
-            password_hash: passwordHash,
-            is_admin: false,
-            is_visitor: true,
-            is_active: true,
-            is_temp: true,
-            expires_at: expiresAt.toISOString()
-        };
-
         const { data, error } = await supabase
             .from('users')
-            .insert(insertData)
+            .insert({
+                name: tempName,
+                email: tempEmail,
+                password_hash: passwordHash,
+                is_admin: false,
+                is_visitor: true,
+                is_active: true,
+                is_temp: true,
+                expires_at: expiresAt.toISOString()
+            })
             .select()
             .single();
 
@@ -157,7 +161,7 @@ export const authService = {
                 createdAt: data.created_at,
                 expiresAt: data.expires_at,
                 isTemp: data.is_temp,
-                canManageTags: (data as any).can_manage_tags
+                canManageTags: data.can_manage_tags
             },
             passwordRaw: tempPassword
         };
@@ -218,19 +222,18 @@ export const authService = {
             createdAt: row.created_at,
             expiresAt: row.expires_at,
             isTemp: row.is_temp,
-            canManageTags: (row as any).can_manage_tags
+            canManageTags: row.can_manage_tags
         }));
     },
 
     // Update user
     updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; canManageTags: boolean; password?: string }>): Promise<void> => {
-        const updateData: TablesUpdate<'users'> = {};
+        const updateData: any = {};
         if (updates.name !== undefined) updateData.name = updates.name;
         if (updates.email !== undefined) updateData.email = updates.email;
         if (updates.isAdmin !== undefined) updateData.is_admin = updates.isAdmin;
         if (updates.isVisitor !== undefined) updateData.is_visitor = updates.isVisitor;
         if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
-        // @ts-ignore - map legacy field
         if (updates.canManageTags !== undefined) updateData.can_manage_tags = updates.canManageTags;
 
         if (updates.password) {

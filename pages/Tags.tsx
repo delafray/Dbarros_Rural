@@ -34,9 +34,10 @@ const Tags: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      if (!user?.id) return;
       const [cats, t, configLimit] = await Promise.all([
-        api.getTagCategories(),
-        api.getTags(),
+        api.getTagCategories(user.id),
+        api.getTags(user.id),
         api.getSystemConfig('pdf_limit')
       ]);
 
@@ -66,8 +67,9 @@ const Tags: React.FC = () => {
 
   const handleSaveConfig = async () => {
     setConfigSaving(true);
+    if (!user?.id) return;
     try {
-      await api.updateSystemConfig('pdf_limit', String(pdfLimit));
+      await api.updateSystemConfig(user.id, 'pdf_limit', String(pdfLimit));
       setLastSavedLimit(pdfLimit);
     } catch (err: any) {
       console.error('Failed to update PDF limit:', err);
@@ -80,9 +82,10 @@ const Tags: React.FC = () => {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
+    if (!user?.id) return;
     setSaving(true);
     try {
-      await api.createTagCategory(newCatName.trim(), newCatOrder, newCatRequired, newCatPeerIds);
+      await api.createTagCategory(user.id, newCatName.trim(), newCatOrder, newCatRequired, newCatPeerIds);
       setNewCatName('');
       setNewCatOrder(categories.length + 2);
       setNewCatRequired(false);
@@ -133,8 +136,9 @@ const Tags: React.FC = () => {
       return;
     }
 
+    if (!user?.id) return;
     try {
-      await api.createTag(newTagName.trim(), selectedCatId, finalOrder);
+      await api.createTag(user.id, newTagName.trim(), selectedCatId, finalOrder);
       setNewTagName('');
       setNewTagOrder('');
       setIsCreateTagModalOpen(false);
@@ -148,6 +152,7 @@ const Tags: React.FC = () => {
     if (!pendingTagData) return;
     setSaving(true);
     try {
+      if (!user?.id) return;
       if (shift) {
         const currentTagsInCat = tags.filter(t => t.categoryId === pendingTagData.categoryId);
         const tagsToShift = currentTagsInCat.filter(t => t.order >= pendingTagData.order);
@@ -156,7 +161,7 @@ const Tags: React.FC = () => {
         }
       }
 
-      await api.createTag(pendingTagData.name, pendingTagData.categoryId, pendingTagData.order);
+      await api.createTag(user.id, pendingTagData.name, pendingTagData.categoryId, pendingTagData.order);
       setNewTagName('');
       setNewTagOrder('');
       setIsCreateTagModalOpen(false);
