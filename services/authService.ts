@@ -16,6 +16,7 @@ export interface User {
     createdAt: string;
     expiresAt?: string;
     isTemp?: boolean;
+    canManageTags: boolean;
 }
 
 // Hash password using bcrypt
@@ -59,7 +60,8 @@ export const authService = {
             isActive: data.is_active,
             createdAt: data.created_at,
             expiresAt: data.expires_at,
-            isTemp: data.is_temp
+            isTemp: data.is_temp,
+            canManageTags: (data as any).can_manage_tags ?? false
         };
     },
 
@@ -103,7 +105,8 @@ export const authService = {
             isActive: data.is_active,
             createdAt: data.created_at,
             expiresAt: data.expires_at,
-            isTemp: data.is_temp
+            isTemp: data.is_temp,
+            canManageTags: (data as any).can_manage_tags ?? false
         };
 
         // Store user and login time in localStorage
@@ -153,7 +156,8 @@ export const authService = {
                 isActive: data.is_active,
                 createdAt: data.created_at,
                 expiresAt: data.expires_at,
-                isTemp: data.is_temp
+                isTemp: data.is_temp,
+                canManageTags: (data as any).can_manage_tags ?? false
             },
             passwordRaw: tempPassword
         };
@@ -208,17 +212,19 @@ export const authService = {
             isActive: row.is_active,
             createdAt: row.created_at,
             expiresAt: row.expires_at,
-            isTemp: row.is_temp
+            isTemp: row.is_temp,
+            canManageTags: (row as any).can_manage_tags ?? false
         }));
     },
 
-    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; password?: string }>): Promise<void> => {
+    updateUser: async (userId: string, updates: Partial<{ name: string; email: string; isAdmin: boolean; isVisitor: boolean; isActive: boolean; canManageTags: boolean; password?: string }>): Promise<void> => {
         const updateData: TablesUpdate<'users'> = {};
         if (updates.name !== undefined) updateData.name = updates.name;
         if (updates.email !== undefined) updateData.email = updates.email;
         if (updates.isAdmin !== undefined) updateData.is_admin = updates.isAdmin;
         if (updates.isVisitor !== undefined) updateData.is_visitor = updates.isVisitor;
         if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+        if (updates.canManageTags !== undefined) (updateData as any).can_manage_tags = updates.canManageTags;
 
         if (updates.password) {
             updateData.password_hash = await hashPassword(updates.password);

@@ -84,7 +84,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
         <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto" onClick={() => setIsMenuOpen(false)}>
           <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivos</div>
           <NavItem to="/fotos" label="Fotos" icon={CameraIcon} />
-          {!user?.isVisitor && <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />}
+          {(user?.canManageTags || (!user?.isAdmin && !user?.isVisitor)) && <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />}
 
           <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema</div>
           {user?.isAdmin && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
