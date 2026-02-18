@@ -268,11 +268,11 @@ const Users: React.FC = () => {
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="p-4 font-semibold text-slate-600">Nome</th>
-                            <th className="p-4 font-semibold text-slate-600">Email</th>
-                            <th className="p-4 font-semibold text-slate-600">Status</th>
-                            <th className="p-4 font-semibold text-slate-600">Função</th>
-                            <th className="p-4 font-semibold text-slate-600">Ações</th>
+                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Nome</th>
+                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Email</th>
+                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Status</th>
+                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest">Função</th>
+                            <th className="px-4 py-2 font-black text-xs text-slate-500 uppercase tracking-widest text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -282,52 +282,51 @@ const Users: React.FC = () => {
                             <tr><td colSpan={5} className="p-8 text-center text-slate-500">Nenhum usuário encontrado.</td></tr>
                         ) : (
                             users.map(user => (
-                                <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-4 font-medium text-slate-800">
+                                <tr key={user.id} className="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                                    <td className="px-4 py-2.5 font-bold text-sm text-slate-800">
                                         {user.name}
-                                        {user.isTemp && <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full">TEMP</span>}
+                                        {user.isTemp && <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full font-black">TEMP</span>}
                                     </td>
-                                    <td className="p-4 text-slate-600 text-sm">{user.email}</td>
-                                    <td className="p-4">
+                                    <td className="px-4 py-2.5 text-slate-600 text-sm font-medium">{user.email}</td>
+                                    <td className="px-4 py-2.5">
                                         <div className="flex flex-col">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold w-fit ${user.isActive !== false
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-black w-fit uppercase tracking-tighter ${user.isActive !== false
                                                 ? 'bg-green-100 text-green-700'
                                                 : 'bg-red-100 text-red-700'
                                                 }`}>
                                                 {user.isActive !== false ? 'Ativo' : 'Inativo'}
                                             </span>
                                             {user.expiresAt && (
-                                                <span className="text-[10px] text-slate-400 mt-1">
-                                                    Expira: {new Date(user.expiresAt).toLocaleDateString()}
+                                                <span className="text-[10px] text-slate-400 mt-0.5 font-bold uppercase tracking-tighter">
+                                                    Vence: {new Date(user.expiresAt).toLocaleDateString()}
                                                 </span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="p-4">
+                                    <td className="px-4 py-2.5">
                                         <div className="flex flex-wrap gap-1">
                                             {user.isAdmin && (
-                                                <span className="px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">Admin</span>
+                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-700 uppercase tracking-tighter">Admin</span>
                                             )}
                                             {user.isVisitor && (
-                                                <span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">Visitante</span>
+                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-700 uppercase tracking-tighter">Visitante</span>
                                             )}
                                             {!user.isAdmin && !user.isVisitor && (
-                                                <span className="px-2 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Usuário</span>
+                                                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-slate-100 text-slate-700 uppercase tracking-tighter">Usuário</span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="p-4">
-                                        <div className="flex gap-2">
+                                    <td className="px-4 py-2.5 text-right">
+                                        <div className="flex gap-1.5 justify-end">
                                             <Button
-                                                variant="outline"
-                                                className="px-3 py-1 text-sm h-auto"
+                                                className="px-2.5 py-0.5 text-xs font-black h-auto bg-blue-600 text-white border-2 border-blue-600 hover:bg-blue-700 hover:border-blue-700 uppercase tracking-wider transition-all shadow-sm"
                                                 onClick={() => handleOpenForm(user)}
                                             >
                                                 Editar
                                             </Button>
                                             {user.isTemp && user.isActive !== false && (
                                                 <Button
-                                                    className="px-3 py-1 text-sm h-auto bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-800"
+                                                    className="px-2.5 py-0.5 text-xs font-bold h-auto bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-800 uppercase tracking-wider"
                                                     onClick={async () => {
                                                         if (confirm('Tem certeza que deseja encerrar o acesso deste usuário temporário imediatamente?')) { // Using native confirm for speed/simplicity as requested "immediate"
                                                             try {
