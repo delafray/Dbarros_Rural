@@ -99,6 +99,11 @@ const Photos: React.FC = () => {
   const [usersWithPhotos, setUsersWithPhotos] = useState<Array<{ id: string; name: string }>>([]);
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string }>>([]); // For the author dropdown
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
+  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title: string; message: string }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  });
 
   // Pagination state based on filtered results
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
@@ -144,7 +149,7 @@ const Photos: React.FC = () => {
 
   // --- Memoized Shuffled Index to Prevent Re-Shuffling on Every Render ---
   const shuffledPhotoIndex = useMemo(() => {
-    return seededShuffle(photoIndex, shuffleSeed.current);
+    return seededShuffle(photoIndex, shuffleSeed.current).filter(p => p && typeof p === 'object' && 'id' in p);
   }, [photoIndex]);
 
   // --- LÓGICA DE FILTRAGEM USANDO O INDEX ---
@@ -154,7 +159,8 @@ const Photos: React.FC = () => {
 
     // 1. Filtro por texto
     if (searchTerm) {
-      currentIds = currentIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      const lowerSearch = searchTerm.toLowerCase();
+      currentIds = currentIds.filter(p => p.name?.toLowerCase().includes(lowerSearch));
     }
 
     // 1.2 Filtro por usuário selecionado
@@ -164,48 +170,48 @@ const Photos: React.FC = () => {
 
     // 2. Filtro Hierárquico
     categories.forEach((cat) => {
-      const catTags = tags.filter(t => t.categoryId === cat.id);
+      if (!cat || !cat.id) return;
+      const catTags = tags.filter(t => t && t.categoryId === cat.id);
       const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
       if (selectedInCat.length > 0) {
         currentIds = currentIds.filter(p =>
-          selectedInCat.some(tagId => p.tagIds.includes(tagId))
+          Array.isArray(p.tagIds) && selectedInCat.some(tagId => p.tagIds.includes(tagId))
         );
       }
     });
 
     // 3. Sorting
     if (sortByDate) {
-      // Sort by created_at DESC (newest first)
       currentIds = [...currentIds].sort((a, b) => {
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
+        const dateA = new Date(a?.createdAt || 0).getTime();
+        const dateB = new Date(b?.createdAt || 0).getTime();
         return dateB - dateA;
       });
-    } else {
-      // If not sorting by date, maintain the shuffled order from shuffledPhotoIndex
-      // To do this, we need to re-apply the original shuffled order to the filtered set.
-      // A simpler approach is to just use shuffledPhotoIndex as the base if not sorting by date.
-      // However, if filters are applied, the shuffled order is already broken.
-      // The current implementation implicitly keeps the order of `currentIds` as it's filtered.
-      // If `sortByDate` is false, the order is determined by the filtering process on `shuffledPhotoIndex`.
-      // No explicit action needed here for "random" if `sortByDate` is false, as `shuffledPhotoIndex` is the base.
     }
 
     // Calcular tags disponíveis (Cascata)
     const availableTagsByLevel: { [order: number]: Set<string> } = {};
-    let tempIds = [...shuffledPhotoIndex]; // Use a copy for calculating available tags
-    if (searchTerm) tempIds = tempIds.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    let tempIds = [...shuffledPhotoIndex];
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      tempIds = tempIds.filter(p => p.name?.toLowerCase().includes(lowerSearch));
+    }
     if (selectedUserId !== 'all') tempIds = tempIds.filter(p => p.userId === selectedUserId);
 
     categories.forEach((cat) => {
+      if (!cat) return;
       const currentAvailableTags = new Set<string>();
-      tempIds.forEach(p => p.tagIds.forEach(tid => currentAvailableTags.add(tid)));
+      tempIds.forEach(p => {
+        if (Array.isArray(p.tagIds)) {
+          p.tagIds.forEach(tid => currentAvailableTags.add(tid));
+        }
+      });
       availableTagsByLevel[cat.order] = currentAvailableTags;
 
-      const catTags = tags.filter(t => t.categoryId === cat.id);
+      const catTags = tags.filter(t => t && t.categoryId === cat.id);
       const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
       if (selectedInCat.length > 0) {
-        tempIds = tempIds.filter(p => selectedInCat.some(tagId => p.tagIds.includes(tagId)));
+        tempIds = tempIds.filter(p => Array.isArray(p.tagIds) && selectedInCat.some(tagId => p.tagIds.includes(tagId)));
       }
     });
 
@@ -372,27 +378,26 @@ const Photos: React.FC = () => {
 
   const handleExportPDF = async () => {
     // Determine which IDs to export:
-    // 1. If selection exists: INTERSECTION of Selection AND Current Filter
-    // 2. If no selection: ALL Current Filter results
-    let idsToExport: string[] = [];
-
-    if (selectedExportIds.size > 0) {
-      // Only export selected items that are currently visible/filtered
-      idsToExport = filteredResult.ids.filter(id => selectedExportIds.has(id));
-    } else {
-      // Export all filtered results
-      idsToExport = filteredResult.ids;
-    }
+    // Strictly INTERSECTION of Selection AND Current Filter (Redundancy of bottom popup)
+    const idsToExport = filteredResult.ids.filter(id => selectedExportIds.has(id));
 
     const photosToExportCount = idsToExport.length;
 
     if (photosToExportCount === 0) {
-      alert('Nenhuma foto selecionada ou visível para exportação.');
+      setErrorModal({
+        isOpen: true,
+        title: 'Atenção',
+        message: 'Nenhuma foto selecionada ou visível para exportação.'
+      });
       return;
     }
 
     if (photosToExportCount > 30) {
-      alert(`Limite de exportação excedido. Selecione no máximo 30 fotos para gerar o PDF. (Atual: ${photosToExportCount})`);
+      setErrorModal({
+        isOpen: true,
+        title: 'Limite de Exportação',
+        message: `Limite de exportação excedido. Selecione no máximo 30 fotos para gerar o PDF. (Atual: ${photosToExportCount})`
+      });
       return;
     }
 
@@ -581,7 +586,11 @@ const Photos: React.FC = () => {
 
     if (missingRequirements.length > 0) {
       const list = missingRequirements.join('\n- ');
-      alert(`Atenção: A seleção nos seguintes grupos/níveis é obrigatória:\n- ${list}`);
+      setErrorModal({
+        isOpen: true,
+        title: 'Campos Obrigatórios',
+        message: `A seleção nos seguintes grupos/níveis é obrigatória:\n- ${list}`
+      });
       return;
     }
 
@@ -659,53 +668,55 @@ const Photos: React.FC = () => {
 
       {/* Botão de Redundância: Gerar PDF */}
       <Button
-        variant="default"
+        variant="primary"
         onClick={handleExportPDF}
-        disabled={selectedExportIds.size === 0}
-        className={`py-2 px-4 text-xs font-bold transition-all ${selectedExportIds.size === 0
-          ? 'opacity-50 cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
-          : effectiveSelectionCount > 30
-            ? 'bg-red-600 text-white shadow-lg shadow-red-500/30 border-red-600 hover:bg-red-700'
-            : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 border-blue-600 hover:bg-blue-700'
+        disabled={effectiveSelectionCount === 0}
+        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap ${effectiveSelectionCount === 0
+            ? 'opacity-50 cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50 shadow-none'
+            : effectiveSelectionCount > 30
+              ? 'bg-red-600 text-white shadow-lg shadow-red-500/30 border-red-600 hover:bg-red-700'
+              : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 border-blue-600 hover:bg-blue-700'
           }`}
       >
-        Gerar PDF ({selectedExportIds.size})
+        Gerar PDF ({effectiveSelectionCount})
       </Button>
 
       {/* Select All Button - Always visible, disabled if no results */}
       <Button
-        variant={filteredResult.ids.length > 0 ? 'default' : 'outline'}
+        variant={effectiveSelectionCount > 0 ? 'danger' : 'outline'}
         onClick={selectAllFiltered}
         disabled={filteredResult.ids.length === 0}
-        className={`py-2 px-4 text-xs font-bold transition-all ${filteredResult.ids.length === 0
-          ? 'opacity-50 cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
-          : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 border-blue-600 hover:bg-blue-700 hover:border-blue-700'
-          }`}
+        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount > 0
+          ? 'shadow-red-500/30'
+          : 'bg-white'
+          } ${filteredResult.ids.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        {selectedExportIds.size > 0 && selectedExportIds.size === filteredResult.ids.length ? 'Todos Selecionados' : `Selecionar Tudo (${filteredResult.ids.length})`}
+        {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todos Selecionados' : `Selecionar Tudo (${filteredResult.ids.length})`}
       </Button>
 
       {/* Clear All Button - Always visible, disabled if no filters/selections active */}
-      <Button
-        variant="outline"
-        onClick={() => {
-          setSelectedTagIds([]);
-          setSelectedExportIds(new Set());
-          setSearchTerm('');
-          if (user?.isAdmin) {
-            setOnlyMine(false);
-            setSelectedUserId('all');
-          }
-          // Note: We DO NOT reset sortByDate here, as requested by user.
-        }}
-        disabled={selectedTagIds.length === 0 && selectedExportIds.size === 0 && searchTerm === '' && selectedUserId === 'all' && !onlyMine}
-        className={`py-2 px-4 text-xs font-bold transition-all ${selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || (user?.isAdmin && (selectedUserId !== 'all' || onlyMine))
-          ? 'text-white bg-red-500 border-red-500 hover:bg-red-600 hover:border-red-600 shadow-lg shadow-red-500/30'
-          : 'text-slate-400 border-slate-200 bg-white opacity-50 cursor-not-allowed'
-          }`}
-      >
-        Limpar Tudo
-      </Button>
+      {(() => {
+        const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || (user?.isAdmin && (selectedUserId !== 'all' || onlyMine));
+        return (
+          <Button
+            variant={hasActiveFilters ? 'danger' : 'outline'}
+            onClick={() => {
+              setSelectedTagIds([]);
+              setSelectedExportIds(new Set());
+              setSearchTerm('');
+              if (user?.isAdmin) {
+                setOnlyMine(false);
+                setSelectedUserId('all');
+              }
+            }}
+            disabled={!hasActiveFilters}
+            className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${hasActiveFilters ? 'shadow-red-500/30' : 'bg-white opacity-50 cursor-not-allowed'
+              }`}
+          >
+            Limpar Tudo
+          </Button>
+        );
+      })()}
 
 
     </div>
@@ -1154,6 +1165,28 @@ const Photos: React.FC = () => {
           </div>
         )
       }
+      <Modal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
+        title={errorModal.title}
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col items-center gap-6 py-4">
+          <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center shadow-inner">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="text-center space-y-2">
+            <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-line">
+              {errorModal.message}
+            </div>
+          </div>
+          <Button variant="danger" onClick={() => setErrorModal({ ...errorModal, isOpen: false })} className="w-full py-3 shadow-lg shadow-red-500/20 font-black uppercase tracking-widest text-[10px]">
+            Entendi
+          </Button>
+        </div>
+      </Modal>
     </Layout >
   );
 };
