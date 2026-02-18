@@ -102,6 +102,7 @@ const Photos: React.FC = () => {
 
   // Pagination state based on filtered results
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
+  const [gridCols, setGridCols] = useState(window.innerWidth < 640 ? 2 : 5); // Responsive default
 
   const [formData, setFormData] = useState({
     name: '',
@@ -608,6 +609,24 @@ const Photos: React.FC = () => {
 
   const headerActions = (
     <div className="flex gap-2">
+      {/* Grid Zoom Slider */}
+      <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+        </svg>
+        <input
+          type="range"
+          min="2"
+          max="10"
+          value={gridCols}
+          onChange={(e) => setGridCols(parseInt(e.target.value))}
+          className="w-24 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+          title="Zoom da Grade"
+        />
+        <span className="text-[10px] font-bold text-slate-500 w-4">{gridCols}</span>
+      </div>
+
+
       {/* Botão de Redundância: Gerar PDF */}
       <Button
         variant="default"
@@ -780,7 +799,12 @@ const Photos: React.FC = () => {
         </Card>
 
         {loading ? <LoadingSpinner /> : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div
+            className="grid gap-4 transition-all duration-300 ease-in-out"
+            style={{
+              gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
+            }}
+          >
             {hydratedPhotos.map((photo, idx) => (
               <Card
                 key={photo.id}
@@ -803,7 +827,7 @@ const Photos: React.FC = () => {
 
                   {/* Selection Checkbox */}
                   <div
-                    className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center ${selectedExportIds.has(photo.id) ? 'bg-blue-600 border-blue-600' : 'bg-white/20 border-white/50 backdrop-blur-sm group-hover:bg-white/40'}`}
+                    className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center before:content-[''] before:absolute before:-inset-3 ${selectedExportIds.has(photo.id) ? 'bg-blue-600 border-blue-600' : 'bg-white/20 border-white/50 backdrop-blur-sm group-hover:bg-white/40'}`}
                     onClick={(e) => toggleSelection(e, photo.id)}
                   >
                     {selectedExportIds.has(photo.id) && (
@@ -1014,8 +1038,8 @@ const Photos: React.FC = () => {
                 <Button
                   onClick={handleExportPDF}
                   className={`py-1.5 px-6 text-xs h-9 shadow-lg flex items-center gap-2 transition-all ${effectiveSelectionCount > 30
-                      ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
-                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
+                    ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
                     }`}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
