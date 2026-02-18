@@ -2,6 +2,8 @@ import React, { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+import { APP_VERSION } from '../version';
+
 interface LayoutProps {
   children: ReactNode;
   title?: string;
@@ -52,14 +54,21 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
       {/* Sidebar - Aside */}
       <aside className={`w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         <div className="p-6 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-blue-600 tracking-tight flex items-center">
+          <div className="flex items-center">
             <img
               src="assets/logo.jpg"
               alt="Logo"
-              className="w-8 h-8 object-contain mr-2 rounded shadow-sm bg-white"
+              className="w-8 h-8 object-contain mr-3 rounded shadow-sm bg-white"
             />
-            Galeria de Fotos
-          </h1>
+            <div>
+              <h1 className="text-xl font-bold text-blue-600 tracking-tight leading-none">
+                Galeria de Fotos
+              </h1>
+              <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                v{APP_VERSION}
+              </span>
+            </div>
+          </div>
           {/* Close button inside sidebar for mobile */}
           <button
             onClick={() => setIsMenuOpen(false)}
