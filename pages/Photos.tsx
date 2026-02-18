@@ -1345,7 +1345,7 @@ const Photos: React.FC = () => {
                 </div>
 
                 <div className="flex-1 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1">
                     {categories.map(cat => {
                       // Disable other cat-1 tags when video mode is active
                       const cat1 = categories.find(c => c.order === 1);
@@ -1354,16 +1354,16 @@ const Photos: React.FC = () => {
                       const isCat1 = cat.order === 1;
 
                       return (
-                        <div key={cat.id} className="flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden group/cat hover:border-blue-200 transition-all">
-                          <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded">NÍVEL {cat.order}</span>
-                              <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</h4>
-                              {cat.isRequired && <span className="text-[10px] text-red-600 font-black animate-pulse">*</span>}
-                              {isVideoMode && isCat1 && <span className="text-[9px] text-purple-600 font-black bg-purple-50 px-1.5 py-0.5 rounded">🎬 VÍDEO</span>}
-                            </div>
+                        <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-white border border-slate-200 rounded-xl px-3 py-0.5 transition-all hover:border-blue-400 hover:shadow-md">
+                          <div className="md:w-36 flex-shrink-0 flex items-center gap-2 mb-1 md:mb-0 border-b md:border-b-0 md:border-r border-slate-100 pb-1 md:pb-0 md:pr-3">
+                            <span className={`w-5 h-5 ${cat.isRequired ? 'bg-red-600' : 'bg-blue-600'} text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-sm`}>
+                              {cat.order}
+                            </span>
+                            <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{cat.name}</h4>
+                            {isVideoMode && isCat1 && <span className="text-[9px] text-purple-600 font-black bg-purple-50 px-1.5 py-0.5 rounded ml-auto md:ml-0">🎬 VÍDEO</span>}
                           </div>
-                          <div className="p-4 flex flex-wrap gap-x-2 gap-y-1 min-h-[80px]">
+
+                          <div className="flex-1 md:pl-4 flex flex-wrap gap-x-1.5 gap-y-1 py-0.5">
                             {tags.filter(t => t.categoryId === cat.id).map(tag => {
                               const isSelected = formData.tagIds.includes(tag.id);
                               // Disable non-video tags in cat-1 when video mode is active
@@ -1375,14 +1375,14 @@ const Photos: React.FC = () => {
                                   type="button"
                                   disabled={isDisabled}
                                   onClick={() => !isDisabled && toggleModalTag(tag.id)}
-                                  className={`px-4 py-2 rounded-2xl text-[10px] font-black border transition-all flex items-center gap-2 ${isDisabled
+                                  className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1.5 ${isDisabled
                                     ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50'
                                     : isSelected
-                                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
-                                      : 'bg-white border-slate-100 text-slate-400 hover:border-blue-400 hover:text-blue-600'
+                                      ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600'
                                     }`}
                                 >
-                                  {isSelected && !isDisabled && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                                  {isSelected && !isDisabled && <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
                                   {tag.name}
                                 </button>
                               );
