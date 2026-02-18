@@ -844,6 +844,14 @@ const Photos: React.FC = () => {
     fetchData();
   };
 
+  // Helper: can the current user edit/delete a specific photo?
+  const canEditPhoto = (photo: { userId?: string }) => {
+    if (!user) return false;
+    if (user.isAdmin) return true; // Admins can edit any photo
+    if (user.isVisitor) return false; // Visitors cannot edit
+    return photo.userId === user.id; // Projetista can only edit their own
+  };
+
   const copyToClipboard = (e: React.MouseEvent, text: string) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
@@ -1119,7 +1127,7 @@ const Photos: React.FC = () => {
                       </button>
                     )}
 
-                    {!user?.isVisitor && (
+                    {canEditPhoto(photo) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1136,7 +1144,7 @@ const Photos: React.FC = () => {
                     {photo.localPath && (
                       <button onClick={(e) => copyToClipboard(e, photo.localPath!)} className="p-1.5 bg-slate-800/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-slate-900" title="Caminho local"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></button>
                     )}
-                    {!user?.isVisitor && (
+                    {canEditPhoto(photo) && (
                       <button onClick={(e) => handleDelete(e, photo.id)} className="p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-700" title="Excluir"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                     )}
                   </div>
