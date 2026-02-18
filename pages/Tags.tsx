@@ -75,6 +75,9 @@ const Tags: React.FC = () => {
       setIsEditModalOpen(false);
       setEditingCat(null);
       await fetchData();
+    } catch (err: any) {
+      console.error(err);
+      alert('Erro ao atualizar categoria: ' + err.message);
     } finally {
       setSaving(false);
     }
