@@ -1,4 +1,4 @@
-export const _0x4d2a = "VG9kb3MgZGlyZWl0b3MgYnk6";
+export const _0x4d2a = "IERpcmVpdG9zIGF1dG9yYWlzIKkgUm9uYWxkbyBCb3JiYQ==";
 export const _0x1f8b = "cm9uYWxkb0Byb25hbGRvYm9yYmEuY29tLmJy";
 
 export const getSystemInfo = () => {
