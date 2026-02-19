@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getSystemInfo } from '../utils/core_lic';
 
 import { APP_VERSION } from '../version';
 
@@ -98,10 +99,10 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
 
           <div className="px-4 pb-2">
             <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
-              Desenvolvido por Ronaldo Borba. A reprodução, distribuição ou utilização deste software é permitida somente mediante autorização prévia.
+              {getSystemInfo().label}
             </p>
             <p className="text-[9px] text-slate-400 font-black mt-1 tracking-wider">
-              CONTATO: <span className="lowercase font-medium">ronaldo@ronaldoborba.com.br</span>
+              <span className="lowercase font-medium">{getSystemInfo().contact}</span>
             </p>
           </div>
         </div>
