@@ -48,38 +48,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         // Realtime subscription for user updates (kick if inactive or expired)
-        const channel = supabase.channel('public:users')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'users',
-                    filter: user ? `id=eq.${user.id}` : undefined
-                },
-                (payload) => {
-                    const newUser = payload.new as any;
-
-                    // Check if deactivated
-                    if (newUser.is_active === false) {
-                        handleForceLogout('Seu acesso foi desativado pelo administrador.');
-                        return;
-                    }
-
-                    // Check if expired (if date changed)
-                    if (newUser.expires_at) {
-                        const expirationDate = new Date(newUser.expires_at);
-                        if (expirationDate < new Date()) {
-                            handleForceLogout('Sua conta temporária expirou.');
+        let channel: any = null;
+        if (user?.id) {
+            channel = supabase.channel(`public:users:${user.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'users',
+                        filter: `id=eq.${user.id}`
+                    },
+                    (payload) => {
+                        const newUser = payload.new as any;
+                        if (newUser.is_active === false) {
+                            handleForceLogout('Seu acesso foi desativado pelo administrador.');
                             return;
                         }
+                        if (newUser.expires_at) {
+                            const expirationDate = new Date(newUser.expires_at);
+                            if (expirationDate < new Date()) {
+                                handleForceLogout('Sua conta temporária expirou.');
+                                return;
+                            }
+                        }
                     }
-
-                    // Sync role updates
-                    syncUser();
-                }
-            )
-            .subscribe();
+                )
+                .subscribe();
+        }
 
         // Periodic check for local expiration (every 1 minute)
         const interval = setInterval(async () => {
@@ -94,10 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => {
             mounted = false;
             authListener.subscription.unsubscribe();
-            supabase.removeChannel(channel);
+            if (channel) supabase.removeChannel(channel);
             clearInterval(interval);
         };
-    }, [user?.id]); // Re-subscribe when user changes
+    }, [user?.id]); // Re-subscribe only when user ID changes
 
     const handleForceLogout = async (message: string) => {
         await authService.logout();

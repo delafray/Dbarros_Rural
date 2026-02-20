@@ -48,14 +48,19 @@ const Login: React.FC = () => {
           <Input
             label="Email ou Nome de Usuário"
             type="text"
+            name="username"
             placeholder="admin"
             value={identifier}
             onChange={e => setIdentifier(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
             required
           />
           <Input
             label="Senha"
             type="password"
+            name="password"
             placeholder="••••••••"
             value={password}
             onChange={e => setPassword(e.target.value)}
