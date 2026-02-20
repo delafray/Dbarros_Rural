@@ -14,10 +14,14 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    // Only show initial loading if we don't have a user yet
     setError('');
 
+    const trimmedIdentifier = identifier.trim();
+    const trimmedPassword = password.trim();
+
     try {
-      await login(identifier, password);
+      await login(trimmedIdentifier, trimmedPassword);
       navigate('/fotos');
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');

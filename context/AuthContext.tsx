@@ -36,7 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         };
 
-        syncUser(true);
+        // Only show initial loading if we don't have a user yet to avoid flicker after login
+        syncUser(!user);
 
         // Listen for Supabase auth state changes natively
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
