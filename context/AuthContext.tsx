@@ -19,8 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         let mounted = true;
 
-        const syncUser = async () => {
-            setIsLoading(true);
+        const syncUser = async (isInitial = false) => {
+            if (isInitial) setIsLoading(true);
             try {
                 const currentUser = await authService.getCurrentUser();
                 if (mounted) {
@@ -32,18 +32,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(null);
                 }
             } finally {
-                if (mounted) setIsLoading(false);
+                if (mounted && isInitial) setIsLoading(false);
             }
         };
 
-        syncUser();
+        syncUser(true);
 
         // Listen for Supabase auth state changes natively
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 if (mounted) setUser(null);
             } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                syncUser();
+                syncUser(false); // Background sync, no global loading
             }
         });
 
