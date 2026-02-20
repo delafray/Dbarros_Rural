@@ -3,7 +3,8 @@ import type { TablesInsert, TablesUpdate } from '../../database.types';
 import type { TagCategory, Tag } from '../../types';
 
 export const tagService = {
-    getTagCategories: async (userId: string) => {
+    // Tag categories are global to the system – userId param kept for API compatibility
+    getTagCategories: async (_userId: string) => {
         const { data, error } = await supabase
             .from('tag_categories')
             .select('*')
@@ -16,8 +17,8 @@ export const tagService = {
             userId: row.user_id || '',
             name: row.name,
             order: row.order,
-            isRequired: !!(row as any).is_required,
-            peerCategoryIds: (row as any).peer_category_ids || [],
+            isRequired: !!row.is_required,
+            peerCategoryIds: row.peer_category_ids || [],
             createdAt: row.created_at || ''
         }));
     },
@@ -27,9 +28,7 @@ export const tagService = {
             user_id: userId,
             name: name,
             order: order,
-            // @ts-ignore
             is_required: isRequired,
-            // @ts-ignore
             peer_category_ids: peerCategoryIds
         };
 
@@ -46,8 +45,8 @@ export const tagService = {
             userId: newCategory.user_id || '',
             name: newCategory.name,
             order: newCategory.order,
-            isRequired: !!(newCategory as any).is_required,
-            peerCategoryIds: (newCategory as any).peer_category_ids || [],
+            isRequired: !!newCategory.is_required,
+            peerCategoryIds: newCategory.peer_category_ids || [],
             createdAt: newCategory.created_at || ''
         };
     },
@@ -56,9 +55,7 @@ export const tagService = {
         const updateData: TablesUpdate<'tag_categories'> = {};
         if (data.name !== undefined) updateData.name = data.name;
         if (data.order !== undefined) updateData.order = data.order;
-        // @ts-ignore
         if (data.isRequired !== undefined) updateData.is_required = data.isRequired;
-        // @ts-ignore
         if (data.peerCategoryIds !== undefined) updateData.peer_category_ids = data.peerCategoryIds;
 
         const { data: updatedCategory, error } = await supabase
@@ -75,8 +72,8 @@ export const tagService = {
             userId: updatedCategory.user_id || '',
             name: updatedCategory.name,
             order: updatedCategory.order,
-            isRequired: !!(updatedCategory as any).is_required,
-            peerCategoryIds: (updatedCategory as any).peer_category_ids || [],
+            isRequired: !!updatedCategory.is_required,
+            peerCategoryIds: updatedCategory.peer_category_ids || [],
             createdAt: updatedCategory.created_at || ''
         };
     },
@@ -90,7 +87,8 @@ export const tagService = {
         if (error) throw new Error(`Failed to delete tag category: ${error.message}`);
     },
 
-    getTags: async (userId: string) => {
+    // Tags are global to the system – userId param kept for API compatibility
+    getTags: async (_userId: string) => {
         const { data, error } = await supabase
             .from('tags')
             .select('*')
@@ -104,7 +102,7 @@ export const tagService = {
             userId: row.user_id || '',
             name: row.name,
             categoryId: row.category_id,
-            order: (row as any).order || 0,
+            order: row.order ?? 0,
             createdAt: row.created_at || ''
         }));
     },
@@ -114,8 +112,7 @@ export const tagService = {
             user_id: userId,
             name: name,
             category_id: categoryId,
-            // @ts-ignore
-            order: order || 0
+            order: order ?? 0
         };
 
         const { data: newTag, error } = await supabase
@@ -131,7 +128,7 @@ export const tagService = {
             userId: newTag.user_id || '',
             name: newTag.name,
             categoryId: newTag.category_id,
-            order: (newTag as any).order || 0,
+            order: newTag.order ?? 0,
             createdAt: newTag.created_at || ''
         };
     },
@@ -139,7 +136,6 @@ export const tagService = {
     updateTag: async (id: string, data: Partial<Tag>) => {
         const updateData: TablesUpdate<'tags'> = {};
         if (data.name !== undefined) updateData.name = data.name;
-        // @ts-ignore
         if (data.order !== undefined) updateData.order = data.order;
         if (data.categoryId !== undefined) updateData.category_id = data.categoryId;
 
@@ -157,7 +153,7 @@ export const tagService = {
             userId: updatedTag.user_id || '',
             name: updatedTag.name,
             categoryId: updatedTag.category_id,
-            order: (updatedTag as any).order || 0,
+            order: updatedTag.order ?? 0,
             createdAt: updatedTag.created_at || ''
         };
     },

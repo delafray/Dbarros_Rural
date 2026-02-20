@@ -1,14 +1,5 @@
-
-export type CustomerStatus = 'ativo' | 'inativo';
-export type SubscriptionStatus = 'ativa' | 'vencida' | 'cancelada';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  isAdmin: boolean;
-  createdAt: string;
-}
+import type { User } from './services/authService';
+export type { User };
 
 export interface AuthContextType {
   user: User | null;

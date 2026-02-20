@@ -1,10 +1,5 @@
 import { supabase } from './supabaseClient';
-import bcrypt from 'bcryptjs';
 import type { TablesInsert, TablesUpdate } from '../database.types';
-
-const SESSION_DURATION = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
-const LOGIN_TIME_KEY = 'gallery_login_time';
-
 
 export interface User {
     id: string;
@@ -20,31 +15,33 @@ export interface User {
     isProjetista: boolean;
 }
 
-// Hash password using bcrypt
-async function hashPassword(password: string): Promise<string> {
-    return await bcrypt.hash(password, 10);
-}
-
-// Compare password with hash
-async function comparePassword(password: string, hash: string): Promise<boolean> {
-    return await bcrypt.compare(password, hash);
-}
-
 export const authService = {
     // Register new user
     register: async (name: string, email: string, password: string, isAdmin: boolean = false, isVisitor: boolean = false, canManageTags: boolean = false, isProjetista: boolean = false): Promise<User> => {
-        const passwordHash = await hashPassword(password);
 
+        // 1. Create user in Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password
+        });
+
+        if (authError) throw new Error(`Falha ao registrar autenticação: ${authError.message}`);
+        if (!authData.user) throw new Error('Usuário não retornado após registro no Supabase Auth.');
+
+        const userId = authData.user.id;
+
+        // 2. Insert user profile into public.users
         const insertData: TablesInsert<'users'> = {
+            id: userId,
             name,
             email,
-            password_hash: passwordHash,
+            password_hash: '[MIGRATED_TO_SUPABASE_AUTH]', // Legacy field
             is_admin: isAdmin,
             is_visitor: isVisitor,
             is_active: true,
             can_manage_tags: canManageTags,
             is_projetista: isProjetista
-        } as any;
+        };
 
         const { data, error } = await supabase
             .from('users')
@@ -52,74 +49,75 @@ export const authService = {
             .select()
             .single();
 
-        if (error) throw new Error(`Failed to register user: ${error.message}`);
+        if (error) {
+            // Se falhar de inserir no public.users, idealmente deletaríamos do auth.users, 
+            // mas o SDK client não permite exclusão direta facilmente.
+            throw new Error(`Falha ao criar perfil de usuário: ${error.message}`);
+        }
 
         return {
             id: data.id,
             name: data.name,
             email: data.email,
-            isAdmin: data.is_admin,
-            isVisitor: data.is_visitor,
-            isActive: data.is_active,
-            createdAt: data.created_at,
-            expiresAt: data.expires_at,
-            isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags ?? false,
-            isProjetista: (data as any).is_projetista ?? false
+            isAdmin: data.is_admin ?? false,
+            isVisitor: data.is_visitor ?? false,
+            isActive: data.is_active ?? true,
+            createdAt: data.created_at ?? '',
+            expiresAt: data.expires_at ?? undefined,
+            isTemp: data.is_temp ?? false,
+            canManageTags: data.can_manage_tags ?? false,
+            isProjetista: data.is_projetista ?? false
         };
     },
 
     // Login user
     login: async (identifier: string, password: string): Promise<User> => {
-        const { data, error } = await supabase
+        // 1. Resolve identifier (username or email) to real email from public.users
+        const { data: profile, error: profileError } = await supabase
             .from('users')
             .select('*')
             .or(`email.eq.${identifier},name.ilike.${identifier}`)
             .limit(1)
             .maybeSingle();
 
-        if (error || !data) {
-            throw new Error('E-mail, usuário ou senha inválidos');
+        if (profileError || !profile) {
+            throw new Error('Usuário ou senha inválidos.');
         }
 
-        if (data.is_active === false) {
+        if (profile.is_active === false) {
             throw new Error('Conta inativa. Contate o administrador.');
         }
 
-        if (data.expires_at) {
-            const expirationDate = new Date(data.expires_at);
+        if (profile.expires_at) {
+            const expirationDate = new Date(profile.expires_at);
             if (expirationDate < new Date()) {
                 throw new Error('Conta temporária expirada.');
             }
         }
 
-        // Verificar senha com bcrypt
-        const isValidPassword = await comparePassword(password, data.password_hash);
+        // 2. Auth with Supabase using the resolved email
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: profile.email,
+            password
+        });
 
-        if (!isValidPassword) {
-            throw new Error('E-mail, usuário ou senha inválidos');
+        if (authError || !authData.user) {
+            throw new Error('Usuário ou senha inválidos.');
         }
 
-        const user: User = {
-            id: data.id,
-            name: data.name,
-            email: data.email,
-            isAdmin: data.is_admin,
-            isVisitor: data.is_visitor,
-            isActive: data.is_active,
-            createdAt: data.created_at,
-            expiresAt: data.expires_at,
-            isTemp: data.is_temp,
-            canManageTags: (data as any).can_manage_tags ?? false,
-            isProjetista: (data as any).is_projetista ?? false
+        return {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            isAdmin: profile.is_admin ?? false,
+            isVisitor: profile.is_visitor ?? false,
+            isActive: profile.is_active ?? true,
+            createdAt: profile.created_at ?? '',
+            expiresAt: profile.expires_at ?? undefined,
+            isTemp: profile.is_temp ?? false,
+            canManageTags: profile.can_manage_tags ?? false,
+            isProjetista: profile.is_projetista ?? false
         };
-
-        // Store user and login time in localStorage
-        localStorage.setItem('gallery_user', JSON.stringify(user));
-        localStorage.setItem(LOGIN_TIME_KEY, Date.now().toString());
-
-
-        return user;
     },
 
     // Create temporary user
@@ -127,15 +125,24 @@ export const authService = {
         const tempName = `temp_${Math.random().toString(36).substring(7)}`;
         const tempEmail = `${tempName}@temp.local`;
         const tempPassword = Math.random().toString(36).substring(2, 10);
-        const passwordHash = await hashPassword(tempPassword);
 
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
 
+        // 1. Create in Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: tempEmail,
+            password: tempPassword
+        });
+
+        if (authError || !authData.user) throw new Error(`Falha ao criar auth temp user: ${authError?.message}`);
+
+        // 2. Insert into public.users
         const insertData: TablesInsert<'users'> = {
+            id: authData.user.id,
             name: tempName,
             email: tempEmail,
-            password_hash: passwordHash,
+            password_hash: '[MIGRATED_TO_SUPABASE_AUTH]',
             is_admin: false,
             is_visitor: true,
             is_active: true,
@@ -149,56 +156,87 @@ export const authService = {
             .select()
             .single();
 
-        if (error) throw new Error(`Failed to create temp user: ${error.message}`);
+        if (error) throw new Error(`Falha ao criar perfil temp user: ${error.message}`);
 
         return {
             user: {
                 id: data.id,
                 name: data.name,
                 email: data.email,
-                isAdmin: data.is_admin,
-                isVisitor: data.is_visitor,
-                isActive: data.is_active,
-                createdAt: data.created_at,
-                expiresAt: data.expires_at,
-                isTemp: data.is_temp,
-                canManageTags: (data as any).can_manage_tags ?? false,
-                isProjetista: (data as any).is_projetista ?? false
+                isAdmin: data.is_admin ?? false,
+                isVisitor: data.is_visitor ?? false,
+                isActive: data.is_active ?? true,
+                createdAt: data.created_at ?? '',
+                expiresAt: data.expires_at ?? undefined,
+                isTemp: data.is_temp ?? false,
+                canManageTags: data.can_manage_tags ?? false,
+                isProjetista: data.is_projetista ?? false
             },
             passwordRaw: tempPassword
         };
     },
 
     // Logout user
-    logout: (): void => {
-        localStorage.removeItem('gallery_user');
-        localStorage.removeItem(LOGIN_TIME_KEY);
+    logout: async (): Promise<void> => {
+        await supabase.auth.signOut();
     },
 
+    // Get current logged in user (Async now because of Supabase session check)
+    getCurrentUser: async (): Promise<User | null> => {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-    // Get current logged in user
-    getCurrentUser: (): User | null => {
-        const userJson = localStorage.getItem('gallery_user');
-        const loginTime = localStorage.getItem(LOGIN_TIME_KEY);
-
-        if (!userJson || !loginTime) return null;
-
-        // Check for session expiration
-        const currentTime = Date.now();
-        const sessionAge = currentTime - parseInt(loginTime, 10);
-
-        if (sessionAge > SESSION_DURATION) {
-            authService.logout();
+        if (sessionError) {
+            console.error('Supabase getSession error:', sessionError);
             return null;
         }
 
-        try {
-            return JSON.parse(userJson) as User;
-        } catch {
+        if (!session?.user) {
+            console.log('No user session found in getCurrentUser');
             return null;
         }
-    },
 
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+        if (error) {
+            console.error('Failed to fetch user profile in getCurrentUser:', error.message);
+            return null;
+        }
+        if (!data) {
+            console.error('User profile not found in getCurrentUser for ID:', session.user.id);
+            return null;
+        }
+
+        if (data.is_active === false) {
+            await supabase.auth.signOut();
+            return null;
+        }
+
+        if (data.expires_at) {
+            const expirationDate = new Date(data.expires_at);
+            if (expirationDate < new Date()) {
+                await supabase.auth.signOut();
+                return null;
+            }
+        }
+
+        return {
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            isAdmin: data.is_admin ?? false,
+            isVisitor: data.is_visitor ?? false,
+            isActive: data.is_active ?? true,
+            createdAt: data.created_at ?? '',
+            expiresAt: data.expires_at ?? undefined,
+            isTemp: data.is_temp ?? false,
+            canManageTags: data.can_manage_tags ?? false,
+            isProjetista: data.is_projetista ?? false
+        };
+    },
 
     // Get all users (admin only)
     getAllUsers: async (): Promise<User[]> => {
@@ -213,14 +251,14 @@ export const authService = {
             id: row.id,
             name: row.name,
             email: row.email,
-            isAdmin: row.is_admin,
-            isVisitor: row.is_visitor,
-            isActive: row.is_active,
-            createdAt: row.created_at,
-            expiresAt: row.expires_at,
-            isTemp: row.is_temp,
-            canManageTags: (row as any).can_manage_tags ?? false,
-            isProjetista: (row as any).is_projetista ?? false
+            isAdmin: row.is_admin ?? false,
+            isVisitor: row.is_visitor ?? false,
+            isActive: row.is_active ?? true,
+            createdAt: row.created_at ?? '',
+            expiresAt: row.expires_at ?? undefined,
+            isTemp: row.is_temp ?? false,
+            canManageTags: row.can_manage_tags ?? false,
+            isProjetista: row.is_projetista ?? false
         }));
     },
 
@@ -231,34 +269,39 @@ export const authService = {
         if (updates.isAdmin !== undefined) updateData.is_admin = updates.isAdmin;
         if (updates.isVisitor !== undefined) updateData.is_visitor = updates.isVisitor;
         if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
-        if (updates.canManageTags !== undefined) (updateData as any).can_manage_tags = updates.canManageTags;
-        if (updates.isProjetista !== undefined) (updateData as any).is_projetista = updates.isProjetista;
+        if (updates.canManageTags !== undefined) updateData.can_manage_tags = updates.canManageTags;
+        if (updates.isProjetista !== undefined) updateData.is_projetista = updates.isProjetista;
 
-        if (updates.password) {
-            updateData.password_hash = await hashPassword(updates.password);
+        // Atualizar a senha/email no Auth. O SDK cliente só permite atualizar o PRÓPRIO usuário logado.
+        const { data: { session } } = await supabase.auth.getSession();
+        const isSelf = session?.user?.id === userId;
+
+        if (isSelf) {
+            if (updates.password) {
+                const { error: authError } = await supabase.auth.updateUser({ password: updates.password });
+                if (authError) throw new Error(`Failed to update auth password: ${authError.message}`);
+            }
+
+            if (updates.email && updates.email !== session?.user?.email) {
+                const { error: emailError } = await supabase.auth.updateUser({ email: updates.email });
+                if (emailError) throw new Error(`Failed to update auth email: ${emailError.message}`);
+            }
+        } else if (updates.password || updates.email) {
+            // Se for admin editando outro usuário, não conseguimos mudar no Auth direto pelo client
+            console.warn("Alterações de senha ou email para outros usuários afetam apenas a tabela public.users localmente, pois o Auth requer privilégios de Service Role.");
         }
 
-        console.log(`📡 [authService] Atualizando usuário ${userId}:`, updateData);
-
-        const { data, error, status } = await supabase
+        const { data, error } = await supabase
             .from('users')
             .update(updateData)
             .eq('id', userId)
             .select();
 
-        console.log(`📡 [authService] Resposta do Supabase (Status ${status}):`, { data, error });
-
-        if (error) {
-            console.error('❌ [authService] Erro ao atualizar usuário:', error);
-            throw new Error(`Failed to update user: ${error.message}`);
-        }
+        if (error) throw new Error(`Failed to update user: ${error.message}`);
 
         if (!data || data.length === 0) {
-            console.warn('⚠️ [authService] Nenhuma linha foi alterada. Verifique as políticas de RLS!');
             throw new Error('A alteração não foi salva. Possível restrição de segurança (RLS).');
         }
-
-        console.log('✅ [authService] Usuário atualizado com sucesso no banco.');
     },
 
     // Update user admin status
@@ -286,11 +329,23 @@ export const authService = {
 
     // Delete user
     deleteUser: async (userId: string): Promise<void> => {
+        // First check if the user is themselves
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user.id === userId) {
+            throw new Error('Você não pode se excluir do sistema.');
+        }
+
         const { error } = await supabase
             .from('users')
             .delete()
             .eq('id', userId);
 
-        if (error) throw new Error(`Failed to delete user: ${error.message}`);
+        if (error) {
+            // Check for Postgres Foreign Key Violation (code 23503)
+            if (error.code === '23503') {
+                throw new Error('Não é possível excluir este usuário pois existem fotos ou registros vinculados a ele.');
+            }
+            throw new Error(`Erro ao excluir usuário: ${error.message}`);
+        }
     }
 };

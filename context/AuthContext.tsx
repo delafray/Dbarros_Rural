@@ -17,10 +17,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is already logged in
-        const currentUser = authService.getCurrentUser();
-        setUser(currentUser);
-        setIsLoading(false);
+        let mounted = true;
+
+        const syncUser = async () => {
+            setIsLoading(true);
+            try {
+                const currentUser = await authService.getCurrentUser();
+                if (mounted) {
+                    setUser(currentUser);
+                }
+            } catch (err: any) {
+                console.error("Auth sync error:", err);
+                if (mounted) {
+                    setUser(null);
+                }
+            } finally {
+                if (mounted) setIsLoading(false);
+            }
+        };
+
+        syncUser();
+
+        // Listen for Supabase auth state changes natively
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_OUT') {
+                if (mounted) setUser(null);
+            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                syncUser();
+            }
+        });
 
         // Realtime subscription for user updates (kick if inactive or expired)
         const channel = supabase.channel('public:users')
@@ -30,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'users',
-                    filter: currentUser ? `id=eq.${currentUser.id}` : undefined
+                    filter: user ? `id=eq.${user.id}` : undefined
                 },
                 (payload) => {
                     const newUser = payload.new as any;
@@ -49,58 +74,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             return;
                         }
                     }
+
+                    // Sync role updates
+                    syncUser();
                 }
             )
             .subscribe();
 
         // Periodic check for local expiration (every 1 minute)
-        const interval = setInterval(() => {
-            const user = authService.getCurrentUser();
-            if (!user) {
-                // If user was logged in but now getCurrentUser returns null (session expired), sync state
-                if (currentUser) setUser(null);
-                return;
-            }
+        const interval = setInterval(async () => {
+            if (!user?.expiresAt) return;
 
-            if (user.expiresAt) {
-                const expirationDate = new Date(user.expiresAt);
-                if (expirationDate < new Date()) {
-                    handleForceLogout('Sua conta temporária expirou.');
-                }
+            const expirationDate = new Date(user.expiresAt);
+            if (expirationDate < new Date()) {
+                handleForceLogout('Sua conta temporária expirou.');
             }
         }, 60000); // 1 minute
 
         return () => {
+            mounted = false;
+            authListener.subscription.unsubscribe();
             supabase.removeChannel(channel);
             clearInterval(interval);
         };
     }, [user?.id]); // Re-subscribe when user changes
 
-    const handleForceLogout = (message: string) => {
-        authService.logout();
+    const handleForceLogout = async (message: string) => {
+        await authService.logout();
         setUser(null);
         alert(message);
         window.location.href = '#/login';
     };
 
     const login = async (identifier: string, password: string) => {
-        const user = await authService.login(identifier, password);
-        setUser(user);
-        localStorage.setItem('gallery_auth', 'true'); // For backward compatibility
+        await authService.login(identifier, password);
+        const currentUser = await authService.getCurrentUser();
+        setUser(currentUser);
     };
 
-    const logout = () => {
-        authService.logout();
+    const logout = async () => {
+        await authService.logout();
         setUser(null);
     };
 
     const register = async (name: string, email: string, password: string, isAdmin: boolean) => {
-        const newUser = await authService.register(name, email, password, isAdmin);
-        setUser(newUser);
-        localStorage.setItem('gallery_auth', 'true');
-        localStorage.setItem('gallery_user', JSON.stringify(newUser));
-        localStorage.setItem('gallery_login_time', Date.now().toString());
-
+        await authService.register(name, email, password, isAdmin);
+        const currentUser = await authService.getCurrentUser();
+        setUser(currentUser);
     };
 
     return (

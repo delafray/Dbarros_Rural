@@ -2,11 +2,17 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../services/api';
 import { Tag, TagCategory } from '../types';
 import { Card, LoadingSpinner, Button, Input, Modal } from '../components/UI';
+import { AlertModal, AlertType } from '../components/AlertModal';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 
 const Tags: React.FC = () => {
   const { user } = useAuth();
+
+  // Alert State
+  const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
+  const showAlert = (title: string, message: string, type: AlertType = 'info', onConfirm?: () => void) => setAlertState({ isOpen: true, title, message, type, onConfirm });
+
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<TagCategory[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -73,7 +79,7 @@ const Tags: React.FC = () => {
       setLastSavedLimit(pdfLimit);
     } catch (err: any) {
       console.error('Failed to update PDF limit:', err);
-      alert('Erro ao salvar limite de PDF: ' + err.message);
+      showAlert('Erro Operacional', 'Erro ao salvar limite de PDF: ' + err.message, 'error');
     } finally {
       setTimeout(() => setConfigSaving(false), 800);
     }
@@ -113,7 +119,7 @@ const Tags: React.FC = () => {
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      alert('Erro ao atualizar categoria: ' + err.message);
+      showAlert('Erro', 'Erro ao atualizar categoria: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -190,16 +196,18 @@ const Tags: React.FC = () => {
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!window.confirm('Excluir esta categoria e todas as suas tags?')) return;
-    await api.deleteTagCategory(id);
-    fetchData();
+  const handleDeleteCategory = (id: string) => {
+    showAlert('Excluir Nível', 'Tem certeza que deseja excluir esta categoria e todas as suas tags? A ação não pode ser desfeita e pode corromper fotos baseadas nessa árvore de filtro caso existam.', 'confirm', async () => {
+      await api.deleteTagCategory(id);
+      fetchData();
+    });
   };
 
-  const handleDeleteTag = async (id: string) => {
-    if (!window.confirm('Excluir esta tag?')) return;
-    await api.deleteTag(id);
-    fetchData();
+  const handleDeleteTag = (id: string) => {
+    showAlert('Excluir Sub-tag', 'Tem certeza que deseja excluir esta tag de filtro permanentemente?', 'confirm', async () => {
+      await api.deleteTag(id);
+      fetchData();
+    });
   };
 
   const openEditModal = (cat: TagCategory) => {
@@ -682,6 +690,7 @@ const Tags: React.FC = () => {
           </form>
         )}
       </Modal>
+      <AlertModal {...alertState} onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))} />
     </Layout >
   );
 };

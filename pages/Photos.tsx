@@ -1,166 +1,29 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../services/api';
 import { Photo, Tag, TagCategory } from '../types';
-import { Badge, Button, Card, Input, LoadingSpinner, Modal } from '../components/UI';
+import { Button, Card, Input, LoadingSpinner, Modal } from '../components/UI';
+import { AlertModal, AlertType } from '../components/AlertModal';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-import { jsPDF } from 'jspdf';
 
-const MAX_DIMENSION = 1280;
-const THUMB_SIZE = 300;
-const QUALITY = 0.8;
-
-const dataURLtoBlob = (dataurl: string) => {
-  const arr = dataurl.split(',');
-  const mime = arr[0].match(/:(.*?);/)?.[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-};
-
-const generateThumbnail = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > THUMB_SIZE) { height *= THUMB_SIZE / width; width = THUMB_SIZE; }
-        } else {
-          if (height > THUMB_SIZE) { width *= THUMB_SIZE / height; height = THUMB_SIZE; }
-        }
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject('Canvas error');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
-      };
-      img.onerror = reject;
-    };
-    reader.onerror = reject;
-  });
-};
+import {
+  MAX_DIMENSION,
+  THUMB_SIZE,
+  QUALITY,
+  dataURLtoBlob,
+  generateThumbnail,
+  extractInstagramShortcode,
+  extractYouTubeId,
+  fetchInstagramThumbnail,
+  fetchYouTubeThumbnail,
+  processAndCompressImage,
+  compressExternalImage
+} from '../src/utils/imageUtils';
+import { seededShuffle } from '../src/utils/mathUtils';
+import { usePhotoFilters } from '../src/hooks/usePhotoFilters';
+import { usePdfExport } from '../src/hooks/usePdfExport';
 
 
-// Extract shortcode from any Instagram URL format
-const extractInstagramShortcode = (url: string): string | null => {
-  const match = url.match(/instagram\.com\/(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/);
-  return match ? match[1] : null;
-};
-
-// Extract video ID from any YouTube URL format (watch, shorts, embed, etc)
-const extractYouTubeId = (url: string): string | null => {
-  const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|shorts\/|watch\?v=)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-  return match ? match[1] : null;
-};
-
-// Fetch thumbnail from Instagram via Supabase Edge Function (server-side, bypasses CORS)
-const fetchInstagramThumbnail = async (instagramUrl: string): Promise<string | null> => {
-  const shortcode = extractInstagramShortcode(instagramUrl);
-  if (!shortcode) return null;
-
-  try {
-    const resp = await fetch(
-      'https://zamknopwowugrjapoman.supabase.co/functions/v1/instagram-thumbnail',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: instagramUrl }),
-      }
-    );
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    return data.thumbnailUrl || null;
-  } catch {
-    return null;
-  }
-};
-
-// Helper to check if a YouTube thumbnail is valid (not the 120x90 placeholder)
-const isValidYouTubeThumb = (url: string): Promise<boolean> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      // YouTube returns a 120x90 placeholder if the requested resolution doesn't exist
-      resolve(img.width > 120);
-    };
-    img.onerror = () => resolve(false);
-    img.src = url;
-  });
-};
-
-// Fetch thumbnail from YouTube with fallback logic
-const fetchYouTubeThumbnail = async (youtubeUrl: string): Promise<string | null> => {
-  const videoId = extractYouTubeId(youtubeUrl);
-  if (!videoId) return null;
-
-  const maxResUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-  const hqResUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-
-  // Try maxres first, then fallback to hq
-  const isMaxResValid = await isValidYouTubeThumb(maxResUrl);
-  if (isMaxResValid) return maxResUrl;
-
-  return hqResUrl; // hqdefault is almost always available
-};
-
-// Compress an image URL (fetched externally) into a data URL for upload
-const compressExternalImage = (imageUrl: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let { width, height } = img;
-      // Resize to max MAX_DIMENSION
-      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-        if (width > height) { height = Math.round(height * MAX_DIMENSION / width); width = MAX_DIMENSION; }
-        else { width = Math.round(width * MAX_DIMENSION / height); height = MAX_DIMENSION; }
-      }
-      canvas.width = width; canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return reject('Canvas error');
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', QUALITY));
-    };
-    img.onerror = reject;
-    img.src = imageUrl;
-  });
-};
-
-
-
-const seededShuffle = <T,>(array: T[], seed: number): T[] => {
-  const newArray = [...array];
-  let m = newArray.length, t, i;
-
-  // Linear Congruential Generator (LCG) for simple, fast, seeded randomness
-  // Microsoft Visual C++ constants
-  let state = seed;
-  const rand = () => {
-    state = (state * 214013 + 2531011) & 0x7FFFFFFF;
-    return state / 0x7FFFFFFF;
-  };
-
-  while (m) {
-    i = Math.floor(rand() * m--);
-    t = newArray[m];
-    newArray[m] = newArray[i];
-    newArray[i] = t;
-  }
-
-  return newArray;
-};
 
 const PHOTOS_PER_PAGE = 24;
 
@@ -172,29 +35,51 @@ const Photos: React.FC = () => {
   const [hydratedPhotos, setHydratedPhotos] = useState<Photo[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [categories, setCategories] = useState<TagCategory[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  const {
+    searchTerm, setSearchTerm,
+    selectedTagIds, setSelectedTagIds,
+    onlyMine, setOnlyMine,
+    selectedUserId, setSelectedUserId,
+    sortByDate, setSortByDate,
+    filteredResult,
+    toggleFilterTag,
+    clearAllFilters
+  } = usePhotoFilters({ photoIndex, tags, categories });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
+
   const [pdfLimit, setPdfLimit] = useState<number>(30);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
-  const [onlyMine, setOnlyMine] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<string>('all');
-  const [sortByDate, setSortByDate] = useState(false);
+
   const [usersWithPhotos, setUsersWithPhotos] = useState<Array<{ id: string; name: string }>>([]);
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string }>>([]); // For the author dropdown
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
-  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title: string; message: string }>({
-    isOpen: false,
-    title: '',
-    message: ''
-  });
+
+  // Alert State
+  const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
+  const showAlert = (title: string, message: string, type: AlertType = 'info', onConfirm?: () => void) => setAlertState({ isOpen: true, title, message, type, onConfirm });
+
   const [videoPreviewDataUrl, setVideoPreviewDataUrl] = useState<string>(''); // Compressed thumbnail preview for video mode
   const [fetchingThumbnail, setFetchingThumbnail] = useState(false);
+
+  const {
+    exportProgress,
+    isExporting,
+    handleExportPDF
+  } = usePdfExport({
+    filteredResult,
+    selectedExportIds,
+    setSelectedExportIds,
+    pdfLimit,
+    tags,
+    showAlert
+  });
+
 
   // Pagination state based on filtered results
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
@@ -214,109 +99,44 @@ const Photos: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.warn("User ID not found, skipping fetch");
+        return;
+      }
+
+      console.log("Fetching gallery data for user:", user.id);
+
       const [index, t, c, u, allU, configLimit] = await Promise.all([
         api.getPhotoIndex(user.id, onlyMine),
         api.getTags(user.id),
         api.getTagCategories(user.id),
         api.getUsersWithPhotos(),
         api.getUsers(),
-        api.getSystemConfig('pdf_limit') // Fetch system config for pdf_limit
+        api.getSystemConfig('pdf_limit')
       ]);
 
-      if (configLimit) setPdfLimit(parseInt(configLimit));
+      if (configLimit) {
+        const parsedLimit = parseInt(configLimit);
+        if (!isNaN(parsedLimit)) setPdfLimit(parsedLimit);
+      }
+
+      console.log(`Fetch success: ${index.length} photos, ${t.length} tags`);
 
       setPhotoIndex(index);
-      setTags(t.sort((a, b) => (a.order - b.order) || a.createdAt.localeCompare(b.createdAt)));
+      setTags(t);
       setCategories(c.filter(cat => cat.name !== '__SYSCONFIG__').sort((a, b) => (a.order - b.order) || (a.createdAt || '').localeCompare(b.createdAt || '')));
       setUsersWithPhotos(u);
       setAllUsers(allU);
+    } catch (err) {
+      console.error("Critical error in fetchData:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Seed for deterministic shuffling (generated once per session/mount)
-  const shuffleSeed = React.useRef(Math.floor(Math.random() * 2147483647));
-
-
   useEffect(() => {
     fetchData();
-  }, [onlyMine]);
-
-  // --- Memoized Shuffled Index to Prevent Re-Shuffling on Every Render ---
-  const shuffledPhotoIndex = useMemo(() => {
-    return seededShuffle(photoIndex, shuffleSeed.current).filter(p => p && typeof p === 'object' && 'id' in p);
-  }, [photoIndex]);
-
-  // --- LÓGICA DE FILTRAGEM USANDO O INDEX ---
-
-  const filteredResult = useMemo(() => {
-    let currentIds = [...shuffledPhotoIndex];
-
-    // 1. Filtro por texto
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      currentIds = currentIds.filter(p => p.name?.toLowerCase().includes(lowerSearch));
-    }
-
-    // 1.2 Filtro por usuário selecionado
-    if (selectedUserId !== 'all') {
-      currentIds = currentIds.filter(p => p.userId === selectedUserId);
-    }
-
-    // 2. Filtro Hierárquico
-    categories.forEach((cat) => {
-      if (!cat || !cat.id) return;
-      const catTags = tags.filter(t => t && t.categoryId === cat.id);
-      const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
-      if (selectedInCat.length > 0) {
-        currentIds = currentIds.filter(p =>
-          Array.isArray(p.tagIds) && selectedInCat.some(tagId => p.tagIds.includes(tagId))
-        );
-      }
-    });
-
-    // 3. Sorting
-    if (sortByDate) {
-      currentIds = [...currentIds].sort((a, b) => {
-        const dateA = new Date(a?.createdAt || 0).getTime();
-        const dateB = new Date(b?.createdAt || 0).getTime();
-        return dateB - dateA;
-      });
-    }
-
-    // Calcular tags disponíveis (Cascata)
-    const availableTagsByLevel: { [order: number]: Set<string> } = {};
-    let tempIds = [...shuffledPhotoIndex];
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      tempIds = tempIds.filter(p => p.name?.toLowerCase().includes(lowerSearch));
-    }
-    if (selectedUserId !== 'all') tempIds = tempIds.filter(p => p.userId === selectedUserId);
-
-    categories.forEach((cat) => {
-      if (!cat) return;
-      const currentAvailableTags = new Set<string>();
-      tempIds.forEach(p => {
-        if (Array.isArray(p.tagIds)) {
-          p.tagIds.forEach(tid => currentAvailableTags.add(tid));
-        }
-      });
-      availableTagsByLevel[cat.order] = currentAvailableTags;
-
-      const catTags = tags.filter(t => t && t.categoryId === cat.id);
-      const selectedInCat = selectedTagIds.filter(id => catTags.some(t => t.id === id));
-      if (selectedInCat.length > 0) {
-        tempIds = tempIds.filter(p => Array.isArray(p.tagIds) && selectedInCat.some(tagId => p.tagIds.includes(tagId)));
-      }
-    });
-
-    return {
-      ids: currentIds.map(p => p.id),
-      availableTagsByLevel
-    };
-  }, [shuffledPhotoIndex, categories, tags, selectedTagIds, searchTerm, selectedUserId, sortByDate]);
+  }, [user?.id, onlyMine]);
 
   // Reset pagination count when filter changes
   useEffect(() => {
@@ -389,33 +209,7 @@ const Photos: React.FC = () => {
 
   // --- HANDLERS ---
 
-  const processAndCompressImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          if (width > height) {
-            if (width > MAX_DIMENSION) { height *= MAX_DIMENSION / width; width = MAX_DIMENSION; }
-          } else {
-            if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION; }
-          }
-          canvas.width = width; canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return reject('Canvas error');
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', QUALITY));
-        };
-        img.onerror = reject;
-      };
-      reader.onerror = reject;
-    });
-  };
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -427,7 +221,7 @@ const Photos: React.FC = () => {
       // Como o navegador não fornece o caminho real por segurança,
       // criamos um placeholder automático baseado no nome do arquivo
       // Ex: se o arquivo for "projeto_sala.jpg", vira "C:\PROJETOS\projeto_sala.jpg"
-      const autoPath = `C:\\PROJETOS\\${file.name}`;
+      const autoPath = `C: \\PROJETOS\\${file.name} `;
 
       setFormData(prev => ({
         ...prev,
@@ -484,11 +278,7 @@ const Photos: React.FC = () => {
     const youtubeId = extractYouTubeId(url);
 
     if (!instagramShortcode && !youtubeId) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Link inválido',
-        message: 'O link não parece ser um Reel do Instagram ou um vídeo do YouTube. Verifique o URL e tente novamente.'
-      });
+      showAlert('Link inválido', 'O link não parece ser um Reel do Instagram ou um vídeo do YouTube. Verifique o URL e tente novamente.', 'error');
       return;
     }
 
@@ -505,11 +295,7 @@ const Photos: React.FC = () => {
       }
 
       if (!ogImageUrl) {
-        setErrorModal({
-          isOpen: true,
-          title: 'Capa não encontrada',
-          message: 'Não foi possível buscar a capa. Certifique-se que o vídeo é público e o link está correto.'
-        });
+        showAlert('Capa não encontrada', 'Não foi possível buscar a capa. Certifique-se que o vídeo é público e o link está correto.', 'error');
         return;
       }
 
@@ -535,163 +321,7 @@ const Photos: React.FC = () => {
     }
   };
 
-  const handleExportPDF = async () => {
-    // Determine which IDs to export:
-    // Strictly INTERSECTION of Selection AND Current Filter (Redundancy of bottom popup)
-    const idsToExport = filteredResult.ids.filter(id => selectedExportIds.has(id));
 
-    const photosToExportCount = idsToExport.length;
-
-    if (photosToExportCount === 0) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Atenção',
-        message: 'Nenhuma foto selecionada ou visível para exportação.'
-      });
-      return;
-    }
-
-    if (photosToExportCount > pdfLimit) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Limite de Exportação',
-        message: `Limite de exportação excedido. Selecione no máximo ${pdfLimit} fotos para gerar o PDF. (Atual: ${photosToExportCount})`
-      });
-      return;
-    }
-
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 6; // Further reduced to maximize width as requested
-
-    setProcessingImage(true);
-
-    try {
-      // Helper to load images
-      const loadImage = (src: string): Promise<HTMLImageElement> => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = src;
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-        });
-      };
-
-      // 1. Pre-load Masks and Photo Data in parallel
-      const [maskTopo, maskBase, allPhotosToExport] = await Promise.all([
-        loadImage('/assets/mascara_topo.jpg'),
-        loadImage('/assets/mascara_base.jpg'),
-        api.getPhotosByIds(idsToExport)
-      ]);
-
-      const totalPhotos = allPhotosToExport.length;
-      const loadedImages: Record<string, HTMLImageElement> = {};
-
-      // 2. Parallel Image Loading with Concurrency Limit (e.g., 5)
-      const concurrencyLimit = 5;
-      for (let i = 0; i < allPhotosToExport.length; i += concurrencyLimit) {
-        const batch = allPhotosToExport.slice(i, i + concurrencyLimit);
-        await Promise.all(batch.map(async (photo) => {
-          try {
-            loadedImages[photo.id] = await loadImage(photo.url);
-          } catch (e) {
-            console.error(`Error pre-loading ${photo.id}`, e);
-          }
-          // Update progress (5% to 85%)
-          setExportProgress(5 + Math.round(((i + batch.length) / totalPhotos) * 80));
-        }));
-      }
-
-      const addMasks = () => {
-        try {
-          const topoHeight = (maskTopo.height * pageWidth) / maskTopo.width;
-          doc.addImage(maskTopo, 'JPEG', 0, 0, pageWidth, topoHeight);
-          const baseHeight = (maskBase.height * pageWidth) / maskBase.width;
-          doc.addImage(maskBase, 'JPEG', 0, pageHeight - baseHeight, pageWidth, baseHeight);
-          return { topoHeight, baseHeight };
-        } catch (e) {
-          return { topoHeight: 0, baseHeight: 0 };
-        }
-      };
-
-      let masks = addMasks();
-      const photosPerPage = 2;
-      const marginY = 4;
-
-      // 3. Instant PDF Compilation (Images are already in memory)
-      for (let i = 0; i < allPhotosToExport.length; i++) {
-        const photo = allPhotosToExport[i];
-        const img = loadedImages[photo.id];
-
-        if (i > 0 && i % photosPerPage === 0) {
-          doc.addPage();
-          masks = addMasks();
-        }
-
-        const relativeIdx = i % photosPerPage;
-        const availableHeight = pageHeight - masks.topoHeight - masks.baseHeight - (marginY * 3);
-        const slotHeight = availableHeight / photosPerPage;
-        const slotY = masks.topoHeight + marginY + (relativeIdx * (slotHeight + marginY));
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(30, 41, 59); // Slate-800
-        doc.text(photo.name, margin, slotY + 2); // Title at top of slot
-
-        // Meta Info (Tags and Author) for PDF
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.setTextColor(100, 116, 139); // Slate-500
-        const tagNames = photo.tagIds.map(id => tags.find(t => t.id === id)?.name).filter(Boolean).join(' • ');
-        const authorText = photo.userName ? ` | Cadastrado por: ${photo.userName}` : '';
-        doc.text(`${tagNames}${authorText}`, margin, slotY + 6);
-
-        if (img) {
-          const imageAreaY = slotY + 9; // Shifted from 5 to 9 to give space for meta info
-          const imageAreaHeight = slotHeight - 11; // Adjusted from 7 to 11 to fit within slot
-          const imageAreaWidth = pageWidth - (margin * 2);
-
-          let drawWidth = imageAreaWidth;
-          let drawHeight = (img.height * imageAreaWidth) / img.width;
-
-          if (drawHeight > imageAreaHeight) {
-            drawHeight = imageAreaHeight;
-            drawWidth = (img.width * imageAreaHeight) / img.height;
-          }
-
-          const xOffset = margin + (imageAreaWidth - drawWidth) / 2;
-          const yOffset = imageAreaY; // PINNED to top to standardize gap with title
-          doc.addImage(img, 'JPEG', xOffset, yOffset, drawWidth, drawHeight);
-        } else {
-          doc.setTextColor(200, 0, 0);
-          doc.text("[Erro ao carregar imagem]", margin, slotY + 15);
-        }
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        const pageNum = doc.internal.pages.length - 1;
-        doc.text(`Página ${pageNum}`, pageWidth / 2, pageHeight - (masks.baseHeight / 2), { align: 'center' });
-
-        // Final rapid progress update
-        setExportProgress(85 + Math.round(((i + 1) / totalPhotos) * 15));
-      }
-
-      doc.save(`galeria_exportada_${new Date().getTime()}.pdf`);
-      setExportProgress(100);
-      setTimeout(() => {
-        setSelectedExportIds(new Set());
-        setExportProgress(0);
-      }, 500);
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-      alert('Erro ao gerar PDF. Verifique se as imagens das máscaras e das fotos estão acessíveis.');
-    } finally {
-      setProcessingImage(false);
-    }
-  };
 
   const selectAllFiltered = () => {
     setSelectedExportIds(new Set(filteredResult.ids));
@@ -711,11 +341,7 @@ const Photos: React.FC = () => {
     });
   };
 
-  const toggleFilterTag = (tagId: string) => {
-    setSelectedTagIds(prev =>
-      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
-    );
-  };
+
 
   const toggleModalTag = (tagId: string) => {
     setFormData(prev => ({
@@ -734,12 +360,12 @@ const Photos: React.FC = () => {
 
     if (isVideoMode) {
       if (!formData.videoUrl.trim()) {
-        setErrorModal({ isOpen: true, title: 'Link obrigatório', message: 'Cole o link do Instagram Reel para continuar.' });
+        showAlert('Link obrigatório', 'Cole o link do Instagram Reel para continuar.', 'error');
         return;
       }
     } else {
       if (!formData.url) {
-        setErrorModal({ isOpen: true, title: 'Imagem obrigatória', message: 'Escolha uma foto para continuar.' });
+        showAlert('Imagem obrigatória', 'Escolha uma foto para continuar.', 'error');
         return;
       }
     }
@@ -763,11 +389,7 @@ const Photos: React.FC = () => {
 
     if (missingRequirements.length > 0) {
       const list = missingRequirements.join('\n- ');
-      setErrorModal({
-        isOpen: true,
-        title: 'Campos Obrigatórios',
-        message: `A seleção nos seguintes grupos/níveis é obrigatória:\n- ${list}`
-      });
+      showAlert('Campos Obrigatórios', `A seleção nos seguintes grupos/níveis é obrigatória:\n- ${list}`, 'error');
       return;
     }
 
@@ -779,7 +401,7 @@ const Photos: React.FC = () => {
 
       if (isVideoMode && formData.videoUrl.trim()) {
         if (!videoPreviewDataUrl) {
-          setErrorModal({ isOpen: true, title: 'Capa obrigatória', message: 'Clique em "Buscar Capa" para validar e carregar a imagem do vídeo antes de salvar.' });
+          showAlert('Capa obrigatória', 'Clique em "Buscar Capa" para validar e carregar a imagem do vídeo antes de salvar.', 'error');
           setSaving(false);
           return;
         }
@@ -830,18 +452,19 @@ const Photos: React.FC = () => {
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      alert('Erro ao salvar: ' + err.message);
+      showAlert('Erro Operacional', 'Erro ao salvar: ' + err.message, 'error');
     } finally {
       setSaving(false);
       setProcessingImage(false);
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm('Excluir?')) return;
-    await api.deletePhoto(id);
-    fetchData();
+    showAlert('Excluir Arquivo', 'Deseja excluir permanentemente este arquivo multimídia? Esta ação não pode ser desfeita.', 'confirm', async () => {
+      await api.deletePhoto(id);
+      fetchData();
+    });
   };
 
   // Helper: can the current user edit/delete a specific photo?
@@ -856,7 +479,7 @@ const Photos: React.FC = () => {
   const copyToClipboard = (e: React.MouseEvent, text: string) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
-    alert('Caminho copiado!');
+    showAlert('Sucesso', 'Link copiado para a área de transferência!', 'success');
   };
 
   const effectiveSelectionCount = useMemo(() => {
@@ -1322,22 +945,36 @@ const Photos: React.FC = () => {
                       </div>
                     ) : (
                       // Photo mode: normal image upload
-                      <div className={`aspect-video lg:aspect-square bg-slate-50 border-2 border-dashed rounded-3xl overflow-hidden flex items-center justify-center relative transition-all duration-300 ${formData.url ? 'border-blue-200' : 'border-slate-200 hover:border-blue-400'}`}>
-                        {formData.url ? (
-                          <div className="w-full h-full relative group/preview">
-                            <img src={formData.url} className="w-full h-full object-cover" alt="Preview" />
-                            {!editingPhoto && !processingImage && (
-                              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center">
-                                <button type="button" onClick={() => setFormData(p => ({ ...p, url: '', name: '' }))} className="bg-white px-6 py-2 rounded-xl font-black text-[10px] uppercase shadow-2xl">Trocar</button>
-                              </div>
-                            )}
+                      <div className="flex flex-col gap-2">
+                        <div className={`aspect-video lg:aspect-square bg-slate-50 border-2 border-dashed rounded-3xl overflow-hidden flex items-center justify-center relative transition-all duration-300 ${formData.url ? 'border-blue-200' : 'border-slate-200 hover:border-blue-400'}`}>
+                          {formData.url ? (
+                            <div className="w-full h-full relative group/preview">
+                              <img src={formData.url} className="w-full h-full object-cover" alt="Preview" />
+                              {!processingImage && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center">
+                                  <label className="cursor-pointer bg-white px-6 py-2 rounded-xl font-black text-[10px] uppercase shadow-2xl hover:bg-slate-100 transition-colors">
+                                    Trocar Imagem
+                                    <input type="file" className="sr-only" accept="image/*" onChange={handleFileUpload} disabled={processingImage} />
+                                  </label>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer p-10 text-center w-full h-full flex flex-col items-center justify-center">
+                              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 transition-all hover:scale-110 shadow-sm"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg></div>
+                              <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Upload Imagem</span>
+                              <input type="file" className="sr-only" accept="image/*" onChange={handleFileUpload} disabled={processingImage} />
+                            </label>
+                          )}
+                        </div>
+                        {editingPhoto && formData.url && (
+                          <div className="flex justify-center mt-1">
+                            <label className="cursor-pointer px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors border border-slate-200 flex items-center gap-2 shadow-sm">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                              Alterar Imagem Deste Registro
+                              <input type="file" className="sr-only" accept="image/*" onChange={handleFileUpload} disabled={processingImage} />
+                            </label>
                           </div>
-                        ) : (
-                          <label className="cursor-pointer p-10 text-center w-full h-full flex flex-col items-center justify-center">
-                            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 transition-all hover:scale-110 shadow-sm"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg></div>
-                            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Upload Imagem</span>
-                            <input type="file" className="sr-only" accept="image/*" onChange={handleFileUpload} disabled={processingImage} />
-                          </label>
                         )}
                       </div>
                     )}
@@ -1536,28 +1173,7 @@ const Photos: React.FC = () => {
           </div>
         )
       }
-      <Modal
-        isOpen={errorModal.isOpen}
-        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
-        title={errorModal.title}
-        maxWidth="max-w-md"
-      >
-        <div className="flex flex-col items-center gap-6 py-4">
-          <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center shadow-inner">
-            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div className="text-center space-y-2">
-            <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-line">
-              {errorModal.message}
-            </div>
-          </div>
-          <Button variant="danger" onClick={() => setErrorModal({ ...errorModal, isOpen: false })} className="w-full py-3 shadow-lg shadow-red-500/20 font-black uppercase tracking-widest text-[10px]">
-            Entendi
-          </Button>
-        </div>
-      </Modal>
+      <AlertModal {...alertState} onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))} />
     </Layout >
   );
 };

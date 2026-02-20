@@ -1,5 +1,3 @@
-
-
 import {
   Tag,
   TagCategory,
@@ -28,22 +26,22 @@ const setStorageItem = (key: string, value: any) => {
 const seedData = () => {
   if (!localStorage.getItem(STORAGE_KEYS.TAG_CATEGORIES)) {
     const categories: TagCategory[] = [
-      { id: 'cat1', name: 'Tipologia', order: 1, userId: 'system', createdAt: new Date().toISOString() },
-      { id: 'cat2', name: 'Tamanho', order: 2, userId: 'system', createdAt: new Date().toISOString() },
-      { id: 'cat3', name: 'Custo', order: 3, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 'cat1', name: 'Tipologia', order: 1, isRequired: false, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 'cat2', name: 'Tamanho', order: 2, isRequired: false, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 'cat3', name: 'Custo', order: 3, isRequired: false, userId: 'system', createdAt: new Date().toISOString() },
     ];
     setStorageItem(STORAGE_KEYS.TAG_CATEGORIES, categories);
 
     const tags: Tag[] = [
-      { id: 't1', name: 'Construído', categoryId: 'cat1', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't2', name: 'Básico', categoryId: 'cat1', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't3', name: 'Semiconstruído', categoryId: 'cat1', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't4', name: '20m²', categoryId: 'cat2', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't5', name: '30m²', categoryId: 'cat2', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't6', name: '40m²', categoryId: 'cat2', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't7', name: 'Baixo Custo', categoryId: 'cat3', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't8', name: 'Médio Custo', categoryId: 'cat3', userId: 'system', createdAt: new Date().toISOString() },
-      { id: 't9', name: 'Alto Custo', categoryId: 'cat3', userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't1', name: 'Construído', categoryId: 'cat1', order: 1, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't2', name: 'Básico', categoryId: 'cat1', order: 2, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't3', name: 'Semiconstruído', categoryId: 'cat1', order: 3, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't4', name: '20m²', categoryId: 'cat2', order: 1, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't5', name: '30m²', categoryId: 'cat2', order: 2, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't6', name: '40m²', categoryId: 'cat2', order: 3, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't7', name: 'Baixo Custo', categoryId: 'cat3', order: 1, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't8', name: 'Médio Custo', categoryId: 'cat3', order: 2, userId: 'system', createdAt: new Date().toISOString() },
+      { id: 't9', name: 'Alto Custo', categoryId: 'cat3', order: 3, userId: 'system', createdAt: new Date().toISOString() },
     ];
     setStorageItem(STORAGE_KEYS.TAGS, tags);
   }
@@ -52,11 +50,11 @@ const seedData = () => {
 seedData();
 
 export const mockService: GalleryService = {
-  getTagCategories: async () => { await delay(); return getStorageItem(STORAGE_KEYS.TAG_CATEGORIES, []); },
-  createTagCategory: async (name, order) => {
+  getTagCategories: async (userId) => { await delay(); return getStorageItem(STORAGE_KEYS.TAG_CATEGORIES, []); },
+  createTagCategory: async (userId, name, order, isRequired = false, peerCategoryIds) => {
     await delay();
     const categories = getStorageItem<TagCategory[]>(STORAGE_KEYS.TAG_CATEGORIES, []);
-    const newCat: TagCategory = { id: Math.random().toString(36).substr(2, 9), name, order, userId: 'system', createdAt: new Date().toISOString() };
+    const newCat: TagCategory = { id: Math.random().toString(36).substr(2, 9), name, order, isRequired, peerCategoryIds, userId, createdAt: new Date().toISOString() };
     setStorageItem(STORAGE_KEYS.TAG_CATEGORIES, [...categories, newCat]);
     return newCat;
   },
@@ -77,13 +75,22 @@ export const mockService: GalleryService = {
     setStorageItem(STORAGE_KEYS.TAGS, tags.filter(t => t.categoryId !== id));
   },
 
-  getTags: async () => { await delay(); return getStorageItem(STORAGE_KEYS.TAGS, []); },
-  createTag: async (name, categoryId) => {
+  getTags: async (userId) => { await delay(); return getStorageItem(STORAGE_KEYS.TAGS, []); },
+  createTag: async (userId, name, categoryId, order = 0) => {
     await delay();
     const tags = getStorageItem<Tag[]>(STORAGE_KEYS.TAGS, []);
-    const newTag: Tag = { id: Math.random().toString(36).substr(2, 9), name, categoryId, userId: 'system', createdAt: new Date().toISOString() };
+    const newTag: Tag = { id: Math.random().toString(36).substr(2, 9), name, categoryId, order, userId, createdAt: new Date().toISOString() };
     setStorageItem(STORAGE_KEYS.TAGS, [...tags, newTag]);
     return newTag;
+  },
+  updateTag: async (id, data) => {
+    await delay();
+    const tags = getStorageItem<Tag[]>(STORAGE_KEYS.TAGS, []);
+    const index = tags.findIndex(c => c.id === id);
+    if (index === -1) throw new Error('Tag not found');
+    tags[index] = { ...tags[index], ...data };
+    setStorageItem(STORAGE_KEYS.TAGS, tags);
+    return tags[index];
   },
   deleteTag: async (id) => {
     await delay();
@@ -91,16 +98,17 @@ export const mockService: GalleryService = {
     setStorageItem(STORAGE_KEYS.TAGS, tags.filter(t => t.id !== id));
   },
 
-  getPhotoIndex: async (onlyMine) => {
+  getPhotoIndex: async (userId, onlyMine) => {
     await delay();
     const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []) as Photo[];
-    const filtered = onlyMine ? photos.filter(p => p.userId === 'mock-admin') : photos;
+    const filtered = onlyMine ? photos.filter(p => p.userId === userId) : photos;
     return filtered.map(p => ({
       id: p.id,
       name: p.name,
       tagIds: Array.isArray(p.tagIds) ? p.tagIds : [],
       userId: p.userId || 'unknown',
-      userName: p.userName || 'Sistema'
+      userName: p.userName || 'Sistema',
+      createdAt: p.createdAt || new Date().toISOString()
     }));
   },
   getPhotosByIds: async (ids) => {
@@ -108,21 +116,21 @@ export const mockService: GalleryService = {
     const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []) as Photo[];
     return ids.map(id => photos.find(p => p.id === id)).filter((p): p is Photo => !!p);
   },
-  getPhotos: async () => {
+  getPhotos: async (userId) => {
     await delay();
     return getStorageItem(STORAGE_KEYS.PHOTOS, []);
   },
-  uploadPhotoFile: async (file) => {
+  uploadPhotoFile: async (userId, file: File) => {
     await delay();
     return URL.createObjectURL(file);
   },
-  createPhoto: async (data) => {
+  createPhoto: async (userId, data) => {
     await delay();
     const photos = getStorageItem(STORAGE_KEYS.PHOTOS, []);
     const newPhoto: Photo = {
-      ...data,
+      ...(data as any),
       id: Math.random().toString(36).substr(2, 9),
-      userId: 'mock-admin',
+      userId,
       createdAt: new Date().toISOString()
     };
     photos.push(newPhoto);
@@ -156,5 +164,16 @@ export const mockService: GalleryService = {
     });
 
     return Array.from(userMap.entries()).map(([id, name]) => ({ id, name }));
+  },
+  getUsers: async () => {
+    await delay();
+    return [];
+  },
+  getSystemConfig: async (key) => {
+    await delay();
+    return null;
+  },
+  updateSystemConfig: async (userId, key, value) => {
+    await delay();
   }
 };

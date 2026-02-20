@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Modal } from '../components/UI';
+import { AlertModal, AlertType } from '../components/AlertModal';
 import { useAuth } from '../context/AuthContext';
 import { authService, User } from '../services/authService';
 
@@ -18,6 +19,10 @@ const Users: React.FC = () => {
     // Form state
     const [editingId, setEditingId] = useState<string | null>(null);
     const [name, setName] = useState('');
+
+    // Alert State
+    const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
+    const showAlert = (title: string, message: string, type: AlertType = 'info', onConfirm?: () => void) => setAlertState({ isOpen: true, title, message, type, onConfirm });
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isAdmin, setIsAdmin] = useState(false);
@@ -121,7 +126,7 @@ const Users: React.FC = () => {
             setCreatedTempUser(result);
             await fetchUsers();
         } catch (err: any) {
-            alert('Erro ao criar usuário temporário: ' + err.message);
+            showAlert('Erro Operacional', 'Erro ao criar usuário temporário: ' + err.message, 'error');
         } finally {
             setFormLoading(false);
         }
@@ -150,19 +155,30 @@ const Users: React.FC = () => {
         );
     }
 
+    const handleDeleteUser = (userId: string) => {
+        showAlert('Excluir Usuário', 'Tem certeza que deseja excluir permanentemente este usuário? Esta ação não pode ser desfeita.', 'confirm', async () => {
+            try {
+                await authService.deleteUser(userId);
+                await fetchUsers();
+            } catch (err: any) {
+                showAlert('Erro Operacional', err.message, 'error');
+            }
+        });
+    };
+
     const handleCopyTempUser = () => {
         if (!createdTempUser) return;
 
         const message = `*Acesso Temporário - Galeria de Fotos*\n\n` +
             `Olá! Segue seu acesso de visitante:\n\n` +
             `🔗 *Link:* https://galeria-de-fotos-one-delta.vercel.app/#/login\n` +
-            `👤 *Usuário:* ${createdTempUser.user.name}\n` +
+            `👤 *Email:* ${createdTempUser.user.email}\n` +
             `🔑 *Senha:* ${createdTempUser.passwordRaw}\n\n` +
             `📅 *Válido até:* ${new Date(createdTempUser.user.expiresAt!).toLocaleDateString()}\n\n` +
             `Acesse para visualizar e baixar as fotos.`;
 
         navigator.clipboard.writeText(message);
-        alert('Dados copiados para a área de transferência!');
+        showAlert('Sucesso', 'Dados copiados para a área de transferência!', 'success');
     };
 
     return (
@@ -179,136 +195,157 @@ const Users: React.FC = () => {
                 </div>
             </div>
 
-            {showForm && (
-                <Card className="mb-8 p-6 animate-fade-in bg-white border border-blue-100 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">
-                        {editingId ? 'Editar Usuário' : 'Adicionar Novo Usuário'}
-                    </h3>
-                    <form onSubmit={handleSaveUser} className="space-y-4">
-                        {formError && (
-                            <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
-                                {formError}
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-4">
-                                <Input
-                                    label="Nome"
+            <Modal isOpen={showForm} onClose={() => setShowForm(false)} title={editingId ? 'Editar Usuário' : 'Novo Usuário'}>
+                <form onSubmit={handleSaveUser} className="space-y-8 pb-2">
+                    {formError && (
+                        <div className="bg-red-50 text-red-700 p-4 border-l-4 border-red-600 text-[11px] font-black uppercase tracking-widest">
+                            {formError}
+                        </div>
+                    )}
+
+                    {/* Identification Section */}
+                    <div className="space-y-5">
+                        <div className="flex flex-col md:flex-row gap-5">
+                            <div className="flex-1 space-y-1.5 focus-within:text-blue-600 transition-colors">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 inherit">Nome Completo</label>
+                                <input
+                                    type="text"
                                     value={name}
                                     onChange={e => setName(e.target.value)}
                                     required
+                                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-600 focus:bg-white text-sm font-bold text-slate-800 p-3 rounded-none outline-none transition-all"
+                                    placeholder="Ex: João Silva"
                                 />
-                                <Input
-                                    label="Email"
+                            </div>
+                            <div className="flex-1 space-y-1.5 focus-within:text-blue-600 transition-colors">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 inherit">Endereço de Email</label>
+                                <input
                                     type="email"
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     required
+                                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-600 focus:bg-white text-sm font-bold text-slate-800 p-3 rounded-none outline-none transition-all"
+                                    placeholder="Ex: joao@email.com"
                                 />
-                                <Input
-                                    label={editingId ? "Senha (deixe em branco para manter)" : "Senha"}
-                                    type="password"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required={!editingId}
-                                    minLength={4}
-                                />
-                            </div>
-
-                            <div className="flex flex-col space-y-4 pt-1">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 px-1">Status da Conta</label>
-                                    <label className="flex items-center space-x-2 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition-colors">
-                                        <input
-                                            type="checkbox"
-                                            checked={isActive}
-                                            onChange={e => setIsActive(e.target.checked)}
-                                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                        />
-                                        <span className={`font-bold text-sm ${isActive ? 'text-green-600' : 'text-red-500'}`}>
-                                            {isActive ? 'Usuário Ativo' : 'Usuário Inativo (Sem acesso)'}
-                                        </span>
-                                    </label>
-                                </div>
-
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Papel do Usuário</label>
-
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={isAdmin}
-                                            onChange={e => {
-                                                setIsAdmin(e.target.checked);
-                                                if (e.target.checked) {
-                                                    setIsVisitor(false);
-                                                    setIsProjetista(false);
-                                                }
-                                            }}
-                                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                        />
-                                        <span className="text-slate-700 font-medium tracking-tight">Administrador <span className="text-[10px] text-slate-400 font-normal">(Acesso total)</span></span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={isProjetista}
-                                            onChange={e => {
-                                                setIsProjetista(e.target.checked);
-                                                if (e.target.checked) {
-                                                    setIsAdmin(false);
-                                                    setIsVisitor(false);
-                                                    setCanManageTags(false);
-                                                }
-                                            }}
-                                            className="w-5 h-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
-                                        />
-                                        <span className="text-slate-700 font-medium tracking-tight">Projetista <span className="text-[10px] text-orange-400 font-normal">(Cadastra e edita suas fotos)</span></span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={isVisitor}
-                                            onChange={e => {
-                                                setIsVisitor(e.target.checked);
-                                                if (e.target.checked) {
-                                                    setIsAdmin(false);
-                                                    setIsProjetista(false);
-                                                    setCanManageTags(false);
-                                                }
-                                            }}
-                                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                        />
-                                        <span className="text-slate-700 font-medium tracking-tight">Visitante <span className="text-[10px] text-slate-400 font-normal">(Visualiza e PDF)</span></span>
-                                    </label>
-                                </div>
-
-                                {isAdmin && (
-                                    <label className="flex items-center space-x-2 cursor-pointer p-2 rounded-xl bg-purple-50 border border-purple-100 animate-in fade-in slide-in-from-top-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={canManageTags}
-                                            onChange={e => setCanManageTags(e.target.checked)}
-                                            className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                                        />
-                                        <span className="text-purple-800 text-sm font-bold italic">Pode gerenciar Tags e Hierarquia (Master)</span>
-                                    </label>
-                                )}
                             </div>
                         </div>
-                        <div className="flex justify-end pt-2 space-x-3 border-t border-slate-100 pt-6">
-                            <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                        <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 inherit">
+                                {editingId ? "Credencial de Acesso (Nova Senha)" : "Credencial de Acesso (Senha)"}
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                required={!editingId}
+                                minLength={4}
+                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-600 focus:bg-white text-sm font-bold text-slate-800 p-3 outline-none transition-all"
+                                style={{ borderRadius: '0px' }}
+                                placeholder={editingId ? "Deixe em branco para manter a senha atual" : "Mínimo 4 caracteres"}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Role Selection (Asymmetric Grid) */}
+                    <div className="space-y-3 pt-4 border-t-2 border-slate-950">
+                        <div className="flex justify-between items-end mb-4">
+                            <h3 className="text-[13px] font-black uppercase tracking-widest text-slate-900 leading-none">Nível de Acesso</h3>
+
+                            {/* Status Toggle on the right corner */}
+                            <label className="group flex items-center cursor-pointer max-w-fit">
+                                <div className="relative flex items-center">
+                                    <input type="checkbox" className="sr-only" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+                                    <div className={`w-10 h-5 transition-colors ${isActive ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+                                    <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 transition-transform ${isActive ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                </div>
+                                <span className={`ml-3 text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-green-600' : 'text-slate-400'}`}>
+                                    {isActive ? 'Ativo' : 'Inativo'}
+                                </span>
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <label className={`cursor-pointer p-4 border-2 transition-all relative overflow-hidden ${isAdmin ? 'border-blue-600 bg-blue-50 shadow-[4px_4px_0px_#2563eb] -translate-y-1' : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'}`}>
+                                <input type="checkbox" className="sr-only" checked={isAdmin} onChange={e => {
+                                    setIsAdmin(e.target.checked);
+                                    if (e.target.checked) { setIsVisitor(false); setIsProjetista(false); }
+                                }} />
+                                <div className="flex flex-col gap-1 relative z-10">
+                                    <span className={`text-[11px] font-black tracking-widest uppercase ${isAdmin ? 'text-blue-700' : 'text-slate-700'}`}>Super Admin</span>
+                                    <span className={`text-[10px] font-bold ${isAdmin ? 'text-blue-600' : 'text-slate-500'}`}>Acesso irrestrito a todo o sistema</span>
+                                </div>
+                                {isAdmin && <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-l-[30px] border-t-blue-600 border-l-transparent"></div>}
+                            </label>
+
+                            <label className={`cursor-pointer p-4 border-2 transition-all relative overflow-hidden ${isProjetista ? 'border-orange-500 bg-orange-50 shadow-[4px_4px_0px_#f97316] -translate-y-1' : 'border-slate-200 bg-white hover:border-orange-300 hover:bg-slate-50'}`}>
+                                <input type="checkbox" className="sr-only" checked={isProjetista} onChange={e => {
+                                    setIsProjetista(e.target.checked);
+                                    if (e.target.checked) { setIsAdmin(false); setIsVisitor(false); setCanManageTags(false); }
+                                }} />
+                                <div className="flex flex-col gap-1 relative z-10">
+                                    <span className={`text-[11px] font-black tracking-widest uppercase ${isProjetista ? 'text-orange-700' : 'text-slate-700'}`}>Projetista</span>
+                                    <span className={`text-[10px] font-bold ${isProjetista ? 'text-orange-600/80' : 'text-slate-500'}`}>Gere e edita seus próprios registros</span>
+                                </div>
+                                {isProjetista && <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-l-[30px] border-t-orange-500 border-l-transparent"></div>}
+                            </label>
+
+                            <label className={`cursor-pointer p-4 border-2 transition-all relative overflow-hidden ${isVisitor ? 'border-emerald-500 bg-emerald-50 shadow-[4px_4px_0px_#10b981] -translate-y-1' : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50'}`}>
+                                <input type="checkbox" className="sr-only" checked={isVisitor} onChange={e => {
+                                    setIsVisitor(e.target.checked);
+                                    if (e.target.checked) { setIsAdmin(false); setIsProjetista(false); setCanManageTags(false); }
+                                }} />
+                                <div className="flex flex-col gap-1 relative z-10">
+                                    <span className={`text-[11px] font-black tracking-widest uppercase ${isVisitor ? 'text-emerald-700' : 'text-slate-700'}`}>Visitante</span>
+                                    <span className={`text-[10px] font-bold ${isVisitor ? 'text-emerald-600/80' : 'text-slate-500'}`}>Apenas visualiza e exporta PDF</span>
+                                </div>
+                                {isVisitor && <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-l-[30px] border-t-emerald-500 border-l-transparent"></div>}
+                            </label>
+                        </div>
+
+                        {/* Sub-permissions conditionally rendered */}
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAdmin ? 'max-h-24 opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}`}>
+                            <label className="flex items-center space-x-3 cursor-pointer p-3 bg-indigo-50 border-2 border-indigo-200 hover:border-indigo-400 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={canManageTags}
+                                    onChange={e => setCanManageTags(e.target.checked)}
+                                    className="w-5 h-5 text-indigo-600 rounded-none border-indigo-300 focus:ring-indigo-500 bg-white"
+                                />
+                                <div className="flex flex-col">
+                                    <span className="text-indigo-900 text-[10px] font-black uppercase tracking-widest">Master / Diretor (Hierarquia Estendida)</span>
+                                    <span className="text-indigo-700/80 text-[10px] font-bold">Pode criar, editar e excluir Categorias e Tags Globais do sistema.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-4 pt-6 mt-8">
+                        <div className="w-full sm:w-auto">
+                            {editingId && currentUser?.id !== editingId && (
+                                <button
+                                    type="button"
+                                    className="w-full sm:w-auto px-6 py-3 bg-white text-red-600 border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 text-[10px] font-black uppercase tracking-widest transition-all"
+                                    onClick={() => {
+                                        handleDeleteUser(editingId);
+                                        setShowForm(false);
+                                    }}
+                                >
+                                    Excluir Definitivamente
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex w-full sm:w-auto gap-3">
+                            <button type="button" className="flex-1 sm:flex-none px-6 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 text-[10px] font-black uppercase tracking-widest transition-colors border-2 border-transparent" onClick={() => setShowForm(false)}>
                                 Cancelar
-                            </Button>
-                            <Button type="submit" disabled={formLoading}>
-                                {formLoading ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Criar Usuário')}
-                            </Button>
+                            </button>
+                            <button type="submit" disabled={formLoading} className="flex-1 sm:flex-none px-8 py-3 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest transition-all shadow-[4px_4px_0px_#1e3a8a] active:translate-y-1 active:translate-x-1 active:shadow-none border-2 border-transparent hover:border-blue-900">
+                                {formLoading ? 'Salvando...' : 'Gravar Perfil'}
+                            </button>
                         </div>
-                    </form>
-                </Card>
-            )}
+                    </div>
+                </form>
+            </Modal>
 
             <Card className="overflow-hidden border-slate-200 shadow-xl shadow-slate-200/50">
                 <div className="overflow-x-auto">
@@ -380,15 +417,15 @@ const Users: React.FC = () => {
                                                 {user.isTemp && user.isActive !== false && (
                                                     <Button
                                                         className="px-2.5 py-1 text-[10px] font-bold h-auto bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:text-red-800 uppercase tracking-wider"
-                                                        onClick={async () => {
-                                                            if (confirm('Tem certeza que deseja encerrar o acesso deste usuário temporário imediatamente?')) { // Using native confirm for speed/simplicity as requested "immediate"
+                                                        onClick={() => {
+                                                            showAlert('Encerrar Acesso', 'Tem certeza que deseja encerrar o acesso deste usuário temporário imediatamente?', 'confirm', async () => {
                                                                 try {
                                                                     await authService.terminateTempUser(user.id);
                                                                     await fetchUsers(); // Refresh list (will hide expired based on filter)
                                                                 } catch (e: any) {
-                                                                    alert('Erro ao encerrar usuário: ' + e.message);
+                                                                    showAlert('Erro Operacional', 'Erro ao encerrar usuário: ' + e.message, 'error');
                                                                 }
-                                                            }
+                                                            });
                                                         }}
                                                     >
                                                         Parar
@@ -421,9 +458,9 @@ const Users: React.FC = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <span className="block text-xs font-bold text-slate-400 uppercase">Usuário / Email</span>
+                                        <span className="block text-xs font-bold text-slate-400 uppercase">Email de Acesso</span>
                                         <code className="block bg-slate-50 p-2 rounded text-slate-800 font-bold select-all">
-                                            {createdTempUser.user.name}
+                                            {createdTempUser.user.email}
                                         </code>
                                     </div>
                                     <div>
@@ -482,6 +519,10 @@ const Users: React.FC = () => {
                     </div>
                 )}
             </Modal>
+            <AlertModal
+                {...alertState}
+                onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+            />
         </Layout>
     );
 };

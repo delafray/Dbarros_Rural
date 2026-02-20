@@ -14,83 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      customers: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          name: string
-          notes: string | null
-          status: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          name: string
-          notes?: string | null
-          status: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          name?: string
-          notes?: string | null
-          status?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customers_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payments: {
-        Row: {
-          amount: number
-          id: string
-          paid_at: string
-          subscription_id: string
-          user_id: string | null
-        }
-        Insert: {
-          amount: number
-          id?: string
-          paid_at: string
-          subscription_id: string
-          user_id?: string | null
-        }
-        Update: {
-          amount?: number
-          id?: string
-          paid_at?: string
-          subscription_id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_subscription_id_fkey"
-            columns: ["subscription_id"]
-            isOneToOne: false
-            referencedRelation: "subscriptions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       photo_tags: {
         Row: {
           photo_id: string
@@ -130,6 +53,7 @@ export type Database = {
           thumbnail_url: string | null
           url: string
           user_id: string | null
+          video_url: string | null
         }
         Insert: {
           created_at?: string
@@ -139,6 +63,7 @@ export type Database = {
           thumbnail_url?: string | null
           url: string
           user_id?: string | null
+          video_url?: string | null
         }
         Update: {
           created_at?: string
@@ -148,6 +73,7 @@ export type Database = {
           thumbnail_url?: string | null
           url?: string
           user_id?: string | null
+          video_url?: string | null
         }
         Relationships: [
           {
@@ -159,110 +85,53 @@ export type Database = {
           },
         ]
       }
-      plans: {
+      system_config: {
         Row: {
-          active: boolean
-          id: string
-          name: string
-          price: number
-          user_id: string | null
+          key: string
+          updated_at: string | null
+          value: string
         }
         Insert: {
-          active?: boolean
-          id?: string
-          name: string
-          price: number
-          user_id?: string | null
+          key: string
+          updated_at?: string | null
+          value: string
         }
         Update: {
-          active?: boolean
-          id?: string
-          name?: string
-          price?: number
-          user_id?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "plans_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      subscriptions: {
-        Row: {
-          customer_id: string
-          id: string
-          next_renewal: string
-          plan_id: string
-          start_date: string
-          status: string
-          user_id: string | null
-        }
-        Insert: {
-          customer_id: string
-          id?: string
-          next_renewal: string
-          plan_id: string
-          start_date: string
-          status: string
-          user_id?: string | null
-        }
-        Update: {
-          customer_id?: string
-          id?: string
-          next_renewal?: string
-          plan_id?: string
-          start_date?: string
-          status?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subscriptions_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscriptions_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscriptions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       tag_categories: {
         Row: {
           created_at: string | null
           id: string
+          is_required: boolean | null
           name: string
           order: number
+          peer_category_ids: string[] | null
+          requires_sub_tags: boolean | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_required?: boolean | null
           name: string
           order: number
+          peer_category_ids?: string[] | null
+          requires_sub_tags?: boolean | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_required?: boolean | null
           name?: string
           order?: number
+          peer_category_ids?: string[] | null
+          requires_sub_tags?: boolean | null
           user_id?: string | null
         }
         Relationships: [
@@ -281,6 +150,7 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          order: number | null
           user_id: string | null
         }
         Insert: {
@@ -288,6 +158,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           name: string
+          order?: number | null
           user_id?: string | null
         }
         Update: {
@@ -295,6 +166,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           name?: string
+          order?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -316,36 +188,42 @@ export type Database = {
       }
       users: {
         Row: {
+          can_manage_tags: boolean | null
           created_at: string | null
           email: string
           expires_at: string | null
           id: string
           is_active: boolean | null
           is_admin: boolean | null
+          is_projetista: boolean | null
           is_temp: boolean | null
           is_visitor: boolean | null
           name: string
           password_hash: string
         }
         Insert: {
+          can_manage_tags?: boolean | null
           created_at?: string | null
           email: string
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
           is_admin?: boolean | null
+          is_projetista?: boolean | null
           is_temp?: boolean | null
           is_visitor?: boolean | null
           name: string
           password_hash: string
         }
         Update: {
+          can_manage_tags?: boolean | null
           created_at?: string | null
           email?: string
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
           is_admin?: boolean | null
+          is_projetista?: boolean | null
           is_temp?: boolean | null
           is_visitor?: boolean | null
           name?: string

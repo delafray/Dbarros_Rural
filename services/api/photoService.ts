@@ -2,25 +2,40 @@ import { supabase } from '../supabaseClient';
 import type { TablesInsert, TablesUpdate } from '../../database.types';
 import type { Photo } from '../../types';
 
+// Inline types for Supabase join results
+// Supabase can return joined relations as an object or a single-item array depending on schema/version
+type PhotoTagRow = { tag_id: string };
+type UserInnerRow = { name: string };
+type UserRow = UserInnerRow | UserInnerRow[] | null;
+
+type PhotoIndexRow = {
+    id: string;
+    name: string;
+    user_id: string | null;
+    created_at: string;
+    video_url: string | null;
+    url: string;
+    thumbnail_url: string | null;
+    users: UserRow;
+    photo_tags: PhotoTagRow[];
+};
+
+/**
+ * Helper to extract user name safely from Supabase join results
+ */
+const extractUserName = (users: UserRow): string | undefined => {
+    if (!users) return undefined;
+    if (Array.isArray(users)) {
+        return users[0]?.name;
+    }
+    return users.name;
+};
+
 export const photoService = {
     getPhotoIndex: async (userId: string, onlyMine?: boolean) => {
         let query = supabase
             .from('photos')
-            .select(`
-        id,
-        name,
-        user_id,
-        created_at,
-        video_url,
-        url,
-        thumbnail_url,
-        users (
-          name
-        ),
-        photo_tags (
-          tag_id
-        )
-      `);
+            .select('id,name,user_id,created_at,video_url,url,thumbnail_url,users(name),photo_tags(tag_id)');
 
         if (onlyMine) {
             query = query.eq('user_id', userId);
@@ -28,18 +43,18 @@ export const photoService = {
 
         query = query.order('created_at', { ascending: false });
 
-        const { data, error } = await (query as any);
+        const { data, error } = await query;
         if (error) throw new Error(`Failed to fetch index: ${error.message}`);
 
-        return (data as any[]).map(row => ({
+        return ((data as unknown as PhotoIndexRow[]) || []).map(row => ({
             id: row.id,
             name: row.name,
-            userId: row.user_id,
-            userName: Array.isArray(row.users) ? row.users[0]?.name : (row.users as any)?.name,
-            tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id),
-            videoUrl: row.video_url,
+            userId: row.user_id || '',
+            userName: extractUserName(row.users),
+            tagIds: (row.photo_tags || []).map(pt => pt.tag_id),
+            videoUrl: row.video_url || undefined,
             url: row.url,
-            thumbnailUrl: row.thumbnail_url,
+            thumbnailUrl: row.thumbnail_url || undefined,
             createdAt: row.created_at
         }));
     },
@@ -49,29 +64,20 @@ export const photoService = {
 
         const { data, error } = await supabase
             .from('photos')
-            .select(`
-        *,
-        users (
-          name
-        ),
-        photo_tags (
-          tag_id
-        )
-      `)
+            .select('*,users(name),photo_tags(tag_id)')
             .in('id', ids);
 
         if (error) throw new Error(`Failed to fetch photos by IDs: ${error.message}`);
 
-        const photoMap = new Map<string, Photo>((data as any[]).map(row => [row.id, {
+        const photoMap = new Map<string, Photo>(((data as unknown as PhotoIndexRow[]) || []).map(row => [row.id, {
             id: row.id,
             userId: row.user_id || '',
             name: row.name,
-            userName: row.users?.name,
+            userName: extractUserName(row.users),
             url: row.url,
             thumbnailUrl: row.thumbnail_url || undefined,
-            localPath: row.local_path || undefined,
             videoUrl: row.video_url || undefined,
-            tagIds: (row.photo_tags || []).map((pt: any) => pt.tag_id),
+            tagIds: (row.photo_tags || []).map(pt => pt.tag_id),
             createdAt: row.created_at
         }]));
 
@@ -81,30 +87,21 @@ export const photoService = {
     getPhotos: async (userId: string) => {
         const { data, error } = await supabase
             .from('photos')
-            .select(`
-        *,
-        users (
-          name
-        ),
-        photo_tags (
-          tag_id
-        )
-      `)
+            .select('*,users(name),photo_tags(tag_id)')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         if (error) throw new Error(`Failed to fetch photos: ${error.message}`);
 
-        return (data as any[]).map(row => ({
+        return ((data as unknown as PhotoIndexRow[]) || []).map(row => ({
             id: row.id,
             userId: row.user_id || '',
             name: row.name,
-            userName: row.users?.name,
+            userName: extractUserName(row.users),
             url: row.url,
-            thumbnailUrl: row.thumbnail_url,
-            localPath: row.local_path,
-            videoUrl: row.video_url,
-            tagIds: row.photo_tags.map((pt: any) => pt.tag_id),
+            thumbnailUrl: row.thumbnail_url || undefined,
+            videoUrl: row.video_url || undefined,
+            tagIds: (row.photo_tags || []).map(pt => pt.tag_id),
             createdAt: row.created_at
         }));
     },
@@ -112,16 +109,13 @@ export const photoService = {
     uploadPhotoFile: async (userId: string, file: File) => {
         const fileExt = file.name.split('.').pop();
         const randomSuffix = Math.random().toString(36).substring(2, 7);
-        const fileName = `${userId}/${Date.now()}_${randomSuffix}.${fileExt}`;
-        const filePath = fileName;
+        const filePath = `${userId}/${Date.now()}_${randomSuffix}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
             .from('photos')
             .upload(filePath, file);
 
-        if (uploadError) {
-            throw new Error(`Failed to upload photo: ${uploadError.message}`);
-        }
+        if (uploadError) throw new Error(`Failed to upload photo: ${uploadError.message}`);
 
         const { data: { publicUrl } } = supabase.storage
             .from('photos')
@@ -137,7 +131,6 @@ export const photoService = {
             url: data.url,
             thumbnail_url: data.thumbnailUrl || null,
             local_path: data.localPath || null,
-            // @ts-ignore
             video_url: data.videoUrl || null
         };
 
@@ -149,8 +142,9 @@ export const photoService = {
 
         if (photoError) throw new Error(`Failed to create photo: ${photoError.message}`);
 
-        if (data.tagIds && data.tagIds.length > 0) {
-            const photoTagsData = data.tagIds.map(tagId => ({
+        const tagIds = data.tagIds || [];
+        if (tagIds.length > 0) {
+            const photoTagsData = tagIds.map(tagId => ({
                 photo_id: newPhoto.id,
                 tag_id: tagId
             }));
@@ -169,8 +163,8 @@ export const photoService = {
             url: newPhoto.url,
             thumbnailUrl: newPhoto.thumbnail_url || undefined,
             localPath: newPhoto.local_path || undefined,
-            videoUrl: (newPhoto as any).video_url || undefined,
-            tagIds: data.tagIds,
+            videoUrl: newPhoto.video_url || undefined,
+            tagIds: tagIds,
             createdAt: newPhoto.created_at
         };
     },
@@ -182,7 +176,6 @@ export const photoService = {
         if (data.thumbnailUrl !== undefined) updateData.thumbnail_url = data.thumbnailUrl;
         if (data.localPath !== undefined) updateData.local_path = data.localPath;
         if (data.userId !== undefined) updateData.user_id = data.userId;
-        // @ts-ignore
         if (data.videoUrl !== undefined) updateData.video_url = data.videoUrl;
 
         const { data: updatedPhoto, error: photoError } = await supabase
@@ -194,49 +187,29 @@ export const photoService = {
 
         if (photoError) throw new Error(`Failed to update photo: ${photoError.message}`);
 
+        const finalTagIds = data.tagIds ?? [];
+
         if (data.tagIds !== undefined) {
-            await supabase
-                .from('photo_tags')
-                .delete()
-                .eq('photo_id', id);
+            await supabase.from('photo_tags').delete().eq('photo_id', id);
 
-            if (data.tagIds.length > 0) {
-                const photoTagsData = data.tagIds.map(tagId => ({
-                    photo_id: id,
-                    tag_id: tagId
-                }));
-
-                const { error: tagsError } = await supabase
-                    .from('photo_tags')
-                    .insert(photoTagsData);
-
+            if (finalTagIds.length > 0) {
+                const photoTagsData = finalTagIds.map(tagId => ({ photo_id: id, tag_id: tagId }));
+                const { error: tagsError } = await supabase.from('photo_tags').insert(photoTagsData);
                 if (tagsError) throw new Error(`Failed to update photo tags: ${tagsError.message}`);
             }
         }
 
-        const { data: photoWithTags, error: fetchError } = await supabase
-            .from('photos')
-            .select(`
-        *,
-        photo_tags (
-          tag_id
-        )
-      `)
-            .eq('id', id)
-            .single();
-
-        if (fetchError) throw new Error(`Failed to fetch updated photo: ${fetchError.message}`);
-
+        // Build return object from data already in memory – no extra SELECT needed
         return {
-            id: photoWithTags.id,
-            userId: photoWithTags.user_id || '',
-            name: photoWithTags.name,
-            url: photoWithTags.url,
-            thumbnailUrl: photoWithTags.thumbnail_url || undefined,
-            localPath: photoWithTags.local_path || undefined,
-            videoUrl: (photoWithTags as any).video_url || undefined,
-            tagIds: (photoWithTags.photo_tags as any[]).map((pt: any) => pt.tag_id),
-            createdAt: photoWithTags.created_at
+            id: updatedPhoto.id,
+            userId: updatedPhoto.user_id || '',
+            name: updatedPhoto.name,
+            url: updatedPhoto.url,
+            thumbnailUrl: updatedPhoto.thumbnail_url || undefined,
+            localPath: updatedPhoto.local_path || undefined,
+            videoUrl: updatedPhoto.video_url || undefined,
+            tagIds: finalTagIds,
+            createdAt: updatedPhoto.created_at
         };
     },
 
