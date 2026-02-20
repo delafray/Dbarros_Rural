@@ -634,12 +634,54 @@ const Photos: React.FC = () => {
                 </div>
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+              {/* Botões Essenciais no Mobile -> "Selecionar" e "Limpar" */}
+              <div className="flex md:hidden gap-2 flex-1">
+                <Button
+                  onClick={selectAllFiltered}
+                  disabled={filteredResult.ids.length === 0}
+                  className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
+                    ? 'opacity-50 shadow-none'
+                    : effectiveSelectionCount > pdfLimit
+                      ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
+                      : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30'
+                    } ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                >
+                  {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todas' : 'Tudo'}
+                </Button>
+
+                {(() => {
+                  const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
+                  return (
+                    <Button
+                      onClick={() => {
+                        setSelectedTagIds([]);
+                        setSelectedExportIds(new Set());
+                        setSearchTerm('');
+                        if (user?.isAdmin || user?.isProjetista) {
+                          setOnlyMine(false);
+                          setSelectedUserId('all');
+                        }
+                      }}
+                      disabled={!hasActiveFilters}
+                      className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${!hasActiveFilters
+                        ? 'opacity-50 shadow-none cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
+                        : effectiveSelectionCount > pdfLimit
+                          ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
+                          : 'bg-slate-800 text-white border-slate-800 shadow-slate-500/30'
+                        }`}
+                    >
+                      Limpar
+                    </Button>
+                  );
+                })()}
+              </div>
+
               {!user?.isVisitor && (
                 <Button
                   onClick={() => handleOpenModal()}
                   variant="danger"
-                  className="py-1.5 text-xs font-bold shadow-sm hover:scale-105 transition-transform"
+                  className="py-1.5 md:py-2 text-[10px] md:text-xs font-bold shadow-sm hover:scale-105 transition-transform"
                 >
                   + Novo Registro
                 </Button>
@@ -663,7 +705,7 @@ const Photos: React.FC = () => {
                     <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{cat.name}</h4>
                   </div>
 
-                  <div className="flex-1 md:pl-4 flex flex-wrap gap-x-1.5 gap-y-1 py-0.5">
+                  <div className="flex-1 md:pl-4 flex flex-wrap gap-x-1 gap-y-1 md:gap-x-1.5 py-0.5">
                     {tags.filter(t => t.categoryId === cat.id).map(tag => {
                       const isSelected = selectedTagIds.includes(tag.id);
                       const isAvailable = filteredResult.availableTagsByLevel[cat.order]?.has(tag.id);
@@ -1099,36 +1141,41 @@ const Photos: React.FC = () => {
       {/* Export Action Bar */}
       {
         selectedExportIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
-            <div className="bg-slate-900 border border-slate-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 backdrop-blur-xl">
+          <div className="fixed bottom-2 md:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in w-[95%] md:w-auto max-w-lg">
+            <div className="bg-slate-900 border border-slate-700 text-white px-3 md:px-6 py-2 md:py-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 backdrop-blur-xl">
               <div className="flex flex-col">
-                <span className="text-sm font-bold">{effectiveSelectionCount} {effectiveSelectionCount === 1 ? 'Foto para PDF' : 'Fotos para PDF'}</span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-xs md:text-sm font-bold whitespace-nowrap">{effectiveSelectionCount} {effectiveSelectionCount === 1 ? 'Foto' : 'Fotos'}</span>
+                <span className="text-[9px] md:text-[10px] text-slate-400 truncate max-w-[120px] md:max-w-none">
                   {selectedExportIds.size !== effectiveSelectionCount
-                    ? `(Filtrado de ${selectedExportIds.size} selecionadas)`
-                    : 'Pronto para gerar PDF'}
+                    ? `(${selectedExportIds.size} selec.)`
+                    : 'Pronto p/ PDF'}
                 </span>
               </div>
-              <div className="h-8 w-px bg-slate-700"></div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-white border-slate-600 hover:bg-slate-800 py-1.5 px-4 text-xs h-9">
-                  Cancelar
+
+              <div className="h-6 w-px bg-slate-700 hidden md:block"></div>
+
+              <div className="flex gap-2 overflow-hidden">
+                <Button variant="outline" onClick={() => setSelectedExportIds(new Set())} className="text-slate-300 border-slate-600 hover:bg-slate-800 p-1.5 md:py-1.5 md:px-4 text-[10px] md:text-xs h-8 md:h-9" title="Cancelar seleção">
+                  {/* Icon for mobile, Text for desktop */}
+                  <span className="hidden md:inline">Cancelar</span>
+                  <svg className="w-4 h-4 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </Button>
+
                 <Button
                   onClick={handleExportPDF}
-                  className={`py-1.5 px-6 text-xs h-9 shadow-lg flex items-center gap-2 transition-all ${effectiveSelectionCount > pdfLimit
+                  className={`py-1.5 px-3 md:px-6 text-[10px] md:text-xs h-8 md:h-9 shadow-lg flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${effectiveSelectionCount > pdfLimit
                     ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
                     }`}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Gerar PDF
                 </Button>
               </div>
             </div>
-          </div >
+          </div>
         )
       }
       {/* Progress UI Overlay */}
