@@ -76,7 +76,7 @@ export const authService = {
         const { data: profile, error: profileError } = await supabase
             .from('users')
             .select('*')
-            .or(`email.eq.${identifier},name.ilike.${identifier}`)
+            .or(`email.ilike.${identifier},name.ilike.${identifier}`)
             .limit(1)
             .maybeSingle();
 
