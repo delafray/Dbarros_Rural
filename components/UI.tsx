@@ -68,21 +68,21 @@ export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: Reac
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-200`}>
-        <div className="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-          <div className="flex-1 mr-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className={`bg-white h-full sm:h-auto sm:rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in fade-in zoom-in duration-200 border-x sm:border border-slate-200 flex flex-col`}>
+        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/30 flex-shrink-0">
+          <div className="flex-1 mr-4 overflow-hidden">
             {typeof title === 'string' ? (
-              <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 truncate">{title}</h3>
             ) : (
               title
             )}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 transition-colors" aria-label="Fechar">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        <div className={`p-5 ${className}`}>
+        <div className={`p-4 sm:p-5 overflow-y-auto flex-1 ${className}`}>
           {children}
         </div>
       </div>

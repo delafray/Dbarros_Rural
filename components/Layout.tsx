@@ -109,23 +109,23 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-64 p-4 md:pt-4 md:px-8 w-full max-w-full">
-        <header className="mb-4 flex justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
+      <main className="flex-1 md:ml-64 p-3 sm:p-4 md:pt-4 md:px-8 w-full max-w-full">
+        <header className="mb-3 sm:mb-4 flex justify-between items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Hamburger Button for Mobile */}
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="md:hidden p-3 bg-white border border-slate-200 rounded-xl text-blue-600 shadow-sm hover:bg-blue-50 transition-all active:scale-95"
+              className="md:hidden p-2 sm:p-3 bg-white border border-slate-200 rounded-xl text-blue-600 shadow-sm hover:bg-blue-50 transition-all active:scale-95"
               aria-label="Menu"
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate">{title}</h2>
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800 truncate">{title}</h2>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Custom Header Actions */}
             {headerActions && (
               <div className="hidden md:flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -133,8 +133,8 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
               </div>
             )}
 
-            <div className="bg-white px-3 md:px-4 py-2 rounded-xl border border-slate-200 flex items-center shadow-sm flex-shrink-0">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm mr-2 uppercase flex-shrink-0">
+            <div className="bg-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-xl border border-slate-200 flex items-center shadow-sm flex-shrink-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs sm:text-sm mr-1.5 sm:mr-2 uppercase flex-shrink-0">
                 {user?.name?.substring(0, 2) || 'US'}
               </div>
               <div className="hidden sm:flex flex-col text-left">

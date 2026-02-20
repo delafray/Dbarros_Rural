@@ -59,6 +59,7 @@ const Photos: React.FC = () => {
   const [usersWithPhotos, setUsersWithPhotos] = useState<Array<{ id: string; name: string }>>([]);
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string }>>([]); // For the author dropdown
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Alert State
   const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
@@ -83,7 +84,22 @@ const Photos: React.FC = () => {
 
   // Pagination state based on filtered results
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
-  const [gridCols, setGridCols] = useState(window.innerWidth < 640 ? 2 : 5); // Responsive default
+  const [gridCols, setGridCols] = useState(window.innerWidth < 640 ? 2 : 5);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) setGridCols(2);
+      else if (width < 1024) setGridCols(3);
+      else if (width < 1280) setGridCols(4);
+      else setGridCols(5);
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initialize on mount
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -576,13 +592,23 @@ const Photos: React.FC = () => {
       <div className="flex flex-col gap-2">
         <Card className="p-3">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-2 border-b border-slate-100 pb-2">
-            <div className="flex-1 w-full max-w-md">
+            <div className="flex-1 w-full max-w-md flex gap-2">
               <Input
-                placeholder="Pesquisar por nome do projeto..."
+                placeholder="Pesquisar..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="py-1.5"
               />
+              <Button
+                variant="outline"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className={`md:hidden p-2 flex items-center justify-center min-w-[44px] ${showMobileFilters ? 'bg-blue-50 border-blue-200 text-blue-600' : ''}`}
+                title="Mostrar Filtros"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </Button>
             </div>
             {(user?.isAdmin || user?.isProjetista) && (
               <div className="flex items-center gap-3">
@@ -690,12 +716,20 @@ const Photos: React.FC = () => {
           </div>
 
           <div className="space-y-1">
-            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h18M3 12h18m-7 8h7" /></svg>
-              Matriz de Filtragem Hierárquica
+            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h18M3 12h18m-7 8h7" /></svg>
+                Matriz de Filtragem Hierárquica
+              </div>
+              <button
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className="md:hidden text-blue-600 font-bold"
+              >
+                {showMobileFilters ? 'Recolher' : 'Expandir'}
+              </button>
             </h3>
 
-            <div className="flex flex-col gap-0.5">
+            <div className={`${showMobileFilters ? 'flex' : 'hidden md:flex'} flex-col gap-0.5 animate-in fade-in duration-300`}>
               {categories.map((cat) => (
                 <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-white border border-slate-200 rounded-xl px-3 py-0.5 transition-all hover:border-blue-400 hover:shadow-md">
                   <div className="md:w-36 flex-shrink-0 flex items-center gap-2 mb-1 md:mb-0 border-b md:border-b-0 md:border-r border-slate-100 pb-1 md:pb-0 md:pr-3">
@@ -1074,12 +1108,14 @@ const Photos: React.FC = () => {
                 </div>
               </div >
 
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-8 border-t border-slate-100 bg-white mt-auto">
-                <div className="bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100"><p className="text-[10px] font-bold text-blue-700 leading-tight uppercase">Salvamento com compactação inteligente ativa</p></div>
-                <div className="flex gap-3 w-full sm:w-auto">
-                  <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-2 px-6 text-xs h-10">Cancelar</Button>
-                  <Button type="submit" disabled={saving || (!isVideoMode && !formData.url) || processingImage} className="flex-1 sm:flex-none px-10 py-2 shadow-xl shadow-blue-500/20 text-xs font-black uppercase tracking-widest h-10">
-                    {saving || processingImage ? 'Processando...' : 'Finalizar Registro'}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 sm:pt-8 border-t border-slate-100 bg-white mt-auto">
+                <div className="hidden sm:block bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100">
+                  <p className="text-[10px] font-bold text-blue-700 leading-tight uppercase">Salvamento com compactação inteligente ativa</p>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none py-2 px-4 text-xs h-11 sm:h-10">Cancelar</Button>
+                  <Button type="submit" disabled={saving || (!isVideoMode && !formData.url) || processingImage} className="flex-1 sm:flex-none px-6 sm:px-10 py-2 shadow-xl shadow-blue-500/20 text-xs font-black uppercase tracking-widest h-11 sm:h-10">
+                    {saving || processingImage ? 'Processando...' : 'Finalizar'}
                   </Button>
                 </div>
               </div>
@@ -1163,15 +1199,15 @@ const Photos: React.FC = () => {
 
                 <Button
                   onClick={handleExportPDF}
-                  className={`py-1.5 px-3 md:px-6 text-[10px] md:text-xs h-8 md:h-9 shadow-lg flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${effectiveSelectionCount > pdfLimit
+                  className={`py-1.5 px-4 md:px-6 text-[10px] md:text-xs h-9 md:h-10 shadow-lg flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${effectiveSelectionCount > pdfLimit
                     ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
                     }`}
                 >
-                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Gerar PDF
+                  <span className="sm:inline">Gerar PDF</span>
                 </Button>
               </div>
             </div>
