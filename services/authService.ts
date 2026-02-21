@@ -1,5 +1,18 @@
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import type { TablesInsert, TablesUpdate } from '../database.types';
+
+// Administrative client configuration (no session persistence)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const getAdminClient = () => createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+    }
+});
 
 export interface User {
     id: string;
@@ -65,8 +78,9 @@ export const authService = {
     // Register new user
     register: async (name: string, email: string, password: string, isAdmin: boolean = false, isVisitor: boolean = false, canManageTags: boolean = false, isProjetista: boolean = false): Promise<User> => {
 
-        // 1. Create user in Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // 1. Create user in Supabase Auth (Using non-persisting client to avoid session swap)
+        const adminClient = getAdminClient();
+        const { data: authData, error: authError } = await adminClient.auth.signUp({
             email,
             password
         });
@@ -175,8 +189,9 @@ export const authService = {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
 
-        // 1. Create in Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // 1. Create in Supabase Auth (Using non-persisting client to avoid session swap)
+        const adminClient = getAdminClient();
+        const { data: authData, error: authError } = await adminClient.auth.signUp({
             email: tempEmail,
             password: tempPassword
         });
