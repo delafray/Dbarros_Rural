@@ -33,6 +33,8 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+  const [showExitConfirm, setShowExitConfirm] = React.useState(false);
+  const exitDialogOpenRef = React.useRef(false);
 
   // Removed useBlocker because it is unsupported in HashRouter and causes a fatal crash.
 
@@ -46,6 +48,31 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [user]);
+
+  // Mobile back button protection
+  React.useEffect(() => {
+    if (!user) return;
+    // Push a guard state so the first back press can be intercepted
+    window.history.pushState({ appGuard: true }, '');
+
+    const handlePopState = async () => {
+      if (exitDialogOpenRef.current) {
+        // 2nd back press while dialog open → force logout immediately
+        exitDialogOpenRef.current = false;
+        setShowExitConfirm(false);
+        await logout();
+        navigate('/login');
+        return;
+      }
+      // 1st back press → show dialog and re-push guard state
+      window.history.pushState({ appGuard: true }, '');
+      exitDialogOpenRef.current = true;
+      setShowExitConfirm(true);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, [user]);
 
   const handleLogout = () => {
@@ -68,8 +95,47 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
     return 'Usuário';
   };
 
+  const confirmExit = async () => {
+    exitDialogOpenRef.current = false;
+    setShowExitConfirm(false);
+    await logout();
+    navigate('/login');
+  };
+
+  const cancelExit = () => {
+    exitDialogOpenRef.current = false;
+    setShowExitConfirm(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50">
+      {/* Back-button exit confirmation (mobile) */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center md:items-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-black text-slate-800 text-base">Sair do sistema?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Pressione voltar novamente para sair imediatamente.</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={cancelExit} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                Ficar
+              </button>
+              <button onClick={confirmExit} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all">
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Backdrop */}
       {isMenuOpen && (
         <div
