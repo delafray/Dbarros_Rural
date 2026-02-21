@@ -590,7 +590,7 @@ const Photos: React.FC = () => {
                 }
               }
             }}
-            className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+            className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
           >
             Limpar Tudo
           </Button>
@@ -708,7 +708,7 @@ const Photos: React.FC = () => {
                     selectAllFiltered();
                   }
                 }}
-                className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+                className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
               >
                 {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todas' : 'Tudo'}
               </Button>
@@ -728,7 +728,7 @@ const Photos: React.FC = () => {
                         }
                       }
                     }}
-                    className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+                    className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
                   >
                     Limpar
                   </Button>
@@ -889,7 +889,7 @@ const Photos: React.FC = () => {
                       setSelectedUserId('all');
                     }
                   }}
-                  className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+                  className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
                 >
                   Limpar
                 </Button>
@@ -898,7 +898,7 @@ const Photos: React.FC = () => {
             <Button
               variant="outline"
               onClick={selectAllFiltered}
-              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
             >
               Tudo
             </Button>
