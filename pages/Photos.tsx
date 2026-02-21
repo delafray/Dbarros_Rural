@@ -601,8 +601,60 @@ const Photos: React.FC = () => {
     </div>
   );
 
+  const mobileSidebarContent = (
+    <div className="flex flex-col gap-2">
+      {/* Search bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          placeholder="Pesquisar..."
+          className="w-full bg-slate-100 border-none rounded-xl py-2 pl-9 pr-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {(user?.isAdmin || user?.isProjetista) && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+          <input type="checkbox" id="onlyMineSidebar" checked={onlyMine}
+            onChange={e => { setOnlyMine(e.target.checked); if (e.target.checked) setSelectedUserId('all'); }}
+            className="w-4 h-4 text-blue-600 rounded border-slate-300"
+          />
+          <label htmlFor="onlyMineSidebar" className="text-xs font-medium text-slate-600 cursor-pointer select-none">Apenas meus registros</label>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">Autor:</label>
+        <select value={selectedUserId} onChange={(e) => { setSelectedUserId(e.target.value); if (e.target.value !== 'all') setOnlyMine(false); }}
+          className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer flex-1">
+          <option value="all">Todos os Autores</option>
+          {usersWithPhotos.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      </div>
+
+      {!user?.isVisitor && (
+        <Button onClick={() => handleOpenModal()} variant="danger" className="w-full py-2 text-xs font-bold shadow-sm">
+          + Novo Registro
+        </Button>
+      )}
+
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+        <input type="checkbox" id="sortByDateSidebar" checked={sortByDate} onChange={e => setSortByDate(e.target.checked)}
+          className="w-4 h-4 text-blue-600 rounded border-slate-300"
+        />
+        <label htmlFor="sortByDateSidebar" className="text-xs font-medium text-slate-600 cursor-pointer select-none">Ordem de Cadastro</label>
+      </div>
+    </div>
+  );
+
   return (
-    <Layout title="Galeria Estruturada" headerActions={headerActions}>
+    <Layout title="Galeria Estruturada" headerActions={headerActions} mobileSidebarContent={mobileSidebarContent}>
       <>
         <div className="flex flex-col gap-2">
           <Card className="p-3">
@@ -751,91 +803,6 @@ const Photos: React.FC = () => {
                 ))}
               </div>
             </div>
-
-            {/* Mobile-only: Extra controls inside hamburger */}
-            {showMobileFilters && (
-              <div className="md:hidden flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
-
-                {/* Search bar */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Pesquisar por nome ou etiqueta..."
-                    className="w-full bg-slate-100 border-none rounded-xl py-2 pl-9 pr-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-
-                {/* Apenas meus registros */}
-                {(user?.isAdmin || user?.isProjetista) && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                    <input
-                      type="checkbox"
-                      id="onlyMineMobile"
-                      checked={onlyMine}
-                      onChange={e => {
-                        setOnlyMine(e.target.checked);
-                        if (e.target.checked) setSelectedUserId('all');
-                      }}
-                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                    />
-                    <label htmlFor="onlyMineMobile" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
-                      Apenas meus registros
-                    </label>
-                  </div>
-                )}
-
-                {/* Autor */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                  <label htmlFor="userFilterMobile" className="text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">Autor:</label>
-                  <select
-                    id="userFilterMobile"
-                    value={selectedUserId}
-                    onChange={(e) => {
-                      setSelectedUserId(e.target.value);
-                      if (e.target.value !== 'all') setOnlyMine(false);
-                    }}
-                    className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer flex-1"
-                  >
-                    <option value="all">Todos os Autores</option>
-                    {usersWithPhotos.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Novo Registro - abaixo de Usuários */}
-                {!user?.isVisitor && (
-                  <Button
-                    onClick={() => { handleOpenModal(); setShowMobileFilters(false); }}
-                    variant="danger"
-                    className="w-full py-2 text-xs font-bold shadow-sm"
-                  >
-                    + Novo Registro
-                  </Button>
-                )}
-
-                {/* Ordem de Cadastro */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200" title="Ordena do mais recente para o mais antigo">
-                  <input
-                    type="checkbox"
-                    id="sortByDateMobile"
-                    checked={sortByDate}
-                    onChange={e => setSortByDate(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                  />
-                  <label htmlFor="sortByDateMobile" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
-                    Ordem de Cadastro
-                  </label>
-                </div>
-              </div>
-            )}
           </Card>
 
           {

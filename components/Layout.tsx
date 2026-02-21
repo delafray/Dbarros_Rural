@@ -9,7 +9,8 @@ import { APP_VERSION } from '../version';
 interface LayoutProps {
   children: ReactNode;
   title?: string;
-  headerActions?: ReactNode; // New prop for custom header buttons
+  headerActions?: ReactNode;
+  mobileSidebarContent?: ReactNode; // Mobile-only content injected below nav links
 }
 
 const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: any }) => (
@@ -27,7 +28,7 @@ const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: a
   </NavLink>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
+const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileSidebarContent }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -114,6 +115,13 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
           <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema</div>
           {user?.canManageTags && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
         </nav>
+
+        {/* Mobile-only: secondary filter controls injected from page */}
+        {mobileSidebarContent && (
+          <div className="md:hidden px-4 pb-2 border-t border-slate-100 pt-3">
+            {mobileSidebarContent}
+          </div>
+        )}
 
         <div className="p-4 border-t border-slate-100 flex flex-col gap-4">
           <button onClick={handleLogout} className="flex items-center space-x-3 px-4 py-3 w-full text-left rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all">
