@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useBlocker } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSystemInfo } from '../utils/core_lic';
 import { Button, Modal } from './UI';
@@ -33,13 +33,50 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
 
+  // Blocker to prevent accidental back button navigation to login
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      user !== null && nextLocation.pathname === '/login' && currentLocation.pathname !== '/login'
+  );
+
+  // Synchronize blocker state with our modal
+  React.useEffect(() => {
+    if (blocker.state === "blocked") {
+      setShowLogoutConfirm(true);
+    }
+  }, [blocker.state]);
+
+  // Browser level protection (beforeunload)
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (user) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for some browsers
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [user]);
+
   const handleLogout = () => {
     setShowLogoutConfirm(true);
   };
 
   const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
     await logout();
-    navigate('/login');
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+    } else {
+      navigate('/login');
+    }
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
+    if (blocker.state === "blocked") {
+      blocker.reset();
+    }
   };
 
   const getRoleLabel = () => {
@@ -155,7 +192,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
       {/* Logout Confirmation Modal */}
       <Modal
         isOpen={showLogoutConfirm}
-        onClose={() => setShowLogoutConfirm(false)}
+        onClose={cancelLogout}
         title="Confirmar Saída"
         maxWidth="max-w-md"
       >
@@ -173,7 +210,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
           <div className="flex gap-3">
             <Button
               variant="outline"
-              onClick={() => setShowLogoutConfirm(false)}
+              onClick={cancelLogout}
               className="flex-1 h-11"
             >
               Cancelar

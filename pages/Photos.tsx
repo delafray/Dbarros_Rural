@@ -884,22 +884,38 @@ const Photos: React.FC = () => {
                   setSelectedUserId('all');
                 }
               }}
-              className="flex-1 h-12 bg-white text-slate-700 border-slate-200 text-[10px] font-black uppercase tracking-widest active:scale-95"
+              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all ${effectiveSelectionCount > pdfLimit
+                  ? 'bg-red-600 text-white border-red-600'
+                  : effectiveSelectionCount > 0
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`}
             >
               Limpar
             </Button>
             <Button
               variant="outline"
               onClick={selectAllFiltered}
-              className="flex-1 h-12 bg-slate-50 text-slate-600 border-slate-200 text-[10px] font-black uppercase tracking-widest active:scale-95"
+              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all ${effectiveSelectionCount > pdfLimit
+                  ? 'bg-red-600 text-white border-red-600'
+                  : effectiveSelectionCount > 0
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                }`}
             >
               Tudo
             </Button>
             <Button
-              onClick={() => setIsShareModalOpen(true)}
-              className="flex-[1.5] h-12 bg-blue-600 text-white shadow-lg shadow-blue-500/30 text-[10px] font-black uppercase tracking-widest active:scale-95"
+              onClick={handleExportPDF}
+              disabled={effectiveSelectionCount === 0 || isExporting}
+              className={`flex-[1.8] min-w-0 whitespace-nowrap px-2 h-12 text-white shadow-lg text-[10px] font-black uppercase tracking-widest transition-all ${effectiveSelectionCount === 0
+                ? 'bg-slate-300 text-slate-500 shadow-none cursor-not-allowed'
+                : effectiveSelectionCount > pdfLimit
+                  ? 'bg-red-600 shadow-red-500/30'
+                  : 'bg-blue-600 shadow-blue-500/30 active:scale-95'
+                }`}
             >
-              GERAR PDF ({aptForPdfCount})
+              {isExporting ? 'Aguarde...' : `GERAR PDF (${effectiveSelectionCount})`}
             </Button>
           </div>
 
@@ -1354,6 +1370,34 @@ const Photos: React.FC = () => {
             </Modal>
           )
         }
+
+        {/* PDF Progress Modal */}
+        <Modal
+          isOpen={isExporting}
+          onClose={() => { }} // User should not close during generation
+          title="Exportando Relatório"
+          maxWidth="max-w-sm"
+        >
+          <div className="flex flex-col items-center justify-center py-6 text-center space-y-6">
+            <div className="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center mb-2 animate-pulse shadow-inner border border-blue-100">
+              <LoadingSpinner />
+            </div>
+
+            <div className="space-y-3 w-full px-4">
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">Gerando PDF</h3>
+              <p className="text-sm font-bold text-blue-600 bg-blue-50 py-2 px-4 rounded-xl border border-blue-100 shadow-sm">{exportProgress || 'Iniciando o processo...'}</p>
+
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mt-6 shadow-inner relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 background-animate w-[200%] h-full"></div>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-6 max-w-[250px] leading-relaxed">
+              Por favor, não feche o aplicativo. O processo pode levar alguns minutos dependendo da quantidade de fotos.
+            </p>
+          </div>
+        </Modal>
+
         <AlertModal {...alertState} onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))} />
       </>
     </Layout >
