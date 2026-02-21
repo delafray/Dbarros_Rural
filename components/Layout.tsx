@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { NavLink, useNavigate, useBlocker } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSystemInfo } from '../utils/core_lic';
 import { Button, Modal } from './UI';
@@ -33,18 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
 
-  // Blocker to prevent accidental back button navigation to login
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      user !== null && nextLocation.pathname === '/login' && currentLocation.pathname !== '/login'
-  );
-
-  // Synchronize blocker state with our modal
-  React.useEffect(() => {
-    if (blocker.state === "blocked") {
-      setShowLogoutConfirm(true);
-    }
-  }, [blocker.state]);
+  // Removed useBlocker because it is unsupported in HashRouter and causes a fatal crash.
 
   // Browser level protection (beforeunload)
   React.useEffect(() => {
@@ -65,18 +54,11 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
   const confirmLogout = async () => {
     setShowLogoutConfirm(false);
     await logout();
-    if (blocker.state === "blocked") {
-      blocker.proceed();
-    } else {
-      navigate('/login');
-    }
+    navigate('/login');
   };
 
   const cancelLogout = () => {
     setShowLogoutConfirm(false);
-    if (blocker.state === "blocked") {
-      blocker.reset();
-    }
   };
 
   const getRoleLabel = () => {
