@@ -1411,16 +1411,16 @@ const Photos: React.FC = () => {
                   <span className="text-[9px] font-bold text-slate-600">{previewPhoto.userName}</span>
                 </div>
               )}
-              <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={() => previewPhoto?.url && openFullscreen(previewPhoto.url)} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex flex-col items-center gap-2.5 w-full">
+                <Button variant="outline" onClick={() => previewPhoto?.url && openFullscreen(previewPhoto.url)} className="flex items-center justify-center w-full gap-2 py-3 px-6 text-[11px] font-black uppercase tracking-widest bg-white shadow-sm border border-slate-200">
+                  <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                   </svg>
                   Ver em Tela Cheia
                 </Button>
                 {previewPhoto && canEditPhoto(previewPhoto) && (
-                  <>
-                    <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
+                  <div className="flex w-full items-center gap-2.5">
+                    <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="flex-1 py-2.5 px-4 text-[10px] font-black uppercase tracking-widest shadow-md shadow-blue-500/20">
                       Editar
                     </Button>
                     <Button
@@ -1429,14 +1429,14 @@ const Photos: React.FC = () => {
                         setIsPreviewOpen(false); // Close lightbox first
                         handleDelete(e, previewPhoto.id);
                       }}
-                      className="py-2 px-4 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 flex items-center gap-1.5"
+                      className="flex-1 py-2.5 px-4 text-[10px] font-black uppercase tracking-widest shadow-md shadow-red-500/20 flex items-center justify-center gap-1.5"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                       Excluir
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
