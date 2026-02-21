@@ -183,13 +183,22 @@ const Users: React.FC = () => {
 
     return (
         <Layout title="Gerenciamento de Usuários">
-            <div className="mb-6 flex justify-between items-center">
-                <p className="text-slate-500">Gerencie os usuários do sistema e suas permissões.</p>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => { setShowTempModal(true); setCreatedTempUser(null); }}>
-                        Gerar Temporário
+            <div className="mb-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div className="flex justify-between items-center w-full sm:w-auto">
+                    <p className="text-slate-500 hidden sm:block">Gerencie os usuários do sistema e suas permissões.</p>
+                    {/* Botão Voltar Exclusivo Mobile */}
+                    <Button variant="outline" onClick={() => window.location.hash = '#/fotos'} className="sm:hidden px-4 py-2 flex-1 flex items-center justify-center text-[11px] font-black uppercase tracking-widest gap-2 bg-white shadow-sm border border-slate-200 text-slate-700">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Voltar para Galeria
                     </Button>
-                    <Button onClick={() => handleOpenForm()}>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <Button variant="outline" className="flex-1 sm:flex-none justify-center px-3 py-2 text-[10px] sm:text-xs" onClick={() => { setShowTempModal(true); setCreatedTempUser(null); }}>
+                        Gerar Temp.
+                    </Button>
+                    <Button className="flex-1 sm:flex-none justify-center px-3 py-2 text-[10px] sm:text-xs" onClick={() => handleOpenForm()}>
                         {showForm ? 'Cancelar' : 'Novo Usuário'}
                     </Button>
                 </div>
@@ -349,7 +358,8 @@ const Users: React.FC = () => {
 
             <Card className="overflow-hidden border-slate-200 shadow-xl shadow-slate-200/50">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    {/* Desktop Table View */}
+                    <table className="hidden md:table w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
                                 <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Nome</th>
@@ -438,6 +448,76 @@ const Users: React.FC = () => {
                             )}
                         </tbody>
                     </table>
+
+                    {/* Mobile Stacked Data Cards View */}
+                    <div className="md:hidden flex flex-col divide-y divide-slate-100 bg-white">
+                        {loading ? (
+                            <div className="p-8 text-center text-slate-500 font-bold text-sm">Carregando...</div>
+                        ) : users.length === 0 ? (
+                            <div className="p-8 text-center text-slate-500 font-bold text-sm">Nenhum usuário encontrado.</div>
+                        ) : (
+                            users.map(user => (
+                                <div key={user.id} className="flex flex-col p-4 gap-3 bg-white w-full">
+                                    {/* Cabecalho do Card Mobile */}
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 pr-2">
+                                            <div className="font-black text-sm text-slate-800 flex items-center flex-wrap gap-1.5">
+                                                {user.name}
+                                                {user.isTemp && <span className="text-[8px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-sm font-black tracking-widest">TEMP</span>}
+                                            </div>
+                                            <div className="text-slate-500 text-xs font-medium mt-0.5 break-all">{user.email}</div>
+                                        </div>
+                                        <div className="flex flex-col items-end text-right shrink-0">
+                                            <span className={`px-2 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-widest ${user.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {user.isActive !== false ? 'Ativo' : 'Inativo'}
+                                            </span>
+                                            {user.expiresAt && (
+                                                <span className="text-[8px] text-slate-400 mt-1 font-bold uppercase tracking-widest">
+                                                    Vence: {new Date(user.expiresAt).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Funcoes / Roles */}
+                                    <div className="flex flex-wrap gap-1.5 w-full">
+                                        {user.isAdmin && user.canManageTags && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-purple-100 text-purple-700 uppercase tracking-widest">Master</span>}
+                                        {user.isAdmin && !user.canManageTags && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-indigo-100 text-indigo-700 uppercase tracking-widest">Admin</span>}
+                                        {user.isProjetista && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-orange-100 text-orange-700 uppercase tracking-widest">Projetista</span>}
+                                        {user.isVisitor && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-blue-100 text-blue-700 uppercase tracking-widest">Visitante</span>}
+                                        {!user.isAdmin && !user.isVisitor && !user.isProjetista && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-slate-100 text-slate-700 uppercase tracking-widest">Usuário</span>}
+                                    </div>
+
+                                    {/* Action Buttons - Full Width na horizontal */}
+                                    <div className="flex gap-2 w-full mt-2">
+                                        <Button
+                                            className={`py-2.5 text-[10px] shadow-md shadow-blue-500/10 font-black h-auto bg-blue-600 text-white border border-blue-600 uppercase tracking-widest transition-all flex items-center justify-center ${user.isTemp && user.isActive !== false ? 'w-1/2 flex-1' : 'w-full flex-1'}`}
+                                            onClick={() => handleOpenForm(user)}
+                                        >
+                                            Editar
+                                        </Button>
+                                        {user.isTemp && user.isActive !== false && (
+                                            <Button
+                                                className="w-1/2 flex-1 py-2.5 text-[10px] shadow-sm font-black h-auto bg-red-50 text-red-600 border border-red-200 uppercase tracking-widest flex items-center justify-center"
+                                                onClick={() => {
+                                                    showAlert('Encerrar Acesso', 'Tem certeza que deseja encerrar o acesso deste usuário temporário imediatamente?', 'confirm', async () => {
+                                                        try {
+                                                            await authService.terminateTempUser(user.id);
+                                                            await fetchUsers();
+                                                        } catch (e: any) {
+                                                            showAlert('Erro Operacional', 'Erro ao encerrar usuário: ' + e.message, 'error');
+                                                        }
+                                                    });
+                                                }}
+                                            >
+                                                Parar
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </Card>
 
