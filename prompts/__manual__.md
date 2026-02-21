@@ -92,4 +92,11 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 
 ---
 
+## 13. 📜 `PROMPT_13_SCROLL_INFINITO_PAGINACAO_E_METADADOS.md`
+**(Engenharia de Memória e Listas Infinitas)**
+**O que ele faz:** Ensina a IA como lidar com tabelas contendo mais de 10.000 itens (Fotos, Clientes, Financeiro). Substitui o destrutivo "baixar tudo de uma vez" por um esqueleto de Scroll Infinito que carrega apenas 50 por vez quando você desliza o dedo.
+**Por que é genial:** Se você tiver 10 mil fotos de um condomínio, seu celular congela tentando baixar todas. Mas se criarmos um App novo e o botão "Selecionar Tudo (As 10 mil)" for clicado, o banco também não aguenta. Esse Blueprint ensina como enganar o frontend: O sistema não baixa as 10 mil. Ele conta escondido (Head Counting), vira a chave virtual (`isAllSelected`), e se o cliente desmarcar 30 fotos na tela, nós apenas subimos para o servidor uma Lista Negra (`excludedIds`) ordenando: "Deleta tudo MENOS esses 30 da lista negra". Um design de App corporativo puro!
+
+---
+
 *(Toda vez que a IA criar um novo Prompt Mestre, ela está autorizada e instruída a atualizar este manual automaticamente para você!)*
