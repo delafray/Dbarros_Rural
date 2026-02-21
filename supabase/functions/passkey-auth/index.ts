@@ -25,9 +25,19 @@ serve(async (req) => {
 
         const url = new URL(req.url);
         const action = url.searchParams.get("action");
-        // Using url.hostname directly as rpID is more robust than trying to guess TLD+1
-        const rpID = url.hostname;
-        const origin = req.headers.get("origin") || `https://${rpID}`;
+
+        // Dynamic RP ID: Must match the frontend domain
+        const originHeader = req.headers.get("origin");
+        const refererHeader = req.headers.get("referer");
+
+        let rpID = url.hostname; // Fallback
+        if (originHeader) {
+            rpID = new URL(originHeader).hostname;
+        } else if (refererHeader) {
+            rpID = new URL(refererHeader).hostname;
+        }
+
+        const origin = originHeader || `https://${rpID}`;
 
         // Registration (Enrollment)
         if (action === "enroll-options") {
