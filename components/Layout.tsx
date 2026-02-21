@@ -223,14 +223,19 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
             {user?.canManageTags && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
 
             {isBiometricsSupported && (
-              <button
+              <div
+                className="flex items-center justify-between px-4 py-3 md:py-4 w-full rounded-lg text-slate-600 hover:bg-slate-50 transition-all cursor-pointer border-t border-slate-100 mt-2"
                 onClick={handleEnrollBiometrics}
-                disabled={isEnrolling}
-                className="flex items-center space-x-3 px-4 py-2 md:py-3 w-full text-left rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all disabled:opacity-50"
               >
-                <FingerprintIcon className="w-5 h-5" />
-                <span className="font-medium">{isEnrolling ? 'Cadastrando...' : 'Logar com digital'}</span>
-              </button>
+                <div className="flex items-center space-x-3">
+                  <FingerprintIcon className="w-5 h-5 text-blue-500" />
+                  <span className="font-medium text-sm">Logar com digital</span>
+                </div>
+                {/* Visual Toggle Switch */}
+                <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-300 ease-in-out ${isEnrolling ? 'bg-orange-300' : 'bg-slate-200'} cursor-pointer`}>
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out left-0`} />
+                </div>
+              </div>
             )}
           </nav>
 

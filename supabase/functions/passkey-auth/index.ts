@@ -154,38 +154,58 @@ serve(async (req) => {
             const { body, expectedChallenge, userId: providedUserId } = await req.json();
 
             let userId = providedUserId;
+            console.log(`[DEBUG] Enter login-verify. providedUserId: ${providedUserId}`);
+            console.log(`[DEBUG] Raw body.id: ${body.id}, body.response.userHandle: ${body.response?.userHandle}`);
 
             // If userId wasn't provided (anonymous login), identify user from userHandle
             if (!userId && body.response.userHandle) {
                 const standardHandle = base64UrlToStandard(body.response.userHandle);
                 userId = atob(standardHandle);
+                console.log(`[DEBUG] Derived userId from userHandle: ${userId}`);
             }
 
-            if (!userId) throw new Error("Could not identify user from assertion");
+            if (!userId) throw new Error("Could not identify user from assertion (no userId or userHandle)");
 
             // body.id is Base64URL, but we store as standard Base64
             const standardCredentialId = base64UrlToStandard(body.id);
+            console.log(`[DEBUG] Searching DB for user_id: ${userId} and credential_id: ${standardCredentialId}`);
 
-            const { data: credential } = await supabaseClient
+            const { data: credential, error: dbError } = await supabaseClient
                 .from("user_biometrics")
                 .select("*")
                 .eq("user_id", userId)
                 .eq("credential_id", standardCredentialId)
                 .single();
 
-            if (!credential) throw new Error("Credential not found for user");
+            if (dbError) {
+                console.error(`[DEBUG] DB Error: ${dbError.message}`);
+                throw new Error(`DB Error: ${dbError.message}`);
+            }
+            if (!credential) {
+                console.error(`[DEBUG] Credential not found in DB`);
+                throw new Error(`Credential not found for user: ${userId}, cred: ${standardCredentialId}`);
+            }
 
-            const verification = await verifyAuthenticationResponse({
-                response: body,
-                expectedChallenge,
-                expectedOrigin: origin,
-                expectedRPID: rpID,
-                authenticator: {
-                    credentialID: Uint8Array.from(atob(credential.credential_id), char => char.charCodeAt(0)),
-                    credentialPublicKey: Uint8Array.from(atob(credential.public_key), char => char.charCodeAt(0)),
-                    counter: credential.counter,
-                },
-            });
+            console.log(`[DEBUG] Found credential! Verifying with WebAuthn...`);
+            let verification;
+            try {
+                verification = await verifyAuthenticationResponse({
+                    response: body,
+                    expectedChallenge,
+                    expectedOrigin: origin,
+                    expectedRPID: rpID,
+                    authenticator: {
+                        credentialID: Uint8Array.from(atob(credential.credential_id), char => char.charCodeAt(0)),
+                        credentialPublicKey: Uint8Array.from(atob(credential.public_key), char => char.charCodeAt(0)),
+                        counter: credential.counter,
+                    },
+                });
+            } catch (vErr) {
+                console.error(`[DEBUG] verifyAuthenticationResponse threw: ${vErr.message}`);
+                throw new Error(`WebAuthn Verify Error: ${vErr.message}`);
+            }
+
+            console.log(`[DEBUG] Verification completed. Verified: ${verification.verified}`);
 
             if (verification.verified) {
                 await supabaseClient
@@ -208,7 +228,6 @@ serve(async (req) => {
                     headers: { ...corsHeaders, "Content-Type": "application/json" },
                 });
             }
-            throw new Error("Login verification failed");
             throw new Error(`Login verification failed: ${JSON.stringify(verification)}`);
         }
 
