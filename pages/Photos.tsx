@@ -897,12 +897,9 @@ const Photos: React.FC = () => {
             </Button>
             <Button
               onClick={() => setIsShareModalOpen(true)}
-              className="flex-[1.5] h-12 bg-blue-600 text-white shadow-lg shadow-blue-500/30 text-[10px] font-black uppercase tracking-widest active:scale-95 relative overflow-hidden"
+              className="flex-[1.5] h-12 bg-blue-600 text-white shadow-lg shadow-blue-500/30 text-[10px] font-black uppercase tracking-widest active:scale-95"
             >
-              <div className="flex flex-col items-center justify-center">
-                <span>Gerar PDF</span>
-                <span className="text-[8px] opacity-70 leading-none mt-0.5">{aptForPdfCount} fotos aptas</span>
-              </div>
+              GERAR PDF ({aptForPdfCount})
             </Button>
           </div>
 
@@ -1229,7 +1226,7 @@ const Photos: React.FC = () => {
         {/* Export Action Bar */}
         {
           selectedExportIds.size > 0 && (
-            <div className="fixed bottom-2 md:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in w-[95%] md:w-auto max-w-lg">
+            <div className="hidden md:block fixed bottom-2 md:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in w-[95%] md:w-auto max-w-lg">
               <div className="bg-slate-900 border border-slate-700 text-white px-3 md:px-6 py-2 md:py-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 backdrop-blur-xl">
                 <div className="flex flex-col">
                   <span className="text-xs md:text-sm font-bold whitespace-nowrap">{effectiveSelectionCount} {effectiveSelectionCount === 1 ? 'Foto' : 'Fotos'}</span>
