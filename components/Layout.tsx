@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSystemInfo } from '../utils/core_lic';
+import { Button, Modal } from './UI';
 
 import { APP_VERSION } from '../version';
 
@@ -28,12 +29,16 @@ const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: a
 
 const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem('gallery_auth');
-    localStorage.removeItem('gallery_user');
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -146,6 +151,43 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions }) => {
         </header>
         {children}
       </main>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        title="Confirmar Saída"
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-6 py-2">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 flex-shrink-0">
+              <LogOutIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-slate-800">Deseja realmente sair?</p>
+              <p className="text-sm text-slate-500">Sua sessão será encerrada e você precisará entrar novamente.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowLogoutConfirm(false)}
+              className="flex-1 h-11"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmLogout}
+              className="flex-1 h-11 border-none shadow-lg shadow-red-500/20"
+            >
+              Sim, Sair
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
