@@ -227,7 +227,7 @@ const Tags: React.FC = () => {
   }
 
   const headerActions = user?.isAdmin ? (
-    <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+    <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-1 duration-500 hidden sm:flex">
       <div className="flex items-center gap-2">
         <label htmlFor="pdfLimitHeader" className="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap leading-none">
           Limite PDF:
@@ -260,6 +260,16 @@ const Tags: React.FC = () => {
 
   return (
     <Layout title="Hierarquia de Tags" headerActions={headerActions}>
+      <div className="mb-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        {/* Botão Voltar Exclusivo Mobile */}
+        <Button onClick={() => window.location.hash = '#/fotos'} className="sm:hidden px-4 py-2 w-full flex items-center justify-center text-[11px] font-black uppercase tracking-widest gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm border border-blue-600">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Voltar para Galeria
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6 md:sticky md:top-6 self-start z-10">
           <Card className="p-4">

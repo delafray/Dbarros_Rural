@@ -187,7 +187,7 @@ const Users: React.FC = () => {
                 <div className="flex justify-between items-center w-full sm:w-auto">
                     <p className="text-slate-500 hidden sm:block">Gerencie os usuários do sistema e suas permissões.</p>
                     {/* Botão Voltar Exclusivo Mobile */}
-                    <Button variant="outline" onClick={() => window.location.hash = '#/fotos'} className="sm:hidden px-4 py-2 flex-1 flex items-center justify-center text-[11px] font-black uppercase tracking-widest gap-2 bg-white shadow-sm border border-slate-200 text-slate-700">
+                    <Button onClick={() => window.location.hash = '#/fotos'} className="sm:hidden px-4 py-2 flex-1 flex items-center justify-center text-[11px] font-black uppercase tracking-widest gap-2 shadow-sm text-white">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
