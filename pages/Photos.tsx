@@ -888,22 +888,6 @@ const Photos: React.FC = () => {
                       </div>
 
                       <div className="absolute top-2 right-2 flex gap-1">
-                        {/* Botão de Play (Novo) */}
-                        {photo.videoUrl && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(photo.videoUrl, '_blank', 'noopener,noreferrer');
-                            }}
-                            className="p-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg transition-all shadow-lg hover:from-purple-700 hover:to-pink-700 hover:scale-110"
-                            title="Abrir vídeo no Instagram"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </button>
-                        )}
-
                         {canEditPhoto(photo) && (
                           <button
                             onClick={(e) => {
@@ -923,6 +907,21 @@ const Photos: React.FC = () => {
                         )}
                         {canEditPhoto(photo) && (
                           <button onClick={(e) => handleDelete(e, photo.id)} className="p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-700" title="Excluir"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        )}
+                        {/* Play — always visible, last = rightmost corner */}
+                        {photo.videoUrl && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(photo.videoUrl, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="p-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg transition-all shadow-lg hover:from-purple-700 hover:to-pink-700 hover:scale-110"
+                            title="Abrir vídeo"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </button>
                         )}
                       </div>
                     </div>
