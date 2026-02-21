@@ -285,7 +285,7 @@ const Tags: React.FC = () => {
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 max-h-[30vh] overflow-y-auto pr-1 md:max-h-none md:overflow-visible">
               <p className="text-[9px] font-black text-slate-400 uppercase px-1">Ordem Ativa</p>
               {categories.map(cat => (
                 <div
@@ -344,19 +344,19 @@ const Tags: React.FC = () => {
 
               {categories.map(cat => (
                 <Card key={cat.id} id={`level-${cat.id}`} className={`transition-all duration-500 ${selectedCatId === cat.id ? 'ring-2 ring-blue-500 shadow-lg scroll-mt-24' : ''}`}>
-                  <div className="px-5 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <div className="px-5 py-3 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center bg-slate-50/50 gap-3">
                     <div className="flex items-center gap-3">
-                      <span className="bg-slate-800 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">Nível {cat.order}</span>
+                      <span className="bg-slate-800 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter shrink-0">Nível {cat.order}</span>
                       <div className="flex flex-col">
-                        <h3 className="text-sm font-bold text-slate-800">{cat.name}</h3>
+                        <h3 className="text-sm font-bold text-slate-800 leading-tight">{cat.name}</h3>
                         <div className="flex items-center gap-2 mt-[-2px]">
                           {cat.isRequired && (
-                            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Obrigatório</span>
+                            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest shrink-0">Obrigatório</span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                       {user?.canManageTags && (
                         <button
                           onClick={() => {
@@ -366,14 +366,15 @@ const Tags: React.FC = () => {
                             setNewTagOrder(next);
                             setIsCreateTagModalOpen(true);
                           }}
-                          className="px-3 py-1 bg-white border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-sm"
+                          className="px-3 py-1.5 sm:py-1 bg-white border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm flex-1 sm:flex-none"
                           title="ADICIONAR NOVO ITEM"
                         >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                          ITEM EM {cat.name}
+                          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                          <span className="hidden sm:inline">ITEM EM {cat.name}</span>
+                          <span className="sm:hidden">NOVO ITEM</span>
                         </button>
                       )}
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase leading-none">{tags.filter(t => t.categoryId === cat.id).length} OPÇÕES</span>
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase leading-none whitespace-nowrap">{tags.filter(t => t.categoryId === cat.id).length} OPÇÕES</span>
                     </div>
                   </div>
                   <div className="p-3.5 flex flex-wrap gap-2">
@@ -404,23 +405,23 @@ const Tags: React.FC = () => {
                           )}
                           <span className="font-bold text-xs mr-1">{tag.name}</span>
                           {user?.canManageTags && (
-                            <div className="flex items-center gap-0.5 ml-0.5 border-l border-slate-100 pl-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-0.5 ml-0.5 border-l border-slate-100 pl-1 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => {
                                   setEditingTag({ ...tag });
                                   setIsEditTagModalOpen(true);
                                 }}
-                                className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
+                                className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 sm:p-0.5"
                                 title="Editar"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                               </button>
                               <button
                                 onClick={() => handleDeleteTag(tag.id)}
-                                className="text-slate-300 hover:text-red-500 transition-colors p-0.5"
+                                className="text-slate-300 hover:text-red-500 transition-colors p-1.5 sm:p-0.5"
                                 title="Excluir"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                               </button>
                             </div>
                           )}
