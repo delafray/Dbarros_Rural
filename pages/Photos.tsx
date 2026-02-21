@@ -623,19 +623,6 @@ const Photos: React.FC = () => {
                   />
                 </div>
 
-                {/* Header Actions for Mobile - Simplified to "Filtro" */}
-                <div className="md:hidden flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowMobileFilters(!showMobileFilters)}
-                    className={`p-2 flex items-center justify-center min-w-[44px] h-11 border-2 ${showMobileFilters ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}
-                  >
-                    <svg className="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                    </svg>
-                    <span className="text-xs font-black uppercase tracking-tighter">Filtro</span>
-                  </Button>
-                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -700,48 +687,22 @@ const Photos: React.FC = () => {
               </div>
             </div>
 
-            {/* Essential Mobile Top Bar (Select All / Clear) */}
-            <div className="flex md:hidden gap-2 w-full mt-2 items-center justify-between">
-              <Button
-                onClick={() => {
-                  if (filteredResult.ids.length > 0) {
-                    selectAllFiltered();
-                  }
-                }}
-                className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+
+            <div className="space-y-1 mt-2">
+              {/* Mobile: button to toggle filters. Desktop: static title */}
+              <button
+                className="md:hidden w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all !bg-blue-600 !text-white !border-blue-600 hover:!bg-blue-700 border"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
               >
-                {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todas' : 'Tudo'}
-              </Button>
-
-              {(() => {
-                const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
-                return (
-                  <Button
-                    onClick={() => {
-                      if (hasActiveFilters) {
-                        setSelectedTagIds([]);
-                        setSelectedExportIds(new Set());
-                        setSearchTerm('');
-                        if (user?.isAdmin || user?.isProjetista) {
-                          setOnlyMine(false);
-                          setSelectedUserId('all');
-                        }
-                      }
-                    }}
-                    className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
-                  >
-                    Limpar
-                  </Button>
-                );
-              })()}
-            </div>
-
-            <div className="space-y-1 mt-4">
-              <h3 className={"text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center justify-between gap-2"}>
-                <div className={"flex items-center gap-2"}>
-                  <svg className={"w-3 h-3"} fill={"none"} viewBox={"0 0 24 24"} stroke={"currentColor"}><path strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={3} d={"M3 4h18M3 12h18m-7 8h7"} /></svg>
-                  Matriz de Filtragem Hierárquica
+                <div className="flex items-center gap-2">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h18M3 12h18m-7 8h7" /></svg>
+                  Filtro Hierárquico
                 </div>
+                <svg className={`w-3 h-3 transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              <h3 className="hidden md:flex text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] items-center gap-2">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h18M3 12h18m-7 8h7" /></svg>
+                Matriz de Filtragem Hierárquica
               </h3>
               <div className={`${showMobileFilters ? 'flex' : 'hidden md:flex'} flex-col gap-0.5 animate-in fade-in duration-300`}>
                 {categories.map((cat) => (
