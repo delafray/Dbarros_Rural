@@ -107,25 +107,28 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
           </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto" onClick={() => setIsMenuOpen(false)}>
-          <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivos</div>
-          <NavItem to="/fotos" label="Fotos" icon={CameraIcon} />
-          {user?.canManageTags && <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />}
+        {/* Single unified scrollable area: nav + busca avançada */}
+        <div className="flex-1 overflow-y-auto">
+          <nav className="px-4 space-y-1 mt-4" onClick={() => setIsMenuOpen(false)}>
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivos</div>
+            <NavItem to="/fotos" label="Fotos" icon={CameraIcon} />
+            {user?.canManageTags && <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />}
 
-          <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema</div>
-          {user?.canManageTags && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
-        </nav>
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema</div>
+            {user?.canManageTags && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
+          </nav>
 
-        {/* Mobile-only: secondary filter controls injected from page */}
-        {mobileSidebarContent && (
-          <div className="md:hidden px-4 pb-2 border-t-2 border-blue-100 pt-3">
-            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest pb-2 mb-1 flex items-center gap-1">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              Busca Avançada
+          {/* Mobile-only: secondary filter controls injected from page */}
+          {mobileSidebarContent && (
+            <div className="md:hidden px-4 pb-2 border-t-2 border-blue-100 pt-3 mt-2">
+              <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest pb-2 mb-1 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                Busca Avançada
+              </div>
+              {mobileSidebarContent}
             </div>
-            {mobileSidebarContent}
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="p-4 border-t border-slate-100 flex flex-col gap-4">
           <button onClick={handleLogout} className="flex items-center space-x-3 px-4 py-3 w-full text-left rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all">
