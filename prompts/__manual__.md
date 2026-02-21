@@ -50,4 +50,22 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 
 ---
 
+## 8. 🖼️ `PROMPT_COMPRESSAO_IMAGEM_NAVEGADOR.md`
+**O que ele faz:** Ensina a IA a comprimir e diminuir fotos gigantes recém batidas pela câmera do celular do usuário ANTES de enviar pela internet.
+**Por que é genial:** Se você não tiver isso, a câmera moderna do iPhone fotografa uma parede e cria um arquivo de 15 Megabytes. Seu banco de dados embola, a rede de dados do usuário gasta todo o plano 4G e o App fica pesado feito pedra. Ao injetar essa aula técnica de Interceptamento "Canvas Web" invisível guiado pelo poder da Placa de Vídeo, convertemos arquivos monstros em pequenos bloquinhos JPG de qualidade de 300 Kilobytes para salvar sua hospedagem final de infraestrutura.
+
+---
+
+## 9. 🚨 `PROMPT_MODAL_ALERTA_GLOBAL.md`
+**O que ele faz:** Exclui do projeto da IA o velho botão feioso `alert('Deu certo')` padrão do Chrome e instiga a padronização de TUDO no aplicativo pelo Central AlertModal.
+**Por que é genial:** Mostrando Erros em Vermelho, Sucessos em Verde e Botões perigosos pedindo Confirmação. O Sistema para de se manifestar em 15 telas feitas de formas confusas diferentes (causador natural quando Múltiplas IAs te ajudarem no projeto separadamente) e centraliza a identidade em 1 canal principal limpo e estético.
+
+---
+
+## 10. 📱 `PROMPT_LIGHTBOX_FULLSCREEN_CELULAR.md`
+**O que ele faz:** Mágica pura de Pinça. Quando um cliente clica numa foto, a tela vira preta (Full Blackout) para exibir o detalhamento técnico ou zoom na imagem focado nos dedos do Celular.
+**Por que é genial:** A maioria das IAs tentariam instalar módulos gigantes (NPM) velhos, lotando a sua pasta `node_modules`. Esta instrução desmente toda essa mentira ensinando as coordenadas `onTouchMove`, Escalonamento Front e a Fórmula Pitagórica do Gesto de Pinça Touch de Celular sem NENHUMA dependência pesada de código externo para dar Suporte de Visão Ouro para Projetos de E-commerce.
+
+---
+
 *(Toda vez que a IA criar um novo Prompt Mestre, ela está autorizada e instruída a atualizar este manual automaticamente para você!)*
