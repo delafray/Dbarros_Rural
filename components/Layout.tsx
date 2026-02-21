@@ -136,8 +136,10 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
                 </svg>
               </div>
               <div>
-                <h3 className="font-black text-slate-800 text-base">Sair do sistema?</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Pressione voltar novamente para sair imediatamente.</p>
+                <h3 className="font-black text-slate-800 text-base">Sair e deslogar?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Você será <span className="font-bold text-red-500">deslogado</span> do sistema. Pressione voltar novamente para confirmar.
+                </p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -145,7 +147,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
                 Ficar
               </button>
               <button onClick={confirmExit} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all">
-                Sair
+                Sair e Deslogar
               </button>
             </div>
           </div>
