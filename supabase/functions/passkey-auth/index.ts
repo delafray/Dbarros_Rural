@@ -39,6 +39,8 @@ serve(async (req) => {
 
         const origin = originHeader || `https://${rpID}`;
 
+        console.log(`Action: ${action}, rpID: ${rpID}, origin: ${origin}`);
+
         // Registration (Enrollment)
         if (action === "enroll-options") {
             const authHeader = req.headers.get("Authorization")!;
@@ -53,15 +55,12 @@ serve(async (req) => {
                 userName: user.email!,
                 attestationType: "none",
                 authenticatorSelection: {
-                    residentKey: "required", // Required for passwordless (discoverable credentials)
+                    residentKey: "required", // Required for passwordless
                     userVerification: "required",
                     authenticatorAttachment: "platform",
                 },
             });
 
-            // Save challenge in a temporary cache (using user_metadata or a separate table/Redis)
-            // For simplicity in this demo, we'll return it and the client will pass it back.
-            // In production, you'd store this challenge with an expiry.
             return new Response(JSON.stringify(options), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
@@ -91,7 +90,7 @@ serve(async (req) => {
                         credential_id: btoa(String.fromCharCode(...credentialID)),
                         public_key: btoa(String.fromCharCode(...credentialPublicKey)),
                         counter,
-                        friendly_name: body.id, // Or a name passed by the user
+                        friendly_name: body.id,
                     });
 
                 if (dbError) throw dbError;
@@ -110,7 +109,7 @@ serve(async (req) => {
             let targetUserId = null;
 
             if (email) {
-                // Corrected user lookup:
+                console.log(`Looking up user for email: ${email}`);
                 const { data: { users }, error: listError } = await supabaseClient.auth.admin.listUsers();
                 if (listError) throw listError;
                 const targetUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
@@ -128,7 +127,7 @@ serve(async (req) => {
             const options = await generateAuthenticationOptions({
                 rpID,
                 allowCredentials: credentials.map(c => ({
-                    id: Uint8Array.from(atob(c.credential_id), c => c.charCodeAt(0)),
+                    id: Uint8Array.from(atob(c.credential_id), char => char.charCodeAt(0)),
                     type: "public-key",
                     transports: ["internal"],
                 })),
@@ -147,12 +146,11 @@ serve(async (req) => {
 
             // If userId wasn't provided (anonymous login), identify user from userHandle
             if (!userId && body.response.userHandle) {
-                // userHandle is typically the userID we sent during enrollment, encoded in base64url
                 const decodedHandle = atob(body.response.userHandle.replace(/-/g, '+').replace(/_/g, '/'));
                 userId = decodedHandle;
             }
 
-            if (!userId) throw new Error("Could not identify user");
+            if (!userId) throw new Error("Could not identify user from assertion");
 
             const { data: credential } = await supabaseClient
                 .from("user_biometrics")
@@ -161,7 +159,7 @@ serve(async (req) => {
                 .eq("credential_id", body.id)
                 .single();
 
-            if (!credential) throw new Error("Credential not found");
+            if (!credential) throw new Error("Credential not found for user");
 
             const verification = await verifyAuthenticationResponse({
                 response: body,
@@ -169,20 +167,18 @@ serve(async (req) => {
                 expectedOrigin: origin,
                 expectedRPID: rpID,
                 authenticator: {
-                    credentialID: Uint8Array.from(atob(credential.credential_id), c => c.charCodeAt(0)),
-                    credentialPublicKey: Uint8Array.from(atob(credential.public_key), c => c.charCodeAt(0)),
+                    credentialID: Uint8Array.from(atob(credential.credential_id), char => char.charCodeAt(0)),
+                    credentialPublicKey: Uint8Array.from(atob(credential.public_key), char => char.charCodeAt(0)),
                     counter: credential.counter,
                 },
             });
 
             if (verification.verified) {
-                // Update counter
                 await supabaseClient
                     .from("user_biometrics")
                     .update({ counter: verification.authenticationInfo.newCounter, last_used_at: new Date().toISOString() })
                     .eq("id", credential.id);
 
-                // Generate a login link/token
                 const { data: user } = await supabaseClient.auth.admin.getUserById(userId);
                 const { data: linkData, error: linkError } = await supabaseClient.auth.admin.generateLink({
                     type: "magiclink",
@@ -204,6 +200,7 @@ serve(async (req) => {
         return new Response("Action not found", { status: 404, headers: corsHeaders });
 
     } catch (error) {
+        console.error(`Edge Function Error: ${error.message}`);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
