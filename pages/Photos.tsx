@@ -677,8 +677,16 @@ const Photos: React.FC = () => {
     </div>
   );
 
+  // Mobile back button: close open modals instead of showing exit dialog
+  const handleMobileBack = (): boolean => {
+    if (pdfActionModal.isOpen) { setPdfActionModal(prev => ({ ...prev, isOpen: false })); return true; }
+    if (isPreviewOpen) { setIsPreviewOpen(false); return true; }
+    if (isModalOpen) { setIsModalOpen(false); return true; }
+    return false;
+  };
+
   return (
-    <Layout title="Galeria Estruturada" headerActions={headerActions} mobileSidebarContent={mobileSidebarContent}>
+    <Layout title="Galeria Estruturada" headerActions={headerActions} mobileSidebarContent={mobileSidebarContent} onMobileBack={handleMobileBack}>
       <>
         <div className="flex flex-col gap-2">
           <Card className="p-1.5 md:p-3">

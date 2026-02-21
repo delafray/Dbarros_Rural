@@ -10,7 +10,8 @@ interface LayoutProps {
   children: ReactNode;
   title?: string;
   headerActions?: ReactNode;
-  mobileSidebarContent?: ReactNode; // Mobile-only content injected below nav links
+  mobileSidebarContent?: ReactNode;
+  onMobileBack?: () => boolean; // return true = modal was closed, skip exit dialog
 }
 
 const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: any }) => (
@@ -28,7 +29,7 @@ const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: a
   </NavLink>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileSidebarContent }) => {
+const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileSidebarContent, onMobileBack }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -54,32 +55,41 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
   React.useEffect(() => {
     if (!user) return;
 
-    // Push guard state immediately on mount — this sits on top of the hash stack
-    window.history.pushState({ appGuard: true }, '');
+    // Delay push so HashRouter finishes its own navigation first — prevents race condition
+    // where our guard gets buried under the HashRouter's pushState for the new route.
+    const timer = setTimeout(() => {
+      window.history.pushState({ appGuard: true }, '', window.location.href);
+    }, 150);
 
     const handlePopState = (_event: PopStateEvent) => {
-      // Always re-push guard FIRST to prevent the browser from leaving the page.
-      // We intercept every popstate (not just our own guard entries) because
-      // HashRouter can consume our guard entry via in-app navigation, leaving
-      // us unprotected. By always intercepting, we ensure the dialog always shows.
-      window.history.pushState({ appGuard: true }, '');
+      // If a modal is open, close it and don't show exit dialog
+      if (onMobileBack && onMobileBack()) {
+        // Modal was closed — re-push guard so next back still works
+        window.history.pushState({ appGuard: true }, '', window.location.href);
+        return;
+      }
+
+      // Always re-push guard FIRST to prevent the browser from leaving
+      window.history.pushState({ appGuard: true }, '', window.location.href);
 
       if (exitDialogOpenRef.current) {
-        // 2nd press while dialog is open → force logout immediately
+        // 2nd press while dialog is open → force logout
         exitDialogOpenRef.current = false;
         setShowExitConfirm(false);
         logout().then(() => navigate('/login'));
         return;
       }
 
-      // 1st press → show dialog
       exitDialogOpenRef.current = true;
       setShowExitConfirm(true);
     };
 
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [user, onMobileBack]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
