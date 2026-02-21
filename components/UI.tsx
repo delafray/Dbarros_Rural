@@ -13,11 +13,10 @@ export const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttrib
     danger: 'bg-red-500 text-white hover:bg-red-600',
     outline: 'bg-transparent border border-slate-300 text-slate-700 hover:bg-slate-50',
   };
-
   return (
     <button
       ref={ref}
-      className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant as keyof typeof variants] || ''} ${className}`}
+      className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${variants[variant as keyof typeof variants] || ''} ${className}`}
       {...props}
     >
       {children}

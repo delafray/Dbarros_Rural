@@ -507,6 +507,28 @@ const Photos: React.FC = () => {
     return filteredResult.ids.filter(id => selectedExportIds.has(id)).length;
   }, [selectedExportIds, filteredResult.ids]);
 
+  // --- PDF Action Buttons Framework ---
+  // Standardizes colors for Limpar, Selecionar/Tudo, and Gerar PDF buttons based on selection count.
+  const getPdfButtonClasses = (count: number, limit: number, isGenerateBtn: boolean = false) => {
+    if (count === 0) {
+      if (isGenerateBtn) {
+        // As requested: 0 selected looks like a light blue with white background
+        return 'bg-blue-50 text-blue-400 border-blue-200 shadow-none opacity-60 cursor-not-allowed';
+      }
+      // Outros botões quando 0 (ex: selecionar tudo, limpar) ficam num estado neutro/inativo
+      return 'bg-slate-50 text-slate-400 border-slate-200 shadow-none opacity-50 cursor-not-allowed';
+    }
+
+    if (count > limit) {
+      // Over limit: Vermelho
+      return 'bg-red-600 text-white border-red-600 shadow-red-500/30 hover:bg-red-700';
+    }
+
+    // Within limits: Azul
+    return 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30 hover:bg-blue-700';
+  };
+
+
 
 
   const headerActions = (
@@ -534,12 +556,7 @@ const Photos: React.FC = () => {
         variant="primary"
         onClick={handleExportPDF}
         disabled={effectiveSelectionCount === 0}
-        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
-          ? 'opacity-50 cursor-not-allowed shadow-none'
-          : effectiveSelectionCount > pdfLimit
-            ? 'bg-red-600 text-white border-red-600 shadow-red-500/30 hover:bg-red-700'
-            : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30 hover:bg-blue-700'
-          }`}
+        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit, true)}`}
       >
         Gerar PDF ({effectiveSelectionCount})
       </Button>
@@ -549,12 +566,7 @@ const Photos: React.FC = () => {
         variant="primary"
         onClick={selectAllFiltered}
         disabled={filteredResult.ids.length === 0}
-        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
-          ? 'opacity-50 shadow-none'
-          : effectiveSelectionCount > pdfLimit
-            ? 'bg-red-600 text-white border-red-600 shadow-red-500/30 hover:bg-red-700'
-            : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30 hover:bg-blue-700'
-          } ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
       >
         {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todos Selecionados' : `Selecionar Tudo (${filteredResult.ids.length})`}
       </Button>
@@ -575,12 +587,7 @@ const Photos: React.FC = () => {
               }
             }}
             disabled={!hasActiveFilters}
-            className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm ${!hasActiveFilters
-              ? 'opacity-50 shadow-none cursor-not-allowed'
-              : effectiveSelectionCount > pdfLimit
-                ? 'bg-red-600 text-white border-red-600 shadow-red-500/30 hover:bg-red-700'
-                : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30 hover:bg-blue-700'
-              }`}
+            className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
           >
             Limpar Tudo
           </Button>
@@ -695,12 +702,7 @@ const Photos: React.FC = () => {
               <Button
                 onClick={selectAllFiltered}
                 disabled={filteredResult.ids.length === 0}
-                className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
-                  ? 'opacity-50 shadow-none bg-slate-50 border-slate-200 text-slate-400'
-                  : effectiveSelectionCount > pdfLimit
-                    ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
-                    : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30'
-                  } ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
               >
                 {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todas' : 'Tudo'}
               </Button>
@@ -719,12 +721,7 @@ const Photos: React.FC = () => {
                       }
                     }}
                     disabled={!hasActiveFilters}
-                    className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${!hasActiveFilters
-                      ? 'opacity-50 shadow-none cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
-                      : effectiveSelectionCount > pdfLimit
-                        ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
-                        : 'bg-slate-800 text-white border-slate-800 shadow-slate-500/30'
-                      }`}
+                    className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
                   >
                     Limpar
                   </Button>
@@ -871,47 +868,37 @@ const Photos: React.FC = () => {
 
           {/* Mobile Sticky Bar */}
           <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-t border-slate-200 p-3 flex gap-2 shadow-[0_-8px_30px_rgb(0,0,0,0.12)]">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedTagIds([]);
-                setSelectedExportIds(new Set());
-                if (user?.isAdmin || user?.isProjetista) {
-                  setOnlyMine(false);
-                  setSelectedUserId('all');
-                }
-              }}
-              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all ${effectiveSelectionCount > pdfLimit
-                ? 'bg-red-600 text-white border-red-600'
-                : effectiveSelectionCount > 0
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-700 border-slate-200'
-                }`}
-            >
-              Limpar
-            </Button>
+            {(() => {
+              const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
+              return (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedTagIds([]);
+                    setSelectedExportIds(new Set());
+                    if (user?.isAdmin || user?.isProjetista) {
+                      setOnlyMine(false);
+                      setSelectedUserId('all');
+                    }
+                  }}
+                  className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+                >
+                  Limpar
+                </Button>
+              );
+            })()}
             <Button
               variant="outline"
               onClick={selectAllFiltered}
-              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all ${effectiveSelectionCount > pdfLimit
-                ? 'bg-red-600 text-white border-red-600'
-                : effectiveSelectionCount > 0
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-slate-50 text-slate-600 border-slate-200'
-                }`}
+              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
             >
               Tudo
             </Button>
             <Button
               onClick={handleExportPDF}
               disabled={effectiveSelectionCount === 0 || isExporting}
-              className={`flex-[1.8] min-w-0 whitespace-nowrap px-2 h-12 text-white shadow-lg text-[10px] font-black uppercase tracking-widest transition-all ${effectiveSelectionCount === 0
-                ? 'bg-slate-300 text-slate-500 shadow-none cursor-not-allowed'
-                : effectiveSelectionCount > pdfLimit
-                  ? 'bg-red-600 shadow-red-500/30'
-                  : 'bg-blue-600 shadow-blue-500/30 active:scale-95'
-                }`}
+              className={`flex-[1.8] min-w-0 whitespace-nowrap px-2 h-12 shadow-lg text-[10px] font-black uppercase tracking-widest transition-all border ${effectiveSelectionCount === 0 ? 'opacity-50 shadow-none cursor-not-allowed text-white' : ''} ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit, true)}`}
             >
               {isExporting ? 'Aguarde...' : `GERAR PDF (${effectiveSelectionCount})`}
             </Button>
