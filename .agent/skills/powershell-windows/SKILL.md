@@ -23,6 +23,36 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 ---
 
+## 1b. CRITICAL: Command Chaining — NEVER use `&&`
+
+> 🔴 **MANDATORY FOR ALL AIs:** `&&` is bash/Linux syntax. It does NOT work in PowerShell and causes a parser error. Always use `;` to chain commands.
+
+| ❌ WRONG — bash syntax | ✅ CORRECT — PowerShell syntax |
+|------------------------|--------------------------------|
+| `git add -A && git commit -m "msg" && git push` | `git add -A; git commit -m "msg"; git push` |
+| `npm install && npm run build` | `npm install; npm run build` |
+| `cd project && npm start` | `cd project; npm start` |
+
+**Key difference:**
+- `&&` → only runs next command if previous succeeded (bash behavior, **invalid in PowerShell**)
+- `;` → always runs next command regardless of exit code (use this in PowerShell)
+
+**For conditional chaining** (run only if previous succeeded), use:
+```powershell
+# Option 1: if block
+git add -A
+if ($LASTEXITCODE -eq 0) { git commit -m "msg" }
+if ($LASTEXITCODE -eq 0) { git push }
+
+# Option 2: single semicolons (simpler for git workflows)
+git add -A; git commit -m "msg"; git push
+```
+
+> 💡 **Remember:** This project runs on **Windows PowerShell**. Every time you write a multi-command sequence, use `;` — never `&&`.
+
+---
+
+
 ## 2. Unicode/Emoji Restriction
 
 ### CRITICAL: No Unicode in Scripts

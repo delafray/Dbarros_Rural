@@ -766,25 +766,23 @@ const Photos: React.FC = () => {
 
             <div className="space-y-1 mt-2">
               {/* Mobile-only: Galeria title + photo count */}
-              <div className="md:hidden flex items-center justify-between mb-1">
-                <span className="text-sm font-black text-slate-700 uppercase tracking-tight">Galeria</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                    {filteredResult.ids.length} registros
-                  </span>
-                  {/* Tag zoom controls */}
-                  <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg px-1 py-0.5">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-0.5">Zoom</span>
-                    <button
-                      onClick={() => setTagFontSize(s => Math.max(7, s - 1))}
-                      className="w-5 h-5 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-blue-50 hover:text-blue-600 active:scale-95 transition-all"
-                    >−</button>
-                    <span className="text-[9px] font-bold text-slate-500 min-w-[18px] text-center">{tagFontSize}</span>
-                    <button
-                      onClick={() => setTagFontSize(s => Math.min(14, s + 1))}
-                      className="w-5 h-5 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-blue-50 hover:text-blue-600 active:scale-95 transition-all"
-                    >+</button>
-                  </div>
+              <div className="md:hidden flex items-center gap-2 mb-1">
+                <span className="text-sm font-black text-slate-700 uppercase tracking-tight shrink-0">Galeria</span>
+                <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {filteredResult.ids.length} registros
+                </span>
+                {/* Tag zoom controls */}
+                <div className="flex items-center gap-1 bg-slate-100 rounded-lg px-1.5 py-0.5 ml-auto">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
+                  <button
+                    onClick={() => setTagFontSize(s => Math.max(7, s - 1))}
+                    className="w-6 h-6 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 text-sm font-black hover:bg-blue-50 hover:text-blue-600 active:scale-95 transition-all"
+                  >−</button>
+                  <span className="text-[10px] font-bold text-slate-500 min-w-[20px] text-center">{tagFontSize}</span>
+                  <button
+                    onClick={() => setTagFontSize(s => Math.min(14, s + 1))}
+                    className="w-6 h-6 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 text-sm font-black hover:bg-blue-50 hover:text-blue-600 active:scale-95 transition-all"
+                  >+</button>
                 </div>
               </div>
 
