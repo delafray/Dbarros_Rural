@@ -50,30 +50,36 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [user]);
 
-  // Mobile back button protection
+  // Mobile back button protection — robust for Android Chrome + HashRouter
   React.useEffect(() => {
     if (!user) return;
-    // Push a guard state so the first back press can be intercepted
+
+    // Always push the guard state on mount/user-change
     window.history.pushState({ appGuard: true }, '');
 
-    const handlePopState = async () => {
+    const handlePopState = (event: PopStateEvent) => {
+      // Only act if this is our guard entry being popped (not an in-app hash navigation)
+      if (!event.state?.appGuard) return;
+
+      // CRITICAL: Re-push SYNCHRONOUSLY first, to prevent the browser from leaving the page
+      window.history.pushState({ appGuard: true }, '');
+
       if (exitDialogOpenRef.current) {
-        // 2nd back press while dialog open → force logout immediately
+        // 2nd press while dialog is open → force logout immediately
         exitDialogOpenRef.current = false;
         setShowExitConfirm(false);
-        await logout();
-        navigate('/login');
+        logout().then(() => navigate('/login'));
         return;
       }
-      // 1st back press → show dialog and re-push guard state
-      window.history.pushState({ appGuard: true }, '');
+
+      // 1st press → show dialog
       exitDialogOpenRef.current = true;
       setShowExitConfirm(true);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
