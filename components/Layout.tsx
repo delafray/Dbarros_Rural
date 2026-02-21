@@ -235,7 +235,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
 
             {isBiometricsSupported && (
               <div
-                className="flex items-center justify-between px-4 py-3 md:py-4 w-full rounded-lg text-slate-600 hover:bg-slate-50 transition-all cursor-pointer border-t border-slate-100 mt-2"
+                className="flex md:hidden items-center justify-between px-4 py-3 md:py-4 w-full rounded-lg text-slate-600 hover:bg-slate-50 transition-all cursor-pointer border-t border-slate-100 mt-2"
                 onClick={handleEnrollBiometrics}
               >
                 <div className="flex items-center space-x-3">

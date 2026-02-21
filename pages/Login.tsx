@@ -116,7 +116,7 @@ const Login: React.FC = () => {
           </Button>
 
           {isBiometricsSupported && isBiometricsEnrolled && (
-            <div className="pt-2">
+            <div className="pt-2 md:hidden">
               <button
                 type="button"
                 onClick={handleBiometricLogin}
