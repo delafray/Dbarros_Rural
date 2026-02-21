@@ -895,7 +895,7 @@ const Photos: React.FC = () => {
                               e.stopPropagation();
                               window.open(photo.videoUrl, '_blank', 'noopener,noreferrer');
                             }}
-                            className="p-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:from-purple-700 hover:to-pink-700"
+                            className="p-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg transition-all shadow-lg hover:from-purple-700 hover:to-pink-700 hover:scale-110"
                             title="Abrir vídeo no Instagram"
                           >
                             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
