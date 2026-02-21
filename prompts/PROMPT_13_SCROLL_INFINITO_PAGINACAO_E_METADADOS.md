@@ -76,6 +76,44 @@ const PAGE_SIZE = 50;
 </div>
 ```
 
+### Estratégia D: O Cabeçalho Fixo (Sticky Header) da Seleção
+
+O usuário NUNCA vai lembrar se selecionou algo se não estiver vendo. A IA deve construir um "Dashboard Rápido" grudado no teto da tela (`sticky top-X`) contendo os botões de Ação Dinâmica.
+
+```tsx
+// Exemplo Real de Cabeçalho Fixo Flutuante (Tailwind UI)
+<div className="sticky top-16 z-40 bg-white/95 backdrop-blur-md border-b shadow-sm p-4 flex flex-wrap items-center gap-3">
+    
+    <span className="text-sm font-bold text-slate-700">
+        Status: {isAllSelected ? countTotalBanco : selecionadosManuais.length} itens marcados
+    </span>
+
+    {/* O Botão Mágico (Mostra a quantidade total dinâmica na Cara do Botão) */}
+    <Button 
+        variant="primary" 
+        onClick={() => setIsAllSelected(true)}
+        className="px-4 py-2 font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md"
+    >
+        Selecionar Tudo ({countTotalBanco})
+    </Button>
+
+    {/* Botão de Limpar (Aparece apenas quando tem "Lixo" nos filtros ou itens selecionados) */}
+    {(isAllSelected || selecionadosManuais.length > 0) && (
+        <Button 
+            variant="outline"
+            onClick={() => {
+                setIsAllSelected(false);
+                setSelecionadosManuais([]);
+                setExcludedIds([]);
+            }}
+            className="px-4 py-2 font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
+        >
+            Limpar Tudo
+        </Button>
+    )}
+</div>
+```
+
 ---
 
 Qualquer aplicativo que lida com Banco de Dados de Médio/Longo Prazo sem essa arquitetura está **fadado a morrer (travar Celulares Fracos)** em seu 6º mês de vida. Este modelo protege o banco, torna a lista suave (carregando em nacos) e ainda entrega os benefícios de um Excel ("Selecionar Todas as Linhas do Banco") para administradores com zero estresse de memória!
