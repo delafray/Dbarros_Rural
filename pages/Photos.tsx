@@ -509,14 +509,10 @@ const Photos: React.FC = () => {
 
   // --- PDF Action Buttons Framework ---
   // Standardizes colors for Limpar, Selecionar/Tudo, and Gerar PDF buttons based on selection count.
-  const getPdfButtonClasses = (count: number, limit: number, isGenerateBtn: boolean = false) => {
+  const getPdfButtonClasses = (count: number, limit: number) => {
     if (count === 0) {
-      if (isGenerateBtn) {
-        // As requested: 0 selected looks like a light blue with white background
-        return 'bg-blue-50 text-blue-400 border-blue-200 shadow-none opacity-60 cursor-not-allowed';
-      }
-      // Outros botões quando 0 (ex: selecionar tudo, limpar) ficam num estado neutro/inativo
-      return 'bg-slate-50 text-slate-400 border-slate-200 shadow-none opacity-50 cursor-not-allowed';
+      // Regra aprovada: Quando 0 selecionados, TODOS ficam azul clarinho no fundo branco, SEM bolinha de cursor-not-allowed
+      return 'bg-white text-blue-500 border-blue-200 shadow-none hover:bg-blue-50 transition-colors opacity-90';
     }
 
     if (count > limit) {
@@ -559,7 +555,7 @@ const Photos: React.FC = () => {
             handleExportPDF();
           }
         }}
-        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit, true)}`}
+        className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
       >
         Gerar PDF ({effectiveSelectionCount})
       </Button>
@@ -707,8 +703,11 @@ const Photos: React.FC = () => {
             {/* Essential Mobile Top Bar (Select All / Clear) */}
             <div className="flex md:hidden gap-2 w-full mt-2 items-center justify-between">
               <Button
-                onClick={selectAllFiltered}
-                disabled={filteredResult.ids.length === 0}
+                onClick={() => {
+                  if (filteredResult.ids.length > 0) {
+                    selectAllFiltered();
+                  }
+                }}
                 className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
               >
                 {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todas' : 'Tudo'}
@@ -719,15 +718,16 @@ const Photos: React.FC = () => {
                 return (
                   <Button
                     onClick={() => {
-                      setSelectedTagIds([]);
-                      setSelectedExportIds(new Set());
-                      setSearchTerm('');
-                      if (user?.isAdmin || user?.isProjetista) {
-                        setOnlyMine(false);
-                        setSelectedUserId('all');
+                      if (hasActiveFilters) {
+                        setSelectedTagIds([]);
+                        setSelectedExportIds(new Set());
+                        setSearchTerm('');
+                        if (user?.isAdmin || user?.isProjetista) {
+                          setOnlyMine(false);
+                          setSelectedUserId('all');
+                        }
                       }
                     }}
-                    disabled={!hasActiveFilters}
                     className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
                   >
                     Limpar
@@ -903,9 +903,12 @@ const Photos: React.FC = () => {
               Tudo
             </Button>
             <Button
-              onClick={handleExportPDF}
-              disabled={effectiveSelectionCount === 0 || isExporting}
-              className={`flex-[1.8] min-w-0 whitespace-nowrap px-2 h-12 shadow-lg text-[10px] font-black uppercase tracking-widest transition-all border ${effectiveSelectionCount === 0 ? 'opacity-50 shadow-none cursor-not-allowed text-white' : ''} ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit, true)}`}
+              onClick={() => {
+                if (effectiveSelectionCount > 0 && !isExporting) {
+                  handleExportPDF();
+                }
+              }}
+              className={`flex-[1.8] min-w-0 whitespace-nowrap px-2 h-12 shadow-lg text-[10px] font-black uppercase tracking-widest transition-all border ${isExporting ? 'opacity-50 cursor-wait' : ''} ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
             >
               {isExporting ? 'Aguarde...' : `GERAR PDF (${effectiveSelectionCount})`}
             </Button>
