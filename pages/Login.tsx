@@ -2,14 +2,20 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Input, Card } from '../components/UI';
+import { authService } from '../services/authService';
 
 const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login, loginWithBiometrics, user } = useAuth();
+
+  React.useEffect(() => {
+    setIsBiometricsSupported(authService.checkBiometricSupport());
+  }, []);
 
   React.useEffect(() => {
     if (user) {
@@ -31,6 +37,26 @@ const Login: React.FC = () => {
       navigate('/fotos');
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!identifier) {
+      setError('Por favor, digite seu email ou nome de usuário primeiro para localizarmos sua chave.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await loginWithBiometrics(identifier.trim());
+      navigate('/fotos');
+    } catch (err: any) {
+      if (err.message?.includes('cancelado')) return;
+      setError('Falha no login biométrico: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -83,6 +109,20 @@ const Login: React.FC = () => {
           >
             {loading ? 'Entrando...' : 'Entrar na plataforma'}
           </Button>
+
+          {isBiometricsSupported && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleBiometricLogin}
+                disabled={loading}
+                className="w-full py-3 px-4 bg-white border-2 border-blue-100 rounded-xl text-blue-600 font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition-all active:scale-95 disabled:opacity-50"
+              >
+                <FingerprintIcon className="w-6 h-6" />
+                <span>Entrar com Digital</span>
+              </button>
+            </div>
+          )}
         </form>
 
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
@@ -98,5 +138,7 @@ const Login: React.FC = () => {
     </div >
   );
 };
+
+const FingerprintIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 0a10.003 10.003 0 019.143 5.94l.054.09m-9.197-6.03V3m0 0a10 10 0 00-3.95 19.191m6.95-6.191l-.054.09c-1.744 2.772-2.753 6.054-2.753 9.571m-6.95-15.761V3" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517 1.009 6.799 2.753 9.571m3.44-2.04l-.054-.09A10.003 10.003 0 0112 3" /></svg>;
 
 export default Login;

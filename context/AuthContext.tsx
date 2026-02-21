@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseClient';
 interface AuthContextType {
     user: User | null;
     login: (identifier: string, password: string) => Promise<void>;
+    loginWithBiometrics: (email: string) => Promise<void>;
     logout: () => void;
     register: (name: string, email: string, password: string, isAdmin: boolean) => Promise<void>;
     isLoading: boolean;
@@ -109,6 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser);
     };
 
+    const loginWithBiometrics = async (email: string) => {
+        const userProfile = await authService.signInWithPasskey(email);
+        setUser(userProfile);
+    };
+
     const logout = async () => {
         await authService.logout();
         setUser(null);
@@ -121,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, register, isLoading }}>
+        <AuthContext.Provider value={{ user, login, loginWithBiometrics, logout, register, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

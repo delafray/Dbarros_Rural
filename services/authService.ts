@@ -15,6 +15,20 @@ export interface User {
     isProjetista: boolean;
 }
 
+// Utility functions for WebAuthn ArrayBuffer conversion
+const bufferToBase64 = (buffer: ArrayBuffer): string => {
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+};
+
+const base64ToBuffer = (base64: string): ArrayBuffer => {
+    const binary = atob(base64);
+    const buffer = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        buffer[i] = binary.charCodeAt(i);
+    }
+    return buffer.buffer;
+};
+
 export const authService = {
     // Register new user
     register: async (name: string, email: string, password: string, isAdmin: boolean = false, isVisitor: boolean = false, canManageTags: boolean = false, isProjetista: boolean = false): Promise<User> => {
@@ -347,5 +361,144 @@ export const authService = {
             }
             throw new Error(`Erro ao excluir usuário: ${error.message}`);
         }
+    },
+
+    // Biometric Authentication (WebAuthn)
+    checkBiometricSupport: (): boolean => {
+        return !!(window.PublicKeyCredential &&
+            window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+            window.location.protocol === 'https:' || window.location.hostname === 'localhost');
+    },
+
+    enrollPasskey: async (): Promise<boolean> => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('Usuário não autenticado.');
+
+        // 1. Get registration options from Edge Function
+        const { data: options, error: optionsError } = await supabase.functions.invoke('passkey-auth?action=enroll-options', {
+            method: 'GET'
+        });
+
+        if (optionsError || !options) throw new Error(`Erro ao obter opções de biometria: ${optionsError?.message}`);
+
+        // 2. Adjust options (re-convert bytes)
+        const creationOptions: PublicKeyCredentialCreationOptions = {
+            ...options,
+            user: {
+                ...options.user,
+                id: base64ToBuffer(options.user.id)
+            },
+            challenge: base64ToBuffer(options.challenge)
+        };
+
+        // 3. Create credential via browser
+        const credential = await navigator.credentials.create({ publicKey: creationOptions }) as any;
+        if (!credential) throw new Error('Criação de biometria cancelada ou falhou.');
+
+        // 4. Verify with Edge Function
+        const { data: verification, error: verifyError } = await supabase.functions.invoke('passkey-auth?action=enroll-verify', {
+            method: 'POST',
+            body: {
+                body: {
+                    id: credential.id,
+                    rawId: bufferToBase64(credential.rawId),
+                    type: credential.type,
+                    response: {
+                        attestationObject: bufferToBase64(credential.response.attestationObject),
+                        clientDataJSON: bufferToBase64(credential.response.clientDataJSON),
+                    }
+                },
+                expectedChallenge: options.challenge
+            }
+        });
+
+        if (verifyError || !verification.verified) {
+            throw new Error(`Falha na verificação da biometria: ${verifyError?.message}`);
+        }
+
+        return true;
+    },
+
+    signInWithPasskey: async (email: string): Promise<User> => {
+        // 1. Get authentication options
+        const { data: result, error: optionsError } = await supabase.functions.invoke('passkey-auth?action=login-options', {
+            method: 'POST',
+            body: { email }
+        });
+
+        if (optionsError || !result) throw new Error(`Erro ao iniciar login biométrico: ${optionsError?.message}`);
+
+        const { options, userId } = result;
+
+        // 2. Adjust options
+        const requestOptions: PublicKeyCredentialRequestOptions = {
+            ...options,
+            challenge: base64ToBuffer(options.challenge),
+            allowCredentials: options.allowCredentials?.map((c: any) => ({
+                ...c,
+                id: base64ToBuffer(c.id)
+            }))
+        };
+
+        // 3. Get assertion via browser
+        const assertion = await navigator.credentials.get({ publicKey: requestOptions }) as any;
+        if (!assertion) throw new Error('Login biométrico cancelado.');
+
+        // 4. Verify assertion and get login token
+        const { data: verification, error: verifyError } = await supabase.functions.invoke('passkey-auth?action=login-verify', {
+            method: 'POST',
+            body: {
+                body: {
+                    id: assertion.id,
+                    rawId: bufferToBase64(assertion.rawId),
+                    type: assertion.type,
+                    response: {
+                        authenticatorData: bufferToBase64(assertion.response.authenticatorData),
+                        clientDataJSON: bufferToBase64(assertion.response.clientDataJSON),
+                        signature: bufferToBase64(assertion.response.signature),
+                        userHandle: assertion.response.userHandle ? bufferToBase64(assertion.response.userHandle) : null,
+                    }
+                },
+                expectedChallenge: options.challenge,
+                userId
+            }
+        });
+
+        if (verifyError || !verification.verified) {
+            throw new Error(`Falha no login biométrico: ${verifyError?.message}`);
+        }
+
+        // 5. Exchange token for session
+        const { data: authData, error: authError } = await supabase.auth.verifyOtp({
+            token_hash: verification.token_hash,
+            type: 'magiclink'
+        });
+
+        if (authError || !authData.user) {
+            throw new Error('Falha ao autenticar sessão após biometria.');
+        }
+
+        // 6. Fetch full user profile
+        const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+        if (!profile) throw new Error('Perfil do usuário não encontrado.');
+
+        return {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            isAdmin: profile.is_admin ?? false,
+            isVisitor: profile.is_visitor ?? false,
+            isActive: profile.is_active ?? true,
+            createdAt: profile.created_at ?? '',
+            expiresAt: profile.expires_at ?? undefined,
+            isTemp: profile.is_temp ?? false,
+            canManageTags: profile.can_manage_tags ?? false,
+            isProjetista: profile.is_projetista ?? false
+        };
     }
 };
