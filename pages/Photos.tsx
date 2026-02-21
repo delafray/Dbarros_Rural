@@ -126,6 +126,24 @@ const Photos: React.FC = () => {
     return () => { window.removeEventListener('resize', update); window.removeEventListener('orientationchange', update); };
   }, [fsUrl]);
 
+  // When Android's back button exits fullscreen (fullscreenchange fires, NOT popstate),
+  // close the lightbox overlay so the user returns to the preview popup.
+  useEffect(() => {
+    if (!fsUrl) return;
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        // Fullscreen was exited externally (back button) — close overlay
+        setFsUrl(null);
+        setFsZoom(1);
+        setFsPan({ x: 0, y: 0 });
+        setFsIsLandscape(null);
+        try { (screen.orientation as any)?.unlock?.(); } catch { }
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [fsUrl]);
+
   // Detect image orientation and try to lock screen orientation
   const handleFsImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
