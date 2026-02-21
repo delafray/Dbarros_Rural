@@ -606,7 +606,7 @@ const Photos: React.FC = () => {
       <>
         <div className="flex flex-col gap-2">
           <Card className="p-3">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-2 border-b border-slate-100 pb-2">
+            <div className="hidden md:flex flex-col md:flex-row gap-4 items-center justify-between mb-2 border-b border-slate-100 pb-2">
               <div className="flex-1 w-full max-w-md flex gap-2">
                 <div className="hidden md:flex flex-1 relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -689,6 +689,14 @@ const Photos: React.FC = () => {
 
 
             <div className="space-y-1 mt-2">
+              {/* Mobile-only: Galeria title + photo count */}
+              <div className="md:hidden flex items-center justify-between mb-1">
+                <span className="text-sm font-black text-slate-700 uppercase tracking-tight">Galeria</span>
+                <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                  {filteredResult.ids.length} registros
+                </span>
+              </div>
+
               {/* Mobile: button to toggle filters. Desktop: static title */}
               <button
                 className="md:hidden w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all !bg-blue-600 !text-white !border-blue-600 hover:!bg-blue-700 border"
@@ -802,6 +810,17 @@ const Photos: React.FC = () => {
                   </select>
                 </div>
 
+                {/* Novo Registro - abaixo de Usuários */}
+                {!user?.isVisitor && (
+                  <Button
+                    onClick={() => { handleOpenModal(); setShowMobileFilters(false); }}
+                    variant="danger"
+                    className="w-full py-2 text-xs font-bold shadow-sm"
+                  >
+                    + Novo Registro
+                  </Button>
+                )}
+
                 {/* Ordem de Cadastro */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200" title="Ordena do mais recente para o mais antigo">
                   <input
@@ -815,17 +834,6 @@ const Photos: React.FC = () => {
                     Ordem de Cadastro
                   </label>
                 </div>
-
-                {/* Novo Registro */}
-                {!user?.isVisitor && (
-                  <Button
-                    onClick={() => { handleOpenModal(); setShowMobileFilters(false); }}
-                    variant="danger"
-                    className="w-full py-2 text-xs font-bold shadow-sm"
-                  >
-                    + Novo Registro
-                  </Button>
-                )}
               </div>
             )}
           </Card>
