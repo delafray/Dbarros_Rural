@@ -64,7 +64,15 @@ const Photos: React.FC = () => {
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string }>>([]); // For the author dropdown
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [tagFontSize, setTagFontSize] = useState(9); // mobile tag zoom: min 7, max 14
+  const [tagFontSize, setTagFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem('tagFontSize');
+    return saved ? Math.max(7, Math.min(14, parseInt(saved, 10))) : 9;
+  });
+  // Persist zoom preference
+  useEffect(() => {
+    localStorage.setItem('tagFontSize', tagFontSize.toString());
+  }, [tagFontSize]);
+
 
   // Alert State
   const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
@@ -525,8 +533,13 @@ const Photos: React.FC = () => {
     return '!bg-blue-600 !text-white !border-blue-600 shadow-blue-500/30 hover:!bg-blue-700 cursor-pointer';
   };
 
-
-
+  // Tudo button: always active blue (can always select-all), only red when over limit
+  const getTudoButtonClasses = (count: number, limit: number) => {
+    if (count > limit) {
+      return '!bg-red-600 !text-white !border-red-600 shadow-red-500/30 hover:!bg-red-700 cursor-pointer';
+    }
+    return '!bg-blue-600 !text-white !border-blue-600 shadow-blue-500/30 hover:!bg-blue-700 cursor-pointer';
+  };
 
   const headerActions = (
     <div className="flex gap-2">
@@ -940,7 +953,7 @@ const Photos: React.FC = () => {
             <Button
               variant="outline"
               onClick={selectAllFiltered}
-              className={`flex-[0.6] min-w-0 px-1 h-9 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+              className={`flex-[0.6] min-w-0 px-1 h-9 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getTudoButtonClasses(effectiveSelectionCount, pdfLimit)}`}
             >
               Tudo
             </Button>
