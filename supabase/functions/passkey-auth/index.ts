@@ -153,37 +153,35 @@ serve(async (req) => {
         if (action === "login-verify") {
             const { body, expectedChallenge, userId: providedUserId } = await req.json();
 
-            let userId = providedUserId;
-            console.log(`[DEBUG] Enter login-verify. providedUserId: ${providedUserId}`);
-            console.log(`[DEBUG] Raw body.id: ${body.id}, body.response.userHandle: ${body.response?.userHandle}`);
-
-            // If userId wasn't provided (anonymous login), identify user from userHandle
-            if (!userId && body.response.userHandle) {
-                const standardHandle = base64UrlToStandard(body.response.userHandle);
-                userId = atob(standardHandle);
-                console.log(`[DEBUG] Derived userId from userHandle: ${userId}`);
-            }
-
-            if (!userId) throw new Error("Could not identify user from assertion (no userId or userHandle)");
-
-            // body.id is Base64URL, but we store as standard Base64
             const standardCredentialId = base64UrlToStandard(body.id);
-            console.log(`[DEBUG] Searching DB for user_id: ${userId} and credential_id: ${standardCredentialId}`);
+            console.log(`[DEBUG] Attempting to identify user by credential_id: ${standardCredentialId}`);
 
-            const { data: credential, error: dbError } = await supabaseClient
+            // 1. Find the credential in the DB to identify the user automatically
+            let query = supabaseClient
                 .from("user_biometrics")
                 .select("*")
-                .eq("user_id", userId)
-                .eq("credential_id", standardCredentialId)
-                .single();
+                .eq("credential_id", standardCredentialId);
 
-            if (dbError) {
-                console.error(`[DEBUG] DB Error: ${dbError.message}`);
-                throw new Error(`DB Error: ${dbError.message}`);
+            // If the client provided a userId, we can use it to narrow the search (optional safety check)
+            if (providedUserId) {
+                query = query.eq("user_id", providedUserId);
             }
-            if (!credential) {
-                console.error(`[DEBUG] Credential not found in DB`);
-                throw new Error(`Credential not found for user: ${userId}, cred: ${standardCredentialId}`);
+
+            const { data: credential, error: dbError } = await query.single();
+
+            if (dbError || !credential) {
+                console.error(`[DEBUG ERROR] Credential not found in DB:`, dbError);
+                throw new Error("Credential not found or not registered to this user");
+            }
+
+            // 2. We successfully identified the user!
+            const userId = credential.user_id;
+            console.log(`[DEBUG] Successfully identified user_id: ${userId}`);
+
+            // 3. Optional: if the authenticator returned a userHandle as well, we could log it or verify it,
+            // but the credential_id mapping is highly secure by itself.
+            if (body.response.userHandle) {
+                console.log(`[DEBUG] Authenticator also provided userHandle: ${body.response.userHandle}`);
             }
 
             console.log(`[DEBUG] Found credential! Verifying with WebAuthn...`);

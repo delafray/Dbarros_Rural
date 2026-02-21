@@ -10,11 +10,13 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
+  const [isBiometricsEnrolled, setIsBiometricsEnrolled] = useState(localStorage.getItem('biometricsEnrolled') === 'true');
   const navigate = useNavigate();
   const { login, loginWithBiometrics, user } = useAuth();
 
   React.useEffect(() => {
     setIsBiometricsSupported(authService.checkBiometricSupport());
+    setIsBiometricsEnrolled(localStorage.getItem('biometricsEnrolled') === 'true');
   }, []);
 
   React.useEffect(() => {
@@ -113,7 +115,7 @@ const Login: React.FC = () => {
             {loading ? 'Entrando...' : 'Entrar na plataforma'}
           </Button>
 
-          {isBiometricsSupported && (
+          {isBiometricsSupported && isBiometricsEnrolled && (
             <div className="pt-2">
               <button
                 type="button"

@@ -38,6 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
   const [isBiometricsSupported, setIsBiometricsSupported] = React.useState(false);
   const [isEnrolling, setIsEnrolling] = React.useState(false);
+  const [isEnrolled, setIsEnrolled] = React.useState(localStorage.getItem('biometricsEnrolled') === 'true');
   const exitDialogOpenRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -120,9 +121,19 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
 
   const handleEnrollBiometrics = async () => {
     if (isEnrolling) return;
+
+    // Se a biometria já estiver ativa para este dispositivo, apenas desliga localmente
+    if (isEnrolled) {
+      localStorage.setItem('biometricsEnrolled', 'false');
+      setIsEnrolled(false);
+      return;
+    }
+
     setIsEnrolling(true);
     try {
       await authService.enrollPasskey();
+      localStorage.setItem('biometricsEnrolled', 'true');
+      setIsEnrolled(true);
       alert('Biometria cadastrada com sucesso!');
     } catch (error: any) {
       if (error.message?.includes('cancelada')) return;
@@ -232,8 +243,8 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
                   <span className="font-medium text-sm">Logar com digital</span>
                 </div>
                 {/* Visual Toggle Switch */}
-                <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-300 ease-in-out ${isEnrolling ? 'bg-orange-300' : 'bg-slate-200'} cursor-pointer`}>
-                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out left-0`} />
+                <div className={`relative w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-300 ease-in-out ${isEnrolled ? 'bg-green-500' : (isEnrolling ? 'bg-orange-300' : 'bg-slate-200')} cursor-pointer`}>
+                  <div className={`absolute left-1 bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${isEnrolled ? 'translate-x-5' : 'translate-x-0'}`} />
                 </div>
               </div>
             )}
