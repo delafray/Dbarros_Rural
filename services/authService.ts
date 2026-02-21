@@ -33,7 +33,7 @@ const base64ToBuffer = (data: any): ArrayBuffer => {
 
     // If it's already an ArrayBuffer or a View, return the buffer
     if (data instanceof ArrayBuffer) return data;
-    if (ArrayBuffer.isView(data)) return data.buffer;
+    if (ArrayBuffer.isView(data)) return data.buffer as ArrayBuffer;
 
     // If it's an array of numbers, treat as byte array
     if (Array.isArray(data)) return new Uint8Array(data).buffer;
