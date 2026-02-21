@@ -785,6 +785,7 @@ const Photos: React.FC = () => {
 
   // Mobile back button: close open modals instead of showing exit dialog
   const handleMobileBack = (): boolean => {
+    if (fsUrl) { closeFullscreen(); return true; }
     if (pdfActionModal.isOpen) { setPdfActionModal(prev => ({ ...prev, isOpen: false })); return true; }
     if (isPreviewOpen) { setIsPreviewOpen(false); return true; }
     if (isModalOpen) { setIsModalOpen(false); return true; }
