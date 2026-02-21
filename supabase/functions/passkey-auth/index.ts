@@ -25,7 +25,8 @@ serve(async (req) => {
 
         const url = new URL(req.url);
         const action = url.searchParams.get("action");
-        const rpID = url.hostname === "localhost" ? "localhost" : url.hostname.split('.').slice(-2).join('.');
+        // Using url.hostname directly as rpID is more robust than trying to guess TLD+1
+        const rpID = url.hostname;
         const origin = req.headers.get("origin") || `https://${rpID}`;
 
         // Registration (Enrollment)
@@ -37,7 +38,8 @@ serve(async (req) => {
             const options = await generateRegistrationOptions({
                 rpName: "Galeria de Fotos",
                 rpID,
-                userID: user.id,
+                // userID must be a Uint8Array to be correctly encoded as Base64URL in the response
+                userID: new TextEncoder().encode(user.id),
                 userName: user.email!,
                 attestationType: "none",
                 authenticatorSelection: {
