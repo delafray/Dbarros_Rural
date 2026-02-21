@@ -531,38 +531,38 @@ const Users: React.FC = () => {
 
                             <div className="bg-white p-4 rounded-lg border border-green-100 text-left space-y-3 shadow-sm">
                                 <div>
-                                    <span className="block text-xs font-bold text-slate-400 uppercase">Link de Acesso</span>
-                                    <code className="block bg-slate-50 p-2 rounded text-blue-600 text-sm break-all select-all">
+                                    <span className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">Link de Acesso</span>
+                                    <code className="block bg-slate-50 p-2 rounded text-blue-600 text-[11px] sm:text-sm break-all select-all">
                                         https://galeria-de-fotos-one-delta.vercel.app/#/login
                                     </code>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                     <div>
-                                        <span className="block text-xs font-bold text-slate-400 uppercase">Email de Acesso</span>
+                                        <span className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">Email de Acesso</span>
                                         <code className="block bg-slate-50 p-2 rounded text-slate-800 font-bold select-all">
                                             {createdTempUser.user.email}
                                         </code>
                                     </div>
                                     <div>
-                                        <span className="block text-xs font-bold text-slate-400 uppercase">Senha</span>
-                                        <code className="block bg-slate-50 p-2 rounded text-slate-800 font-bold select-all">
+                                        <span className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">Senha</span>
+                                        <code className="block bg-slate-50 p-2 rounded text-slate-800 font-bold select-all break-all">
                                             {createdTempUser.passwordRaw}
                                         </code>
                                     </div>
                                 </div>
                                 <div>
-                                    <span className="block text-xs font-bold text-slate-400 uppercase">Validade</span>
-                                    <span className="text-slate-600 text-sm font-medium">
+                                    <span className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">Validade</span>
+                                    <span className="text-slate-600 text-xs sm:text-sm font-medium">
                                         {tempDays} dias (até {new Date(createdTempUser.user.expiresAt!).toLocaleDateString()})
                                     </span>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex gap-3">
-                            <Button onClick={handleCopyTempUser} className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg transform hover:-translate-y-0.5 transition-all">
-                                📋 Copiar para WhatsApp / Email
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full">
+                            <Button onClick={handleCopyTempUser} className="w-full sm:flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm sm:shadow-lg transform sm:hover:-translate-y-0.5 transition-all text-[11px] sm:text-base tracking-widest uppercase">
+                                📋 <span className="hidden sm:inline">Copiar para WhatsApp / Email</span><span className="sm:hidden">Copiar Acesso Exclusivo</span>
                             </Button>
-                            <Button variant="outline" onClick={() => setShowTempModal(false)} className="w-1/3 py-3">Fechar</Button>
+                            <Button variant="outline" onClick={() => setShowTempModal(false)} className="w-full sm:w-1/3 py-3 text-[11px] sm:text-base font-bold uppercase tracking-widest">Fechar</Button>
                         </div>
                     </div>
                 ) : (
