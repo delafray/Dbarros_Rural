@@ -660,19 +660,19 @@ const Photos: React.FC = () => {
       )}
 
       <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+        <input type="checkbox" id="sortByDateSidebar" checked={sortByDate} onChange={e => setSortByDate(e.target.checked)}
+          className="w-4 h-4 text-blue-600 rounded border-slate-300"
+        />
+        <label htmlFor="sortByDateSidebar" className="text-xs font-medium text-slate-600 cursor-pointer select-none">Ordem de Cadastro</label>
+      </div>
+
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">Autor:</label>
         <select value={selectedUserId} onChange={(e) => { setSelectedUserId(e.target.value); if (e.target.value !== 'all') setOnlyMine(false); }}
           className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer flex-1">
           <option value="all">Todos os Autores</option>
           {usersWithPhotos.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
-      </div>
-
-      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-        <input type="checkbox" id="sortByDateSidebar" checked={sortByDate} onChange={e => setSortByDate(e.target.checked)}
-          className="w-4 h-4 text-blue-600 rounded border-slate-300"
-        />
-        <label htmlFor="sortByDateSidebar" className="text-xs font-medium text-slate-600 cursor-pointer select-none">Ordem de Cadastro</label>
       </div>
     </div>
   );

@@ -200,9 +200,26 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
               {mobileSidebarContent}
             </div>
           )}
+
+          {/* Mobile-only: Sair + créditos inside scroll */}
+          <div className="md:hidden px-4 pt-3 pb-6 border-t border-slate-100 mt-2">
+            <button onClick={handleLogout} className="flex items-center space-x-3 px-4 py-3 w-full text-left rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all">
+              <LogOutIcon className="w-5 h-5" />
+              <span className="font-medium">Sair</span>
+            </button>
+            <div className="px-4 pb-2">
+              <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                {getSystemInfo().label}
+              </p>
+              <p className="text-[9px] text-slate-400 font-black mt-1 tracking-wider">
+                <span className="lowercase font-medium">{getSystemInfo().contact}</span>
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="p-4 border-t border-slate-100 flex flex-col gap-4">
+        {/* Desktop-only: Sair + créditos fixed at bottom */}
+        <div className="hidden md:flex p-4 border-t border-slate-100 flex-col gap-4">
           <button onClick={handleLogout} className="flex items-center space-x-3 px-4 py-3 w-full text-left rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all">
             <LogOutIcon className="w-5 h-5" />
             <span className="font-medium">Sair</span>
