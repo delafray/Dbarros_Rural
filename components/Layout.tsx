@@ -50,18 +50,18 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [user]);
 
-  // Mobile back button protection — robust for Android Chrome + HashRouter
+  // Mobile back button protection — intercepts ALL popstate events when logged in
   React.useEffect(() => {
     if (!user) return;
 
-    // Always push the guard state on mount/user-change
+    // Push guard state immediately on mount — this sits on top of the hash stack
     window.history.pushState({ appGuard: true }, '');
 
-    const handlePopState = (event: PopStateEvent) => {
-      // Only act if this is our guard entry being popped (not an in-app hash navigation)
-      if (!event.state?.appGuard) return;
-
-      // CRITICAL: Re-push SYNCHRONOUSLY first, to prevent the browser from leaving the page
+    const handlePopState = (_event: PopStateEvent) => {
+      // Always re-push guard FIRST to prevent the browser from leaving the page.
+      // We intercept every popstate (not just our own guard entries) because
+      // HashRouter can consume our guard entry via in-app navigation, leaving
+      // us unprotected. By always intercepting, we ensure the dialog always shows.
       window.history.pushState({ appGuard: true }, '');
 
       if (exitDialogOpenRef.current) {
