@@ -511,16 +511,16 @@ const Photos: React.FC = () => {
   // Standardizes colors for Limpar, Selecionar/Tudo, and Gerar PDF buttons based on selection count.
   const getPdfButtonClasses = (count: number, limit: number) => {
     if (count === 0) {
-      // Azul claro com fonte branca para todos os botões no estado inicial
-      return '!bg-blue-300 !text-white !border-blue-300 shadow-none hover:!bg-blue-300 transition-colors opacity-80 cursor-default';
+      // Estado inicial: azul claro / texto azul escuro / cursor ponteiro / hover mais escuro
+      return '!bg-blue-100 !text-blue-700 !border-blue-200 shadow-none hover:!bg-blue-200 transition-colors cursor-pointer';
     }
 
     if (count > limit) {
-      // Acima do limite: Vermelho forte
+      // Acima do limite: vermelho forte
       return '!bg-red-600 !text-white !border-red-600 shadow-red-500/30 hover:!bg-red-700 cursor-pointer';
     }
 
-    // Dentro do limite: Azul forte
+    // Dentro do limite: azul forte
     return '!bg-blue-600 !text-white !border-blue-600 shadow-blue-500/30 hover:!bg-blue-700 cursor-pointer';
   };
 
