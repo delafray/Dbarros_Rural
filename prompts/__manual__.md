@@ -38,4 +38,10 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 
 ---
 
+## 6. 🎨 `PROMPT_TAILWIND_BUTTON_FRAMEWORK.md`
+**O que ele faz:** Ensina a IA a construir um sistema universal de "Peças de Lego" para a Interface do Aplicativo, focado principalmente em Botões (`<Button>`), Cartões Brancos (`<Card>`) e Campos de Texto (`<Input>`).
+**Por que é genial:** Quando IAs constroem telas gigantescas sem um "Framework" base, elas criam 50 botões diferentes. Um botão na tela Inicial fica enorme, o da tela de Login fica sem margem, um terceiro nem afunda quando você aperta nele no celular. Esse prompt corta o mal pela raiz. Ele cria 1 "Botão de Ouro" que dita a lei para o site inteiro. Se no futuro um botão novo for criado, ele herda a mesma sombra, cantos arredondados, comportamento de clique (`active:scale`) e tamanhos perfeitos dos 30 botões antigos. Fim das páginas "Balaio de Gato"!
+
+---
+
 *(Toda vez que a IA criar um novo Prompt Mestre, ela está autorizada e instruída a atualizar este manual automaticamente para você!)*
