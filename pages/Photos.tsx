@@ -64,7 +64,6 @@ const Photos: React.FC = () => {
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string }>>([]); // For the author dropdown
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Alert State
   const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
@@ -678,60 +677,59 @@ const Photos: React.FC = () => {
                     Ordem de Cadastro
                   </label>
                 </div>
+
+                {!user?.isVisitor && (
+                  <Button
+                    onClick={() => handleOpenModal()}
+                    variant="danger"
+                    className="py-1.5 md:py-1.5 px-3 md:px-4 text-[10px] md:text-xs font-bold shadow-sm hover:scale-105 transition-transform shrink-0 whitespace-nowrap"
+                  >
+                    + Novo Registro
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-1 items-center justify-between">
-              {/* Botões Essenciais no Mobile -> "Selecionar" e "Limpar" */}
-              <div className="flex md:hidden gap-2 flex-1">
-                <Button
-                  onClick={selectAllFiltered}
-                  disabled={filteredResult.ids.length === 0}
-                  className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
-                    ? 'opacity-50 shadow-none bg-slate-50 border-slate-200 text-slate-400'
-                    : effectiveSelectionCount > pdfLimit
-                      ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
-                      : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30'
-                    } ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
-                >
-                  {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todas' : 'Tudo'}
-                </Button>
 
-                {(() => {
-                  const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
-                  return (
-                    <Button
-                      onClick={() => {
-                        setSelectedTagIds([]);
-                        setSelectedExportIds(new Set());
-                        setSearchTerm('');
-                        if (user?.isAdmin || user?.isProjetista) {
-                          setOnlyMine(false);
-                          setSelectedUserId('all');
-                        }
-                      }}
-                      disabled={!hasActiveFilters}
-                      className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${!hasActiveFilters
-                        ? 'opacity-50 shadow-none cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
-                        : effectiveSelectionCount > pdfLimit
-                          ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
-                          : 'bg-slate-800 text-white border-slate-800 shadow-slate-500/30'
-                        }`}
-                    >
-                      Limpar
-                    </Button>
-                  );
-                })()}
-              </div>
+            {/* Essential Mobile Top Bar (Select All / Clear) */}
+            <div className="flex md:hidden gap-2 w-full mt-2 items-center justify-between">
+              <Button
+                onClick={selectAllFiltered}
+                disabled={filteredResult.ids.length === 0}
+                className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${effectiveSelectionCount === 0
+                  ? 'opacity-50 shadow-none bg-slate-50 border-slate-200 text-slate-400'
+                  : effectiveSelectionCount > pdfLimit
+                    ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
+                    : 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30'
+                  } ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+              >
+                {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todas' : 'Tudo'}
+              </Button>
 
-              {!user?.isVisitor && (
-                <Button
-                  onClick={() => handleOpenModal()}
-                  variant="danger"
-                  className="py-1.5 md:py-2 text-[10px] md:text-xs font-bold shadow-sm hover:scale-105 transition-transform"
-                >
-                  + Novo Registro
-                </Button>
-              )}
+              {(() => {
+                const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
+                return (
+                  <Button
+                    onClick={() => {
+                      setSelectedTagIds([]);
+                      setSelectedExportIds(new Set());
+                      setSearchTerm('');
+                      if (user?.isAdmin || user?.isProjetista) {
+                        setOnlyMine(false);
+                        setSelectedUserId('all');
+                      }
+                    }}
+                    disabled={!hasActiveFilters}
+                    className={`flex-1 py-1.5 px-2 text-[10px] font-bold transition-all whitespace-nowrap shadow-sm ${!hasActiveFilters
+                      ? 'opacity-50 shadow-none cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
+                      : effectiveSelectionCount > pdfLimit
+                        ? 'bg-red-600 text-white border-red-600 shadow-red-500/30'
+                        : 'bg-slate-800 text-white border-slate-800 shadow-slate-500/30'
+                      }`}
+                  >
+                    Limpar
+                  </Button>
+                );
+              })()}
             </div>
 
             <div className="space-y-1 mt-4">
@@ -885,10 +883,10 @@ const Photos: React.FC = () => {
                 }
               }}
               className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all ${effectiveSelectionCount > pdfLimit
-                  ? 'bg-red-600 text-white border-red-600'
-                  : effectiveSelectionCount > 0
-                    ? 'bg-slate-800 text-white border-slate-800'
-                    : 'bg-white text-slate-700 border-slate-200'
+                ? 'bg-red-600 text-white border-red-600'
+                : effectiveSelectionCount > 0
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-700 border-slate-200'
                 }`}
             >
               Limpar
@@ -897,10 +895,10 @@ const Photos: React.FC = () => {
               variant="outline"
               onClick={selectAllFiltered}
               className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all ${effectiveSelectionCount > pdfLimit
-                  ? 'bg-red-600 text-white border-red-600'
-                  : effectiveSelectionCount > 0
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                ? 'bg-red-600 text-white border-red-600'
+                : effectiveSelectionCount > 0
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-slate-50 text-slate-600 border-slate-200'
                 }`}
             >
               Tudo
@@ -1279,97 +1277,7 @@ const Photos: React.FC = () => {
             </div>
           )
         }
-        {/* Modal Compilado de PDF (Action Bar) - Desktop Only */}
-        <div className="hidden md:block">
-          {aptForPdfCount > 0 && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
-              <div className="bg-slate-900 text-white px-2 py-2 rounded-2xl shadow-2xl flex items-center gap-1 border border-slate-800 backdrop-blur-xl bg-slate-900/90">
-                <div className="px-4 py-2 bg-slate-800 rounded-xl mr-2">
-                  <span className="text-xs font-black uppercase tracking-widest block text-slate-500">Compilado</span>
-                  <span className="text-lg font-bold block leading-none">{aptForPdfCount} <span className="text-xs font-medium text-slate-400">fotos aptas</span></span>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedTagIds([]);
-                    setSelectedExportIds(new Set());
-                    setSearchTerm('');
-                    if (user?.isAdmin || user?.isProjetista) {
-                      setOnlyMine(false);
-                      setSelectedUserId('all');
-                    }
-                  }}
-                  className="bg-transparent border-slate-700 text-white hover:bg-slate-800 h-12 px-4 text-xs font-bold"
-                >
-                  Limpar
-                </Button>
-                <Button
-                  onClick={() => handleExportPDF()}
-                  disabled={isExporting}
-                  className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 rounded-xl shadow-lg shadow-blue-500/20 text-xs font-black uppercase tracking-widest"
-                >
-                  {isExporting ? 'Gerando...' : 'Gerar PDF'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Share Modal for Mobile */}
-        {
-          isShareModalOpen && (
-            <Modal
-              title="Exportar Relatório"
-              onClose={() => setIsShareModalOpen(false)}
-              className="p-6"
-            >
-              <div className="space-y-4">
-                <p className="text-sm text-slate-500 mb-6">Você tem <span className="font-bold text-blue-600">{aptForPdfCount} fotos</span> selecionadas para o relatório.</p>
-
-                <button
-                  onClick={() => {
-                    setIsShareModalOpen(false);
-                    handleExportPDF();
-                  }}
-                  className="w-full flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 active:bg-slate-100 transition-colors"
-                >
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-slate-800">Salvar no Celular</p>
-                    <p className="text-xs text-slate-400">Baixar arquivo PDF localmente</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    const text = `Confira o relatório de fotos (${aptForPdfCount} fotos).`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-                    setIsShareModalOpen(false);
-                  }}
-                  className="w-full flex items-center gap-4 p-4 bg-green-50 rounded-2xl border border-green-100 active:bg-green-100 transition-colors"
-                >
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-slate-800">WhatsApp</p>
-                    <p className="text-xs text-slate-400">Encaminhar link do projeto</p>
-                  </div>
-                </button>
-              </div>
-
-              <div className="mt-8">
-                <Button onClick={() => setIsShareModalOpen(false)} variant="outline" className="w-full h-12">Fechar</Button>
-              </div>
-            </Modal>
-          )
-        }
+        {/* Removed Action Bar and Share Modal for Mobile/Desktop */}
 
         {/* PDF Progress Modal */}
         <Modal
