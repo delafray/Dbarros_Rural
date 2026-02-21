@@ -44,4 +44,10 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 
 ---
 
+## 7. 👥 `PROMPT_USER_MANAGEMENT_REACT.md`
+**O que ele faz:** Ensina a IA a construir telas de Administração e Cadastro de Usuários verdadeiramente sofisticadas, incluindo a criação de uma Grade Interativa colorida para selecionar Papéis (Super Admin, Projetista, Visitante) e um revolucionário **Gerador de Usuários Temporários**.
+**Por que é genial:** Foi aqui que quebramos a cabeça por horas! Ao invés do dono do site ter que criar uma conta inteira com e-mail real só para mostrar o portfólio para um cliente uma única vez, esse Blueprint ensina a IA a criar um botão de "1 clique". O sistema gera um e-mail e senha falsos automaticamente (Ex: `temp_x4b@temp.local`), coloca uma data de validade (expira em 3 dias) e entrega na tela um botão "Copiar para WhatsApp" já com o texto perfeito montado para o dono do site apenas colar para seu cliente. Muito trabalho automatizado em um único arquivo de instrução!
+
+---
+
 *(Toda vez que a IA criar um novo Prompt Mestre, ela está autorizada e instruída a atualizar este manual automaticamente para você!)*
