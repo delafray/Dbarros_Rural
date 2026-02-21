@@ -15,13 +15,30 @@ export interface User {
     isProjetista: boolean;
 }
 
-// Utility functions for WebAuthn ArrayBuffer conversion
+// Utility functions for WebAuthn ArrayBuffer conversion (handles Base64 and Base64URL)
 const bufferToBase64 = (buffer: ArrayBuffer): string => {
-    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    // Convert to standard Base64 first
+    const base64 = btoa(binary);
+    // Convert standard Base64 to Base64URL
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
 const base64ToBuffer = (base64: string): ArrayBuffer => {
-    const binary = atob(base64);
+    // Convert Base64URL to standard Base64
+    let standardBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+    // Add padding if missing
+    const pad = standardBase64.length % 4;
+    if (pad) {
+        if (pad === 1) throw new Error('Invalid Base64 string');
+        standardBase64 += new Array(5 - pad).join('=');
+    }
+
+    const binary = atob(standardBase64);
     const buffer = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
         buffer[i] = binary.charCodeAt(i);
