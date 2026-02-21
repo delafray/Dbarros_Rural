@@ -64,6 +64,7 @@ const Photos: React.FC = () => {
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string }>>([]); // For the author dropdown
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [tagFontSize, setTagFontSize] = useState(9); // mobile tag zoom: min 7, max 14
 
   // Alert State
   const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
@@ -745,9 +746,24 @@ const Photos: React.FC = () => {
               {/* Mobile-only: Galeria title + photo count */}
               <div className="md:hidden flex items-center justify-between mb-1">
                 <span className="text-sm font-black text-slate-700 uppercase tracking-tight">Galeria</span>
-                <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                  {filteredResult.ids.length} registros
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                    {filteredResult.ids.length} registros
+                  </span>
+                  {/* Tag zoom controls */}
+                  <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg px-1 py-0.5">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-0.5">Zoom</span>
+                    <button
+                      onClick={() => setTagFontSize(s => Math.max(7, s - 1))}
+                      className="w-5 h-5 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-blue-50 hover:text-blue-600 active:scale-95 transition-all"
+                    >−</button>
+                    <span className="text-[9px] font-bold text-slate-500 min-w-[18px] text-center">{tagFontSize}</span>
+                    <button
+                      onClick={() => setTagFontSize(s => Math.min(14, s + 1))}
+                      className="w-5 h-5 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-blue-50 hover:text-blue-600 active:scale-95 transition-all"
+                    >+</button>
+                  </div>
+                </div>
               </div>
 
               {/* Mobile: button to toggle filters. Desktop: static title */}
@@ -786,7 +802,11 @@ const Photos: React.FC = () => {
                           <button
                             key={tag.id}
                             onClick={() => toggleFilterTag(tag.id)}
-                            className={`px-1.5 md:px-3 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold border transition-all flex items-center gap-1 md:gap-1.5 ${isSelected
+                            style={{
+                              fontSize: `${tagFontSize}px`,
+                              padding: `${Math.round(tagFontSize * 0.22)}px ${Math.round(tagFontSize * 0.55)}px`
+                            }}
+                            className={`rounded-full font-bold border transition-all flex items-center gap-1 ${isSelected
                               ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
                               : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600'
                               }`}
