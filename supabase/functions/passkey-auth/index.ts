@@ -12,6 +12,15 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper to convert Base64URL to Standard Base64 with padding
+const base64UrlToStandard = (base64url: string): string => {
+    let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) {
+        base64 += '=';
+    }
+    return base64;
+};
+
 serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
@@ -146,17 +155,20 @@ serve(async (req) => {
 
             // If userId wasn't provided (anonymous login), identify user from userHandle
             if (!userId && body.response.userHandle) {
-                const decodedHandle = atob(body.response.userHandle.replace(/-/g, '+').replace(/_/g, '/'));
-                userId = decodedHandle;
+                const standardHandle = base64UrlToStandard(body.response.userHandle);
+                userId = atob(standardHandle);
             }
 
             if (!userId) throw new Error("Could not identify user from assertion");
+
+            // body.id is Base64URL, but we store as standard Base64
+            const standardCredentialId = base64UrlToStandard(body.id);
 
             const { data: credential } = await supabaseClient
                 .from("user_biometrics")
                 .select("*")
                 .eq("user_id", userId)
-                .eq("credential_id", body.id)
+                .eq("credential_id", standardCredentialId)
                 .single();
 
             if (!credential) throw new Error("Credential not found for user");
