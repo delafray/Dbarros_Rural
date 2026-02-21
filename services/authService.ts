@@ -28,9 +28,24 @@ const bufferToBase64 = (buffer: ArrayBuffer): string => {
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
-const base64ToBuffer = (base64: string): ArrayBuffer => {
+const base64ToBuffer = (data: any): ArrayBuffer => {
+    if (!data) return new Uint8Array(0).buffer;
+
+    // If it's already an ArrayBuffer or a View, return the buffer
+    if (data instanceof ArrayBuffer) return data;
+    if (ArrayBuffer.isView(data)) return data.buffer;
+
+    // If it's an array of numbers, treat as byte array
+    if (Array.isArray(data)) return new Uint8Array(data).buffer;
+
+    // If it's not a string at this point, we can't 'replace' on it
+    if (typeof data !== 'string') {
+        console.error('base64ToBuffer expected string/buffer, got:', typeof data, data);
+        return new Uint8Array(0).buffer;
+    }
+
     // Convert Base64URL to standard Base64
-    let standardBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+    let standardBase64 = data.replace(/-/g, '+').replace(/_/g, '/');
     // Add padding if missing
     const pad = standardBase64.length % 4;
     if (pad) {
