@@ -78,4 +78,18 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 
 ---
 
+## 11. 🧭 `PROMPT_11_PRESERVACAO_DE_ESTADO_E_SCROLL_MOBILE.md`
+**(Experiência Offline / Retorno Pós-Minimização)**
+**O que ele faz:** Evita que a página recarregue do zero (dando F5 de repente) sempre que você minimiza o site no celular para responder um WhatsApp e depois volta para o navegador.
+**Por que é genial:** Navegadores matam abas em segundo plano para economizar bateria. Esse Blueprint ensina a IA a injetar âncoras na Memória de Sessão Nativa, "Salvar Tudo" (Debounce Autosave) 0.5s após o usuário digitar. Quando o usuário volta do WhatsApp, o sistema recarrega tudo instantaneamente onde ele parou de rolar e digitar. O usuário nunca perde os rascunhos de seus formulários.
+
+---
+
+## 12. 🎥 `PROMPT_12_INTEGRACAO_VIDEOS_REDES_SOCIAIS.md`
+**(Comunicação Backend Proxy Anti-CORS)**
+**O que ele faz:** Ensina a IA a NUNCA buscar miniaturas do Reels no Instagram usando Javascript do cliente, para evitar o catastrófico bloqueio de CORS de domínios fechados.
+**Por que é genial:** Se o seu futuro E-commerce precisar puxar fotos de Redes Sociais, esse Blueprint ensina a sua IA a arquitetar uma **Edge Function Oculta**. Um servidor age como detetive pela rede da Amazon, rouba a foto da miniatura em qualidade máxima direto da Meta, e devolve mascarado para a cara limpa do seu App sem ser bloqueado pela matriz de segurança.
+
+---
+
 *(Toda vez que a IA criar um novo Prompt Mestre, ela está autorizada e instruída a atualizar este manual automaticamente para você!)*
