@@ -603,6 +603,13 @@ const Photos: React.FC = () => {
 
   const mobileSidebarContent = (
     <div className="flex flex-col gap-2">
+      {/* Novo Registro — primeiro destaque */}
+      {!user?.isVisitor && (
+        <Button onClick={() => handleOpenModal()} variant="danger" className="w-full py-2 text-xs font-bold shadow-sm">
+          + Novo Registro
+        </Button>
+      )}
+
       {/* Search bar */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -637,12 +644,6 @@ const Photos: React.FC = () => {
           {usersWithPhotos.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       </div>
-
-      {!user?.isVisitor && (
-        <Button onClick={() => handleOpenModal()} variant="danger" className="w-full py-2 text-xs font-bold shadow-sm">
-          + Novo Registro
-        </Button>
-      )}
 
       <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
         <input type="checkbox" id="sortByDateSidebar" checked={sortByDate} onChange={e => setSortByDate(e.target.checked)}

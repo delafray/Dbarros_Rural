@@ -118,7 +118,11 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
 
         {/* Mobile-only: secondary filter controls injected from page */}
         {mobileSidebarContent && (
-          <div className="md:hidden px-4 pb-2 border-t border-slate-100 pt-3">
+          <div className="md:hidden px-4 pb-2 border-t-2 border-blue-100 pt-3">
+            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest pb-2 mb-1 flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              Busca Avançada
+            </div>
             {mobileSidebarContent}
           </div>
         )}
