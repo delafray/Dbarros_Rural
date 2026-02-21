@@ -131,6 +131,13 @@ When user's prompt is NOT in English:
 - Skills: `.agent/skills/` (Project)
 - Runtime Scripts: `.agent/skills/<skill>/scripts/`
 
+### 📝 AI Blueprint Generation Protocol
+
+> 🔴 **MANDATORY P0 RULE:** When the user explicitly asks you to generate a "Prompt", "Blueprint", or extract our architectural learnings for future AI agents to use:
+> 
+> 1. You MUST ALWAYS create that `.md` file inside the `prompts/` directory (e.g., `prompts/PROMPT_NAME.md`).
+> 2. You MUST ALWAYS instantly update the `prompts/__manual__.md` file. You must append a simple, non-technical explanation (for a layperson) describing exactly what your new prompt does and why it is useful. Never skip updating the manual.
+
 ### 🧠 Read → Understand → Apply
 
 ```
