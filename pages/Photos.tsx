@@ -658,7 +658,7 @@ const Photos: React.FC = () => {
     <Layout title="Galeria Estruturada" headerActions={headerActions} mobileSidebarContent={mobileSidebarContent}>
       <>
         <div className="flex flex-col gap-2">
-          <Card className="p-3">
+          <Card className="p-1.5 md:p-3">
             <div className="hidden md:flex flex-col md:flex-row gap-4 items-center justify-between mb-2 border-b border-slate-100 pb-2">
               <div className="flex-1 w-full max-w-md flex gap-2">
                 <div className="hidden md:flex flex-1 relative group">
@@ -767,7 +767,7 @@ const Photos: React.FC = () => {
               </h3>
               <div className={`${showMobileFilters ? 'flex' : 'hidden md:flex'} flex-col gap-0.5 animate-in fade-in duration-300`}>
                 {categories.map((cat) => (
-                  <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-white border border-slate-200 rounded-xl px-3 py-0.5 transition-all hover:border-blue-400 hover:shadow-md">
+                  <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-white border border-slate-200 rounded-xl px-1.5 md:px-3 py-0.5 transition-all hover:border-blue-400 hover:shadow-md">
                     <div className="md:w-36 flex-shrink-0 flex items-center gap-2 mb-1 md:mb-0 border-b md:border-b-0 md:border-r border-slate-100 pb-1 md:pb-0 md:pr-3">
                       <span className="w-5 h-5 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-sm">
                         {cat.order}
@@ -775,7 +775,7 @@ const Photos: React.FC = () => {
                       <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{cat.name}</h4>
                     </div>
 
-                    <div className="flex-1 md:pl-4 flex flex-wrap gap-x-1 gap-y-1 md:gap-x-1.5 py-0.5">
+                    <div className="flex-1 md:pl-4 flex flex-wrap gap-x-0.5 gap-y-0.5 md:gap-x-1.5 md:gap-y-1 py-0.5">
                       {tags.filter(t => t.categoryId === cat.id).map(tag => {
                         const isSelected = selectedTagIds.includes(tag.id);
                         const isAvailable = filteredResult.availableTagsByLevel[cat.order]?.has(tag.id);
@@ -786,7 +786,7 @@ const Photos: React.FC = () => {
                           <button
                             key={tag.id}
                             onClick={() => toggleFilterTag(tag.id)}
-                            className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1.5 ${isSelected
+                            className={`px-1.5 md:px-3 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold border transition-all flex items-center gap-1 md:gap-1.5 ${isSelected
                               ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
                               : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600'
                               }`}
