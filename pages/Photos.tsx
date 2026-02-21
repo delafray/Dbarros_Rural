@@ -675,7 +675,7 @@ const Photos: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200" title="Ordena do mais recente para o mais antigo">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200" title="Ordena do mais recente para o mais antigo">
                   <input
                     type="checkbox"
                     id="sortByDate"
@@ -692,7 +692,7 @@ const Photos: React.FC = () => {
                   <Button
                     onClick={() => handleOpenModal()}
                     variant="danger"
-                    className="py-1.5 md:py-1.5 px-3 md:px-4 text-[10px] md:text-xs font-bold shadow-sm hover:scale-105 transition-transform shrink-0 whitespace-nowrap"
+                    className="hidden md:block py-1.5 md:py-1.5 px-3 md:px-4 text-[10px] md:text-xs font-bold shadow-sm hover:scale-105 transition-transform shrink-0 whitespace-nowrap"
                   >
                     + Novo Registro
                   </Button>
@@ -782,6 +782,91 @@ const Photos: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            {/* Mobile-only: Extra controls inside hamburger */}
+            {showMobileFilters && (
+              <div className="md:hidden flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
+
+                {/* Search bar */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Pesquisar por nome ou etiqueta..."
+                    className="w-full bg-slate-100 border-none rounded-xl py-2 pl-9 pr-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                {/* Apenas meus registros */}
+                {(user?.isAdmin || user?.isProjetista) && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      id="onlyMineMobile"
+                      checked={onlyMine}
+                      onChange={e => {
+                        setOnlyMine(e.target.checked);
+                        if (e.target.checked) setSelectedUserId('all');
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    />
+                    <label htmlFor="onlyMineMobile" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
+                      Apenas meus registros
+                    </label>
+                  </div>
+                )}
+
+                {/* Autor */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                  <label htmlFor="userFilterMobile" className="text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">Autor:</label>
+                  <select
+                    id="userFilterMobile"
+                    value={selectedUserId}
+                    onChange={(e) => {
+                      setSelectedUserId(e.target.value);
+                      if (e.target.value !== 'all') setOnlyMine(false);
+                    }}
+                    className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer flex-1"
+                  >
+                    <option value="all">Todos os Autores</option>
+                    {usersWithPhotos.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Ordem de Cadastro */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200" title="Ordena do mais recente para o mais antigo">
+                  <input
+                    type="checkbox"
+                    id="sortByDateMobile"
+                    checked={sortByDate}
+                    onChange={e => setSortByDate(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  <label htmlFor="sortByDateMobile" className="text-xs font-medium text-slate-600 cursor-pointer select-none">
+                    Ordem de Cadastro
+                  </label>
+                </div>
+
+                {/* Novo Registro */}
+                {!user?.isVisitor && (
+                  <Button
+                    onClick={() => { handleOpenModal(); setShowMobileFilters(false); }}
+                    variant="danger"
+                    className="w-full py-2 text-xs font-bold shadow-sm"
+                  >
+                    + Novo Registro
+                  </Button>
+                )}
+              </div>
+            )}
           </Card>
 
           {
@@ -874,7 +959,7 @@ const Photos: React.FC = () => {
           }
 
           {/* Mobile Sticky Bar */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-t border-slate-200 p-3 flex gap-2 shadow-[0_-8px_30px_rgb(0,0,0,0.12)]">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-t border-slate-200 p-1.5 flex gap-1.5 shadow-[0_-8px_30px_rgb(0,0,0,0.12)]">
             {(() => {
               const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
               return (
@@ -889,7 +974,7 @@ const Photos: React.FC = () => {
                       setSelectedUserId('all');
                     }
                   }}
-                  className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+                  className={`flex-[0.6] min-w-0 px-1 h-9 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
                 >
                   Limpar
                 </Button>
@@ -898,7 +983,7 @@ const Photos: React.FC = () => {
             <Button
               variant="outline"
               onClick={selectAllFiltered}
-              className={`flex-[0.6] min-w-0 px-1 h-12 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+              className={`flex-[0.6] min-w-0 px-1 h-9 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
             >
               Tudo
             </Button>
@@ -908,7 +993,7 @@ const Photos: React.FC = () => {
                   handleExportPDF();
                 }
               }}
-              className={`flex-[1.8] min-w-0 whitespace-nowrap px-2 h-12 shadow-lg text-[10px] font-black uppercase tracking-widest transition-all border ${isExporting ? 'opacity-50 cursor-wait' : ''} ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+              className={`flex-[1.8] min-w-0 whitespace-nowrap px-2 h-9 shadow-lg text-[10px] font-black uppercase tracking-widest transition-all border ${isExporting ? 'opacity-50 cursor-wait' : ''} ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
             >
               {isExporting ? 'Aguarde...' : `GERAR PDF (${effectiveSelectionCount})`}
             </Button>
@@ -1020,7 +1105,7 @@ const Photos: React.FC = () => {
                               <div className="relative w-full h-full group/vidprev">
                                 <img src={videoPreviewDataUrl} alt="Capa do vídeo" className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="w-12 h-12 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
+                                  <div className="w-12 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
                                     <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                                   </div>
                                 </div>
