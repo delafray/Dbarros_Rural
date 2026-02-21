@@ -12,6 +12,7 @@ interface UsePdfExportProps {
     pdfLimit: number;
     tags: Tag[];
     showAlert: (title: string, message: string, type?: AlertType) => void;
+    onPdfReady: (blob: Blob, fileName: string) => void;
 }
 
 export const usePdfExport = ({
@@ -20,9 +21,10 @@ export const usePdfExport = ({
     setSelectedExportIds,
     pdfLimit,
     tags,
-    showAlert
+    showAlert,
+    onPdfReady
 }: UsePdfExportProps) => {
-    const [exportProgress, setExportProgress] = useState(0);
+    const [exportProgress, setExportProgress] = useState<string>('');
     const [isExporting, setIsExporting] = useState(false);
 
     const handleExportPDF = async () => {
@@ -156,28 +158,14 @@ export const usePdfExport = ({
 
             const fileName = `galeria_${new Date().getTime()}.pdf`;
             const pdfBlob = doc.output('blob');
-            const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-            // Mobile: use native share sheet (WhatsApp, Save to Files, etc.)
-            if (
-                typeof navigator.share === 'function' &&
-                typeof navigator.canShare === 'function' &&
-                navigator.canShare({ files: [pdfFile] })
-            ) {
-                await navigator.share({
-                    title: 'Galeria de Fotos',
-                    text: 'PDF gerado pela Galeria de Fotos.',
-                    files: [pdfFile]
-                });
-            } else {
-                // Desktop: download normally
-                doc.save(fileName);
-            }
+            setExportProgress('Pronto!');
+            // Delegate share/download/preview to the caller
+            onPdfReady(pdfBlob, fileName);
 
-            setExportProgress(100);
             setTimeout(() => {
                 setSelectedExportIds(new Set());
-                setExportProgress(0);
+                setExportProgress('');
             }, 500);
         } catch (err) {
             console.error('Erro ao gerar PDF:', err);

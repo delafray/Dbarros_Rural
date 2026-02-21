@@ -78,6 +78,14 @@ const Photos: React.FC = () => {
   const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
   const showAlert = (title: string, message: string, type: AlertType = 'info', onConfirm?: () => void) => setAlertState({ isOpen: true, title, message, type, onConfirm });
 
+  // PDF Actions Modal state
+  const [pdfActionModal, setPdfActionModal] = useState<{ isOpen: boolean; blob: Blob | null; fileName: string }>({
+    isOpen: false, blob: null, fileName: ''
+  });
+  const onPdfReady = (blob: Blob, fileName: string) => {
+    setPdfActionModal({ isOpen: true, blob, fileName });
+  };
+
   const [videoPreviewDataUrl, setVideoPreviewDataUrl] = useState<string>(''); // Compressed thumbnail preview for video mode
   const [fetchingThumbnail, setFetchingThumbnail] = useState(false);
 
@@ -91,7 +99,8 @@ const Photos: React.FC = () => {
     setSelectedExportIds,
     pdfLimit,
     tags,
-    showAlert
+    showAlert,
+    onPdfReady
   });
 
 
@@ -944,7 +953,7 @@ const Photos: React.FC = () => {
                       setSelectedUserId('all');
                     }
                   }}
-                  className={`flex-[0.6] min-w-0 px-1 h-9 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
+                  className={`flex-[0.6] min-w-0 px-1 h-9 text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${hasActiveFilters ? '!bg-blue-600 !text-white !border-blue-600 shadow-blue-500/30 hover:!bg-blue-700 cursor-pointer' : '!bg-blue-100 !text-blue-700 !border-blue-200 shadow-none hover:!bg-blue-200 transition-colors cursor-pointer'}`}
                 >
                   Limpar
                 </Button>
@@ -1358,7 +1367,98 @@ const Photos: React.FC = () => {
           </div>
         </Modal>
 
+
+        {/* PDF Actions Modal */}
+        <Modal
+          isOpen={pdfActionModal.isOpen}
+          onClose={() => setPdfActionModal(prev => ({ ...prev, isOpen: false }))}
+          title="PDF Gerado com Sucesso!"
+          maxWidth="max-w-sm"
+        >
+          <div className="flex flex-col items-center gap-4 py-4">
+            {/* Icone de sucesso */}
+            <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center shadow-inner">
+              <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-xs font-bold text-slate-500 text-center">O que deseja fazer com o PDF?</p>
+
+            <div className="flex flex-col gap-2 w-full mt-1">
+              {/* Visualizar */}
+              <button
+                onClick={() => {
+                  if (!pdfActionModal.blob) return;
+                  const url = URL.createObjectURL(pdfActionModal.blob);
+                  window.open(url, '_blank', 'noopener');
+                  // revoke after a delay to allow the tab to open
+                  setTimeout(() => URL.revokeObjectURL(url), 60000);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-blue-500/20"
+              >
+                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Visualizar PDF
+              </button>
+
+              {/* Baixar */}
+              <button
+                onClick={() => {
+                  if (!pdfActionModal.blob) return;
+                  const url = URL.createObjectURL(pdfActionModal.blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = pdfActionModal.fileName;
+                  a.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 5000);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-black uppercase tracking-widest transition-all active:scale-95 shadow-md"
+              >
+                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Baixar PDF
+              </button>
+
+              {/* Compartilhar (só aparece se o browser suporta Web Share API) */}
+              {typeof navigator.share === 'function' && (
+                <button
+                  onClick={async () => {
+                    if (!pdfActionModal.blob) return;
+                    const pdfFile = new File([pdfActionModal.blob], pdfActionModal.fileName, { type: 'application/pdf' });
+                    try {
+                      await navigator.share({
+                        title: 'Galeria de Fotos',
+                        text: 'PDF gerado pela Galeria de Fotos.',
+                        files: [pdfFile]
+                      });
+                    } catch (e) {
+                      // User cancelled share or error
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-green-500/20"
+                >
+                  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  Compartilhar
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setPdfActionModal(prev => ({ ...prev, isOpen: false }))}
+              className="text-xs text-slate-400 hover:text-slate-600 font-bold mt-1 transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        </Modal>
+
         <AlertModal {...alertState} onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))} />
+
       </>
     </Layout >
   );
