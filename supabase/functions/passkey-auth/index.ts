@@ -215,11 +215,13 @@ serve(async (req) => {
         return new Response("Action not found", { status: 404, headers: corsHeaders });
 
     } catch (error) {
-        // Return the exact error message in the JSON payload so the frontend can display it
+        // Return 200 instead of 400 so the Supabase client doesn't mask the error message
         const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[DEBUG ERROR] Edge Function Error: ${errorMessage}`);
         return new Response(JSON.stringify({ error: `Verification Failed: ${errorMessage}` }), {
-            status: 400,
+            status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
     }
+
 });

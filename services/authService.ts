@@ -444,8 +444,16 @@ export const authService = {
             }
         });
 
-        if (verifyError || !verification.verified) {
-            throw new Error(`Falha na verificação da biometria: ${verifyError?.message}`);
+        if (verifyError) {
+            throw new Error(`Erro de rede/API ao registrar biometria: ${verifyError?.message}`);
+        }
+
+        if (verification && verification.error) {
+            throw new Error(verification.error);
+        }
+
+        if (!verification || !verification.verified) {
+            throw new Error('Falha na verificação da biometria (sem payload válido)');
         }
 
         return true;
@@ -496,8 +504,16 @@ export const authService = {
             }
         });
 
-        if (verifyError || !verification.verified) {
-            throw new Error(`Falha no login biométrico: ${verifyError?.message}`);
+        if (verifyError) {
+            throw new Error(`Erro de rede/API no login biométrico: ${verifyError?.message}`);
+        }
+
+        if (verification && verification.error) {
+            throw new Error(verification.error); // This will show our exact "Verification Failed: ..." message
+        }
+
+        if (!verification || !verification.verified) {
+            throw new Error('Falha no login biométrico (sem payload válido)');
         }
 
         // 5. Exchange token for session
