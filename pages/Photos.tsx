@@ -1038,9 +1038,7 @@ const Photos: React.FC = () => {
                         {photo.localPath && (
                           <button onClick={(e) => copyToClipboard(e, photo.localPath!)} className="p-1.5 bg-slate-800/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-slate-900" title="Caminho local"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></button>
                         )}
-                        {canEditPhoto(photo) && (
-                          <button onClick={(e) => handleDelete(e, photo.id)} className="p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-700" title="Excluir"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                        )}
+                        {/* Delete button moved to Lightbox Modal as requested */}
                         {/* Play — always visible, last = rightmost corner */}
                         {photo.videoUrl && (
                           <button
@@ -1421,9 +1419,24 @@ const Photos: React.FC = () => {
                   Ver em Tela Cheia
                 </Button>
                 {previewPhoto && canEditPhoto(previewPhoto) && (
-                  <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
-                    Editar
-                  </Button>
+                  <>
+                    <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
+                      Editar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={(e) => {
+                        setIsPreviewOpen(false); // Close lightbox first
+                        handleDelete(e, previewPhoto.id);
+                      }}
+                      className="py-2 px-4 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Excluir
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
