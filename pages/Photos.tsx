@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 import { Photo, Tag, TagCategory } from '../types';
 import { Button, Card, Input, LoadingSpinner, Modal } from '../components/UI';
@@ -78,6 +78,7 @@ const Photos: React.FC = () => {
   const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: AlertType; onConfirm?: () => void }>({ isOpen: false, title: '', message: '', type: 'info' });
   const showAlert = (title: string, message: string, type: AlertType = 'info', onConfirm?: () => void) => setAlertState({ isOpen: true, title, message, type, onConfirm });
 
+
   // PDF Actions Modal state
   const [pdfActionModal, setPdfActionModal] = useState<{ isOpen: boolean; blob: Blob | null; fileName: string }>({
     isOpen: false, blob: null, fileName: ''
@@ -85,6 +86,61 @@ const Photos: React.FC = () => {
   const onPdfReady = (blob: Blob, fileName: string) => {
     setPdfActionModal({ isOpen: true, blob, fileName });
   };
+
+  // Fullscreen photo lightbox
+  const [fsUrl, setFsUrl] = useState<string | null>(null);
+  const [fsZoom, setFsZoom] = useState(1);
+  const [fsPan, setFsPan] = useState({ x: 0, y: 0 });
+  const fsTouch = useRef<{ dist?: number; zoom?: number; last?: { x: number; y: number } }>({});
+
+  const openFullscreen = useCallback((url: string) => {
+    setFsUrl(url);
+    setFsZoom(1);
+    setFsPan({ x: 0, y: 0 });
+  }, []);
+
+  const closeFullscreen = useCallback(() => {
+    setFsUrl(null);
+    setFsZoom(1);
+    setFsPan({ x: 0, y: 0 });
+  }, []);
+
+  const handleFsWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setFsZoom(z => Math.min(10, Math.max(1, z - e.deltaY * 0.001 * z)));
+  }, []);
+
+  const getTouchDist = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleFsTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      fsTouch.current = { dist: getTouchDist(e.touches), zoom: fsZoom };
+    } else {
+      fsTouch.current = { last: { x: e.touches[0].clientX, y: e.touches[0].clientY }, zoom: fsZoom };
+    }
+  }, [fsZoom]);
+
+  const handleFsTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length === 2 && fsTouch.current.dist != null) {
+      const scale = getTouchDist(e.touches) / fsTouch.current.dist;
+      setFsZoom(Math.min(10, Math.max(1, fsTouch.current.zoom! * scale)));
+    } else if (e.touches.length === 1 && fsTouch.current.last) {
+      const dx = e.touches[0].clientX - fsTouch.current.last.x;
+      const dy = e.touches[0].clientY - fsTouch.current.last.y;
+      fsTouch.current.last = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      setFsPan(p => ({ x: p.x + dx / fsZoom, y: p.y + dy / fsZoom }));
+    }
+  }, [fsZoom]);
+
+  const handleFsTouchEnd = useCallback(() => {
+    fsTouch.current = {};
+    setFsZoom(z => { if (z < 1.05) { setFsPan({ x: 0, y: 0 }); return 1; } return z; });
+  }, []);
 
   const [videoPreviewDataUrl, setVideoPreviewDataUrl] = useState<string>(''); // Compressed thumbnail preview for video mode
   const [fetchingThumbnail, setFetchingThumbnail] = useState(false);
@@ -1289,11 +1345,11 @@ const Photos: React.FC = () => {
                 </div>
               )}
               <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={() => window.open(previewPhoto?.url, '_blank')} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
+                <Button variant="outline" onClick={() => previewPhoto?.url && openFullscreen(previewPhoto.url)} className="flex items-center gap-2 py-2 px-6 text-[10px] font-black uppercase tracking-widest">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                   </svg>
-                  Original
+                  Ver em Tela Cheia
                 </Button>
                 {previewPhoto && canEditPhoto(previewPhoto) && (
                   <Button onClick={() => { setIsPreviewOpen(false); handleOpenModal(previewPhoto); }} className="py-2 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">
@@ -1304,6 +1360,53 @@ const Photos: React.FC = () => {
             </div>
           </div>
         </Modal>
+
+        {/* Fullscreen Photo Lightbox */}
+        {fsUrl && (
+          <div
+            className="fixed inset-0 z-[9999] bg-black flex items-center justify-center overflow-hidden"
+            onWheel={handleFsWheel}
+            onTouchStart={handleFsTouchStart}
+            onTouchMove={handleFsTouchMove}
+            onTouchEnd={handleFsTouchEnd}
+            style={{ touchAction: 'none' }}
+          >
+            <img
+              src={fsUrl}
+              alt="Visualização em tela cheia"
+              draggable={false}
+              style={{
+                transform: `scale(${fsZoom}) translate(${fsPan.x}px, ${fsPan.y}px)`,
+                transformOrigin: 'center center',
+                transition: 'none',
+                maxWidth: '100vw',
+                maxHeight: '100vh',
+                objectFit: 'contain',
+                userSelect: 'none',
+                cursor: fsZoom > 1 ? 'grab' : 'default',
+              }}
+            />
+            {/* Close button */}
+            <button
+              onClick={closeFullscreen}
+              className="absolute top-4 right-4 z-10 w-11 h-11 bg-black/70 text-white rounded-full flex items-center justify-center hover:bg-black/90 active:scale-95 transition-all border border-white/20 backdrop-blur-sm shadow-lg"
+              title="Fechar"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            {/* Reset zoom button — only visible when zoomed */}
+            {fsZoom > 1 && (
+              <button
+                onClick={() => { setFsZoom(1); setFsPan({ x: 0, y: 0 }); }}
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/70 text-white text-xs font-bold rounded-full border border-white/20 backdrop-blur-sm hover:bg-black/90 transition-all"
+              >
+                Redefinir Zoom ({Math.round(fsZoom * 100)}%)
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Export Action Bar */}
         {
