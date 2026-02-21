@@ -124,7 +124,7 @@ const Login: React.FC = () => {
                 className="w-full py-3 px-4 bg-white border-2 border-blue-100 rounded-xl text-blue-600 font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition-all active:scale-95 disabled:opacity-50"
               >
                 <FingerprintIcon className="w-6 h-6" />
-                <span>Entrar com Digital</span>
+                <span>Entrar com Biometria</span>
               </button>
             </div>
           )}
