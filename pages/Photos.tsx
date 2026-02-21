@@ -87,60 +87,110 @@ const Photos: React.FC = () => {
     setPdfActionModal({ isOpen: true, blob, fileName });
   };
 
-  // Fullscreen photo lightbox
+  // ─── Fullscreen photo lightbox ────────────────────────────────────────────
   const [fsUrl, setFsUrl] = useState<string | null>(null);
   const [fsZoom, setFsZoom] = useState(1);
   const [fsPan, setFsPan] = useState({ x: 0, y: 0 });
-  const fsTouch = useRef<{ dist?: number; zoom?: number; last?: { x: number; y: number } }>({});
+  const [fsIsLandscape, setFsIsLandscape] = useState<boolean | null>(null);
+  const [fsScreenLandscape, setFsScreenLandscape] = useState(() => window.innerWidth > window.innerHeight);
+  const fsOverlayRef = useRef<HTMLDivElement>(null);
+  const fsGesture = useRef<{ dist?: number; zoom?: number; lastX?: number; lastY?: number }>({});
+  const fsLiveRef = useRef({ zoom: 1, panX: 0, panY: 0 });
 
-  const openFullscreen = useCallback((url: string) => {
+  // Sync live ref so non-React touch handler can read latest values
+  useEffect(() => { fsLiveRef.current = { zoom: fsZoom, panX: fsPan.x, panY: fsPan.y }; }, [fsZoom, fsPan]);
+
+  const openFullscreen = useCallback(async (url: string) => {
     setFsUrl(url);
     setFsZoom(1);
     setFsPan({ x: 0, y: 0 });
+    setFsIsLandscape(null);
+    try { await document.documentElement.requestFullscreen?.(); } catch { }
   }, []);
 
   const closeFullscreen = useCallback(() => {
     setFsUrl(null);
     setFsZoom(1);
     setFsPan({ x: 0, y: 0 });
+    setFsIsLandscape(null);
+    try { if (document.fullscreenElement) document.exitFullscreen?.(); } catch { }
+    try { (screen.orientation as any)?.unlock?.(); } catch { }
   }, []);
 
+  // Track screen orientation changes
+  useEffect(() => {
+    if (!fsUrl) return;
+    const update = () => setFsScreenLandscape(window.innerWidth > window.innerHeight);
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => { window.removeEventListener('resize', update); window.removeEventListener('orientationchange', update); };
+  }, [fsUrl]);
+
+  // Detect image orientation and try to lock screen orientation
+  const handleFsImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    const landscape = naturalWidth > naturalHeight;
+    setFsIsLandscape(landscape);
+    try { (screen.orientation as any)?.lock?.(landscape ? 'landscape' : 'portrait').catch(() => { }); } catch { }
+  }, []);
+
+  // Imperative non-passive touch handler (React synthetic events are passive by default)
+  useEffect(() => {
+    const el = fsOverlayRef.current;
+    if (!el || !fsUrl) return;
+
+    const dist = (t: TouchList) => {
+      const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        fsGesture.current = { dist: dist(e.touches), zoom: fsLiveRef.current.zoom };
+      } else {
+        fsGesture.current = { lastX: e.touches[0].clientX, lastY: e.touches[0].clientY, zoom: fsLiveRef.current.zoom };
+      }
+    };
+
+    const onMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const { zoom: startZoom, dist: startDist, lastX, lastY } = fsGesture.current;
+      if (e.touches.length === 2 && startDist != null) {
+        const newZoom = Math.min(10, Math.max(1, startZoom! * (dist(e.touches) / startDist)));
+        setFsZoom(newZoom);
+        fsLiveRef.current.zoom = newZoom;
+      } else if (e.touches.length === 1 && lastX != null) {
+        const dx = e.touches[0].clientX - lastX, dy = e.touches[0].clientY - lastY!;
+        fsGesture.current.lastX = e.touches[0].clientX;
+        fsGesture.current.lastY = e.touches[0].clientY;
+        setFsPan(p => ({ x: p.x + dx / fsLiveRef.current.zoom, y: p.y + dy / fsLiveRef.current.zoom }));
+      }
+    };
+
+    const onEnd = () => {
+      fsGesture.current = {};
+      setFsZoom(z => { if (z < 1.05) { setFsPan({ x: 0, y: 0 }); return 1; } return z; });
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false }); // non-passive → preventDefault works
+    el.addEventListener('touchend', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+    };
+  }, [fsUrl]);
+
+  // Desktop wheel zoom
   const handleFsWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     setFsZoom(z => Math.min(10, Math.max(1, z - e.deltaY * 0.001 * z)));
   }, []);
 
-  const getTouchDist = (touches: React.TouchList) => {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
+  // CSS counter-rotation: if image orientation doesn't match screen orientation, rotate 90deg
+  const fsNeedsRotation = fsIsLandscape !== null && fsIsLandscape !== fsScreenLandscape;
 
-  const handleFsTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      fsTouch.current = { dist: getTouchDist(e.touches), zoom: fsZoom };
-    } else {
-      fsTouch.current = { last: { x: e.touches[0].clientX, y: e.touches[0].clientY }, zoom: fsZoom };
-    }
-  }, [fsZoom]);
-
-  const handleFsTouchMove = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 2 && fsTouch.current.dist != null) {
-      const scale = getTouchDist(e.touches) / fsTouch.current.dist;
-      setFsZoom(Math.min(10, Math.max(1, fsTouch.current.zoom! * scale)));
-    } else if (e.touches.length === 1 && fsTouch.current.last) {
-      const dx = e.touches[0].clientX - fsTouch.current.last.x;
-      const dy = e.touches[0].clientY - fsTouch.current.last.y;
-      fsTouch.current.last = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      setFsPan(p => ({ x: p.x + dx / fsZoom, y: p.y + dy / fsZoom }));
-    }
-  }, [fsZoom]);
-
-  const handleFsTouchEnd = useCallback(() => {
-    fsTouch.current = {};
-    setFsZoom(z => { if (z < 1.05) { setFsPan({ x: 0, y: 0 }); return 1; } return z; });
-  }, []);
 
   const [videoPreviewDataUrl, setVideoPreviewDataUrl] = useState<string>(''); // Compressed thumbnail preview for video mode
   const [fetchingThumbnail, setFetchingThumbnail] = useState(false);
@@ -1364,24 +1414,35 @@ const Photos: React.FC = () => {
         {/* Fullscreen Photo Lightbox */}
         {fsUrl && (
           <div
+            ref={fsOverlayRef}
             className="fixed inset-0 z-[9999] bg-black flex items-center justify-center overflow-hidden"
             onWheel={handleFsWheel}
-            onTouchStart={handleFsTouchStart}
-            onTouchMove={handleFsTouchMove}
-            onTouchEnd={handleFsTouchEnd}
             style={{ touchAction: 'none' }}
           >
             <img
               src={fsUrl}
               alt="Visualização em tela cheia"
+              onLoad={handleFsImageLoad}
               draggable={false}
-              style={{
-                transform: `scale(${fsZoom}) translate(${fsPan.x}px, ${fsPan.y}px)`,
+              style={fsNeedsRotation ? {
+                // Counter-rotation: swap vw/vh so landscape image fills portrait screen
+                width: '100vh',
+                height: '100vw',
+                maxWidth: 'none',
+                maxHeight: 'none',
+                objectFit: 'contain',
+                transform: `rotate(90deg) scale(${fsZoom}) translate(${fsPan.x}px, ${fsPan.y}px)`,
                 transformOrigin: 'center center',
                 transition: 'none',
+                userSelect: 'none',
+                cursor: fsZoom > 1 ? 'grab' : 'default',
+              } : {
                 maxWidth: '100vw',
                 maxHeight: '100vh',
                 objectFit: 'contain',
+                transform: `scale(${fsZoom}) translate(${fsPan.x}px, ${fsPan.y}px)`,
+                transformOrigin: 'center center',
+                transition: 'none',
                 userSelect: 'none',
                 cursor: fsZoom > 1 ? 'grab' : 'default',
               }}
@@ -1389,20 +1450,20 @@ const Photos: React.FC = () => {
             {/* Close button */}
             <button
               onClick={closeFullscreen}
-              className="absolute top-4 right-4 z-10 w-11 h-11 bg-black/70 text-white rounded-full flex items-center justify-center hover:bg-black/90 active:scale-95 transition-all border border-white/20 backdrop-blur-sm shadow-lg"
+              className="absolute top-4 right-4 z-10 w-12 h-12 bg-black/70 text-white rounded-full flex items-center justify-center hover:bg-black/90 active:scale-95 transition-all border border-white/20 backdrop-blur-sm shadow-lg"
               title="Fechar"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            {/* Reset zoom button — only visible when zoomed */}
+            {/* Zoom indicator + reset */}
             {fsZoom > 1 && (
               <button
                 onClick={() => { setFsZoom(1); setFsPan({ x: 0, y: 0 }); }}
-                className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/70 text-white text-xs font-bold rounded-full border border-white/20 backdrop-blur-sm hover:bg-black/90 transition-all"
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 px-5 py-2 bg-black/70 text-white text-xs font-bold rounded-full border border-white/20 backdrop-blur-sm hover:bg-black/90 transition-all"
               >
-                Redefinir Zoom ({Math.round(fsZoom * 100)}%)
+                ✕ {Math.round(fsZoom * 100)}%
               </button>
             )}
           </div>
