@@ -209,13 +209,15 @@ serve(async (req) => {
                 });
             }
             throw new Error("Login verification failed");
+            throw new Error(`Login verification failed: ${JSON.stringify(verification)}`);
         }
 
         return new Response("Action not found", { status: 404, headers: corsHeaders });
 
     } catch (error) {
-        console.error(`Edge Function Error: ${error.message}`);
-        return new Response(JSON.stringify({ error: error.message }), {
+        // Return the exact error message in the JSON payload so the frontend can display it
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return new Response(JSON.stringify({ error: `Verification Failed: ${errorMessage}` }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
