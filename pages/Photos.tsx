@@ -554,8 +554,11 @@ const Photos: React.FC = () => {
       {/* Botão de Redundância: Gerar PDF */}
       <Button
         variant="primary"
-        onClick={handleExportPDF}
-        disabled={effectiveSelectionCount === 0}
+        onClick={() => {
+          if (effectiveSelectionCount > 0) {
+            handleExportPDF();
+          }
+        }}
         className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${getPdfButtonClasses(effectiveSelectionCount, pdfLimit, true)}`}
       >
         Gerar PDF ({effectiveSelectionCount})
@@ -564,8 +567,11 @@ const Photos: React.FC = () => {
       {/* Select All Button - Always visible, disabled if no results */}
       <Button
         variant="primary"
-        onClick={selectAllFiltered}
-        disabled={filteredResult.ids.length === 0}
+        onClick={() => {
+          if (filteredResult.ids.length > 0) {
+            selectAllFiltered();
+          }
+        }}
         className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${filteredResult.ids.length === 0 ? 'opacity-30 cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
       >
         {effectiveSelectionCount > 0 && effectiveSelectionCount === filteredResult.ids.length ? 'Todos Selecionados' : `Selecionar Tudo (${filteredResult.ids.length})`}
@@ -578,15 +584,16 @@ const Photos: React.FC = () => {
           <Button
             variant="primary"
             onClick={() => {
-              setSelectedTagIds([]);
-              setSelectedExportIds(new Set());
-              setSearchTerm('');
-              if (user?.isAdmin || user?.isProjetista) {
-                setOnlyMine(false);
-                setSelectedUserId('all');
+              if (hasActiveFilters) {
+                setSelectedTagIds([]);
+                setSelectedExportIds(new Set());
+                setSearchTerm('');
+                if (user?.isAdmin || user?.isProjetista) {
+                  setOnlyMine(false);
+                  setSelectedUserId('all');
+                }
               }
             }}
-            disabled={!hasActiveFilters}
             className={`py-2 px-4 text-xs font-bold transition-all whitespace-nowrap shadow-sm border ${!hasActiveFilters ? 'opacity-50 shadow-none cursor-not-allowed bg-slate-50' : getPdfButtonClasses(effectiveSelectionCount, pdfLimit)}`}
           >
             Limpar Tudo
