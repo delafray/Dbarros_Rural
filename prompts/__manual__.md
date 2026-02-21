@@ -32,4 +32,10 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 
 ---
 
+## 5. 📄 `PROMPT_PDF_MOBILE_REACT.md`
+**O que ele faz:** Ensina a IA a construir aquele "Pop-up" com 3 botões (Visualizar, Baixar e Compartilhar) logo após a galeria gerar um arquivo PDF em aparelhos celulares.
+**Por que é genial:** Em computadores é fácil baixar arquivos. Mas em celulares modernos (iOS ou navegadores dentro de redes sociais como Instagram), forçar um download silencioso de um arquivo PDF bloqueia e falha na hora. Esse prompt ensina a IA a não tentar forçar nada. Ele instrui a criação formal de um botão que usa a tecnologia nativa do celular (`Web Share API`), permitindo que a própria bandeja do sistema operacional abra (aquela com ícones do WhatsApp, Telegram e AirDrop) já contendo o arquivo PDF embutido na mensagem dele com 100% de margem de sucesso!
+
+---
+
 *(Toda vez que a IA criar um novo Prompt Mestre, ela está autorizada e instruída a atualizar este manual automaticamente para você!)*
