@@ -154,7 +154,26 @@ export const usePdfExport = ({
                 setExportProgress(85 + Math.round(((i + 1) / totalPhotos) * 15));
             }
 
-            doc.save(`galeria_exportada_${new Date().getTime()}.pdf`);
+            const fileName = `galeria_${new Date().getTime()}.pdf`;
+            const pdfBlob = doc.output('blob');
+            const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+            // Mobile: use native share sheet (WhatsApp, Save to Files, etc.)
+            if (
+                typeof navigator.share === 'function' &&
+                typeof navigator.canShare === 'function' &&
+                navigator.canShare({ files: [pdfFile] })
+            ) {
+                await navigator.share({
+                    title: 'Galeria de Fotos',
+                    text: 'PDF gerado pela Galeria de Fotos.',
+                    files: [pdfFile]
+                });
+            } else {
+                // Desktop: download normally
+                doc.save(fileName);
+            }
+
             setExportProgress(100);
             setTimeout(() => {
                 setSelectedExportIds(new Set());
