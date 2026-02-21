@@ -53,8 +53,8 @@ serve(async (req) => {
                 userName: user.email!,
                 attestationType: "none",
                 authenticatorSelection: {
-                    residentKey: "preferred",
-                    userVerification: "preferred",
+                    residentKey: "required", // Required for passwordless (discoverable credentials)
+                    userVerification: "required",
                     authenticatorAttachment: "platform",
                 },
             });
@@ -106,43 +106,53 @@ serve(async (req) => {
         // Authentication (Login)
         if (action === "login-options") {
             const { email } = await req.json();
+            let credentials = [];
+            let targetUserId = null;
 
-            // Find user by email
-            const { data: userData, error: userLookupError } = await supabaseClient
-                .from("user_biometrics")
-                .select("user_id, credential_id")
-                .innerJoin("auth.users", "user_id", "id") // Simplified, actually need to fetch user separately or use a view
-                // Since we can't join auth.users easily without a view, we'll look up by email via auth.admin
-                .filter("auth.users.email", "eq", email);
+            if (email) {
+                // Corrected user lookup:
+                const { data: { users }, error: listError } = await supabaseClient.auth.admin.listUsers();
+                if (listError) throw listError;
+                const targetUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
-            // Corrected user lookup:
-            const { data: { users }, error: listError } = await supabaseClient.auth.admin.listUsers();
-            if (listError) throw listError;
-            const targetUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-            if (!targetUser) throw new Error("User not found");
-
-            const { data: credentials } = await supabaseClient
-                .from("user_biometrics")
-                .select("credential_id")
-                .eq("user_id", targetUser.id);
+                if (targetUser) {
+                    targetUserId = targetUser.id;
+                    const { data: userCredentials } = await supabaseClient
+                        .from("user_biometrics")
+                        .select("credential_id")
+                        .eq("user_id", targetUser.id);
+                    credentials = userCredentials || [];
+                }
+            }
 
             const options = await generateAuthenticationOptions({
                 rpID,
-                allowCredentials: credentials?.map(c => ({
+                allowCredentials: credentials.map(c => ({
                     id: Uint8Array.from(atob(c.credential_id), c => c.charCodeAt(0)),
                     type: "public-key",
                     transports: ["internal"],
                 })),
-                userVerification: "preferred",
+                userVerification: "required",
             });
 
-            return new Response(JSON.stringify({ options, userId: targetUser.id }), {
+            return new Response(JSON.stringify({ options, userId: targetUserId }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }
 
         if (action === "login-verify") {
-            const { body, expectedChallenge, userId } = await req.json();
+            const { body, expectedChallenge, userId: providedUserId } = await req.json();
+
+            let userId = providedUserId;
+
+            // If userId wasn't provided (anonymous login), identify user from userHandle
+            if (!userId && body.response.userHandle) {
+                // userHandle is typically the userID we sent during enrollment, encoded in base64url
+                const decodedHandle = atob(body.response.userHandle.replace(/-/g, '+').replace(/_/g, '/'));
+                userId = decodedHandle;
+            }
+
+            if (!userId) throw new Error("Could not identify user");
 
             const { data: credential } = await supabaseClient
                 .from("user_biometrics")

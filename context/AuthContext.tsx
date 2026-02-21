@@ -5,8 +5,8 @@ import { supabase } from '../services/supabaseClient';
 interface AuthContextType {
     user: User | null;
     login: (identifier: string, password: string) => Promise<void>;
-    loginWithBiometrics: (email: string) => Promise<void>;
-    logout: () => void;
+    loginWithBiometrics: (email?: string) => Promise<void>;
+    logout: () => Promise<void>;
     register: (name: string, email: string, password: string, isAdmin: boolean) => Promise<void>;
     isLoading: boolean;
 }
@@ -110,9 +110,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser);
     };
 
-    const loginWithBiometrics = async (email: string) => {
-        const userProfile = await authService.signInWithPasskey(email);
-        setUser(userProfile);
+    const loginWithBiometrics = async (email?: string) => {
+        try {
+            const userData = await authService.signInWithPasskey(email);
+            setUser(userData);
+        } catch (error) {
+            console.error('Biometric login error:', error);
+            throw error;
+        }
     };
 
     const logout = async () => {

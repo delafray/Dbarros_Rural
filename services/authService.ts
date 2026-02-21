@@ -451,11 +451,11 @@ export const authService = {
         return true;
     },
 
-    signInWithPasskey: async (email: string): Promise<User> => {
+    signInWithPasskey: async (email?: string): Promise<User> => {
         // 1. Get authentication options
         const { data: result, error: optionsError } = await supabase.functions.invoke('passkey-auth?action=login-options', {
             method: 'POST',
-            body: { email }
+            body: { email: email || null }
         });
 
         if (optionsError || !result) throw new Error(`Erro ao iniciar login biométrico: ${optionsError?.message}`);

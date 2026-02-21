@@ -43,20 +43,23 @@ const Login: React.FC = () => {
   };
 
   const handleBiometricLogin = async () => {
-    if (!identifier) {
-      setError('Por favor, digite seu email ou nome de usuário primeiro para localizarmos sua chave.');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
-      await loginWithBiometrics(identifier.trim());
+      // If identifier is provided, use it to limit credentials. 
+      // Otherwise, use "discoverable credentials" (resident keys).
+      await loginWithBiometrics(identifier.trim() || undefined);
       navigate('/fotos');
     } catch (err: any) {
       if (err.message?.includes('cancelado')) return;
-      setError('Falha no login biométrico: ' + err.message);
+
+      // Better error message for discovery failure
+      if (err.message?.includes('identificar usuário') || err.message?.includes('not found')) {
+        setError('Não encontramos uma chave de acesso neste dispositivo para sua conta. Tente entrar com senha primeiro e cadastrar sua digital no menu.');
+      } else {
+        setError('Falha no login biométrico: ' + err.message);
+      }
     } finally {
       setLoading(false);
     }
