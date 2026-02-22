@@ -233,7 +233,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
             <div className="pt-2 md:pt-4 pb-1 md:pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema</div>
             {user?.canManageTags && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
 
-            {isBiometricsSupported && (
+            {isBiometricsSupported && !user?.isVisitor && (
               <div
                 className="flex md:hidden items-center justify-between px-4 py-3 md:py-4 w-full rounded-lg text-slate-600 hover:bg-slate-50 transition-all cursor-pointer border-t border-slate-100 mt-2"
                 onClick={handleEnrollBiometrics}
