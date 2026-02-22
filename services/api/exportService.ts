@@ -47,6 +47,14 @@ exatamente a organização de pastas e volumes que ele utilizava. O foco total �
 dos arquivos originais informados nos metadados abaixo para que o catálogo seja recriado com precisão."\n`;
             txtContent += `=================================================================\n\n`;
 
+            txtContent += `FERRAMENTAS RECOMENDADAS PARA GESTÃO DE ACERVO\n`;
+            txtContent += `-----------------------------------------------------------------\n`;
+            txtContent += `Para visualizar e organizar estes arquivos, recomendamos:\n`;
+            txtContent += `1. VS Code (Leitor de Dados): https://code.visualstudio.com/\n`;
+            txtContent += `2. VLC Media Player (Vídeos): https://www.videolan.org/\n`;
+            txtContent += `3. Google Chrome (Navegador): https://www.google.com/chrome/\n`;
+            txtContent += `-----------------------------------------------------------------\n\n`;
+
             txtContent += `>>> PROMPT PARA COPIAR E COLAR (USE NO CHATGPT/CLAUDE/GEMINI) <<<\n`;
             txtContent += `-----------------------------------------------------------------\n`;
             txtContent += `"Analise a lista de registros abaixo e me mostre um resumo detalhado 
