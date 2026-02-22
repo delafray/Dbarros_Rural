@@ -381,16 +381,11 @@ const Photos: React.FC = () => {
     try {
       const compressedUrl = await processAndCompressImage(file);
 
-      // Como o navegador não fornece o caminho real por segurança,
-      // criamos um placeholder automático baseado no nome do arquivo
-      // Ex: se o arquivo for "projeto_sala.jpg", vira "C:\PROJETOS\projeto_sala.jpg"
-      const autoPath = `C: \\PROJETOS\\${file.name} `;
-
       setFormData(prev => ({
         ...prev,
         url: compressedUrl,
         name: prev.name || file.name.split('.')[0],
-        localPath: prev.localPath || autoPath,
+        localPath: prev.localPath || '',
         selectedFile: file
       }));
     } finally {
@@ -1161,7 +1156,7 @@ const Photos: React.FC = () => {
                   title="Servidor ou HD Externo onde está o arquivo original da foto/vídeo"
                   value={formData.storageLocation}
                   onChange={e => setFormData({ ...formData, storageLocation: e.target.value })}
-                  className="hidden md:block flex-[0.8] min-w-0 bg-white border-2 border-green-400 rounded-lg px-2.5 py-1 text-[11px] font-mono text-green-800 placeholder:text-slate-400 focus:ring-2 focus:ring-green-500 shadow-sm outline-none transition-all"
+                  className="hidden md:block flex-[0.8] min-w-0 bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
                 />
               </div>
             </div>
