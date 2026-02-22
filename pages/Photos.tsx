@@ -813,8 +813,8 @@ const Photos: React.FC = () => {
   return (
     <Layout title="Galeria Estruturada" headerActions={headerActions} mobileSidebarContent={mobileSidebarContent} onMobileBack={handleMobileBack}>
       <>
-        <div className="flex flex-col gap-2">
-          <Card className="p-1.5 md:p-3">
+        <div className="flex flex-col gap-1 md:gap-2">
+          <Card className="p-1 md:p-3">
             <div className="hidden md:flex flex-col md:flex-row gap-4 items-center justify-between mb-2 border-b border-slate-100 pb-2">
               <div className="flex-1 w-full max-w-md flex gap-2">
                 <div className="hidden md:flex flex-1 relative group">
@@ -982,7 +982,7 @@ const Photos: React.FC = () => {
           {
             loading ? <LoadingSpinner /> : (
               <div
-                className="grid gap-4 transition-all duration-300 ease-in-out"
+                className="grid gap-1.5 md:gap-4 transition-all duration-300 ease-in-out"
                 style={{
                   gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
                 }}
@@ -1541,7 +1541,7 @@ const Photos: React.FC = () => {
         {
           selectedExportIds.size > 0 && (
             <div className="hidden md:block fixed bottom-2 md:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in w-[95%] md:w-auto max-w-lg">
-              <div className="bg-slate-900 border border-slate-700 text-white px-3 md:px-6 py-2 md:py-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 backdrop-blur-xl">
+              <div className="bg-slate-900 border border-slate-700 text-white !px-2 md:px-6 !py-2 md:py-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 backdrop-blur-xl">
                 <div className="flex flex-col">
                   <span className="text-xs md:text-sm font-bold whitespace-nowrap">{effectiveSelectionCount} {effectiveSelectionCount === 1 ? 'Foto' : 'Fotos'}</span>
                   <span className="text-[9px] md:text-[10px] text-slate-400 truncate max-w-[120px] md:max-w-none">
