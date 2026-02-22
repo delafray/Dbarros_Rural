@@ -40,12 +40,11 @@ export const exportService = {
             let txtContent = `=================================================================\n`;
             txtContent += `PROMPT DE MAPEAMENTO PARA INTELIGÊNCIA ARTIFICIAL\n`;
             txtContent += `=================================================================\n`;
-            txtContent += `INSTRUÇÃO PARA A IA: "Você é um assistente de migração de dados. 
-O arquivo abaixo contém a lista completa de ativos de acervo (fotos e vídeos) de um funcionário. 
-Cada registro possui um 'Caminho Local (Rede/Computador)' e um 'Servidor / HD Físico Original'. 
-Caso este usuário queira reconstruir este catálogo em outro sistema ou localizar estes 
-arquivos fisicamente, use estes metadados para mapear a posição exata de cada arquivo 
-nos diretórios corporativos citados."\n`;
+            txtContent += `INSTRUÇÃO PARA A IA: "Você é um especialista em reconstrução de estruturas de dados e arquitetura de arquivos. 
+O arquivo abaixo contém o mapeamento técnico de todos os ativos (fotos e vídeos) registrados por este usuário. 
+Sua missão é ler os campos 'Caminho Local' e 'Servidor / HD Físico Original' para ajudar o usuário a reconstruir 
+exatamente a organização de pastas e volumes que ele utilizava. O foco total é na estrutura física e lógica 
+dos arquivos originais informados nos metadados abaixo para que o catálogo seja recriado com precisão."\n`;
             txtContent += `=================================================================\n\n`;
 
             txtContent += `HISTÓRICO DE ACERVO - RELATÓRIO DE TRANSIÇÃO\n`;
@@ -84,7 +83,6 @@ nos diretórios corporativos citados."\n`;
                     txtContent += `Link do Video (Referência): ${photo.video_url}\n`;
                 }
 
-                txtContent += `URL Preview na Nuvem: ${photo.url}\n`;
                 txtContent += `\n`;
             });
 
