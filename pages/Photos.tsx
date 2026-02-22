@@ -1446,7 +1446,7 @@ const Photos: React.FC = () => {
                         };
 
                         if (previewPhoto.videoUrl) {
-                          shareData.text = `Confira este vídeo: ${previewPhoto.videoUrl}`;
+                          shareData.text = `Conforme combinado, abaixo link do vídeo:\n${previewPhoto.videoUrl}`;
                         }
 
                         if (navigator.share) {
@@ -1463,13 +1463,13 @@ const Photos: React.FC = () => {
                               await navigator.share({
                                 title: previewPhoto.name || 'Foto da Galeria',
                                 text: previewPhoto.videoUrl
-                                  ? `Confira este vídeo: ${previewPhoto.videoUrl}`
+                                  ? `Conforme combinado, abaixo link do vídeo:\n${previewPhoto.videoUrl}`
                                   : `Confira esta foto: ${previewPhoto.name || ''} - ${previewPhoto.url}`
                               });
                             } catch (err) { }
                           } else {
                             const fallbackText = previewPhoto.videoUrl
-                              ? `Confira este vídeo: ${previewPhoto.videoUrl}`
+                              ? `Conforme combinado, abaixo link do vídeo:\n${previewPhoto.videoUrl}`
                               : `Confira: ${previewPhoto.name || ''}\n${previewPhoto.url}`;
                             const text = encodeURIComponent(fallbackText);
                             window.open(`https://wa.me/?text=${text}`, '_blank');
