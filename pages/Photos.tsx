@@ -935,51 +935,60 @@ const Photos: React.FC = () => {
                 Matriz de Filtragem Hierárquica
               </h3>
               <div className={`${showMobileFilters ? 'flex' : 'hidden md:flex'} flex-col gap-0.5 animate-in fade-in duration-300`}>
-                {categories.map((cat) => (
-                  <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-white border border-slate-200 rounded-xl px-1.5 md:px-3 py-0.5 transition-all hover:border-blue-400 hover:shadow-md">
-                    <div className="md:w-36 flex-shrink-0 flex items-center gap-2 mb-1 md:mb-0 border-b md:border-b-0 md:border-r border-slate-100 pb-1 md:pb-0 md:pr-3">
-                      <span className="w-5 h-5 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-sm">
-                        {cat.order}
-                      </span>
-                      <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{cat.name}</h4>
+                {(() => {
+                  const maxSelectedOrder = selectedTagIds.length > 0 ? Math.max(...selectedTagIds.map(sid => {
+                    const t = tags.find(tag => tag.id === sid);
+                    const c = t ? categories.find(cat => cat.id === t.categoryId) : undefined;
+                    return c ? c.order : 0;
+                  })) : 0;
+
+                  return categories.map((cat) => (
+                    <div key={cat.id} className="group relative flex flex-col md:flex-row md:items-center bg-white border border-slate-200 rounded-xl px-1.5 md:px-3 py-0.5 transition-all hover:border-blue-400 hover:shadow-md">
+                      <div className="md:w-36 flex-shrink-0 flex items-center gap-2 mb-1 md:mb-0 border-b md:border-b-0 md:border-r border-slate-100 pb-1 md:pb-0 md:pr-3">
+                        <span className="w-5 h-5 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-sm">
+                          {cat.order}
+                        </span>
+                        <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{cat.name}</h4>
+                      </div>
+
+                      <div className="flex-1 md:pl-4 flex flex-wrap gap-x-0.5 gap-y-0.5 md:gap-x-1.5 md:gap-y-1 py-0.5">
+                        {tags.filter(t => t.categoryId === cat.id).map(tag => {
+                          const isSelected = selectedTagIds.includes(tag.id);
+                          const isAvailable = filteredResult.availableTagsByLevel[cat.order]?.has(tag.id);
+                          const isLineage = !isSelected && filteredResult.activeLineageTags?.has(tag.id) && selectedTagIds.length > 0 && cat.order < maxSelectedOrder;
+
+                          if (!isAvailable && !isSelected) return null;
+
+                          let buttonClasses = 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600';
+                          if (isSelected) {
+                            buttonClasses = 'bg-blue-600 border-blue-600 text-white shadow-md scale-105';
+                          } else if (isLineage) {
+                            // Subtle green border and text, keeping the neutral background
+                            buttonClasses = 'bg-slate-50 border-green-300 text-green-600 hover:bg-white hover:border-green-400 hover:text-green-700';
+                          }
+
+                          return (
+                            <button
+                              key={tag.id}
+                              onClick={() => toggleFilterTag(tag.id)}
+                              style={{
+                                fontSize: `${tagFontSize}px`,
+                                padding: `${Math.round(tagFontSize * 0.22)}px ${Math.round(tagFontSize * 0.55)}px`
+                              }}
+                              className={`rounded-full font-bold border transition-all flex items-center gap-1 ${buttonClasses}`}
+                            >
+                              {isSelected && <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                              {tag.name}
+                            </button>
+                          );
+                        })}
+                        {tags.filter(t => t.categoryId === cat.id).length === 0 && (
+                          <span className="text-[9px] text-slate-300 italic">Sem tags</span>
+                        )}
+                      </div>
                     </div>
-
-                    <div className="flex-1 md:pl-4 flex flex-wrap gap-x-0.5 gap-y-0.5 md:gap-x-1.5 md:gap-y-1 py-0.5">
-                      {tags.filter(t => t.categoryId === cat.id).map(tag => {
-                        const isSelected = selectedTagIds.includes(tag.id);
-                        const isAvailable = filteredResult.availableTagsByLevel[cat.order]?.has(tag.id);
-                        const isLineage = !isSelected && filteredResult.activeLineageTags?.has(tag.id) && selectedTagIds.length > 0;
-
-                        if (!isAvailable && !isSelected) return null;
-
-                        let buttonClasses = 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600';
-                        if (isSelected) {
-                          buttonClasses = 'bg-blue-600 border-blue-600 text-white shadow-md scale-105';
-                        } else if (isLineage) {
-                          buttonClasses = 'bg-green-50 border-green-300 text-green-700 shadow-sm hover:bg-green-100 hover:border-green-400';
-                        }
-
-                        return (
-                          <button
-                            key={tag.id}
-                            onClick={() => toggleFilterTag(tag.id)}
-                            style={{
-                              fontSize: `${tagFontSize}px`,
-                              padding: `${Math.round(tagFontSize * 0.22)}px ${Math.round(tagFontSize * 0.55)}px`
-                            }}
-                            className={`rounded-full font-bold border transition-all flex items-center gap-1 ${buttonClasses}`}
-                          >
-                            {isSelected && <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                            {tag.name}
-                          </button>
-                        );
-                      })}
-                      {tags.filter(t => t.categoryId === cat.id).length === 0 && (
-                        <span className="text-[9px] text-slate-300 italic">Sem tags</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </div>
           </Card>
