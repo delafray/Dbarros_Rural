@@ -1433,6 +1433,27 @@ const Photos: React.FC = () => {
                   <Button
                     onClick={async () => {
                       if (!previewPhoto?.url) return;
+
+                      // Se for vídeo, compartilha diretamente o link original (Instagram/YouTube)
+                      if (previewPhoto.videoUrl) {
+                        try {
+                          if (navigator.share) {
+                            await navigator.share({
+                              title: previewPhoto.name || 'Vídeo',
+                              text: `Confira este vídeo: ${previewPhoto.name ? previewPhoto.name + '\\n' : ''}${previewPhoto.videoUrl}`
+                            });
+                          } else {
+                            throw new Error("Web Share not supported");
+                          }
+                        } catch (error: any) {
+                          if (error.name !== 'AbortError') {
+                            const text = encodeURIComponent(`Confira este vídeo: ${previewPhoto.name ? previewPhoto.name + '\\n' : ''}${previewPhoto.videoUrl}`);
+                            window.open(`https://wa.me/?text=${text}`, '_blank');
+                          }
+                        }
+                        return; // Stop here, do not download image blob
+                      }
+
                       // Attempt to share standard photo first
                       try {
                         const response = await fetch(previewPhoto.url);
