@@ -86,9 +86,20 @@ export const usePhotoFilters = ({ photoIndex, tags, categories }: UsePhotoFilter
             }
         });
 
+        // Calculate Lineage Tags (all tags present in current matching photos)
+        const activeLineageTags = new Set<string>();
+        if (selectedTagIds.length > 0) {
+            currentIds.forEach(p => {
+                if (Array.isArray(p.tagIds)) {
+                    p.tagIds.forEach(tid => activeLineageTags.add(tid));
+                }
+            });
+        }
+
         return {
             ids: currentIds.map(p => p.id),
-            availableTagsByLevel
+            availableTagsByLevel,
+            activeLineageTags
         };
     }, [shuffledPhotoIndex, categories, tags, selectedTagIds, searchTerm, selectedUserId, sortByDate]);
 

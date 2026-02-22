@@ -948,8 +948,16 @@ const Photos: React.FC = () => {
                       {tags.filter(t => t.categoryId === cat.id).map(tag => {
                         const isSelected = selectedTagIds.includes(tag.id);
                         const isAvailable = filteredResult.availableTagsByLevel[cat.order]?.has(tag.id);
+                        const isLineage = !isSelected && filteredResult.activeLineageTags?.has(tag.id) && selectedTagIds.length > 0;
 
                         if (!isAvailable && !isSelected) return null;
+
+                        let buttonClasses = 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600';
+                        if (isSelected) {
+                          buttonClasses = 'bg-blue-600 border-blue-600 text-white shadow-md scale-105';
+                        } else if (isLineage) {
+                          buttonClasses = 'bg-green-50 border-green-300 text-green-700 shadow-sm hover:bg-green-100 hover:border-green-400';
+                        }
 
                         return (
                           <button
@@ -959,10 +967,7 @@ const Photos: React.FC = () => {
                               fontSize: `${tagFontSize}px`,
                               padding: `${Math.round(tagFontSize * 0.22)}px ${Math.round(tagFontSize * 0.55)}px`
                             }}
-                            className={`rounded-full font-bold border transition-all flex items-center gap-1 ${isSelected
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
-                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600'
-                              }`}
+                            className={`rounded-full font-bold border transition-all flex items-center gap-1 ${buttonClasses}`}
                           >
                             {isSelected && <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
                             {tag.name}
