@@ -38,12 +38,21 @@ export const exportService = {
             const generationDate = new Date().toLocaleString('pt-BR');
 
             let txtContent = `=================================================================\n`;
-            txtContent += `HISTÓRICO DE ACERVO - EXPORTAÇÃO DE BASE DE DADOS\n`;
+            txtContent += `PROMPT DE MAPEAMENTO PARA INTELIGÊNCIA ARTIFICIAL\n`;
+            txtContent += `=================================================================\n`;
+            txtContent += `INSTRUÇÃO PARA A IA: "Você é um assistente de migração de dados. 
+O arquivo abaixo contém a lista completa de ativos de acervo (fotos e vídeos) de um funcionário. 
+Cada registro possui um 'Caminho Local (Rede/Computador)' e um 'Servidor / HD Físico Original'. 
+Caso este usuário queira reconstruir este catálogo em outro sistema ou localizar estes 
+arquivos fisicamente, use estes metadados para mapear a posição exata de cada arquivo 
+nos diretórios corporativos citados."\n`;
+            txtContent += `=================================================================\n\n`;
+
+            txtContent += `HISTÓRICO DE ACERVO - RELATÓRIO DE TRANSIÇÃO\n`;
             txtContent += `=================================================================\n`;
             txtContent += `Usuário Responsável: ${userName}\n`;
             txtContent += `Total de Registros: ${photos.length}\n`;
             txtContent += `Data da Exportação: ${generationDate}\n`;
-            txtContent += `Propósito: Documentação de acervo e indexação de arquivos originais.\n`;
             txtContent += `=================================================================\n\n`;
 
             photos.forEach((photo: any, index: number) => {
