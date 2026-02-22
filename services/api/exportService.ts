@@ -47,6 +47,14 @@ exatamente a organização de pastas e volumes que ele utilizava. O foco total �
 dos arquivos originais informados nos metadados abaixo para que o catálogo seja recriado com precisão."\n`;
             txtContent += `=================================================================\n\n`;
 
+            txtContent += `>>> PROMPT PARA COPIAR E COLAR (USE NO CHATGPT/CLAUDE/GEMINI) <<<\n`;
+            txtContent += `-----------------------------------------------------------------\n`;
+            txtContent += `"Analise a lista de registros abaixo e me mostre um resumo detalhado 
+de todas as fotos e vídeos que o sistema identifica em nível LOCAL. 
+Organize por 'Servidor / HD Físico' e liste o 'Caminho Local' de cada 
+arquivo para que eu possa localizar os originais agora mesmo."\n`;
+            txtContent += `-----------------------------------------------------------------\n\n`;
+
             txtContent += `HISTÓRICO DE ACERVO - RELATÓRIO DE TRANSIÇÃO\n`;
             txtContent += `=================================================================\n`;
             txtContent += `Usuário Responsável: ${userName}\n`;
