@@ -1394,21 +1394,13 @@ const Photos: React.FC = () => {
               </button>
             </div>
             <div className="flex flex-wrap justify-center gap-1.5 mt-1 max-w-full overflow-hidden">
-              {previewPhoto?.tagIds.map(tagId => {
-                const tag = tags.find(t => t.id === tagId);
-                const cat = categories.find(c => c.id === tag?.categoryId);
-                return (
-                  <span key={tagId} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase whitespace-nowrap">
-                    {cat?.name}: {tag?.name}
-                  </span>
-                );
-              })}
+              {/* Tags removidas conforme solicitação */}
             </div>
             <div className="flex flex-col items-center gap-2 mt-1 w-full">
               {previewPhoto?.userName && (
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cadastrado por:</span>
-                  <span className="text-[9px] font-bold text-slate-600">{previewPhoto.userName}</span>
+                <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 rounded-xl border border-blue-200 shadow-sm w-full justify-center">
+                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Cadastrado por:</span>
+                  <span className="text-[11px] font-black text-blue-800">{previewPhoto.userName}</span>
                 </div>
               )}
               <div className="flex flex-col items-center gap-2.5 w-full">
