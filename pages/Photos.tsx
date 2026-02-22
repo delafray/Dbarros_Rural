@@ -1434,36 +1434,23 @@ const Photos: React.FC = () => {
                     onClick={async () => {
                       if (!previewPhoto?.url) return;
 
-                      // Se for vídeo, compartilha diretamente o link original (Instagram/YouTube)
-                      if (previewPhoto.videoUrl) {
-                        try {
-                          if (navigator.share) {
-                            await navigator.share({
-                              title: previewPhoto.name || 'Vídeo',
-                              text: `Confira este vídeo: ${previewPhoto.name ? previewPhoto.name + '\\n' : ''}${previewPhoto.videoUrl}`
-                            });
-                          } else {
-                            throw new Error("Web Share not supported");
-                          }
-                        } catch (error: any) {
-                          if (error.name !== 'AbortError') {
-                            const text = encodeURIComponent(`Confira este vídeo: ${previewPhoto.name ? previewPhoto.name + '\\n' : ''}${previewPhoto.videoUrl}`);
-                            window.open(`https://wa.me/?text=${text}`, '_blank');
-                          }
-                        }
-                        return; // Stop here, do not download image blob
-                      }
-
                       // Attempt to share standard photo first
                       try {
                         const response = await fetch(previewPhoto.url);
                         const blob = await response.blob();
                         const file = new File([blob], previewPhoto.name ? `${previewPhoto.name}.jpg` : 'foto.jpg', { type: blob.type || 'image/jpeg' });
+
+                        const shareData: any = {
+                          title: previewPhoto.name || 'Foto da Galeria',
+                          files: [file]
+                        };
+
+                        if (previewPhoto.videoUrl) {
+                          shareData.text = `Confira este vídeo: ${previewPhoto.videoUrl}`;
+                        }
+
                         if (navigator.share) {
-                          await navigator.share({
-                            title: previewPhoto.name || 'Foto da Galeria',
-                            files: [file]
-                          });
+                          await navigator.share(shareData);
                         } else {
                           throw new Error("Web Share not supported");
                         }
@@ -1475,11 +1462,16 @@ const Photos: React.FC = () => {
                             try {
                               await navigator.share({
                                 title: previewPhoto.name || 'Foto da Galeria',
-                                text: `Confira esta foto: ${previewPhoto.name || ''} - ${previewPhoto.url}`
+                                text: previewPhoto.videoUrl
+                                  ? `Confira este vídeo: ${previewPhoto.videoUrl}`
+                                  : `Confira esta foto: ${previewPhoto.name || ''} - ${previewPhoto.url}`
                               });
                             } catch (err) { }
                           } else {
-                            const text = encodeURIComponent(`Confira: ${previewPhoto.name || ''}\n${previewPhoto.url}`);
+                            const fallbackText = previewPhoto.videoUrl
+                              ? `Confira este vídeo: ${previewPhoto.videoUrl}`
+                              : `Confira: ${previewPhoto.name || ''}\n${previewPhoto.url}`;
+                            const text = encodeURIComponent(fallbackText);
                             window.open(`https://wa.me/?text=${text}`, '_blank');
                           }
                         }
