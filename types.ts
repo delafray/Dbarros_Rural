@@ -35,6 +35,7 @@ export interface Photo {
   url: string; // Base64 ou URL da imagem/capa
   tagIds: string[];
   localPath?: string;
+  storageLocation?: string; // Novo campo: Servidor ou HD original
   thumbnailUrl?: string;
   videoUrl?: string; // Link original do Instagram
   createdAt: string;

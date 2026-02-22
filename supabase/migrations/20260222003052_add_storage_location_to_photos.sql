@@ -1,0 +1,1 @@
+ALTER TABLE public.photos ADD COLUMN storage_location text;

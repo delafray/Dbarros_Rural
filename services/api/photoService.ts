@@ -16,6 +16,8 @@ type PhotoIndexRow = {
     video_url: string | null;
     url: string;
     thumbnail_url: string | null;
+    local_path: string | null;
+    storage_location: string | null;
     users: UserRow;
     photo_tags: PhotoTagRow[];
 };
@@ -35,7 +37,7 @@ export const photoService = {
     getPhotoIndex: async (userId: string, onlyMine?: boolean) => {
         let query = supabase
             .from('photos')
-            .select('id,name,user_id,created_at,video_url,url,thumbnail_url,users(name),photo_tags(tag_id)');
+            .select('id,name,user_id,created_at,video_url,url,thumbnail_url,local_path,storage_location,users(name),photo_tags(tag_id)');
 
         if (onlyMine) {
             query = query.eq('user_id', userId);
@@ -55,6 +57,8 @@ export const photoService = {
             videoUrl: row.video_url || undefined,
             url: row.url,
             thumbnailUrl: row.thumbnail_url || undefined,
+            localPath: row.local_path || undefined,
+            storageLocation: row.storage_location || undefined,
             createdAt: row.created_at
         }));
     },
@@ -76,6 +80,8 @@ export const photoService = {
             userName: extractUserName(row.users),
             url: row.url,
             thumbnailUrl: row.thumbnail_url || undefined,
+            localPath: row.local_path || undefined,
+            storageLocation: row.storage_location || undefined,
             videoUrl: row.video_url || undefined,
             tagIds: (row.photo_tags || []).map(pt => pt.tag_id),
             createdAt: row.created_at
@@ -100,6 +106,8 @@ export const photoService = {
             userName: extractUserName(row.users),
             url: row.url,
             thumbnailUrl: row.thumbnail_url || undefined,
+            localPath: row.local_path || undefined,
+            storageLocation: row.storage_location || undefined,
             videoUrl: row.video_url || undefined,
             tagIds: (row.photo_tags || []).map(pt => pt.tag_id),
             createdAt: row.created_at
@@ -131,6 +139,7 @@ export const photoService = {
             url: data.url,
             thumbnail_url: data.thumbnailUrl || null,
             local_path: data.localPath || null,
+            storage_location: data.storageLocation || null,
             video_url: data.videoUrl || null
         };
 
@@ -163,6 +172,7 @@ export const photoService = {
             url: newPhoto.url,
             thumbnailUrl: newPhoto.thumbnail_url || undefined,
             localPath: newPhoto.local_path || undefined,
+            storageLocation: newPhoto.storage_location || undefined,
             videoUrl: newPhoto.video_url || undefined,
             tagIds: tagIds,
             createdAt: newPhoto.created_at
@@ -175,6 +185,7 @@ export const photoService = {
         if (data.url !== undefined) updateData.url = data.url;
         if (data.thumbnailUrl !== undefined) updateData.thumbnail_url = data.thumbnailUrl;
         if (data.localPath !== undefined) updateData.local_path = data.localPath;
+        if (data.storageLocation !== undefined) updateData.storage_location = data.storageLocation;
         if (data.userId !== undefined) updateData.user_id = data.userId;
         if (data.videoUrl !== undefined) updateData.video_url = data.videoUrl;
 
@@ -207,6 +218,7 @@ export const photoService = {
             url: updatedPhoto.url,
             thumbnailUrl: updatedPhoto.thumbnail_url || undefined,
             localPath: updatedPhoto.local_path || undefined,
+            storageLocation: updatedPhoto.storage_location || undefined,
             videoUrl: updatedPhoto.video_url || undefined,
             tagIds: finalTagIds,
             createdAt: updatedPhoto.created_at

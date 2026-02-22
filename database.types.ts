@@ -49,6 +49,7 @@ export type Database = {
           created_at: string
           id: string
           local_path: string | null
+          storage_location: string | null
           name: string
           thumbnail_url: string | null
           url: string
@@ -59,6 +60,7 @@ export type Database = {
           created_at?: string
           id?: string
           local_path?: string | null
+          storage_location?: string | null
           name: string
           thumbnail_url?: string | null
           url: string
@@ -69,6 +71,7 @@ export type Database = {
           created_at?: string
           id?: string
           local_path?: string | null
+          storage_location?: string | null
           name?: string
           thumbnail_url?: string | null
           url?: string

@@ -253,6 +253,7 @@ const Photos: React.FC = () => {
     thumbnailUrl: '',
     tagIds: [] as string[],
     localPath: '',
+    storageLocation: '', // Servidor ou HD original
     videoUrl: '', // Link original do Instagram
     userId: '', // Author
     selectedFile: null as File | null
@@ -406,6 +407,7 @@ const Photos: React.FC = () => {
         thumbnailUrl: photo.thumbnailUrl || '',
         tagIds: photo.tagIds || [],
         localPath: photo.localPath || '',
+        storageLocation: photo.storageLocation || '',
         videoUrl: photo.videoUrl || '',
         userId: photo.userId, // Pass the selected author
         selectedFile: null
@@ -418,6 +420,7 @@ const Photos: React.FC = () => {
         thumbnailUrl: '',
         tagIds: [],
         localPath: '',
+        storageLocation: '',
         videoUrl: '',
         userId: user?.id || '', // Default to current user
         selectedFile: null
@@ -1144,7 +1147,7 @@ const Photos: React.FC = () => {
                   placeholder="Título do Registro..."
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="flex-1 min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
+                  className="flex-[1.5] min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
                   required
                 />
                 <input
@@ -1152,6 +1155,13 @@ const Photos: React.FC = () => {
                   value={formData.localPath}
                   onChange={e => setFormData({ ...formData, localPath: e.target.value })}
                   className="hidden sm:block flex-1 min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
+                />
+                <input
+                  placeholder="Servidor / HD..."
+                  title="Servidor ou HD Externo onde está o arquivo original da foto/vídeo"
+                  value={formData.storageLocation}
+                  onChange={e => setFormData({ ...formData, storageLocation: e.target.value })}
+                  className="hidden md:block flex-[0.8] min-w-0 bg-white border-2 border-green-400 rounded-lg px-2.5 py-1 text-[11px] font-mono text-green-800 placeholder:text-slate-400 focus:ring-2 focus:ring-green-500 shadow-sm outline-none transition-all"
                 />
               </div>
             </div>
@@ -1415,6 +1425,12 @@ const Photos: React.FC = () => {
                 <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 rounded-xl border border-blue-200 shadow-sm w-full justify-center">
                   <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Cadastrado por:</span>
                   <span className="text-[11px] font-black text-blue-800">{previewPhoto.userName}</span>
+                </div>
+              )}
+              {previewPhoto?.storageLocation && (
+                <div className="flex items-center gap-2 px-5 py-2.5 bg-green-50 rounded-xl border border-green-200 shadow-sm w-full justify-center mt-1">
+                  <span className="text-[9px] font-black text-green-600 uppercase tracking-widest">Servidor/HD Original:</span>
+                  <span className="text-[11px] font-black text-green-800">{previewPhoto.storageLocation}</span>
                 </div>
               )}
               <div className="flex flex-col items-center gap-2.5 w-full">
