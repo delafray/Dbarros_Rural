@@ -1456,8 +1456,8 @@ const Photos: React.FC = () => {
                     Compartilhar (WhatsApp)
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => previewPhoto?.url && openFullscreen(previewPhoto.url)} className="flex items-center justify-center w-full gap-2 py-3 px-6 text-[11px] font-black uppercase tracking-widest bg-white shadow-sm border border-slate-200">
-                  <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <Button onClick={() => previewPhoto?.url && openFullscreen(previewPhoto.url)} className="flex items-center justify-center w-full gap-2 py-3 px-6 text-[11px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 border-none transition-all">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                   </svg>
                   Ver em Tela Cheia
