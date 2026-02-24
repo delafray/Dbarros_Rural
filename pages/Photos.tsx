@@ -144,12 +144,14 @@ const Photos: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [fsUrl]);
 
-  // Detect image orientation and try to lock screen orientation
+  // Detect image orientation and try to lock screen orientation (somente no celular)
   const handleFsImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
     const landscape = naturalWidth > naturalHeight;
     setFsIsLandscape(landscape);
-    try { (screen.orientation as any)?.lock?.(landscape ? 'landscape' : 'portrait').catch(() => { }); } catch { }
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      try { (screen.orientation as any)?.lock?.(landscape ? 'landscape' : 'portrait').catch(() => { }); } catch { }
+    }
   }, []);
 
   // Imperative non-passive touch handler (React synthetic events are passive by default)
@@ -206,8 +208,8 @@ const Photos: React.FC = () => {
     setFsZoom(z => Math.min(10, Math.max(1, z - e.deltaY * 0.001 * z)));
   }, []);
 
-  // CSS counter-rotation: if image orientation doesn't match screen orientation, rotate 90deg
-  const fsNeedsRotation = fsIsLandscape !== null && fsIsLandscape !== fsScreenLandscape;
+  // CSS counter-rotation: if image orientation doesn't match screen orientation, rotate 90deg (apenas no celular)
+  const fsNeedsRotation = typeof window !== 'undefined' && window.innerWidth < 768 && fsIsLandscape !== null && fsIsLandscape !== fsScreenLandscape;
 
 
   const [videoPreviewDataUrl, setVideoPreviewDataUrl] = useState<string>(''); // Compressed thumbnail preview for video mode
