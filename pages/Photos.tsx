@@ -1447,8 +1447,14 @@ const Photos: React.FC = () => {
                           files: [file]
                         };
 
+                        const defaultMsg = previewPhoto.name
+                          ? `Conforme combinado, segue arquivo referente a "${previewPhoto.name}" para referência.`
+                          : `Conforme combinado, segue arquivo para referência.`;
+
                         if (previewPhoto.videoUrl) {
-                          shareData.text = `Conforme combinado, abaixo link do vídeo:\n${previewPhoto.videoUrl}`;
+                          shareData.text = `${defaultMsg}\nLink do vídeo: ${previewPhoto.videoUrl}`;
+                        } else {
+                          shareData.text = defaultMsg;
                         }
 
                         if (navigator.share) {
@@ -1460,19 +1466,23 @@ const Photos: React.FC = () => {
                         console.error("Erro ao compartilhar imagem:", error);
                         // Fallback: compartilha URL via share se suportado ou WhatsApp Web
                         if (error.name !== 'AbortError') {
+                          const fallbackMsg = previewPhoto.name
+                            ? `Conforme combinado, segue arquivo referente a "${previewPhoto.name}" para referência.`
+                            : `Conforme combinado, segue arquivo para referência.`;
+
                           if (navigator.share) {
                             try {
                               await navigator.share({
                                 title: previewPhoto.name || 'Foto da Galeria',
                                 text: previewPhoto.videoUrl
-                                  ? `Conforme combinado, abaixo link do vídeo:\n${previewPhoto.videoUrl}`
-                                  : `Confira esta foto: ${previewPhoto.name || ''} - ${previewPhoto.url}`
+                                  ? `${fallbackMsg}\nLink do vídeo: ${previewPhoto.videoUrl}`
+                                  : `${fallbackMsg}\nLink: ${previewPhoto.url}`
                               });
                             } catch (err) { }
                           } else {
                             const fallbackText = previewPhoto.videoUrl
-                              ? `Conforme combinado, abaixo link do vídeo:\n${previewPhoto.videoUrl}`
-                              : `Confira: ${previewPhoto.name || ''}\n${previewPhoto.url}`;
+                              ? `${fallbackMsg}\nLink do vídeo: ${previewPhoto.videoUrl}`
+                              : `${fallbackMsg}\nLink: ${previewPhoto.url}`;
                             const text = encodeURIComponent(fallbackText);
                             window.open(`https://wa.me/?text=${text}`, '_blank');
                           }
