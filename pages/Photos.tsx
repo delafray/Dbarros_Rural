@@ -1457,10 +1457,14 @@ const Photos: React.FC = () => {
                           shareData.text = defaultMsg;
                         }
 
-                        if (navigator.share) {
+                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                        if (navigator.share && isMobile) {
                           await navigator.share(shareData);
                         } else {
-                          throw new Error("Web Share not supported");
+                          // Força fallback no Desktop, porque o 'navigator.share' com arquivos no PC
+                          // costuma perder o texto quando enviado para o WhatsApp Desktop.
+                          throw new Error("Web Share bypassed on Desktop for WhatsApp reliability");
                         }
                       } catch (error: any) {
                         console.error("Erro ao compartilhar imagem:", error);
@@ -1469,8 +1473,9 @@ const Photos: React.FC = () => {
                           const fallbackMsg = previewPhoto.name
                             ? `Conforme combinado, segue arquivo referente a "${previewPhoto.name}" para referência.`
                             : `Conforme combinado, segue arquivo para referência.`;
+                          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-                          if (navigator.share) {
+                          if (navigator.share && isMobile) {
                             try {
                               await navigator.share({
                                 title: previewPhoto.name || 'Foto da Galeria',
@@ -1480,11 +1485,16 @@ const Photos: React.FC = () => {
                               });
                             } catch (err) { }
                           } else {
+                            try { await navigator.clipboard.writeText(fallbackMsg); } catch (e) { }
+                            showAlert('Compartilhar no PC', 'Atenção. Você será redirecionado ao WhatsApp Web/Desktop. Caso prefira enviar a imagem em anexo, basta baixá-la na tela anterior. Mas não se preocupe, a MENSAGEM PADRÃO FOI COPIADA para enviar agora dando um Ctrl+V (Colar)!', 'info');
+
                             const fallbackText = previewPhoto.videoUrl
                               ? `${fallbackMsg}\nLink do vídeo: ${previewPhoto.videoUrl}`
                               : `${fallbackMsg}\nLink: ${previewPhoto.url}`;
                             const text = encodeURIComponent(fallbackText);
-                            window.open(`https://wa.me/?text=${text}`, '_blank');
+                            setTimeout(() => {
+                              window.open(`https://wa.me/?text=${text}`, '_blank');
+                            }, 500);
                           }
                         }
                       }
@@ -1717,10 +1727,20 @@ const Photos: React.FC = () => {
                   onClick={async () => {
                     if (!pdfActionModal.blob) return;
                     const pdfFile = new File([pdfActionModal.blob], pdfActionModal.fileName, { type: 'application/pdf' });
+                    const txtToShare = 'Conforme combinado, segue arquivo para referência.';
+
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
                     try {
+                      if (!isMobile) {
+                        // No computador, o share com arquivos apaga o texto no WhatsApp Desktop
+                        try { await navigator.clipboard.writeText(txtToShare); } catch (e) { }
+                        showAlert('Texto Copiado!', 'Por limitação do WhatsApp Desktop, a mensagem padrão pode não aparecer automaticamente junto do PDF. Mas não se preocupe, o texto já foi COPIADO para a sua área de transferência. Basta clicar Ctrl+V quando abrir a tela de envio!', 'info');
+                      }
+
                       await navigator.share({
                         title: 'Galeria de Fotos',
-                        text: 'PDF gerado pela Galeria de Fotos.',
+                        text: txtToShare,
                         files: [pdfFile]
                       });
                     } catch (e) {
