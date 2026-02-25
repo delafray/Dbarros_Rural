@@ -359,7 +359,12 @@ const PlanilhaVendas: React.FC = () => {
                                     className={`${cat?.cor || 'bg-white'} border-b border-slate-300 hover:brightness-95`}
                                 >
                                     {/* Stand nº */}
-                                    <td className={`${tdStyle} px-2 py-0 text-center font-bold whitespace-nowrap`}>
+                                    <td className={`${tdStyle} px-2 py-0 text-center font-bold whitespace-nowrap relative`}>
+                                        {cat?.tag && (
+                                            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[8px] text-slate-500/70 font-normal uppercase tracking-tighter pointer-events-none">
+                                                {cat.tag}
+                                            </span>
+                                        )}
                                         {row.stand_nr}
                                     </td>
 
