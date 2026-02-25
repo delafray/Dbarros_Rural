@@ -14,6 +14,7 @@ import CadastroEvento from './pages/CadastroEvento';
 import TempPlanilha from './pages/TempPlanilha';
 import ConfiguracaoVendas from './pages/ConfiguracaoVendas';
 import ItensOpcionais from './pages/ItensOpcionais';
+import Dashboard from './pages/Dashboard';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -36,6 +37,8 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
 
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+
         <Route path="/fotos" element={<ProtectedRoute><Photos /></ProtectedRoute>} />
         {/* Novas rotas de clientes */}
         <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
@@ -52,7 +55,7 @@ const App: React.FC = () => {
 
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
 
-        <Route path="/" element={<Navigate to="/fotos" />} />
+        <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
     </HashRouter>
   );

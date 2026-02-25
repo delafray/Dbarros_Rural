@@ -196,6 +196,7 @@ export type Database = {
           created_at: string | null
           id: string
           nome: string
+          contato_principal: string | null
           promotor_email: string | null
           promotor_endereco: string | null
           promotor_nome: string | null
@@ -207,6 +208,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           nome: string
+          contato_principal?: string | null
           promotor_email?: string | null
           promotor_endereco?: string | null
           promotor_nome?: string | null
@@ -218,6 +220,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           nome?: string
+          contato_principal?: string | null
           promotor_email?: string | null
           promotor_endereco?: string | null
           promotor_nome?: string | null
@@ -230,6 +233,7 @@ export type Database = {
       eventos_edicoes: {
         Row: {
           ano: number
+          ativo: boolean
           created_at: string | null
           data_fim: string | null
           data_inicio: string | null
@@ -246,6 +250,7 @@ export type Database = {
         }
         Insert: {
           ano: number
+          ativo?: boolean
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string | null
@@ -262,6 +267,7 @@ export type Database = {
         }
         Update: {
           ano?: number
+          ativo?: boolean
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string | null

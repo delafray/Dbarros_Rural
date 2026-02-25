@@ -30,7 +30,9 @@ export const eventosService = {
         const { data: { user } } = await supabase.auth.getUser();
 
         const payload = { ...evento };
-        if (user) payload.user_id = user.id;
+        if (!evento.id && user) {
+            payload.user_id = user.id;
+        }
 
         if (evento.id) {
             const { data, error } = await supabase
@@ -60,6 +62,22 @@ export const eventosService = {
         if (error) throw error;
     },
 
+    async getActiveEdicoes() {
+        const { data, error } = await supabase
+            .from('eventos_edicoes')
+            .select(`
+                *,
+                eventos ( nome )
+            `)
+            .eq('ativo', true)
+            .order('data_inicio', { ascending: true }); // Ordena por data_inicio crescente (as mais próximas primeiro)
+
+        if (error) throw error;
+
+        // Formata o retorno para incluir o nome do evento raiz caso necessário, ou apenas os dados da edição.
+        return data as (EventoEdicao & { eventos: { nome: string } | null })[];
+    },
+
     async getEdicoes(eventoId: string) {
         const { data, error } = await supabase
             .from('eventos_edicoes')
@@ -71,11 +89,24 @@ export const eventosService = {
         return data as EventoEdicao[];
     },
 
+    async getEdicaoById(id: string) {
+        const { data, error } = await supabase
+            .from('eventos_edicoes')
+            .select('*, eventos(nome)')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        return data as (EventoEdicao & { eventos: { nome: string } | null });
+    },
+
     async saveEdicao(edicao: Partial<EventoEdicao>) {
         const { data: { user } } = await supabase.auth.getUser();
 
         const payload = { ...edicao };
-        if (user) payload.user_id = user.id;
+        if (!edicao.id && user) {
+            payload.user_id = user.id;
+        }
 
         if (edicao.id) {
             const { data, error } = await supabase

@@ -13,6 +13,7 @@ export interface CategoriaSetup {
     count: number;
     standBase?: number;
     combos?: number[];
+    comboNames?: string[]; // Nomes customizados pros combos (usualmente salvo só no index 0)
     ordem?: number;
 }
 
@@ -122,21 +123,13 @@ export const planilhaVendasService = {
 
         const toInsert: PlanilhaEstandeInsert[] = [];
         const toDelete: string[] = [];
+        const validStandNrs = new Set<string>();
 
+        // Mapeia todos os estandes que DEVEM existir, e decide quem será inserido
         for (const cat of categorias) {
-            const id = (cat.prefix || cat.tag || '').trim();
-
-            // Busca estandes que pertencem a esta categoria
-            const existingForCat = (existentes || [])
-                .filter(e => {
-                    if (!id) return false;
-                    return e.stand_nr === id || e.stand_nr.startsWith(`${id} `);
-                })
-                .sort((a, b) => a.stand_nr.localeCompare(b.stand_nr, undefined, { numeric: true }));
-
-            // Insert missing stands
             for (let i = 1; i <= cat.count; i++) {
                 const standNr = planilhaVendasService.buildStandNr(cat, i);
+                validStandNrs.add(standNr);
                 if (!existentesMap.has(standNr)) {
                     toInsert.push({
                         config_id: configId,
@@ -148,20 +141,22 @@ export const planilhaVendasService = {
                     });
                 }
             }
-
-            // Delete stands beyond count that have no data
-            if (existingForCat.length > cat.count) {
-                const excedentes = existingForCat.slice(cat.count);
-                excedentes.forEach(e => {
-                    const isEmpty =
-                        !e.cliente_id &&
-                        !e.cliente_nome_livre &&
-                        e.tipo_venda === 'DISPONÍVEL' &&
-                        (!e.opcionais_selecionados || Object.keys(e.opcionais_selecionados as object).length === 0);
-                    if (isEmpty) toDelete.push(e.id);
-                });
-            }
         }
+
+        // Identifica estandes EXISTENTES que não estão no mapeamento de válidos (são órfãos/excedentes)
+        (existentes || []).forEach(e => {
+            if (!validStandNrs.has(e.stand_nr)) {
+                // Remove-os apenas se estiverem sem dados
+                const isEmpty =
+                    !e.cliente_id &&
+                    !e.cliente_nome_livre &&
+                    e.tipo_venda === 'DISPONÍVEL' &&
+                    (!e.opcionais_selecionados || Object.keys(e.opcionais_selecionados as object).length === 0);
+                if (isEmpty) {
+                    toDelete.push(e.id);
+                }
+            }
+        });
 
         if (toInsert.length > 0) {
             const { error: insertError } = await supabase

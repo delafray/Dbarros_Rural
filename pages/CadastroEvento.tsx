@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Button } from '../components/UI';
+import { Button, Input } from '../components/UI';
+import { useAppDialog } from '../context/DialogContext';
 import { eventosService, Evento, EventoEdicao } from '../services/eventosService';
 
 type TabType = 'dados' | 'edicoes';
@@ -13,6 +14,7 @@ const CadastroEvento: React.FC = () => {
     const [eventoId, setEventoId] = useState<string | null>(id || null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const appDialog = useAppDialog();
 
     const [dados, setDados] = useState<Partial<Evento>>({
         nome: '',
@@ -20,7 +22,8 @@ const CadastroEvento: React.FC = () => {
         promotor_email: '',
         promotor_telefone: '',
         promotor_endereco: '',
-        promotor_redes_sociais: {}
+        promotor_redes_sociais: {},
+        contato_principal: '',
     });
 
     const [edicoes, setEdicoes] = useState<EventoEdicao[]>([]);
@@ -67,13 +70,28 @@ const CadastroEvento: React.FC = () => {
             setEventoId(savedEvento.id);
             setDados(savedEvento);
 
+            // UX Fix: If the user is editing an Edition but clicks the main bottom "Save" button,
+            // we should also save the ongoing edition work so it's not discarded.
+            if (activeTab === 'edicoes' && editingEdicao) {
+                if (!editingEdicao.ano || !editingEdicao.titulo) {
+                    alert('Os dados do Evento foram salvos.\n\nA Edição em andamento NÃO pôde ser salva pois o Ano e o Título são obrigatórios. Por favor, preencha-os e clique em "Salvar Edição".');
+                } else {
+                    await eventosService.saveEdicao({
+                        ...editingEdicao,
+                        evento_id: savedEvento.id
+                    });
+                    await fetchEdicoes(savedEvento.id);
+                    setEditingEdicao(null);
+                }
+            }
+
             if (!id) {
                 navigate(`/eventos/editar/${savedEvento.id}`, { replace: true });
             }
-            alert('Evento salvo com sucesso!');
+            alert('Salvamento concluído com sucesso!');
         } catch (error) {
             console.error('Erro ao salvar evento:', error);
-            alert('Erro ao salvar evento.');
+            alert('Erro ao salvar os dados.');
         } finally {
             setIsSaving(false);
         }
@@ -123,13 +141,39 @@ const CadastroEvento: React.FC = () => {
         }
     };
 
+    const handleToggleEdicaoStatus = async (edicao: EventoEdicao) => {
+        const novoStatus = edicao.ativo !== false ? 'INATIVO' : 'ATIVO';
+        const isAtivando = novoStatus === 'ATIVO';
+
+        const confirmed = await appDialog.confirm({
+            title: `Alterar Status: ${novoStatus} `,
+            message: `Deseja realmente alterar o status desta edição para ${novoStatus}?`,
+            confirmText: isAtivando ? 'Sim, Ativar' : 'Sim, Inativar',
+            type: isAtivando ? 'success' : 'warning'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            setIsSaving(true);
+            await eventosService.saveEdicao({ id: edicao.id, ativo: isAtivando });
+            if (eventoId) await fetchEdicoes(eventoId);
+            await appDialog.alert({ title: 'Status Atualizado', message: `A edição agora está ${novoStatus}.`, type: 'success' });
+        } catch (error) {
+            console.error('Erro ao alterar status da edição:', error);
+            await appDialog.alert({ title: 'Erro', message: 'Não foi possível alterar o status desta edição.', type: 'danger' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const isTabLocked = (tab: TabType) => {
         return tab === 'edicoes' && !eventoId;
     };
 
     return (
         <Layout
-            title={id ? `Editar: ${dados.nome}` : "Novo Evento"}
+            title={id ? `Editar: ${dados.nome} ` : "Novo Evento"}
             headerActions={
                 <Button variant="secondary" onClick={() => navigate('/eventos')}>
                     Voltar
@@ -193,6 +237,17 @@ const CadastroEvento: React.FC = () => {
                                             placeholder="Nome do responsável ou empresa organizadora"
                                         />
                                     </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Contato Principal</label>
+                                        <input
+                                            name="contato_principal"
+                                            value={dados.contato_principal || ''}
+                                            onChange={handleInputChange}
+                                            type="text"
+                                            className="w-full border border-slate-300 rounded-none px-3 py-1.5 text-[13px] focus:ring-1 focus:ring-blue-500 outline-none"
+                                            placeholder="Nome do contato"
+                                        />
+                                    </div>
                                     <div>
                                         <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">E-mail</label>
                                         <input
@@ -236,8 +291,17 @@ const CadastroEvento: React.FC = () => {
                             {editingEdicao ? (
                                 <div className="border border-blue-200 bg-blue-50/30 p-4 space-y-4">
                                     <div className="flex justify-between items-center border-b border-blue-200 pb-2 mb-4">
-                                        <h3 className="text-[12px] font-black uppercase text-blue-700">
-                                            {editingEdicao.id ? `Editando Edição: ${editingEdicao.ano}` : 'Nova Edição'}
+                                        <h3 className="text-[12px] font-black uppercase text-blue-700 flex items-center gap-3">
+                                            {editingEdicao.id ? `Editando Edição: ${editingEdicao.ano} ` : 'Nova Edição'}
+                                            <label className="flex items-center cursor-pointer gap-1.5 ml-4 bg-white px-2 py-1 rounded border border-blue-100 shadow-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editingEdicao.ativo !== false}
+                                                    onChange={e => setEditingEdicao({ ...editingEdicao, ativo: e.target.checked })}
+                                                    className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                                                />
+                                                <span className="text-[10px] font-bold text-slate-600 uppercase mt-0.5">Ativo</span>
+                                            </label>
                                         </h3>
                                         <div className="flex gap-2">
                                             <Button size="sm" variant="secondary" onClick={() => setEditingEdicao(null)}>Cancelar</Button>
@@ -262,7 +326,7 @@ const CadastroEvento: React.FC = () => {
                                                 value={editingEdicao.titulo || ''}
                                                 onChange={e => setEditingEdicao({ ...editingEdicao, titulo: e.target.value })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none font-bold"
-                                                placeholder={`Ex: ${dados.nome} ${editingEdicao.ano || ''}`}
+                                                placeholder={`Ex: ${dados.nome} ${editingEdicao.ano || ''} `}
                                             />
                                         </div>
                                         <div className="md:col-span-2">
@@ -352,7 +416,7 @@ const CadastroEvento: React.FC = () => {
                                             <input
                                                 type="date"
                                                 value={editingEdicao.montagem_inicio ? editingEdicao.montagem_inicio.split('T')[0] : ''}
-                                                onChange={e => setEditingEdicao({ ...editingEdicao, montagem_inicio: e.target.value ? `${e.target.value}T10:00:00Z` : null })}
+                                                onChange={e => setEditingEdicao({ ...editingEdicao, montagem_inicio: e.target.value ? `${e.target.value} T10:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
                                             />
                                         </div>
@@ -361,7 +425,7 @@ const CadastroEvento: React.FC = () => {
                                             <input
                                                 type="date"
                                                 value={editingEdicao.montagem_fim ? editingEdicao.montagem_fim.split('T')[0] : ''}
-                                                onChange={e => setEditingEdicao({ ...editingEdicao, montagem_fim: e.target.value ? `${e.target.value}T18:00:00Z` : null })}
+                                                onChange={e => setEditingEdicao({ ...editingEdicao, montagem_fim: e.target.value ? `${e.target.value} T18:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
                                             />
                                         </div>
@@ -370,7 +434,7 @@ const CadastroEvento: React.FC = () => {
                                             <input
                                                 type="date"
                                                 value={editingEdicao.desmontagem_inicio ? editingEdicao.desmontagem_inicio.split('T')[0] : ''}
-                                                onChange={e => setEditingEdicao({ ...editingEdicao, desmontagem_inicio: e.target.value ? `${e.target.value}T10:00:00Z` : null })}
+                                                onChange={e => setEditingEdicao({ ...editingEdicao, desmontagem_inicio: e.target.value ? `${e.target.value} T10:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
                                             />
                                         </div>
@@ -379,7 +443,7 @@ const CadastroEvento: React.FC = () => {
                                             <input
                                                 type="date"
                                                 value={editingEdicao.desmontagem_fim ? editingEdicao.desmontagem_fim.split('T')[0] : ''}
-                                                onChange={e => setEditingEdicao({ ...editingEdicao, desmontagem_fim: e.target.value ? `${e.target.value}T18:00:00Z` : null })}
+                                                onChange={e => setEditingEdicao({ ...editingEdicao, desmontagem_fim: e.target.value ? `${e.target.value} T18:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
                                             />
                                         </div>
@@ -389,7 +453,7 @@ const CadastroEvento: React.FC = () => {
                                 <>
                                     <div className="flex justify-between items-center mb-4">
                                         <h3 className="text-[12px] font-bold text-slate-700 uppercase">Lista de Edições (Anuais)</h3>
-                                        <Button size="sm" onClick={() => setEditingEdicao({ ano: new Date().getFullYear(), titulo: `${dados.nome} ${new Date().getFullYear()}` })} isLoading={isSaving}>
+                                        <Button size="sm" onClick={() => setEditingEdicao({ ano: new Date().getFullYear(), titulo: `${dados.nome} ${new Date().getFullYear()} `, ativo: true })} isLoading={isSaving}>
                                             Adicionar Edição
                                         </Button>
                                     </div>
@@ -402,6 +466,7 @@ const CadastroEvento: React.FC = () => {
                                                     <th className="px-3 py-1 border-b border-r border-slate-300 text-left">Título da Edição</th>
                                                     <th className="px-3 py-1 border-b border-r border-slate-300 text-left">Local</th>
                                                     <th className="px-3 py-1 border-b border-r border-slate-300 text-left">Período</th>
+                                                    <th className="px-3 py-1 border-b border-r border-slate-300 text-center">Status</th>
                                                     <th className="px-3 py-1 border-b border-slate-300 text-right">Ações</th>
                                                 </tr>
                                             </thead>
@@ -418,6 +483,15 @@ const CadastroEvento: React.FC = () => {
                                                             <td className="px-3 py-1 border-b border-r border-slate-300">{ed.local_resumido || '-'}</td>
                                                             <td className="px-3 py-1 border-b border-r border-slate-300">
                                                                 {ed.data_inicio ? new Date(ed.data_inicio).toLocaleDateString('pt-BR') : '-'} a {ed.data_fim ? new Date(ed.data_fim).toLocaleDateString('pt-BR') : '-'}
+                                                            </td>
+                                                            <td className="px-3 py-1 border-b border-r border-slate-300 text-center">
+                                                                <button
+                                                                    onClick={() => handleToggleEdicaoStatus(ed)}
+                                                                    className={`px - 2 py - 0.5 rounded - full text - [9px] font - black tracking - widest uppercase transition - colors hover: brightness - 95 cursor - pointer ${ed.ativo !== false ? 'bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600' : 'bg-red-100 text-red-700 hover:bg-green-50 hover:text-green-600'} `}
+                                                                    title="Clique para alterar o status"
+                                                                >
+                                                                    {ed.ativo !== false ? 'ATIVO' : 'INATIVO'}
+                                                                </button>
                                                             </td>
                                                             <td className="px-3 py-1 border-b border-slate-300 text-right">
                                                                 <div className="flex justify-end gap-1 items-center">
@@ -469,12 +543,12 @@ const CadastroEvento: React.FC = () => {
                 </div>
 
                 {/* Footer Barra de Ações */}
-                <div className="p-4 bg-slate-50 border-t border-slate-300 flex justify-end gap-3">
+                <div className="p-4 bg-slate-50 border-t border-slate-300 flex justify-end gap-3 transition-opacity">
                     <Button variant="secondary" onClick={() => navigate('/eventos')}>
-                        Cancelar
+                        {activeTab === 'edicoes' ? 'Voltar para Lista' : 'Cancelar'}
                     </Button>
                     <Button onClick={handleSaveEvento} isLoading={isSaving} className="bg-green-600 hover:bg-green-700">
-                        {id ? 'Salvar Alterações' : 'Criar Evento'}
+                        {activeTab === 'edicoes' && editingEdicao ? 'Salvar Tudo (Evento e Edição)' : (id ? 'Salvar Alterações do Evento' : 'Criar Evento')}
                     </Button>
                 </div>
             </div>
