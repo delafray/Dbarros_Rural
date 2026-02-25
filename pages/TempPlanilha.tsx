@@ -251,7 +251,7 @@ const PlanilhaVendas: React.FC = () => {
     if (loading) return <Layout title="Planilha"><div className="p-8 text-center">Carregando dados da planilha...</div></Layout>;
 
     const thStyle = "border border-slate-300 px-1 py-1 text-[11px] font-normal uppercase whitespace-nowrap text-white text-center bg-[#1F497D]";
-    const tdStyle = "border border-slate-300 text-[12px] px-2 py-0.5 whitespace-nowrap";
+    const tdStyle = "border border-slate-300 text-[12px] px-2 py-0 whitespace-nowrap";
 
     return (
         <Layout
@@ -282,11 +282,11 @@ const PlanilhaVendas: React.FC = () => {
                             {opcionaisAtivos.map(o => (
                                 <th key={o.id} className="border border-white/10 text-[8px] text-slate-500 font-normal uppercase leading-none"></th>
                             ))}
-                            <th className="border border-white/10 px-2 py-1 text-right text-[10px] text-slate-400 font-normal uppercase">SubTotal</th>
-                            <th className="border border-white/10 px-2 py-1 text-center text-[10px] text-yellow-600/80 font-normal uppercase">Desconto</th>
-                            <th className="border border-white/10 px-2 py-1 text-right text-[11px] text-slate-300 font-bold uppercase bg-slate-800/40">Total Vendas</th>
-                            <th className="border border-white/10 px-2 py-1 text-right text-[11px] text-green-500/80 font-bold uppercase bg-slate-800/40">Pago</th>
-                            <th className="border border-white/10 px-2 py-1 text-right text-[11px] text-red-500/80 font-bold uppercase bg-slate-800/40">Pendente</th>
+                            <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-slate-400 font-bold uppercase">SubTotal</th>
+                            <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-yellow-500/90 font-bold uppercase">Desconto</th>
+                            <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-white font-bold uppercase bg-slate-800/40">Total Vendas</th>
+                            <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-green-400 font-bold uppercase bg-slate-800/40">Pago</th>
+                            <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-red-400 font-bold uppercase bg-slate-800/40">Pendente</th>
                         </tr>
 
                         {/* ── Row 2: Summary Values ── */}
@@ -307,11 +307,11 @@ const PlanilhaVendas: React.FC = () => {
                                     {summary.optCounts[o.nome] || 0}
                                 </th>
                             ))}
-                            <th className="border border-white/10 px-2 py-0.5 text-right text-[11px] font-mono text-slate-400">{formatMoney(totals.subTotal)}</th>
-                            <th className="border border-white/10 px-2 py-0.5 text-right text-[11px] font-mono text-yellow-400">{formatMoney(totals.desconto)}</th>
-                            <th className="border border-white/10 px-2 py-1 text-right text-[12px] font-mono font-black text-white bg-slate-700/60">{formatMoney(totals.totalVenda)}</th>
-                            <th className="border border-white/10 px-2 py-1 text-right text-[12px] font-mono font-black text-green-400 bg-slate-700/60">{formatMoney(totals.valorPago)}</th>
-                            <th className="border border-white/10 px-2 py-1 text-right text-[12px] font-mono font-black text-red-400 bg-slate-700/60">{formatMoney(totals.pendente)}</th>
+                            <th className={`${thStyle} text-right font-mono`}>{formatMoney(totals.subTotal)}</th>
+                            <th className={`${thStyle} text-right font-mono text-yellow-400`}>{formatMoney(totals.desconto)}</th>
+                            <th className={`${thStyle} text-right font-mono font-black text-white bg-slate-700/60 text-[12px]`}>{formatMoney(totals.totalVenda)}</th>
+                            <th className={`${thStyle} text-right font-mono font-black text-green-400 bg-slate-700/60 text-[12px]`}>{formatMoney(totals.valorPago)}</th>
+                            <th className={`${thStyle} text-right font-mono font-black text-red-400 bg-slate-700/60 text-[12px]`}>{formatMoney(totals.pendente)}</th>
                         </tr>
 
                         {/* ── Row 3: Column headers (Excel Style) ── */}
@@ -332,11 +332,11 @@ const PlanilhaVendas: React.FC = () => {
                                     </div>
                                 </th>
                             ))}
-                            <th className={`${thStyle} text-right`}>SubTotal</th>
-                            <th className={`${thStyle} text-[10px]`}>Desconto</th>
-                            <th className={`${thStyle} text-right`}>TOTAL</th>
-                            <th className={`${thStyle} bg-[#385723] text-right`}>PAGO</th>
-                            <th className={`${thStyle} bg-[#C00000] text-right`}>PENDENTE</th>
+                            <th className={`${thStyle}`}>SubTotal</th>
+                            <th className={`${thStyle}`}>Desconto</th>
+                            <th className={`${thStyle}`}>TOTAL</th>
+                            <th className={`${thStyle} bg-[#385723]`}>PAGO</th>
+                            <th className={`${thStyle} bg-[#C00000]`}>PENDENTE</th>
                         </tr>
                     </thead>
 
@@ -352,13 +352,13 @@ const PlanilhaVendas: React.FC = () => {
                                     className={`${cat?.cor || 'bg-white'} border-b border-slate-300 hover:brightness-95`}
                                 >
                                     {/* Stand nº */}
-                                    <td className={`${tdStyle} px-2 py-1 text-center font-bold whitespace-nowrap`}>
+                                    <td className={`${tdStyle} px-2 py-0 text-center font-bold whitespace-nowrap`}>
                                         {row.stand_nr}
                                     </td>
 
                                     {/* Cliente — clica para abrir popup */}
                                     <td
-                                        className={`${tdStyle} w-[200px] min-w-[200px] max-w-[200px] cursor-pointer hover:bg-black/5 group transition-colors px-2`}
+                                        className={`${tdStyle} w-[200px] min-w-[200px] max-w-[200px] cursor-pointer group px-2`}
                                         onClick={() => setPopupRowId(row.id)}
                                         title="Clique para selecionar cliente"
                                     >
@@ -387,7 +387,7 @@ const PlanilhaVendas: React.FC = () => {
                                         return (
                                             <td
                                                 key={label}
-                                                className={`${tdStyle} text-center cursor-pointer font-black select-none w-6 h-7 leading-none px-0
+                                                className={`${tdStyle} text-center cursor-pointer font-black select-none w-6 h-5 leading-none px-0
                                                 ${isPending ? '!bg-slate-400 !text-white'
                                                         : isX ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
                                                             : isStar ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
@@ -417,7 +417,7 @@ const PlanilhaVendas: React.FC = () => {
                                         return (
                                             <td
                                                 key={opt.id}
-                                                className={`${tdStyle} text-center cursor-pointer font-black w-6 h-7 leading-none select-none px-0
+                                                className={`${tdStyle} text-center cursor-pointer font-black w-6 h-5 leading-none select-none px-0
                                                 ${isPending ? '!bg-slate-400 !text-white'
                                                         : status === 'x' ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
                                                             : status === '*' ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
@@ -440,26 +440,36 @@ const PlanilhaVendas: React.FC = () => {
                                     })}
 
                                     {/* Sub Total */}
-                                    <td className={`${tdStyle} px-2 py-1 text-right font-mono font-bold bg-[#D9E1F2]/50 whitespace-nowrap text-slate-700`}>
+                                    <td className={`${tdStyle} px-2 py-0 text-right font-mono font-bold bg-[#D9E1F2]/50 whitespace-nowrap text-slate-700`}>
                                         {formatMoney(calc.subTotal)}
                                     </td>
 
                                     {/* Desconto */}
-                                    <td className={`${tdStyle} px-1 py-0.5 !bg-white`}>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-transparent text-right font-mono outline-none border-b border-transparent focus:border-red-400 min-w-[90px]"
-                                            value={editing?.id === row.id && editing?.field === 'desconto' ? editing.val : formatMoney(row.desconto ?? 0)}
-                                            onFocus={() => setEditing({ id: row.id, field: 'desconto', val: String(row.desconto || '') })}
-                                            onChange={e => setEditing({ ...editing!, val: e.target.value })}
-                                            onBlur={() => {
-                                                const num = Number(editing?.val.replace(',', '.') || 0);
-                                                setRows(rows.map(r => r.id === row.id ? { ...r, desconto: num } : r));
-                                                handleUpdateField(row.id, 'desconto', num);
-                                                setEditing(null);
-                                            }}
-                                            onKeyDown={e => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
-                                        />
+                                    <td
+                                        className={`${tdStyle} px-2 py-0 text-right font-mono bg-white cursor-pointer group`}
+                                        onClick={() => { if (!(editing?.id === row.id && editing?.field === 'desconto')) setEditing({ id: row.id, field: 'desconto', val: String(row.desconto || '') }); }}
+                                        title="Clique para editar"
+                                    >
+                                        {editing?.id === row.id && editing?.field === 'desconto' ? (
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                className="w-full bg-slate-100 text-right font-mono outline-none border-b border-red-400 min-w-[70px] px-1"
+                                                value={editing.val}
+                                                onChange={e => setEditing({ ...editing, val: e.target.value })}
+                                                onBlur={() => {
+                                                    const num = Number(editing?.val.replace(',', '.') || 0);
+                                                    setRows(rows.map(r => r.id === row.id ? { ...r, desconto: num } : r));
+                                                    handleUpdateField(row.id, 'desconto', num);
+                                                    setEditing(null);
+                                                }}
+                                                onKeyDown={e => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+                                            />
+                                        ) : (
+                                            <span className={`group-hover:text-blue-500 transition-colors ${(row.desconto || 0) > 0 ? "text-yellow-600 font-bold" : "text-slate-400"}`}>
+                                                {formatMoney(row.desconto ?? 0)}
+                                            </span>
+                                        )}
                                     </td>
 
                                     {/* Total Vendas */}
@@ -468,21 +478,31 @@ const PlanilhaVendas: React.FC = () => {
                                     </td>
 
                                     {/* Valor Pago */}
-                                    <td className={`${tdStyle} bg-green-50/60 p-0`}>
-                                        <input
-                                            type="text"
-                                            className="w-full h-full bg-transparent text-right font-mono outline-none text-green-900 font-bold text-[12px] px-2 min-w-[100px]"
-                                            value={editing?.id === row.id && editing?.field === 'valor_pago' ? editing.val : formatMoney(row.valor_pago ?? 0)}
-                                            onFocus={() => setEditing({ id: row.id, field: 'valor_pago', val: String(row.valor_pago || '') })}
-                                            onChange={e => setEditing({ ...editing!, val: e.target.value })}
-                                            onBlur={() => {
-                                                const num = Number(editing?.val.replace(',', '.') || 0);
-                                                setRows(rows.map(r => r.id === row.id ? { ...r, valor_pago: num } : r));
-                                                handleUpdateField(row.id, 'valor_pago', num);
-                                                setEditing(null);
-                                            }}
-                                            onKeyDown={e => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
-                                        />
+                                    <td
+                                        className={`${tdStyle} px-2 py-0 text-right font-mono text-[12px] bg-green-50/60 cursor-pointer group`}
+                                        onClick={() => { if (!(editing?.id === row.id && editing?.field === 'valor_pago')) setEditing({ id: row.id, field: 'valor_pago', val: String(row.valor_pago || '') }); }}
+                                        title="Clique para editar"
+                                    >
+                                        {editing?.id === row.id && editing?.field === 'valor_pago' ? (
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                className="w-full bg-slate-100 text-right font-mono outline-none border-b border-green-500 font-bold px-1 min-w-[70px]"
+                                                value={editing.val}
+                                                onChange={e => setEditing({ ...editing, val: e.target.value })}
+                                                onBlur={() => {
+                                                    const num = Number(editing?.val.replace(',', '.') || 0);
+                                                    setRows(rows.map(r => r.id === row.id ? { ...r, valor_pago: num } : r));
+                                                    handleUpdateField(row.id, 'valor_pago', num);
+                                                    setEditing(null);
+                                                }}
+                                                onKeyDown={e => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+                                            />
+                                        ) : (
+                                            <span className="text-green-900 font-bold group-hover:text-blue-500 transition-colors">
+                                                {formatMoney(row.valor_pago ?? 0)}
+                                            </span>
+                                        )}
                                     </td>
 
                                     {/* Pendente */}
