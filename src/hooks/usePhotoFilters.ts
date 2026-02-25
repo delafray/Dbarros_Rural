@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { Tag, TagCategory } from '../../types';
 import { seededShuffle } from '../utils/mathUtils';
+import { simplifyText } from '../utils/textUtils';
 
 interface UsePhotoFiltersProps {
     photoIndex: Array<{ id: string; name: string; tagIds: string[]; userId: string; videoUrl?: string; createdAt: string }>;
@@ -29,8 +30,16 @@ export const usePhotoFilters = ({ photoIndex, tags, categories }: UsePhotoFilter
 
         // 1. Filtro por texto
         if (searchTerm) {
-            const lowerSearch = searchTerm.toLowerCase();
-            currentIds = currentIds.filter(p => p.name?.toLowerCase()?.includes(lowerSearch) ?? false);
+            const simplifiedSearch = simplifyText(searchTerm);
+            currentIds = currentIds.filter(p => {
+                const nameMatch = simplifyText(p.name || '').includes(simplifiedSearch);
+
+                // Busca em tags relacionadas a esta foto
+                const photoTags = tags.filter(t => p.tagIds?.includes(t.id));
+                const tagsMatch = photoTags.some(t => simplifyText(t.name || '').includes(simplifiedSearch));
+
+                return nameMatch || tagsMatch;
+            });
         }
 
         // 1.2 Filtro por usuário selecionado
@@ -64,8 +73,13 @@ export const usePhotoFilters = ({ photoIndex, tags, categories }: UsePhotoFilter
         const availableTagsByLevel: { [order: number]: Set<string> } = {};
         let tempIds = [...shuffledPhotoIndex];
         if (searchTerm) {
-            const lowerSearch = searchTerm.toLowerCase();
-            tempIds = tempIds.filter(p => p.name?.toLowerCase().includes(lowerSearch));
+            const simplifiedSearch = simplifyText(searchTerm);
+            tempIds = tempIds.filter(p => {
+                const nameMatch = simplifyText(p.name || '').includes(simplifiedSearch);
+                const photoTags = tags.filter(t => p.tagIds?.includes(t.id));
+                const tagsMatch = photoTags.some(t => simplifyText(t.name || '').includes(simplifiedSearch));
+                return nameMatch || tagsMatch;
+            });
         }
         if (selectedUserId !== 'all') tempIds = tempIds.filter(p => p.userId === selectedUserId);
 

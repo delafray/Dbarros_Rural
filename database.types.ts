@@ -14,324 +14,397 @@ export type Database = {
   }
   public: {
     Tables: {
-      photo_tags: {
+      clientes: {
         Row: {
-          photo_id: string
-          tag_id: string
-        }
-        Insert: {
-          photo_id: string
-          tag_id: string
-        }
-        Update: {
-          photo_id?: string
-          tag_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "photo_tags_photo_id_fkey"
-            columns: ["photo_id"]
-            isOneToOne: false
-            referencedRelation: "photos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "photo_tags_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tags"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      photos: {
-        Row: {
-          created_at: string
+          cnpj: string | null
+          cpf: string | null
+          created_at: string | null
+          data_nascimento: string | null
           id: string
-          local_path: string | null
-          storage_location: string | null
-          name: string
-          thumbnail_url: string | null
-          url: string
+          inscricao_estadual: string | null
+          nome_completo: string | null
+          nome_fantasia: string | null
+          razao_social: string | null
+          rg: string | null
+          tipo_pessoa: string
           user_id: string | null
-          video_url: string | null
         }
         Insert: {
-          created_at?: string
+          cnpj?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          data_nascimento?: string | null
           id?: string
-          local_path?: string | null
-          storage_location?: string | null
-          name: string
-          thumbnail_url?: string | null
-          url: string
+          inscricao_estadual?: string | null
+          nome_completo?: string | null
+          nome_fantasia?: string | null
+          razao_social?: string | null
+          rg?: string | null
+          tipo_pessoa: string
           user_id?: string | null
-          video_url?: string | null
         }
         Update: {
-          created_at?: string
+          cnpj?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          data_nascimento?: string | null
           id?: string
-          local_path?: string | null
-          storage_location?: string | null
-          name?: string
-          thumbnail_url?: string | null
-          url?: string
+          inscricao_estadual?: string | null
+          nome_completo?: string | null
+          nome_fantasia?: string | null
+          razao_social?: string | null
+          rg?: string | null
+          tipo_pessoa?: string
           user_id?: string | null
-          video_url?: string | null
+        }
+        Relationships: []
+      }
+      contatos: {
+        Row: {
+          cargo: string | null
+          cliente_id: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          nome: string | null
+          principal: boolean | null
+          telefone: string | null
+        }
+        Insert: {
+          cargo?: string | null
+          cliente_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nome?: string | null
+          principal?: boolean | null
+          telefone?: string | null
+        }
+        Update: {
+          cargo?: string | null
+          cliente_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nome?: string | null
+          principal?: boolean | null
+          telefone?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "photos_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "contatos_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]
       }
-      system_config: {
+      contratos: {
         Row: {
-          key: string
+          cliente_id: string | null
+          created_at: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          numero: string | null
+          status: string | null
+          valor: number | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          numero?: string | null
+          status?: string | null
+          valor?: number | null
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          numero?: string | null
+          status?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enderecos: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cliente_id: string | null
+          complemento: string | null
+          created_at: string | null
+          estado: string | null
+          id: string
+          logradouro: string | null
+          numero: string | null
+          tema: string | null
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cliente_id?: string | null
+          complemento?: string | null
+          created_at?: string | null
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          tema?: string | null
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cliente_id?: string | null
+          complemento?: string | null
+          created_at?: string | null
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          tema?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enderecos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eventos: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome: string
+          promotor_email: string | null
+          promotor_endereco: string | null
+          promotor_nome: string | null
+          promotor_redes_sociais: Json | null
+          promotor_telefone: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome: string
+          promotor_email?: string | null
+          promotor_endereco?: string | null
+          promotor_nome?: string | null
+          promotor_redes_sociais?: Json | null
+          promotor_telefone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome?: string
+          promotor_email?: string | null
+          promotor_endereco?: string | null
+          promotor_nome?: string | null
+          promotor_redes_sociais?: Json | null
+          promotor_telefone?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      eventos_edicoes: {
+        Row: {
+          ano: number
+          created_at: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          desmontagem_fim: string | null
+          desmontagem_inicio: string | null
+          evento_id: string | null
+          id: string
+          local_completo: string | null
+          local_resumido: string | null
+          montagem_fim: string | null
+          montagem_inicio: string | null
+          titulo: string
+          user_id: string | null
+        }
+        Insert: {
+          ano: number
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          desmontagem_fim?: string | null
+          desmontagem_inicio?: string | null
+          evento_id?: string | null
+          id?: string
+          local_completo?: string | null
+          local_resumido?: string | null
+          montagem_fim?: string | null
+          montagem_inicio?: string | null
+          titulo: string
+          user_id?: string | null
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          desmontagem_fim?: string | null
+          desmontagem_inicio?: string | null
+          evento_id?: string | null
+          id?: string
+          local_completo?: string | null
+          local_resumido?: string | null
+          montagem_fim?: string | null
+          montagem_inicio?: string | null
+          titulo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_edicoes_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "eventos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itens_opcionais: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome: string
+          preco_base: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome: string
+          preco_base?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome?: string
+          preco_base?: number
+        }
+        Relationships: []
+      }
+      planilha_configuracoes: {
+        Row: {
+          categorias_config: Json
+          created_at: string | null
+          edicao_id: string | null
+          id: string
+          opcionais_ativos: string[] | null
           updated_at: string | null
-          value: string
         }
         Insert: {
-          key: string
+          categorias_config: Json
+          created_at?: string | null
+          edicao_id?: string | null
+          id?: string
+          opcionais_ativos?: string[] | null
           updated_at?: string | null
-          value: string
         }
         Update: {
-          key?: string
+          categorias_config?: Json
+          created_at?: string | null
+          edicao_id?: string | null
+          id?: string
+          opcionais_ativos?: string[] | null
           updated_at?: string | null
-          value?: string
-        }
-        Relationships: []
-      }
-      tag_categories: {
-        Row: {
-          created_at: string | null
-          id: string
-          is_required: boolean | null
-          name: string
-          order: number
-          peer_category_ids: string[] | null
-          requires_sub_tags: boolean | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          is_required?: boolean | null
-          name: string
-          order: number
-          peer_category_ids?: string[] | null
-          requires_sub_tags?: boolean | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_required?: boolean | null
-          name?: string
-          order?: number
-          peer_category_ids?: string[] | null
-          requires_sub_tags?: boolean | null
-          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "tag_categories_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "planilha_configuracoes_edicao_id_fkey"
+            columns: ["edicao_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "eventos_edicoes"
             referencedColumns: ["id"]
           },
         ]
       }
-      tags: {
+      planilha_vendas_estandes: {
         Row: {
-          category_id: string
+          cliente_id: string | null
+          config_id: string | null
           created_at: string | null
+          desconto: number | null
           id: string
-          name: string
-          order: number | null
-          user_id: string | null
+          observacoes: string | null
+          opcionais_selecionados: Json | null
+          stand_nr: string
+          tipo_venda: string
+          updated_at: string | null
+          valor_pago: number | null
         }
         Insert: {
-          category_id: string
+          cliente_id?: string | null
+          config_id?: string | null
           created_at?: string | null
+          desconto?: number | null
           id?: string
-          name: string
-          order?: number | null
-          user_id?: string | null
+          observacoes?: string | null
+          opcionais_selecionados?: Json | null
+          stand_nr: string
+          tipo_venda?: string
+          updated_at?: string | null
+          valor_pago?: number | null
         }
         Update: {
-          category_id?: string
+          cliente_id?: string | null
+          config_id?: string | null
           created_at?: string | null
+          desconto?: number | null
           id?: string
-          name?: string
-          order?: number | null
-          user_id?: string | null
+          observacoes?: string | null
+          opcionais_selecionados?: Json | null
+          stand_nr?: string
+          tipo_venda?: string
+          updated_at?: string | null
+          valor_pago?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "tags_category_id_fkey"
-            columns: ["category_id"]
+            foreignKeyName: "planilha_vendas_estandes_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "tag_categories"
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tags_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "planilha_vendas_estandes_config_id_fkey"
+            columns: ["config_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "planilha_configuracoes"
             referencedColumns: ["id"]
           },
         ]
-      }
-      users: {
-        Row: {
-          can_manage_tags: boolean | null
-          created_at: string | null
-          email: string
-          expires_at: string | null
-          id: string
-          is_active: boolean | null
-          is_admin: boolean | null
-          is_projetista: boolean | null
-          is_temp: boolean | null
-          is_visitor: boolean | null
-          name: string
-          password_hash: string
-        }
-        Insert: {
-          can_manage_tags?: boolean | null
-          created_at?: string | null
-          email: string
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_admin?: boolean | null
-          is_projetista?: boolean | null
-          is_temp?: boolean | null
-          is_visitor?: boolean | null
-          name: string
-          password_hash: string
-        }
-        Update: {
-          can_manage_tags?: boolean | null
-          created_at?: string | null
-          email?: string
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_admin?: boolean | null
-          is_projetista?: boolean | null
-          is_temp?: boolean | null
-          is_visitor?: boolean | null
-          name?: string
-          password_hash?: string
-        }
-        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      get_available_related_tags:
-      | {
-        Args: { current_tag_ids: string[] }
-        Returns: {
-          error: true
-        } & "Could not choose the best candidate function between: public.get_available_related_tags(current_tag_ids => _text), public.get_available_related_tags(current_tag_ids => _uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
-      }
-      | {
-        Args: { current_tag_ids: string[] }
-        Returns: {
-          error: true
-        } & "Could not choose the best candidate function between: public.get_available_related_tags(current_tag_ids => _text), public.get_available_related_tags(current_tag_ids => _uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
-      }
-      | {
-        Args: { current_tag_ids: string[]; filter_user_id?: string }
-        Returns: {
-          tag_id: string
-        }[]
-      }
-      | {
-        Args: {
-          filter_user_id?: string
-          primary_tag_ids: string[]
-          sub_tag_ids: string[]
-        }
-        Returns: {
-          tag_id: string
-        }[]
-      }
-      search_photos_by_tags:
-      | {
-        Args: {
-          filter_user_id?: string
-          items_per_page?: number
-          page_number?: number
-          primary_tag_ids: string[]
-          sub_tag_ids: string[]
-        }
-        Returns: {
-          created_at: string
-          id: string
-          local_path: string
-          name: string
-          total_count: number
-          url: string
-        }[]
-      }
-      | {
-        Args: {
-          items_per_page?: number
-          page_number?: number
-          tag_ids: string[]
-        }
-        Returns: {
-          created_at: string
-          id: string
-          local_path: string
-          name: string
-          total_count: number
-          url: string
-        }[]
-      }
-      | {
-        Args: {
-          filter_user_id?: string
-          items_per_page?: number
-          page_number?: number
-          tag_ids: string[]
-        }
-        Returns: {
-          created_at: string
-          id: string
-          local_path: string
-          name: string
-          total_count: number
-          url: string
-        }[]
-      }
-      | {
-        Args: {
-          items_per_page?: number
-          page_number?: number
-          tag_ids: string[]
-        }
-        Returns: {
-          created_at: string
-          id: string
-          local_path: string
-          name: string
-          total_count: number
-          url: string
-        }[]
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

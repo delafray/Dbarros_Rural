@@ -1,268 +1,535 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Layout from '../components/Layout';
+import { Button } from '../components/UI';
+import { planilhaVendasService, PlanilhaConfig, PlanilhaEstande, CategoriaSetup } from '../services/planilhaVendasService';
+import { itensOpcionaisService, ItemOpcional } from '../services/itensOpcionaisService';
+import { clientesService, Cliente } from '../services/clientesService';
+import ClienteSelectorPopup from '../components/ClienteSelectorPopup';
 
-// Preços fictícios para os itens (base para o cálculo)
-const TABELA_PRECOS: Record<string, number> = {
-    'STAND PADRÃO': 5000,
-    'COMBO 01': 2000,
-    'COMBO 02': 3000,
-    'COMBO 03': 4000,
-    'Blimp': 1000,
-    'Galhardete': 500,
-    'Logo back drop': 800,
-    'Rádio feira': 600,
-    'Logo pórtico': 1000,
-    'Outdoor': 3000,
-    'Blimp palco': 1500,
-    'Locução': 800,
-    'Palco': 5000,
-};
+const PlanilhaVendas: React.FC = () => {
+    const { edicaoId } = useParams<{ edicaoId: string }>();
+    const navigate = useNavigate();
 
-const ITEMS = Object.keys(TABELA_PRECOS);
+    const [loading, setLoading] = useState(true);
+    const [config, setConfig] = useState<PlanilhaConfig | null>(null);
+    const [rows, setRows] = useState<PlanilhaEstande[]>([]);
+    const [allItensOpcionais, setAllItensOpcionais] = useState<ItemOpcional[]>([]);
+    const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [popupRowId, setPopupRowId] = useState<string | null>(null);
+    const [editing, setEditing] = useState<{ id: string, field: string, val: string } | null>(null);
+    const [pendingAction, setPendingAction] = useState<{ rowId: string, field: string } | null>(null);
 
-type CellStatus = '' | 'x' | '*';
+    useEffect(() => {
+        if (edicaoId) loadData();
+    }, [edicaoId]);
 
-interface RowData {
-    id: string;
-    standNr: string;
-    cliente: string;
-    items: Record<string, CellStatus>;
-    desconto: number;
-    valorPago: number;
-}
-
-const TempPlanilha: React.FC = () => {
-    const [rows, setRows] = useState<RowData[]>([
-        { id: '1', standNr: 'Naming 01', cliente: '', items: {}, desconto: 0, valorPago: 0 },
-        { id: '2', standNr: 'Naming 02', cliente: 'Cliente A', items: { 'Logo back drop': '*' }, desconto: 0, valorPago: 0 },
-        { id: '3', standNr: 'Naming 03', cliente: '', items: {}, desconto: 0, valorPago: 0 },
-        { id: '4', standNr: 'Naming 04', cliente: 'Cliente B', items: { 'Logo pórtico': 'x' }, desconto: 0, valorPago: 0 },
-        { id: '5', standNr: 'Naming 05', cliente: '', items: {}, desconto: 0, valorPago: 0 },
-        { id: '6', standNr: 'Naming 06', cliente: '', items: {}, desconto: 0, valorPago: 0 },
-        { id: '7', standNr: 'Naming 07', cliente: '', items: {}, desconto: 0, valorPago: 0 },
-        { id: '8', standNr: 'Naming 08', cliente: '', items: {}, desconto: 0, valorPago: 0 },
-    ]);
-
-    const toggleCell = (rowId: string, item: string) => {
-        setRows(prevRows => prevRows.map(row => {
-            if (row.id === rowId) {
-                const current = row.items[item] || '';
-                let next: CellStatus = '';
-                if (current === '') next = 'x';
-                else if (current === 'x') next = '*';
-                else next = '';
-
-                return {
-                    ...row,
-                    items: {
-                        ...row.items,
-                        [item]: next
-                    }
-                };
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const configData = await planilhaVendasService.getConfig(edicaoId!);
+            if (!configData) {
+                if (confirm('Nenhuma configuração encontrada. Deseja configurar agora?')) {
+                    navigate(`/configuracao-vendas/${edicaoId}`);
+                }
+                return;
             }
-            return row;
-        }));
+
+            const [estandes, opcionais, listaClientes] = await Promise.all([
+                planilhaVendasService.getEstandes(configData.id),
+                itensOpcionaisService.getItens(),
+                clientesService.getClientes()
+            ]);
+
+            setConfig(configData);
+            setRows(estandes);
+            setAllItensOpcionais(opcionais);
+            setClientes(listaClientes);
+        } catch (err) {
+            console.error('Erro ao carregar dados:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const updateField = (rowId: string, field: keyof RowData, value: string | number) => {
-        setRows(prevRows => prevRows.map(row => {
-            if (row.id === rowId) {
-                return { ...row, [field]: value };
-            }
-            return row;
-        }));
+    // ─── Helpers ──────────────────────────────────────────────
+    const getCategorias = (): CategoriaSetup[] =>
+        config ? (config.categorias_config as unknown as CategoriaSetup[]) : [];
+
+    const getOpcionaisAtivos = (): ItemOpcional[] => {
+        if (!config?.opcionais_ativos) return [];
+        return allItensOpcionais.filter(item => config.opcionais_ativos?.includes(item.id));
     };
 
-    const calculateRow = (row: RowData) => {
-        let subTotal = 0;
-        ITEMS.forEach(item => {
-            if (row.items[item] === 'x') {
-                subTotal += TABELA_PRECOS[item];
+    const formatMoney = (value: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+
+    const categorias = useMemo(() => getCategorias(), [config]);
+    const opcionaisAtivos = useMemo(() => getOpcionaisAtivos(), [config, allItensOpcionais]);
+
+    // How many combo columns exist (max across all categories)
+    const numCombos = useMemo(() => {
+        let max = 0;
+        categorias.forEach(c => {
+            const len = Array.isArray(c.combos) ? c.combos.length : 3;
+            if (len > max) max = len;
+        });
+        return max;
+    }, [categorias]);
+
+    const getComboLabels = () => {
+        const labels: string[] = ['STAND PADRÃO'];
+        for (let i = 1; i <= numCombos; i++) {
+            labels.push(`COMBO ${String(i).padStart(2, '0')}`);
+        }
+        return labels;
+    };
+    const comboLabels = getComboLabels();
+
+    const getCategoriaOfRow = (row: PlanilhaEstande) => {
+        const nr = row.stand_nr.toLowerCase();
+        return categorias.find(c => {
+            const prefix = c.prefix.toLowerCase();
+            const tag = c.tag.toLowerCase();
+            // Verifica se o número do estande começa com o prefixo (ex: "P") 
+            // ou se contém a tag (ex: "padrão") seguida pelo prefixo.
+            return nr.startsWith(prefix) || nr.includes(`${tag} ${prefix}`);
+        });
+    };
+
+    const getPrecoForCombo = (cat: CategoriaSetup | undefined, tipoVenda: string): number => {
+        if (!cat || tipoVenda.includes('*')) return 0;
+        // Strip marker in case of weird whitespace, though includes(*) already caught it
+        const tipo = tipoVenda.replace('*', '').trim();
+        if (tipo === 'STAND PADRÃO') return cat.standBase || 0;
+        const match = tipo.match(/COMBO (\d+)/);
+        if (match) {
+            const idx = parseInt(match[1], 10) - 1;
+            if (Array.isArray(cat.combos)) return (cat.combos as number[])[idx] || 0;
+        }
+        return 0;
+    };
+
+    const calculateRow = (row: PlanilhaEstande) => {
+        const cat = getCategoriaOfRow(row);
+        const precoBase = getPrecoForCombo(cat, row.tipo_venda);
+
+        const selecoes = (row.opcionais_selecionados as Record<string, string>) || {};
+        // Preços por edição salvos em config.opcionais_precos (keyed por item.id)
+        const precosEdicao = ((config as any)?.opcionais_precos || {}) as Record<string, number>;
+        let totalOpcionais = 0;
+        opcionaisAtivos.forEach(opt => {
+            const marker = selecoes[opt.nome];
+            if (marker === 'x') {
+                // Usa preço da edição se existir, senão usa o preço base do cadastro
+                const preco = precosEdicao[opt.id] !== undefined
+                    ? Number(precosEdicao[opt.id])
+                    : Number(opt.preco_base);
+                totalOpcionais += preco;
             }
-            // '*' não soma valor
         });
 
-        const total = subTotal - row.desconto;
-        const pendente = total - row.valorPago;
+        const subTotal = precoBase + totalOpcionais;
+        const desconto = Number(row.desconto) || 0;
+        const totalVenda = subTotal - desconto;
+        const valorPago = Number(row.valor_pago) || 0;
+        const pendente = totalVenda - valorPago;
 
-        return { subTotal, total, pendente };
+        return { precoBase, totalOpcionais, subTotal, desconto, totalVenda, valorPago, pendente };
     };
 
-    const formatMoney = (value: number) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-    };
+    // Summary row: count x and * separately
+    const summary = useMemo(() => {
+        const comboXCounts: Record<string, number> = {};
+        const comboStarCounts: Record<string, number> = {};
+        const optCounts: Record<string, number> = {};
 
-    // Calcular os totais globais (linha 1 e 2)
-    const totaisGlobais = rows.reduce(
-        (acc, row) => {
-            const rowCalc = calculateRow(row);
-            acc.subTotal += rowCalc.subTotal;
-            acc.descontos += row.desconto || 0;
-            acc.totalVendas += rowCalc.total;
-            acc.valorPago += row.valorPago || 0;
-            acc.pendente += rowCalc.pendente;
+        comboLabels.forEach(l => { comboXCounts[l] = 0; comboStarCounts[l] = 0; });
+        opcionaisAtivos.forEach(o => { optCounts[o.nome] = 0; });
 
-            ITEMS.forEach(item => {
-                if (row.items[item] === 'x' || row.items[item] === '*') {
-                    acc.quantidades[item] = (acc.quantidades[item] || 0) + 1;
+        rows.forEach(row => {
+            const tipo = row.tipo_venda;
+            if (tipo !== 'DISPONÍVEL') {
+                const isStar = tipo.endsWith('*');
+                const baseLabel = tipo.replace('*', '').trim();
+                if (isStar) comboStarCounts[baseLabel] = (comboStarCounts[baseLabel] || 0) + 1;
+                else comboXCounts[baseLabel] = (comboXCounts[baseLabel] || 0) + 1;
+            }
+            const sel = (row.opcionais_selecionados as Record<string, string>) || {};
+            opcionaisAtivos.forEach(opt => {
+                const val = sel[opt.nome];
+                if (val === 'x' || val === '*') {
+                    optCounts[opt.nome] = (optCounts[opt.nome] || 0) + 1;
                 }
             });
-            return acc;
-        },
-        { subTotal: 0, descontos: 0, totalVendas: 0, valorPago: 0, pendente: 0, quantidades: {} as Record<string, number> }
+        });
+
+        return { comboXCounts, comboStarCounts, optCounts };
+    }, [rows, comboLabels, opcionaisAtivos]);
+
+    // ─── Totals ───────────────────────────────────────────────
+    const totals = useMemo(() => rows.reduce((acc, row) => {
+        const c = calculateRow(row);
+        acc.subTotal += c.subTotal;
+        acc.desconto += c.desconto;
+        acc.totalVenda += c.totalVenda;
+        acc.valorPago += c.valorPago;
+        acc.pendente += c.pendente;
+        return acc;
+    }, { subTotal: 0, desconto: 0, totalVenda: 0, valorPago: 0, pendente: 0 }), [rows, opcionaisAtivos, categorias]);
+
+    // ─── Update handlers ──────────────────────────────────────
+    const handleSelectCombo = async (rowId: string, comboLabel: string) => {
+        const row = rows.find(r => r.id === rowId);
+        if (!row) return;
+        let newTipo: string;
+        if (row.tipo_venda === comboLabel) newTipo = comboLabel + '*';
+        else if (row.tipo_venda === comboLabel + '*') newTipo = 'DISPONÍVEL';
+        else newTipo = comboLabel;
+        // Optimistic update — instant UI
+        setRows(prev => prev.map(r => r.id === rowId ? { ...r, tipo_venda: newTipo } : r));
+        planilhaVendasService.updateEstande(rowId, { tipo_venda: newTipo }).catch(err =>
+            console.error('Erro ao salvar combo:', err)
+        );
+    };
+
+    const handleToggleOpcional = async (rowId: string, optNome: string) => {
+        const row = rows.find(r => r.id === rowId);
+        if (!row) return;
+        const sel = { ...((row.opcionais_selecionados as Record<string, string>) || {}) };
+        const cur = sel[optNome] || '';
+        if (cur === '') sel[optNome] = 'x';
+        else if (cur === 'x') sel[optNome] = '*';
+        else sel[optNome] = '';
+        // Optimistic update — instant UI
+        setRows(prev => prev.map(r => r.id === rowId ? { ...r, opcionais_selecionados: sel as any } : r));
+        planilhaVendasService.updateEstande(rowId, { opcionais_selecionados: sel as any }).catch(err =>
+            console.error('Erro ao salvar opcional:', err)
+        );
+    };
+
+    const handleUpdateField = async (rowId: string, field: string, value: any) => {
+        setRows(prev => prev.map(r => r.id === rowId ? { ...r, [field]: value } : r));
+        planilhaVendasService.updateEstande(rowId, { [field]: value }).catch(err =>
+            console.error(`Erro ao salvar ${field}:`, err)
+        );
+    };
+
+    const handleObs = async (rowId: string, value: string) => {
+        setRows(rows.map(r => r.id === rowId ? { ...r, observacoes: value } : r));
+    };
+
+    const handleObsBlur = async (rowId: string, value: string) => {
+        planilhaVendasService.updateEstande(rowId, { observacoes: value }).catch(err =>
+            console.error('Erro ao salvar obs:', err)
+        );
+    };
+
+    const handleClienteSelect = (rowId: string, clienteId: string | null, nomeLivre: string | null) => {
+        setRows(prev => prev.map(r =>
+            r.id === rowId ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre } as any : r
+        ));
+        planilhaVendasService.updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre } as any)
+            .catch(err => console.error('Erro ao salvar cliente:', err));
+    };
+
+    // ─── Render ───────────────────────────────────────────────
+    const filtered = rows.filter(r =>
+        r.stand_nr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        clientes.find(c => c.id === r.cliente_id)?.nome_fantasia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        clientes.find(c => c.id === r.cliente_id)?.razao_social?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return (
-        <div className="p-4 bg-gray-100 min-h-screen font-sans">
-            <div className="mb-4">
-                <h1 className="text-2xl font-bold text-gray-800">Protótipo da Planilha de Vendas</h1>
-                <p className="text-gray-600 text-sm mt-1">
-                    Clique nas células dos itens para alternar: <br />
-                    <span className="inline-block w-4 h-4 bg-white border border-gray-300 ml-1 mr-1 align-middle"></span> Vazio <br />
-                    <span className="inline-block w-4 h-4 bg-green-500 font-bold text-center text-xs text-white leading-4 ml-1 mr-1 align-middle">x</span> Cobrar (Soma no valor)<br />
-                    <span className="inline-block w-4 h-4 bg-blue-500 font-bold text-center text-xs text-white leading-4 ml-1 mr-1 align-middle">*</span> Separar (Custo Zero)
-                </p>
-            </div>
+    if (loading) return <Layout title="Planilha"><div className="p-8 text-center">Carregando dados da planilha...</div></Layout>;
 
-            <div className="overflow-x-auto shadow rounded-lg border border-gray-300">
-                <table className="w-full text-sm text-left bg-white border-collapse whitespace-nowrap">
-                    <thead className="text-white">
-                        {/* LINHA 1: Cabeçalhos Principais de Totais (Azul escuro até Sub Total, depois colorido) */}
-                        <tr className="bg-[#1F497D] text-[10px] font-bold tracking-wider">
-                            <th colSpan={ITEMS.length + 3} className="px-2 py-1 border border-blue-800"></th>
-                            <th className="px-1 py-1 border border-yellow-600 bg-[#D99A29] text-center w-24">DESCONTOS</th>
-                            <th className="px-1 py-1 border border-green-700 bg-[#000000] text-center w-28">TOTAL DE VENDAS</th>
-                            <th className="px-1 py-1 border border-green-700 bg-[#2E5E2D] text-center w-28">TOTAL PAGO</th>
-                            <th className="px-1 py-1 border border-orange-700 bg-[#A74112] text-center w-32">TOTAL PENDENTE</th>
+    const thStyle = "border border-slate-300 px-1 py-1 text-[11px] font-normal uppercase whitespace-nowrap text-white text-center bg-[#1F497D]";
+    const tdStyle = "border border-slate-300 text-[12px] px-2 py-0.5 whitespace-nowrap";
+
+    // ─── Natural Sort Utility ─────────────────────────────────
+    const naturalSort = (a: string, b: string) => {
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    };
+
+    return (
+        <Layout
+            title={`Planilha de Vendas`}
+            headerActions={
+                <div className="flex gap-2 items-center">
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/configuracao-vendas/${edicaoId}`)}>⚙️ Setup</Button>
+                    <input
+                        type="text"
+                        placeholder="Buscar estande ou cliente..."
+                        className="px-3 py-1.5 border rounded text-sm w-56"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            }
+        >
+            <div className="overflow-x-auto bg-white shadow-xl rounded-lg border border-slate-200">
+                <table className="border-collapse text-[11px] font-sans" style={{ minWidth: 'max-content' }}>
+                    <thead className="sticky top-0 z-10 shadow-sm">
+
+                        {/* ── Row 1: Totals summary ── */}
+                        {/* ── Row 1: Summary Titles ── */}
+                        <tr className="bg-slate-900 text-white">
+                            <th colSpan={2} className="border border-white/10 px-2 py-1 text-left text-[11px] font-black tracking-widest text-slate-400 uppercase whitespace-nowrap">Resumo Geral</th>
+                            {comboLabels.map(l => (
+                                <th key={l} className="border border-white/10 text-[8px] text-slate-500 font-normal uppercase leading-none"></th>
+                            ))}
+                            {opcionaisAtivos.map(o => (
+                                <th key={o.id} className="border border-white/10 text-[8px] text-slate-500 font-normal uppercase leading-none"></th>
+                            ))}
+                            <th className="border border-white/10 px-2 py-1 text-right text-[10px] text-slate-400 font-normal uppercase">SubTotal</th>
+                            <th className="border border-white/10 px-2 py-1 text-center text-[10px] text-yellow-600/80 font-normal uppercase">Desconto</th>
+                            <th className="border border-white/10 px-2 py-1 text-right text-[11px] text-slate-300 font-bold uppercase bg-slate-800/40">Total Vendas</th>
+                            <th className="border border-white/10 px-2 py-1 text-right text-[11px] text-green-500/80 font-bold uppercase bg-slate-800/40">Pago</th>
+                            <th className="border border-white/10 px-2 py-1 text-right text-[11px] text-red-500/80 font-bold uppercase bg-slate-800/40">Pendente</th>
                         </tr>
 
-                        {/* LINHA 2: Valores dos Totais e Contagem de Itens */}
-                        <tr className="bg-[#1F497D] font-bold text-xs text-center border-b-[3px] border-white">
-                            <th colSpan={2} className="px-2 py-2 border border-blue-800 text-right text-[#FCE4D6]">
-                                {/* Aqui poderíamos colocar uma legenda, ex: contagem total */}
-                            </th>
-
-                            {/* Contagem de Itens (A linha Bege que você mencionou) */}
-                            {ITEMS.map(item => {
-                                const count = totaisGlobais.quantidades[item] || 0;
+                        {/* ── Row 2: Summary Values ── */}
+                        <tr className="bg-slate-800 text-slate-300">
+                            <th className="border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-tighter">Num</th>
+                            <th className="border border-white/10 px-2 py-0.5 text-[10px] text-left uppercase font-black text-slate-400">Totais:</th>
+                            {comboLabels.map(label => {
+                                const x = summary.comboXCounts[label] || 0;
+                                const s = summary.comboStarCounts[label] || 0;
                                 return (
-                                    <th key={`count-${item}`} className={`border text-black border-blue-800 px-0.5 py-1 text-[11px] ${count > 0 ? 'bg-[#FCE4D6]' : 'bg-[#FCE4D6]/50'}`}>
-                                        {count}
+                                    <th key={label} className="border border-white/10 px-1 py-0.5 text-center text-[10px] font-mono text-green-400 font-bold">
+                                        {x + s}
                                     </th>
                                 );
                             })}
-
-                            <th className="px-2 py-2 border border-blue-800 bg-[#1F497D]"></th> {/* Coluna Sub Total na linha de totais fica vazia na imagem */}
-                            <th className="px-1 py-2 border border-yellow-600 bg-[#D99A29] text-black">
-                                {formatMoney(totaisGlobais.descontos)}
-                            </th>
-                            <th className="px-1 py-2 border border-green-700 bg-[#000000] text-white">
-                                {formatMoney(totaisGlobais.totalVendas)}
-                            </th>
-                            <th className="px-1 py-2 border border-green-700 bg-[#2E5E2D] text-white">
-                                {formatMoney(totaisGlobais.valorPago)}
-                            </th>
-                            <th className="px-1 py-2 border border-orange-700 bg-[#A74112] text-white leading-tight">
-                                {formatMoney(totaisGlobais.pendente)}
-                            </th>
+                            {opcionaisAtivos.map(o => (
+                                <th key={o.id} className="border border-white/10 px-1 py-0.5 text-center text-[10px] text-green-400 font-mono font-bold">
+                                    {summary.optCounts[o.nome] || 0}
+                                </th>
+                            ))}
+                            <th className="border border-white/10 px-2 py-0.5 text-right text-[11px] font-mono text-slate-400">{formatMoney(totals.subTotal)}</th>
+                            <th className="border border-white/10 px-2 py-0.5 text-right text-[11px] font-mono text-yellow-400">{formatMoney(totals.desconto)}</th>
+                            <th className="border border-white/10 px-2 py-1 text-right text-[12px] font-mono font-black text-white bg-slate-700/60">{formatMoney(totals.totalVenda)}</th>
+                            <th className="border border-white/10 px-2 py-1 text-right text-[12px] font-mono font-black text-green-400 bg-slate-700/60">{formatMoney(totals.valorPago)}</th>
+                            <th className="border border-white/10 px-2 py-1 text-right text-[12px] font-mono font-black text-red-400 bg-slate-700/60">{formatMoney(totals.pendente)}</th>
                         </tr>
 
-                        {/* LINHA 3: Títulos das Colunas Verticais */}
-                        <tr className="bg-[#1F497D] text-xs">
-                            <th className="px-1 py-4 border border-blue-800 font-semibold w-20">Stand nº</th>
-                            <th className="px-2 py-4 border border-blue-800 font-semibold w-40">Cliente:</th>
-
-                            {/* Cabeçalhos dos Itens Verticais (Mais finos) */}
-                            {ITEMS.map(item => (
-                                <th key={`header-${item}`} className="px-0 py-2 border border-blue-800 font-normal w-6 max-w-[24px] text-center align-bottom" title={item}>
-                                    <div className="writing-mode-vertical mx-auto h-[100px] flex justify-center items-end" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-                                        <span className="truncate w-full inline-block text-[10px] pb-1">{item}</span>
+                        {/* ── Row 3: Column headers (Excel Style) ── */}
+                        <tr className="bg-[#1F497D]">
+                            <th className={`${thStyle} w-16`}>Stand</th>
+                            <th className={`${thStyle} min-w-[180px]`}>Cliente:</th>
+                            {comboLabels.map(label => (
+                                <th key={label} className={`${thStyle} w-6 align-bottom p-0`}>
+                                    <div className="vertical-text h-20 flex items-end justify-center uppercase text-[9px] pb-1 px-1 text-white">
+                                        {label}
                                     </div>
                                 </th>
                             ))}
-
-                            <th className="px-1 py-4 border border-blue-800 font-semibold text-center w-24">Sub Total</th>
-                            <th className="px-1 py-1 border border-blue-800 font-normal bg-[#3b669e] text-center w-24 text-[9px] leading-tight flex-col justify-center">
-                                Outros desconto / acrescimo incluir comentario
+                            {opcionaisAtivos.map(opt => (
+                                <th key={opt.id} className={`${thStyle} w-6 align-bottom p-0`}>
+                                    <div className="vertical-text h-20 flex items-end justify-center uppercase text-[9px] pb-1 px-1">
+                                        {opt.nome}
+                                    </div>
+                                </th>
+                            ))}
+                            <th className={`${thStyle} text-right`}>SubTotal</th>
+                            <th className={`${thStyle} text-[10px]`}>
+                                Desconto
                             </th>
-                            <th className="px-1 py-4 border border-blue-800 font-semibold text-center w-28 bg-[#1F497D]">Total</th>
-                            <th className="px-1 py-4 border border-blue-800 font-semibold text-center w-28 bg-[#1F497D]">Valor pago</th>
-                            <th className="px-1 py-4 border border-blue-800 font-semibold text-center w-32 bg-[#1F497D]">Valor pendente</th>
+                            <th className={`${thStyle} text-right`}>TOTAL</th>
+                            <th className={`${thStyle} bg-[#385723] text-right`}>PAGO</th>
+                            <th className={`${thStyle} bg-[#C00000] text-right`}>PENDENTE</th>
                         </tr>
                     </thead>
+
                     <tbody>
-                        {rows.map((row, index) => {
-                            const calc = calculateRow(row);
-                            const bgClass = index < 8 ? 'bg-[#FCE4D6]' : 'bg-[#FFF2CC]'; // Cores inspiradas na planilha
+                        {filtered
+                            .sort((a, b) => naturalSort(a.stand_nr, b.stand_nr))
+                            .map(row => {
+                                const cat = getCategoriaOfRow(row);
+                                const calc = calculateRow(row);
+                                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
 
-                            return (
-                                <tr key={row.id} className="border-b border-gray-400 hover:bg-gray-50 hover:[&>td]:bg-gray-50 transition-colors">
-                                    <td className={`px-1 py-0.5 border border-gray-400 font-medium ${bgClass} text-xs w-20`}>{row.standNr}</td>
-                                    <td className={`px-1 py-0 border border-gray-400 ${bgClass} w-40 max-w-[160px]`}>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-transparent outline-none p-0.5 text-xs h-full"
-                                            value={row.cliente}
-                                            onChange={e => updateField(row.id, 'cliente', e.target.value)}
-                                        />
-                                    </td>
+                                const obs = (row as any).observacoes || '';
 
-                                    {/* Células de Itens MAIS FINAS */}
-                                    {ITEMS.map(item => {
-                                        const status = row.items[item] || '';
-                                        let cellClass = "cursor-pointer text-center font-bold select-none transition-colors border-gray-400 ";
-                                        if (status === 'x') cellClass += 'bg-[#66FF33] text-black'; // Verde claro igual excel
-                                        else if (status === '*') cellClass += 'bg-[#00B0F0] text-black'; // Azul claro igual excel
-                                        else cellClass += 'hover:bg-gray-200 bg-white';
+                                return (
+                                    <tr
+                                        key={row.id}
+                                        className={`${cat?.cor || 'bg-white'} border-b border-slate-300 hover:brightness-95`}
+                                    >
+                                        {/* Stand nº */}
+                                        <td className={`${tdStyle} px-2 py-1 text-center font-bold whitespace-nowrap`}>
+                                            {row.stand_nr}
+                                        </td>
 
-                                        return (
-                                            <td
-                                                key={`${row.id}-${item}`}
-                                                className={`border h-5 w-5 min-w-[20px] max-w-[24px] text-[10px] leading-tight p-0 ${cellClass}`}
-                                                onClick={() => toggleCell(row.id, item)}
-                                                title={item}
-                                            >
-                                                {status}
-                                            </td>
-                                        );
-                                    })}
+                                        {/* Cliente — clica para abrir popup */}
+                                        <td
+                                            className={`${tdStyle} w-[200px] min-w-[200px] max-w-[200px] cursor-pointer hover:bg-black/5 group transition-colors px-2`}
+                                            onClick={() => setPopupRowId(row.id)}
+                                            title="Clique para selecionar cliente"
+                                        >
+                                            {(() => {
+                                                const nomeLivre = (row as any).cliente_nome_livre;
+                                                const cliente = clientes.find(c => c.id === row.cliente_id);
+                                                if (cliente) return (
+                                                    <span className="font-bold text-slate-900 truncate block max-w-[250px]">
+                                                        {cliente.tipo_pessoa === 'PJ' ? cliente.razao_social : cliente.nome_completo}
+                                                    </span>
+                                                );
+                                                if (nomeLivre) return (
+                                                    <span className="text-amber-900 font-black italic truncate block max-w-[250px]">{nomeLivre}</span>
+                                                );
+                                                return (
+                                                    <span className="text-slate-400 italic text-[11px] group-hover:text-blue-500 transition-colors uppercase">Disponível</span>
+                                                );
+                                            })()}
+                                        </td>
 
-                                    <td className="px-1 py-1 border border-gray-400 text-right text-gray-700 bg-gray-50 w-24 text-xs font-medium">
-                                        {calc.subTotal > 0 ? formatMoney(calc.subTotal) : 'R$ -'}
-                                    </td>
-                                    <td className="px-1 py-0 border border-gray-400 text-right bg-white w-24">
-                                        <input
-                                            type="number"
-                                            className="w-full text-right bg-transparent outline-none p-0.5 text-xs text-black"
-                                            value={row.desconto === 0 ? '' : row.desconto} // Vazio se 0
-                                            onChange={e => updateField(row.id, 'desconto', Number(e.target.value))}
-                                        />
-                                    </td>
-                                    <td className={`px-1 py-1 border border-gray-400 text-right w-28 text-xs ${calc.total > 0 ? 'bg-[#E2EFF6] text-black font-medium' : 'bg-gray-50 text-gray-500'}`}>
-                                        {calc.total > 0 ? formatMoney(calc.total) : 'R$ -'}
-                                    </td>
-                                    <td className="px-1 py-0 border border-gray-400 text-right bg-[#E8F1FC] w-28 text-xs">
-                                        <input
-                                            type="number"
-                                            className="w-full text-right bg-transparent outline-none p-0.5 text-black"
-                                            value={row.valorPago === 0 ? '' : row.valorPago}
-                                            onChange={e => updateField(row.id, 'valorPago', Number(e.target.value))}
-                                        />
-                                    </td>
-                                    <td className={`px-1 py-1 border border-gray-400 text-right w-32 text-xs ${calc.pendente > 0 ? 'bg-[#FBE4D5] text-black font-medium' : 'bg-gray-50 text-gray-400'}`}>
-                                        {calc.pendente > 0 ? formatMoney(calc.pendente) : 'R$ -'}
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                                        {/* Combo columns - each is a clickable cell (narrow, vertical header) */}
+                                        {comboLabels.map(label => {
+                                            const isX = row.tipo_venda === label;
+                                            const isStar = row.tipo_venda === label + '*';
+                                            const isPending = pendingAction?.rowId === row.id && pendingAction?.field === label;
+
+                                            return (
+                                                <td
+                                                    key={label}
+                                                    className={`${tdStyle} text-center cursor-pointer font-black select-none w-6 h-7 leading-none px-0
+                                                    ${isPending ? '!bg-slate-400 !text-white'
+                                                            : isX ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
+                                                                : isStar ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
+                                                                    : '!bg-white hover:bg-blue-100/50 text-transparent'}`}
+                                                    onClick={() => {
+                                                        if (isPending) {
+                                                            handleSelectCombo(row.id, label);
+                                                            setPendingAction(null);
+                                                        } else {
+                                                            setPendingAction({ rowId: row.id, field: label });
+                                                        }
+                                                    }}
+                                                    title={isPending ? 'Clique novamente para confirmar' : isX ? `${label} (clique para cortesia)` : isStar ? `${label} - Cortesia (clique para limpar)` : label}
+                                                >
+                                                    <span className="flex items-center justify-center w-full h-full text-[11px]">
+                                                        {isPending ? '?' : isX ? 'x' : isStar ? '*' : ''}
+                                                    </span>
+                                                </td>
+                                            );
+                                        })}
+
+                                        {/* Optional columns */}
+                                        {opcionaisAtivos.map(opt => {
+                                            const status = sel[opt.nome] || '';
+                                            const isPending = pendingAction?.rowId === row.id && pendingAction?.field === opt.nome;
+
+                                            return (
+                                                <td
+                                                    key={opt.id}
+                                                    className={`${tdStyle} text-center cursor-pointer font-black w-6 h-7 leading-none select-none px-0
+                                                    ${isPending ? '!bg-slate-400 !text-white'
+                                                            : status === 'x' ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
+                                                                : status === '*' ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
+                                                                    : '!bg-white hover:bg-slate-100/50 text-transparent'}`}
+                                                    onClick={() => {
+                                                        if (isPending) {
+                                                            handleToggleOpcional(row.id, opt.nome);
+                                                            setPendingAction(null);
+                                                        } else {
+                                                            setPendingAction({ rowId: row.id, field: opt.nome });
+                                                        }
+                                                    }}
+                                                    title={isPending ? 'Clique novamente para confirmar' : opt.nome}
+                                                >
+                                                    <span className="flex items-center justify-center w-full h-full text-[11px]">
+                                                        {isPending ? '?' : status}
+                                                    </span>
+                                                </td>
+                                            );
+                                        })}
+
+                                        {/* Sub Total */}
+                                        <td className={`${tdStyle} px-2 py-1 text-right font-mono font-bold bg-[#D9E1F2]/50 whitespace-nowrap text-slate-700`}>
+                                            {formatMoney(calc.subTotal)}
+                                        </td>
+
+                                        {/* Desconto */}
+                                        <td className={`${tdStyle} px-1 py-0.5 !bg-white`}>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-transparent text-right font-mono outline-none border-b border-transparent focus:border-red-400 min-w-[90px]"
+                                                value={editing?.id === row.id && editing?.field === 'desconto' ? editing.val : formatMoney(row.desconto)}
+                                                onFocus={() => setEditing({ id: row.id, field: 'desconto', val: String(row.desconto || '') })}
+                                                onChange={e => setEditing({ ...editing!, val: e.target.value })}
+                                                onBlur={() => {
+                                                    const num = Number(editing?.val.replace(',', '.') || 0);
+                                                    setRows(rows.map(r => r.id === row.id ? { ...r, desconto: num } as any : r));
+                                                    handleUpdateField(row.id, 'desconto', num);
+                                                    setEditing(null);
+                                                }}
+                                                onKeyDown={e => e.key === 'Enter' && (e.currentTarget as any).blur()}
+                                            />
+                                        </td>
+
+                                        {/* Total Vendas */}
+                                        <td className={`${tdStyle} text-right font-mono font-black text-[12px] bg-[#D9E1F2]/60 text-slate-900`}>
+                                            {formatMoney(calc.totalVenda)}
+                                        </td>
+
+                                        {/* Valor Pago */}
+                                        <td className={`${tdStyle} bg-green-50/60 p-0`}>
+                                            <input
+                                                type="text"
+                                                className="w-full h-full bg-transparent text-right font-mono outline-none text-green-900 font-bold text-[12px] px-2 min-w-[100px]"
+                                                value={editing?.id === row.id && editing?.field === 'valor_pago' ? editing.val : formatMoney(row.valor_pago)}
+                                                onFocus={() => setEditing({ id: row.id, field: 'valor_pago', val: String(row.valor_pago || '') })}
+                                                onChange={e => setEditing({ ...editing!, val: e.target.value })}
+                                                onBlur={() => {
+                                                    const num = Number(editing?.val.replace(',', '.') || 0);
+                                                    setRows(rows.map(r => r.id === row.id ? { ...r, valor_pago: num } as any : r));
+                                                    handleUpdateField(row.id, 'valor_pago', num);
+                                                    setEditing(null);
+                                                }}
+                                                onKeyDown={e => e.key === 'Enter' && (e.currentTarget as any).blur()}
+                                            />
+                                        </td>
+
+                                        {/* Pendente */}
+                                        <td className={`${tdStyle} text-right font-mono font-black text-[12px] ${calc.pendente > 0 ? 'text-red-600 bg-red-50/30' : calc.pendente < 0 ? 'text-blue-600' : 'text-slate-300'}`}>
+                                            {formatMoney(calc.pendente)}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        {filtered.length === 0 && (
+                            <tr>
+                                <td colSpan={2 + comboLabels.length + opcionaisAtivos.length + 5} className="py-8 text-center text-slate-400">
+                                    {rows.length === 0 ? 'Nenhum estande gerado. Vá em ⚙️ Setup para configurar e gerar a planilha.' : 'Nenhum resultado para a busca.'}
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            <div className="mt-8 text-sm text-gray-500">
-                <p><strong>Nota técnica:</strong> Esta é apenas uma interface visual local. Os dados serão perdidos ao recarregar a página (F5), pois não estão conectados ao banco de dados real. Feito apenas para validação de experiência do usuário.</p>
-            </div>
-        </div>
+            <style>{`
+                .vertical-text {
+                    writing-mode: vertical-rl;
+                    transform: rotate(180deg);
+                    white-space: nowrap;
+                }
+            `}</style>
+
+            {popupRowId && (() => {
+                const popupRow = rows.find(r => r.id === popupRowId);
+                return (
+                    <ClienteSelectorPopup
+                        currentClienteId={popupRow?.cliente_id}
+                        currentNomeLivre={(popupRow as any)?.cliente_nome_livre}
+                        onSelect={(clienteId, nomeLivre) => handleClienteSelect(popupRowId, clienteId, nomeLivre)}
+                        onClose={() => setPopupRowId(null)}
+                    />
+                );
+            })()}
+        </Layout>
     );
 };
 
-export default TempPlanilha;
+export default PlanilhaVendas;

@@ -99,4 +99,27 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 
 ---
 
-*(Toda vez que a IA criar um novo Prompt Mestre, ela está autorizada e instruída a atualizar este manual automaticamente para você!)*
+## 14. 🖱️ `PROMPT_14_ESTILO_DE_ACOES_EM_LISTAS.md`
+**(Acessibilidade e Padrão de Design)**
+**O que ele faz:** Estabelece que botões de ação (Editar, Excluir) devem estar sempre visíveis em listas, removendo a necessidade de passar o mouse para encontrá-los.
+**Por que é genial:** Em dispositivos móveis ou para usuários que não querem "caçar" botões, ter as ações visíveis previne erros e torna a navegação muito mais rápida. Define também as cores padrão (Azul para Editar, Vermelho para Excluir) para o resto do sistema.
+
+---
+
+## 15. 🔍 `PROMPT_15_SISTEMA_DE_BUSCA_INTELIGENTE.md`
+**(UX de Alta Performance e Acessibilidade)**
+**O que ele faz:** Ensina a IA a criar buscas "mágicas" que ignoram acentos, espaços e letras maiúsculas/minúsculas.
+**Por que é genial:** Se o usuário digitar "DANIELABORBA" ou "daniela borba", o sistema encontrará o registro do mesmo jeito. Isso é essencial para buscas rápidas em campo (eventos) onde o usuário está com pressa e não quer se preocupar com a gramática perfeita ou corretor ortográfico do celular.
+
+---
+
+## 16. 📊 `PROMPT_16_LISTAGEM_DENSA_INDUSTRIAL.md`
+**(UX Corporativa e Alta Densidade de Dados)**
+**O que ele faz:** Ensina a IA a construir tabelas com visual de "Planilha Técnica", onde cada milímetro da tela é aproveitado para mostrar o máximo de informações possível sem virar bagunça.
+**Por que é genial:** Em sistemas de gestão, o usuário não quer ver botões redondos e espaços vazios; ele quer ver 100 clientes de uma vez na tela para decidir rápido. Esse Blueprint ensina a técnica de "Linha Única Perfeita": o texto nunca quebra (usa reticências se for grande), as bordas são bem visíveis como no Excel e as linhas mudam de cor alternadamente para o olho não se perder na leitura horizontal.
+---
+
+## 17. 🧪 `NA_UNHA.md`
+**(Economia de Tokens e Testes Profundos)**
+**O que ele faz:** Estabelece um protocolo de teste "manual" realizado pela IA apenas sob demanda, focando em verificação visual e funcional exaustiva.
+**Por que é genial:** Previne o gasto excessivo de recursos (tokens) fazendo com que a IA use o navegador e capturas de tela apenas quando a alteração for visualmente crítica, mantendo o desenvolvimento ágil e econômico para tarefas de lógica pura.
