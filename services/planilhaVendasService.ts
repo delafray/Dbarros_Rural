@@ -11,7 +11,7 @@ export interface CategoriaSetup {
     cor: string;
     count: number;
     standBase: number;
-    combos: number[] | Record<string, number>;
+    combos: number[];
 }
 
 export const planilhaVendasService = {
@@ -40,7 +40,7 @@ export const planilhaVendasService = {
     async getEstandes(configId: string) {
         const { data, error } = await supabase
             .from('planilha_vendas_estandes')
-            .select('*, clientes(nome_fantasia, razao_social)')
+            .select('*')
             .eq('config_id', configId)
             .order('stand_nr');
 
@@ -61,26 +61,22 @@ export const planilhaVendasService = {
     },
 
     async generateEstandes(configId: string, categorias: CategoriaSetup[]) {
-        const estandes: any[] = [];
+        const estandes: Database['public']['Tables']['planilha_vendas_estandes']['Insert'][] = [];
 
         categorias.forEach(cat => {
             for (let i = 0; i < cat.count; i++) {
-                // Formato: "<prefix> <número com zero à esquerda>" → ex: "Naming 01", "Naming 16"
                 const num = String(i + 1).padStart(2, '0');
-                const standNr = `${cat.prefix} ${num}`;
-
                 estandes.push({
                     config_id: configId,
-                    stand_nr: standNr,
+                    stand_nr: `${cat.prefix} ${num}`,
                     tipo_venda: 'DISPONÍVEL',
                     opcionais_selecionados: {},
                     desconto: 0,
-                    valor_pago: 0
+                    valor_pago: 0,
                 });
             }
         });
 
-        // Delete existing ones first
         const { error: deleteError } = await supabase
             .from('planilha_vendas_estandes')
             .delete()
@@ -88,7 +84,6 @@ export const planilhaVendasService = {
 
         if (deleteError) throw deleteError;
 
-        // Insert new ones
         const { data, error } = await supabase
             .from('planilha_vendas_estandes')
             .insert(estandes)
@@ -96,5 +91,76 @@ export const planilhaVendasService = {
 
         if (error) throw error;
         return data;
-    }
+    },
+
+    /**
+     * Sincroniza os estandes de uma planilha já existente com as categorias atualizadas.
+     * - Insere estandes novos para categorias novas ou com count aumentado.
+     * - Remove estandes excedentes de categorias com count reduzido (apenas os sem dados).
+     */
+    async syncEstandes(configId: string, categorias: CategoriaSetup[]) {
+        const { data: existentes, error } = await supabase
+            .from('planilha_vendas_estandes')
+            .select('*')
+            .eq('config_id', configId);
+
+        if (error) throw error;
+
+        const existentesMap = new Map<string, PlanilhaEstande>();
+        (existentes || []).forEach(e => existentesMap.set(e.stand_nr, e));
+
+        const toInsert: Database['public']['Tables']['planilha_vendas_estandes']['Insert'][] = [];
+        const toDelete: string[] = [];
+
+        for (const cat of categorias) {
+            const existingForCat = (existentes || [])
+                .filter(e => e.stand_nr.startsWith(`${cat.prefix} `))
+                .sort((a, b) => a.stand_nr.localeCompare(b.stand_nr, undefined, { numeric: true }));
+
+            // Insert missing stands
+            for (let i = 0; i < cat.count; i++) {
+                const standNr = `${cat.prefix} ${String(i + 1).padStart(2, '0')}`;
+                if (!existentesMap.has(standNr)) {
+                    toInsert.push({
+                        config_id: configId,
+                        stand_nr: standNr,
+                        tipo_venda: 'DISPONÍVEL',
+                        opcionais_selecionados: {},
+                        desconto: 0,
+                        valor_pago: 0,
+                    });
+                }
+            }
+
+            // Delete stands beyond count that have no data
+            if (existingForCat.length > cat.count) {
+                const excedentes = existingForCat.slice(cat.count);
+                excedentes.forEach(e => {
+                    const isEmpty =
+                        !e.cliente_id &&
+                        !e.cliente_nome_livre &&
+                        e.tipo_venda === 'DISPONÍVEL' &&
+                        (!e.opcionais_selecionados || Object.keys(e.opcionais_selecionados as object).length === 0);
+                    if (isEmpty) toDelete.push(e.id);
+                });
+            }
+        }
+
+        if (toInsert.length > 0) {
+            const { error: insertError } = await supabase
+                .from('planilha_vendas_estandes')
+                .insert(toInsert);
+            if (insertError) throw insertError;
+        }
+
+        if (toDelete.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('planilha_vendas_estandes')
+                .delete()
+                .in('id', toDelete);
+            if (deleteError) throw deleteError;
+        }
+
+        return { inserted: toInsert.length, deleted: toDelete.length };
+    },
 };

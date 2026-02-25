@@ -64,15 +64,15 @@ const ConfiguracaoVendas: React.FC = () => {
                 setCategorias(mappedCats as CategoriaSetup[]);
                 setOpcionaisSelecionados(config.opcionais_ativos || []);
                 // Load custom prices
-                setOpcionaisPrecos((config as any).opcionais_precos || {});
+                setOpcionaisPrecos((config.opcionais_precos as Record<string, number>) || {});
                 const counts: Record<string, number> = {};
                 mappedCats.forEach(cat => { counts[cat.prefix] = cat.count; });
                 setSavedCounts(counts);
 
-                const { data: estandes } = await (supabase
+                const { data: estandes } = await supabase
                     .from('planilha_vendas_estandes')
                     .select('id, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados')
-                    .eq('config_id', config.id) as any);
+                    .eq('config_id', config.id);
                 if (estandes && estandes.length > 0) {
                     setPlanilhaExiste(true);
                     setTotalStands(estandes.length);
@@ -172,10 +172,10 @@ const ConfiguracaoVendas: React.FC = () => {
 
         // Salva opcionais_precos no banco imediatamente
         const newPrecos = { ...opcionaisPrecos, [id]: novoPreco };
-        const { error } = await (supabase
+        const { error } = await supabase
             .from('planilha_configuracoes')
-            .update({ opcionais_precos: newPrecos } as any)
-            .eq('id', configId));
+            .update({ opcionais_precos: newPrecos as unknown as import('../database.types').Json })
+            .eq('id', configId);
 
         if (error) {
             alert('Erro ao salvar preço: ' + error.message);
@@ -216,28 +216,28 @@ const ConfiguracaoVendas: React.FC = () => {
     const persistConfig = async (): Promise<string> => {
         const payload = {
             edicao_id: edicaoId,
-            categorias_config: categorias as any,
+            categorias_config: categorias as unknown as import('../database.types').Json,
             opcionais_ativos: opcionaisSelecionados,
-            opcionais_precos: opcionaisPrecos,
-        } as any;
+            opcionais_precos: opcionaisPrecos as unknown as import('../database.types').Json,
+        };
 
         if (configId) {
-            // Atualiza linha existente
-            const { data, error } = await (supabase
+            const { data, error } = await supabase
                 .from('planilha_configuracoes')
                 .update(payload)
                 .eq('id', configId)
-                .select().single() as any);
+                .select()
+                .single();
             if (error) throw error;
-            return data.id as string;
+            return data.id;
         } else {
-            // Cria nova linha
-            const { data, error } = await (supabase
+            const { data, error } = await supabase
                 .from('planilha_configuracoes')
                 .insert(payload)
-                .select().single() as any);
+                .select()
+                .single();
             if (error) throw error;
-            return data.id as string;
+            return data.id;
         }
     };
 
@@ -250,13 +250,26 @@ const ConfiguracaoVendas: React.FC = () => {
             setSaving(true);
             const savedId = await persistConfig();
             setConfigId(savedId);
+
+            // Sincroniza estandes (insere novos, remove excedentes sem dados)
+            if (planilhaExiste || savedId) {
+                const result = await planilhaVendasService.syncEstandes(savedId, categorias);
+                if (result.inserted > 0 || result.deleted > 0) {
+                    setPlanilhaExiste(true);
+                    setTotalStands(prev => prev + result.inserted - result.deleted);
+                }
+            }
+
             const counts: Record<string, number> = {};
             categorias.forEach(c => { counts[c.prefix] = c.count; });
             setSavedCounts(counts);
+
             alert('✅ Configurações salvas!');
+            // Redireciona para planilha para refletir novas cores/preços
+            navigate(`/planilha-vendas/${edicaoId}`);
         } catch (err) {
             console.error(err);
-            alert('Erro ao salvar: ' + (err as any)?.message);
+            alert('Erro ao salvar: ' + (err as Error)?.message);
         } finally {
             setSaving(false);
         }

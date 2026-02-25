@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Button } from '../components/UI';
@@ -6,6 +6,10 @@ import { planilhaVendasService, PlanilhaConfig, PlanilhaEstande, CategoriaSetup 
 import { itensOpcionaisService, ItemOpcional } from '../services/itensOpcionaisService';
 import { clientesService, Cliente } from '../services/clientesService';
 import ClienteSelectorPopup from '../components/ClienteSelectorPopup';
+
+// Module-level constant — not recreated on every render
+const naturalSort = (a: string, b: string) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 
 const PlanilhaVendas: React.FC = () => {
     const { edicaoId } = useParams<{ edicaoId: string }>();
@@ -18,12 +22,19 @@ const PlanilhaVendas: React.FC = () => {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [popupRowId, setPopupRowId] = useState<string | null>(null);
-    const [editing, setEditing] = useState<{ id: string, field: string, val: string } | null>(null);
-    const [pendingAction, setPendingAction] = useState<{ rowId: string, field: string } | null>(null);
+    const [editing, setEditing] = useState<{ id: string; field: string; val: string } | null>(null);
+    const [pendingAction, setPendingAction] = useState<{ rowId: string; field: string } | null>(null);
 
     useEffect(() => {
         if (edicaoId) loadData();
     }, [edicaoId]);
+
+    // Clear pending action on Escape
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setPendingAction(null); };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
 
     const loadData = async () => {
         try {
@@ -53,22 +64,17 @@ const PlanilhaVendas: React.FC = () => {
         }
     };
 
-    // ─── Helpers ──────────────────────────────────────────────
-    const getCategorias = (): CategoriaSetup[] =>
-        config ? (config.categorias_config as unknown as CategoriaSetup[]) : [];
+    // ─── Derived data ─────────────────────────────────────────────
+    const categorias = useMemo<CategoriaSetup[]>(
+        () => config ? (config.categorias_config as unknown as CategoriaSetup[]) : [],
+        [config]
+    );
 
-    const getOpcionaisAtivos = (): ItemOpcional[] => {
+    const opcionaisAtivos = useMemo<ItemOpcional[]>(() => {
         if (!config?.opcionais_ativos) return [];
         return allItensOpcionais.filter(item => config.opcionais_ativos?.includes(item.id));
-    };
+    }, [config, allItensOpcionais]);
 
-    const formatMoney = (value: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-
-    const categorias = useMemo(() => getCategorias(), [config]);
-    const opcionaisAtivos = useMemo(() => getOpcionaisAtivos(), [config, allItensOpcionais]);
-
-    // How many combo columns exist (max across all categories)
     const numCombos = useMemo(() => {
         let max = 0;
         categorias.forEach(c => {
@@ -78,29 +84,32 @@ const PlanilhaVendas: React.FC = () => {
         return max;
     }, [categorias]);
 
-    const getComboLabels = () => {
-        const labels: string[] = ['STAND PADRÃO'];
-        for (let i = 1; i <= numCombos; i++) {
-            labels.push(`COMBO ${String(i).padStart(2, '0')}`);
-        }
+    const comboLabels = useMemo(() => {
+        const labels = ['STAND PADRÃO'];
+        for (let i = 1; i <= numCombos; i++) labels.push(`COMBO ${String(i).padStart(2, '0')}`);
         return labels;
-    };
-    const comboLabels = getComboLabels();
+    }, [numCombos]);
 
-    const getCategoriaOfRow = (row: PlanilhaEstande) => {
+    const formatMoney = (value: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+
+    // ─── Row helpers ──────────────────────────────────────────────
+    const getCategoriaOfRow = useCallback((row: PlanilhaEstande): CategoriaSetup | undefined => {
         const nr = row.stand_nr.toLowerCase();
         return categorias.find(c => {
             const prefix = c.prefix.toLowerCase();
             const tag = c.tag.toLowerCase();
-            // Verifica se o número do estande começa com o prefixo (ex: "P") 
-            // ou se contém a tag (ex: "padrão") seguida pelo prefixo.
             return nr.startsWith(prefix) || nr.includes(`${tag} ${prefix}`);
         });
-    };
+    }, [categorias]);
+
+    const precosEdicao = useMemo<Record<string, number>>(
+        () => (config?.opcionais_precos as Record<string, number>) || {},
+        [config]
+    );
 
     const getPrecoForCombo = (cat: CategoriaSetup | undefined, tipoVenda: string): number => {
         if (!cat || tipoVenda.includes('*')) return 0;
-        // Strip marker in case of weird whitespace, though includes(*) already caught it
         const tipo = tipoVenda.replace('*', '').trim();
         if (tipo === 'STAND PADRÃO') return cat.standBase || 0;
         const match = tipo.match(/COMBO (\d+)/);
@@ -111,18 +120,14 @@ const PlanilhaVendas: React.FC = () => {
         return 0;
     };
 
-    const calculateRow = (row: PlanilhaEstande) => {
+    const calculateRow = useCallback((row: PlanilhaEstande) => {
         const cat = getCategoriaOfRow(row);
         const precoBase = getPrecoForCombo(cat, row.tipo_venda);
 
         const selecoes = (row.opcionais_selecionados as Record<string, string>) || {};
-        // Preços por edição salvos em config.opcionais_precos (keyed por item.id)
-        const precosEdicao = ((config as any)?.opcionais_precos || {}) as Record<string, number>;
         let totalOpcionais = 0;
         opcionaisAtivos.forEach(opt => {
-            const marker = selecoes[opt.nome];
-            if (marker === 'x') {
-                // Usa preço da edição se existir, senão usa o preço base do cadastro
+            if (selecoes[opt.nome] === 'x') {
                 const preco = precosEdicao[opt.id] !== undefined
                     ? Number(precosEdicao[opt.id])
                     : Number(opt.preco_base);
@@ -137,9 +142,9 @@ const PlanilhaVendas: React.FC = () => {
         const pendente = totalVenda - valorPago;
 
         return { precoBase, totalOpcionais, subTotal, desconto, totalVenda, valorPago, pendente };
-    };
+    }, [getCategoriaOfRow, opcionaisAtivos, precosEdicao]);
 
-    // Summary row: count x and * separately
+    // ─── Summary row ─────────────────────────────────────────────
     const summary = useMemo(() => {
         const comboXCounts: Record<string, number> = {};
         const comboStarCounts: Record<string, number> = {};
@@ -159,16 +164,13 @@ const PlanilhaVendas: React.FC = () => {
             const sel = (row.opcionais_selecionados as Record<string, string>) || {};
             opcionaisAtivos.forEach(opt => {
                 const val = sel[opt.nome];
-                if (val === 'x' || val === '*') {
-                    optCounts[opt.nome] = (optCounts[opt.nome] || 0) + 1;
-                }
+                if (val === 'x' || val === '*') optCounts[opt.nome] = (optCounts[opt.nome] || 0) + 1;
             });
         });
 
         return { comboXCounts, comboStarCounts, optCounts };
     }, [rows, comboLabels, opcionaisAtivos]);
 
-    // ─── Totals ───────────────────────────────────────────────
     const totals = useMemo(() => rows.reduce((acc, row) => {
         const c = calculateRow(row);
         acc.subTotal += c.subTotal;
@@ -177,9 +179,9 @@ const PlanilhaVendas: React.FC = () => {
         acc.valorPago += c.valorPago;
         acc.pendente += c.pendente;
         return acc;
-    }, { subTotal: 0, desconto: 0, totalVenda: 0, valorPago: 0, pendente: 0 }), [rows, opcionaisAtivos, categorias]);
+    }, { subTotal: 0, desconto: 0, totalVenda: 0, valorPago: 0, pendente: 0 }), [rows, calculateRow]);
 
-    // ─── Update handlers ──────────────────────────────────────
+    // ─── Update handlers ──────────────────────────────────────────
     const handleSelectCombo = async (rowId: string, comboLabel: string) => {
         const row = rows.find(r => r.id === rowId);
         if (!row) return;
@@ -187,7 +189,6 @@ const PlanilhaVendas: React.FC = () => {
         if (row.tipo_venda === comboLabel) newTipo = comboLabel + '*';
         else if (row.tipo_venda === comboLabel + '*') newTipo = 'DISPONÍVEL';
         else newTipo = comboLabel;
-        // Optimistic update — instant UI
         setRows(prev => prev.map(r => r.id === rowId ? { ...r, tipo_venda: newTipo } : r));
         planilhaVendasService.updateEstande(rowId, { tipo_venda: newTipo }).catch(err =>
             console.error('Erro ao salvar combo:', err)
@@ -202,25 +203,24 @@ const PlanilhaVendas: React.FC = () => {
         if (cur === '') sel[optNome] = 'x';
         else if (cur === 'x') sel[optNome] = '*';
         else sel[optNome] = '';
-        // Optimistic update — instant UI
-        setRows(prev => prev.map(r => r.id === rowId ? { ...r, opcionais_selecionados: sel as any } : r));
-        planilhaVendasService.updateEstande(rowId, { opcionais_selecionados: sel as any }).catch(err =>
+        setRows(prev => prev.map(r => r.id === rowId ? { ...r, opcionais_selecionados: sel } : r));
+        planilhaVendasService.updateEstande(rowId, { opcionais_selecionados: sel }).catch(err =>
             console.error('Erro ao salvar opcional:', err)
         );
     };
 
-    const handleUpdateField = async (rowId: string, field: string, value: any) => {
+    const handleUpdateField = (rowId: string, field: string, value: unknown) => {
         setRows(prev => prev.map(r => r.id === rowId ? { ...r, [field]: value } : r));
-        planilhaVendasService.updateEstande(rowId, { [field]: value }).catch(err =>
+        planilhaVendasService.updateEstande(rowId, { [field]: value } as Partial<PlanilhaEstande>).catch(err =>
             console.error(`Erro ao salvar ${field}:`, err)
         );
     };
 
-    const handleObs = async (rowId: string, value: string) => {
+    const handleObsChange = (rowId: string, value: string) => {
         setRows(rows.map(r => r.id === rowId ? { ...r, observacoes: value } : r));
     };
 
-    const handleObsBlur = async (rowId: string, value: string) => {
+    const handleObsBlur = (rowId: string, value: string) => {
         planilhaVendasService.updateEstande(rowId, { observacoes: value }).catch(err =>
             console.error('Erro ao salvar obs:', err)
         );
@@ -228,17 +228,24 @@ const PlanilhaVendas: React.FC = () => {
 
     const handleClienteSelect = (rowId: string, clienteId: string | null, nomeLivre: string | null) => {
         setRows(prev => prev.map(r =>
-            r.id === rowId ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre } as any : r
+            r.id === rowId ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre } : r
         ));
-        planilhaVendasService.updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre } as any)
-            .catch(err => console.error('Erro ao salvar cliente:', err));
+        planilhaVendasService.updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre }).catch(err =>
+            console.error('Erro ao salvar cliente:', err)
+        );
     };
 
-    // ─── Render ───────────────────────────────────────────────
-    const filtered = rows.filter(r =>
-        r.stand_nr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        clientes.find(c => c.id === r.cliente_id)?.nome_fantasia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        clientes.find(c => c.id === r.cliente_id)?.razao_social?.toLowerCase().includes(searchTerm.toLowerCase())
+    // ─── Render ───────────────────────────────────────────────────
+    const filtered = useMemo(() =>
+        rows
+            .filter(r =>
+                r.stand_nr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                clientes.find(c => c.id === r.cliente_id)?.nome_fantasia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                clientes.find(c => c.id === r.cliente_id)?.razao_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                r.cliente_nome_livre?.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+            .sort((a, b) => naturalSort(a.stand_nr, b.stand_nr)),
+        [rows, clientes, searchTerm]
     );
 
     if (loading) return <Layout title="Planilha"><div className="p-8 text-center">Carregando dados da planilha...</div></Layout>;
@@ -246,14 +253,9 @@ const PlanilhaVendas: React.FC = () => {
     const thStyle = "border border-slate-300 px-1 py-1 text-[11px] font-normal uppercase whitespace-nowrap text-white text-center bg-[#1F497D]";
     const tdStyle = "border border-slate-300 text-[12px] px-2 py-0.5 whitespace-nowrap";
 
-    // ─── Natural Sort Utility ─────────────────────────────────
-    const naturalSort = (a: string, b: string) => {
-        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-    };
-
     return (
         <Layout
-            title={`Planilha de Vendas`}
+            title="Planilha de Vendas"
             headerActions={
                 <div className="flex gap-2 items-center">
                     <Button variant="outline" size="sm" onClick={() => navigate(`/configuracao-vendas/${edicaoId}`)}>⚙️ Setup</Button>
@@ -271,7 +273,6 @@ const PlanilhaVendas: React.FC = () => {
                 <table className="border-collapse text-[11px] font-sans" style={{ minWidth: 'max-content' }}>
                     <thead className="sticky top-0 z-10 shadow-sm">
 
-                        {/* ── Row 1: Totals summary ── */}
                         {/* ── Row 1: Summary Titles ── */}
                         <tr className="bg-slate-900 text-white">
                             <th colSpan={2} className="border border-white/10 px-2 py-1 text-left text-[11px] font-black tracking-widest text-slate-400 uppercase whitespace-nowrap">Resumo Geral</th>
@@ -332,9 +333,7 @@ const PlanilhaVendas: React.FC = () => {
                                 </th>
                             ))}
                             <th className={`${thStyle} text-right`}>SubTotal</th>
-                            <th className={`${thStyle} text-[10px]`}>
-                                Desconto
-                            </th>
+                            <th className={`${thStyle} text-[10px]`}>Desconto</th>
                             <th className={`${thStyle} text-right`}>TOTAL</th>
                             <th className={`${thStyle} bg-[#385723] text-right`}>PAGO</th>
                             <th className={`${thStyle} bg-[#C00000] text-right`}>PENDENTE</th>
@@ -342,162 +341,157 @@ const PlanilhaVendas: React.FC = () => {
                     </thead>
 
                     <tbody>
-                        {filtered
-                            .sort((a, b) => naturalSort(a.stand_nr, b.stand_nr))
-                            .map(row => {
-                                const cat = getCategoriaOfRow(row);
-                                const calc = calculateRow(row);
-                                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
+                        {filtered.map(row => {
+                            const cat = getCategoriaOfRow(row);
+                            const calc = calculateRow(row);
+                            const sel = (row.opcionais_selecionados as Record<string, string>) || {};
 
-                                const obs = (row as any).observacoes || '';
+                            return (
+                                <tr
+                                    key={row.id}
+                                    className={`${cat?.cor || 'bg-white'} border-b border-slate-300 hover:brightness-95`}
+                                >
+                                    {/* Stand nº */}
+                                    <td className={`${tdStyle} px-2 py-1 text-center font-bold whitespace-nowrap`}>
+                                        {row.stand_nr}
+                                    </td>
 
-                                return (
-                                    <tr
-                                        key={row.id}
-                                        className={`${cat?.cor || 'bg-white'} border-b border-slate-300 hover:brightness-95`}
+                                    {/* Cliente — clica para abrir popup */}
+                                    <td
+                                        className={`${tdStyle} w-[200px] min-w-[200px] max-w-[200px] cursor-pointer hover:bg-black/5 group transition-colors px-2`}
+                                        onClick={() => setPopupRowId(row.id)}
+                                        title="Clique para selecionar cliente"
                                     >
-                                        {/* Stand nº */}
-                                        <td className={`${tdStyle} px-2 py-1 text-center font-bold whitespace-nowrap`}>
-                                            {row.stand_nr}
-                                        </td>
-
-                                        {/* Cliente — clica para abrir popup */}
-                                        <td
-                                            className={`${tdStyle} w-[200px] min-w-[200px] max-w-[200px] cursor-pointer hover:bg-black/5 group transition-colors px-2`}
-                                            onClick={() => setPopupRowId(row.id)}
-                                            title="Clique para selecionar cliente"
-                                        >
-                                            {(() => {
-                                                const nomeLivre = (row as any).cliente_nome_livre;
-                                                const cliente = clientes.find(c => c.id === row.cliente_id);
-                                                if (cliente) return (
-                                                    <span className="font-bold text-slate-900 truncate block max-w-[250px]">
-                                                        {cliente.tipo_pessoa === 'PJ' ? cliente.razao_social : cliente.nome_completo}
-                                                    </span>
-                                                );
-                                                if (nomeLivre) return (
-                                                    <span className="text-amber-900 font-black italic truncate block max-w-[250px]">{nomeLivre}</span>
-                                                );
-                                                return (
-                                                    <span className="text-slate-400 italic text-[11px] group-hover:text-blue-500 transition-colors uppercase">Disponível</span>
-                                                );
-                                            })()}
-                                        </td>
-
-                                        {/* Combo columns - each is a clickable cell (narrow, vertical header) */}
-                                        {comboLabels.map(label => {
-                                            const isX = row.tipo_venda === label;
-                                            const isStar = row.tipo_venda === label + '*';
-                                            const isPending = pendingAction?.rowId === row.id && pendingAction?.field === label;
-
-                                            return (
-                                                <td
-                                                    key={label}
-                                                    className={`${tdStyle} text-center cursor-pointer font-black select-none w-6 h-7 leading-none px-0
-                                                    ${isPending ? '!bg-slate-400 !text-white'
-                                                            : isX ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
-                                                                : isStar ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
-                                                                    : '!bg-white hover:bg-blue-100/50 text-transparent'}`}
-                                                    onClick={() => {
-                                                        if (isPending) {
-                                                            handleSelectCombo(row.id, label);
-                                                            setPendingAction(null);
-                                                        } else {
-                                                            setPendingAction({ rowId: row.id, field: label });
-                                                        }
-                                                    }}
-                                                    title={isPending ? 'Clique novamente para confirmar' : isX ? `${label} (clique para cortesia)` : isStar ? `${label} - Cortesia (clique para limpar)` : label}
-                                                >
-                                                    <span className="flex items-center justify-center w-full h-full text-[11px]">
-                                                        {isPending ? '?' : isX ? 'x' : isStar ? '*' : ''}
-                                                    </span>
-                                                </td>
+                                        {(() => {
+                                            const cliente = clientes.find(c => c.id === row.cliente_id);
+                                            if (cliente) return (
+                                                <span className="font-bold text-slate-900 truncate block max-w-[250px]">
+                                                    {cliente.tipo_pessoa === 'PJ' ? cliente.razao_social : cliente.nome_completo}
+                                                </span>
                                             );
-                                        })}
-
-                                        {/* Optional columns */}
-                                        {opcionaisAtivos.map(opt => {
-                                            const status = sel[opt.nome] || '';
-                                            const isPending = pendingAction?.rowId === row.id && pendingAction?.field === opt.nome;
-
-                                            return (
-                                                <td
-                                                    key={opt.id}
-                                                    className={`${tdStyle} text-center cursor-pointer font-black w-6 h-7 leading-none select-none px-0
-                                                    ${isPending ? '!bg-slate-400 !text-white'
-                                                            : status === 'x' ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
-                                                                : status === '*' ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
-                                                                    : '!bg-white hover:bg-slate-100/50 text-transparent'}`}
-                                                    onClick={() => {
-                                                        if (isPending) {
-                                                            handleToggleOpcional(row.id, opt.nome);
-                                                            setPendingAction(null);
-                                                        } else {
-                                                            setPendingAction({ rowId: row.id, field: opt.nome });
-                                                        }
-                                                    }}
-                                                    title={isPending ? 'Clique novamente para confirmar' : opt.nome}
-                                                >
-                                                    <span className="flex items-center justify-center w-full h-full text-[11px]">
-                                                        {isPending ? '?' : status}
-                                                    </span>
-                                                </td>
+                                            if (row.cliente_nome_livre) return (
+                                                <span className="text-amber-900 font-black italic truncate block max-w-[250px]">{row.cliente_nome_livre}</span>
                                             );
-                                        })}
+                                            return (
+                                                <span className="text-slate-400 italic text-[11px] group-hover:text-blue-500 transition-colors uppercase">Disponível</span>
+                                            );
+                                        })()}
+                                    </td>
 
-                                        {/* Sub Total */}
-                                        <td className={`${tdStyle} px-2 py-1 text-right font-mono font-bold bg-[#D9E1F2]/50 whitespace-nowrap text-slate-700`}>
-                                            {formatMoney(calc.subTotal)}
-                                        </td>
+                                    {/* Combo columns */}
+                                    {comboLabels.map(label => {
+                                        const isX = row.tipo_venda === label;
+                                        const isStar = row.tipo_venda === label + '*';
+                                        const isPending = pendingAction?.rowId === row.id && pendingAction?.field === label;
 
-                                        {/* Desconto */}
-                                        <td className={`${tdStyle} px-1 py-0.5 !bg-white`}>
-                                            <input
-                                                type="text"
-                                                className="w-full bg-transparent text-right font-mono outline-none border-b border-transparent focus:border-red-400 min-w-[90px]"
-                                                value={editing?.id === row.id && editing?.field === 'desconto' ? editing.val : formatMoney(row.desconto)}
-                                                onFocus={() => setEditing({ id: row.id, field: 'desconto', val: String(row.desconto || '') })}
-                                                onChange={e => setEditing({ ...editing!, val: e.target.value })}
-                                                onBlur={() => {
-                                                    const num = Number(editing?.val.replace(',', '.') || 0);
-                                                    setRows(rows.map(r => r.id === row.id ? { ...r, desconto: num } as any : r));
-                                                    handleUpdateField(row.id, 'desconto', num);
-                                                    setEditing(null);
+                                        return (
+                                            <td
+                                                key={label}
+                                                className={`${tdStyle} text-center cursor-pointer font-black select-none w-6 h-7 leading-none px-0
+                                                ${isPending ? '!bg-slate-400 !text-white'
+                                                        : isX ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
+                                                            : isStar ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
+                                                                : '!bg-white hover:bg-blue-100/50 text-transparent'}`}
+                                                onClick={() => {
+                                                    if (isPending) {
+                                                        handleSelectCombo(row.id, label);
+                                                        setPendingAction(null);
+                                                    } else {
+                                                        setPendingAction({ rowId: row.id, field: label });
+                                                    }
                                                 }}
-                                                onKeyDown={e => e.key === 'Enter' && (e.currentTarget as any).blur()}
-                                            />
-                                        </td>
+                                                title={isPending ? 'Clique novamente para confirmar' : isX ? `${label} (clique para cortesia)` : isStar ? `${label} - Cortesia (clique para limpar)` : label}
+                                            >
+                                                <span className="flex items-center justify-center w-full h-full text-[11px]">
+                                                    {isPending ? '?' : isX ? 'x' : isStar ? '*' : ''}
+                                                </span>
+                                            </td>
+                                        );
+                                    })}
 
-                                        {/* Total Vendas */}
-                                        <td className={`${tdStyle} text-right font-mono font-black text-[12px] bg-[#D9E1F2]/60 text-slate-900`}>
-                                            {formatMoney(calc.totalVenda)}
-                                        </td>
+                                    {/* Optional columns */}
+                                    {opcionaisAtivos.map(opt => {
+                                        const status = sel[opt.nome] || '';
+                                        const isPending = pendingAction?.rowId === row.id && pendingAction?.field === opt.nome;
 
-                                        {/* Valor Pago */}
-                                        <td className={`${tdStyle} bg-green-50/60 p-0`}>
-                                            <input
-                                                type="text"
-                                                className="w-full h-full bg-transparent text-right font-mono outline-none text-green-900 font-bold text-[12px] px-2 min-w-[100px]"
-                                                value={editing?.id === row.id && editing?.field === 'valor_pago' ? editing.val : formatMoney(row.valor_pago)}
-                                                onFocus={() => setEditing({ id: row.id, field: 'valor_pago', val: String(row.valor_pago || '') })}
-                                                onChange={e => setEditing({ ...editing!, val: e.target.value })}
-                                                onBlur={() => {
-                                                    const num = Number(editing?.val.replace(',', '.') || 0);
-                                                    setRows(rows.map(r => r.id === row.id ? { ...r, valor_pago: num } as any : r));
-                                                    handleUpdateField(row.id, 'valor_pago', num);
-                                                    setEditing(null);
+                                        return (
+                                            <td
+                                                key={opt.id}
+                                                className={`${tdStyle} text-center cursor-pointer font-black w-6 h-7 leading-none select-none px-0
+                                                ${isPending ? '!bg-slate-400 !text-white'
+                                                        : status === 'x' ? '!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10'
+                                                            : status === '*' ? '!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10'
+                                                                : '!bg-white hover:bg-slate-100/50 text-transparent'}`}
+                                                onClick={() => {
+                                                    if (isPending) {
+                                                        handleToggleOpcional(row.id, opt.nome);
+                                                        setPendingAction(null);
+                                                    } else {
+                                                        setPendingAction({ rowId: row.id, field: opt.nome });
+                                                    }
                                                 }}
-                                                onKeyDown={e => e.key === 'Enter' && (e.currentTarget as any).blur()}
-                                            />
-                                        </td>
+                                                title={isPending ? 'Clique novamente para confirmar' : opt.nome}
+                                            >
+                                                <span className="flex items-center justify-center w-full h-full text-[11px]">
+                                                    {isPending ? '?' : status}
+                                                </span>
+                                            </td>
+                                        );
+                                    })}
 
-                                        {/* Pendente */}
-                                        <td className={`${tdStyle} text-right font-mono font-black text-[12px] ${calc.pendente > 0 ? 'text-red-600 bg-red-50/30' : calc.pendente < 0 ? 'text-blue-600' : 'text-slate-300'}`}>
-                                            {formatMoney(calc.pendente)}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                                    {/* Sub Total */}
+                                    <td className={`${tdStyle} px-2 py-1 text-right font-mono font-bold bg-[#D9E1F2]/50 whitespace-nowrap text-slate-700`}>
+                                        {formatMoney(calc.subTotal)}
+                                    </td>
+
+                                    {/* Desconto */}
+                                    <td className={`${tdStyle} px-1 py-0.5 !bg-white`}>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-transparent text-right font-mono outline-none border-b border-transparent focus:border-red-400 min-w-[90px]"
+                                            value={editing?.id === row.id && editing?.field === 'desconto' ? editing.val : formatMoney(row.desconto ?? 0)}
+                                            onFocus={() => setEditing({ id: row.id, field: 'desconto', val: String(row.desconto || '') })}
+                                            onChange={e => setEditing({ ...editing!, val: e.target.value })}
+                                            onBlur={() => {
+                                                const num = Number(editing?.val.replace(',', '.') || 0);
+                                                setRows(rows.map(r => r.id === row.id ? { ...r, desconto: num } : r));
+                                                handleUpdateField(row.id, 'desconto', num);
+                                                setEditing(null);
+                                            }}
+                                            onKeyDown={e => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+                                        />
+                                    </td>
+
+                                    {/* Total Vendas */}
+                                    <td className={`${tdStyle} text-right font-mono font-black text-[12px] bg-[#D9E1F2]/60 text-slate-900`}>
+                                        {formatMoney(calc.totalVenda)}
+                                    </td>
+
+                                    {/* Valor Pago */}
+                                    <td className={`${tdStyle} bg-green-50/60 p-0`}>
+                                        <input
+                                            type="text"
+                                            className="w-full h-full bg-transparent text-right font-mono outline-none text-green-900 font-bold text-[12px] px-2 min-w-[100px]"
+                                            value={editing?.id === row.id && editing?.field === 'valor_pago' ? editing.val : formatMoney(row.valor_pago ?? 0)}
+                                            onFocus={() => setEditing({ id: row.id, field: 'valor_pago', val: String(row.valor_pago || '') })}
+                                            onChange={e => setEditing({ ...editing!, val: e.target.value })}
+                                            onBlur={() => {
+                                                const num = Number(editing?.val.replace(',', '.') || 0);
+                                                setRows(rows.map(r => r.id === row.id ? { ...r, valor_pago: num } : r));
+                                                handleUpdateField(row.id, 'valor_pago', num);
+                                                setEditing(null);
+                                            }}
+                                            onKeyDown={e => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+                                        />
+                                    </td>
+
+                                    {/* Pendente */}
+                                    <td className={`${tdStyle} text-right font-mono font-black text-[12px] ${calc.pendente > 0 ? 'text-red-600 bg-red-50/30' : calc.pendente < 0 ? 'text-blue-600' : 'text-slate-300'}`}>
+                                        {formatMoney(calc.pendente)}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                         {filtered.length === 0 && (
                             <tr>
                                 <td colSpan={2 + comboLabels.length + opcionaisAtivos.length + 5} className="py-8 text-center text-slate-400">
@@ -522,7 +516,7 @@ const PlanilhaVendas: React.FC = () => {
                 return (
                     <ClienteSelectorPopup
                         currentClienteId={popupRow?.cliente_id}
-                        currentNomeLivre={(popupRow as any)?.cliente_nome_livre}
+                        currentNomeLivre={popupRow?.cliente_nome_livre}
                         onSelect={(clienteId, nomeLivre) => handleClienteSelect(popupRowId, clienteId, nomeLivre)}
                         onClose={() => setPopupRowId(null)}
                     />

@@ -314,6 +314,7 @@ export type Database = {
           edicao_id: string | null
           id: string
           opcionais_ativos: string[] | null
+          opcionais_precos: Json | null
           updated_at: string | null
         }
         Insert: {
@@ -322,6 +323,7 @@ export type Database = {
           edicao_id?: string | null
           id?: string
           opcionais_ativos?: string[] | null
+          opcionais_precos?: Json | null
           updated_at?: string | null
         }
         Update: {
@@ -330,6 +332,7 @@ export type Database = {
           edicao_id?: string | null
           id?: string
           opcionais_ativos?: string[] | null
+          opcionais_precos?: Json | null
           updated_at?: string | null
         }
         Relationships: [
@@ -345,6 +348,7 @@ export type Database = {
       planilha_vendas_estandes: {
         Row: {
           cliente_id: string | null
+          cliente_nome_livre: string | null
           config_id: string | null
           created_at: string | null
           desconto: number | null
@@ -358,6 +362,7 @@ export type Database = {
         }
         Insert: {
           cliente_id?: string | null
+          cliente_nome_livre?: string | null
           config_id?: string | null
           created_at?: string | null
           desconto?: number | null
@@ -371,6 +376,7 @@ export type Database = {
         }
         Update: {
           cliente_id?: string | null
+          cliente_nome_livre?: string | null
           config_id?: string | null
           created_at?: string | null
           desconto?: number | null
