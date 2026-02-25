@@ -63,7 +63,7 @@ export const fetchInstagramThumbnail = async (instagramUrl: string): Promise<str
 
     try {
         const resp = await fetch(
-            'https://zamknopwowugrjapoman.supabase.co/functions/v1/instagram-thumbnail',
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-thumbnail`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

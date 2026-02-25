@@ -1147,12 +1147,26 @@ const Photos: React.FC = () => {
                   className="flex-[1.5] min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
                   required
                 />
-                <input
-                  placeholder="Caminho (Local)..."
-                  value={formData.localPath}
-                  onChange={e => setFormData({ ...formData, localPath: e.target.value })}
-                  className="hidden sm:block flex-1 min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
-                />
+                <div className="hidden sm:flex flex-1 min-w-0 relative group items-center">
+                  <input
+                    placeholder="Caminho (Local)..."
+                    value={formData.localPath}
+                    onChange={e => setFormData({ ...formData, localPath: e.target.value })}
+                    className="w-full min-w-0 bg-white border-2 border-blue-400 rounded-lg px-2.5 py-1 pr-8 text-[11px] font-mono text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 shadow-sm outline-none transition-all"
+                  />
+                  {formData.localPath && (
+                    <button
+                      type="button"
+                      onClick={(e) => copyToClipboard(e, formData.localPath!)}
+                      className="absolute right-1 p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Copiar caminho local"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
                 <input
                   placeholder="Servidor / HD..."
                   title="Servidor ou HD Externo onde está o arquivo original da foto/vídeo"

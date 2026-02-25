@@ -1,6 +1,6 @@
-# 📸 Galeria de Fotos - Gestão de Projetos (v2025)
+# 📊 Dbarro Rural - Gestão de Vendas (v2026)
 
-Sistema de alta performance para gestão de fotos e vídeos de projetos, com organização hierárquica por tags e categorias. Construído e modularizado sob a arquitetura **Backend Specialist v2025**.
+Sistema de alta performance para gestão de vendas de eventos e combos. Construído e modularizado sob a arquitetura **Backend Specialist v2025**.
 
 ---
 
@@ -26,10 +26,10 @@ Para rodar este projeto no seu computador, você precisará ter o **Node.js** in
 ### 1. Preparação do Ambiente
 ```bash
 # Clone o repositório
-git clone https://github.com/ronaldo-galeria/GaleriaDeFotos.git
+git clone https://github.com/SeuUsuario/VendasEventos.git
 
 # Entre na pasta
-cd GaleriaDeFotos
+cd VendasEventos
 
 # Instale as dependências
 npm install
