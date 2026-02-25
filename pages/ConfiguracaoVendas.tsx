@@ -45,23 +45,34 @@ const ConfiguracaoVendas: React.FC = () => {
             ]);
             if (config) {
                 setConfigId(config.id);
+                // Categorias vindas do banco como Json (precisam de cast seguro para CategoriaSetup)
+                const storedCats = (config.categorias_config as unknown as CategoriaSetup[]) || [];
+
                 let maxCombos = 1;
-                let mappedCats = (config.categorias_config as any[]).map(cat => {
-                    let combos: number[] = Array.isArray(cat.combos)
-                        ? cat.combos
-                        : typeof cat.combos === 'object' && cat.combos
-                            ? [cat.combos.combo01 || 0, cat.combos.combo02 || 0, cat.combos.combo03 || 0]
-                            : [];
-                    if (combos.length > maxCombos) maxCombos = combos.length;
-                    return { ...cat, combos };
+                // Ajuste defensivo: garante que combos é array e descobre o limite máximo (numCombos)
+                storedCats.forEach(cat => {
+                    if (Array.isArray(cat.combos)) {
+                        maxCombos = Math.max(maxCombos, cat.combos.length);
+                    } else if (typeof cat.combos === 'object' && cat.combos !== null) {
+                        // Migração legada para quem usava objeto { combo01: number }
+                        const cArr = Object.values(cat.combos).map(v => Number(v) || 0);
+                        maxCombos = Math.max(maxCombos, cArr.length);
+                        cat.combos = cArr;
+                    } else {
+                        cat.combos = [];
+                    }
                 });
+
                 setNumCombos(maxCombos);
-                mappedCats = mappedCats.map(cat => {
-                    const padded = [...cat.combos];
+
+                // Normaliza o array de combos para ter o mesmo tamnho padding (ex 0, 0, 0)
+                const mappedCats = storedCats.map(cat => {
+                    const padded = Array.isArray(cat.combos) ? [...cat.combos] : [];
                     while (padded.length < maxCombos) padded.push(0);
                     return { ...cat, combos: padded };
                 });
-                setCategorias(mappedCats as CategoriaSetup[]);
+
+                setCategorias(mappedCats);
                 setOpcionaisSelecionados(config.opcionais_ativos || []);
                 // Load custom prices
                 setOpcionaisPrecos((config.opcionais_precos as Record<string, number>) || {});
@@ -96,15 +107,15 @@ const ConfiguracaoVendas: React.FC = () => {
     };
 
     // ── Category handlers ──────────────────────────────────────
-    const updateCat = (idx: number, field: string, value: any) =>
+    const updateCat = <K extends keyof CategoriaSetup>(idx: number, field: K, value: string | number) =>
         setCategorias(prev => prev.map((c, i) => i !== idx ? c : {
             ...c, [field]: (field === 'count' || field === 'standBase') ? (Number(value) || 0) : value
         }));
 
-    const updateCombo = (catIdx: number, ci: number, value: any) =>
+    const updateCombo = (catIdx: number, ci: number, value: string | number) =>
         setCategorias(prev => prev.map((c, i) => {
             if (i !== catIdx) return c;
-            const arr = Array.isArray(c.combos) ? [...c.combos as number[]] : [];
+            const arr = Array.isArray(c.combos) ? [...c.combos] : [];
             arr[ci] = Number(value) || 0;
             return { ...c, combos: arr };
         }));
@@ -250,21 +261,30 @@ const ConfiguracaoVendas: React.FC = () => {
     const validateCountReduction = async (): Promise<string | null> => {
         if (!configId) return null;
         for (const cat of categorias) {
-            const savedCount = savedCounts[cat.prefix];
+            const savedCount = savedCounts[cat.tag];
             if (savedCount && cat.count < savedCount) {
-                const { data } = await (supabase
+                const identifier = (cat.prefix || cat.tag || '').trim();
+                if (!identifier) continue;
+
+                const { data, error } = await supabase
                     .from('planilha_vendas_estandes')
                     .select('stand_nr, cliente_id, cliente_nome_livre, tipo_venda')
                     .eq('config_id', configId)
-                    .like('stand_nr', `${cat.prefix} %`) as any);
-                if (data) {
-                    const sorted = data.sort((a, b) => a.stand_nr.localeCompare(b.stand_nr));
+                    .like('stand_nr', `${identifier} %`);
+
+                if (error) {
+                    console.error('Erro na validação de redução:', error);
+                    continue;
+                }
+
+                if (data && data.length > 0) {
+                    const sorted = [...data].sort((a, b) => a.stand_nr.localeCompare(b.stand_nr, undefined, { numeric: true }));
                     const toRemove = sorted.slice(cat.count);
                     const withData = toRemove.filter(r =>
                         r.cliente_id || r.cliente_nome_livre || (r.tipo_venda && r.tipo_venda !== 'DISPONÍVEL')
                     );
                     if (withData.length > 0)
-                        return `"${cat.prefix}": ${withData.length} stand(s) com dados seriam removidos (${withData.map(r => r.stand_nr).join(', ')}). Limpe-os na planilha primeiro.`;
+                        return `"${cat.tag}": ${withData.length} stand(s) com dados seriam removidos (${withData.map(r => r.stand_nr).join(', ')}). Limpe-os na planilha primeiro.`;
                 }
             }
         }
@@ -343,7 +363,7 @@ const ConfiguracaoVendas: React.FC = () => {
             navigate(`/planilha-vendas/${edicaoId}`);
         } catch (err) {
             console.error(err);
-            alert('Erro ao salvar: ' + (err as Error)?.message);
+            alert('Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)));
         } finally {
             setSaving(false);
         }
@@ -372,7 +392,7 @@ const ConfiguracaoVendas: React.FC = () => {
             navigate(`/planilha-vendas/${edicaoId}`);
         } catch (err) {
             console.error(err);
-            alert('Erro ao gerar planilha: ' + (err as any)?.message);
+            alert('Erro ao gerar planilha: ' + (err instanceof Error ? err.message : String(err)));
         } finally {
             setSaving(false);
         }

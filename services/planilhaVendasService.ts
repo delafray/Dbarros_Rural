@@ -4,6 +4,7 @@ import { Database } from '../database.types';
 export type PlanilhaConfig = Database['public']['Tables']['planilha_configuracoes']['Row'];
 export type PlanilhaConfigInsert = Database['public']['Tables']['planilha_configuracoes']['Insert'];
 export type PlanilhaEstande = Database['public']['Tables']['planilha_vendas_estandes']['Row'];
+export type PlanilhaEstandeInsert = Database['public']['Tables']['planilha_vendas_estandes']['Insert'];
 
 export interface CategoriaSetup {
     tag: string;
@@ -62,7 +63,7 @@ export const planilhaVendasService = {
     },
 
     async generateEstandes(configId: string, categorias: CategoriaSetup[]) {
-        const estandes: Database['public']['Tables']['planilha_vendas_estandes']['Insert'][] = [];
+        const estandes: PlanilhaEstandeInsert[] = [];
 
         categorias.forEach(cat => {
             for (let i = 1; i <= cat.count; i++) {
@@ -119,7 +120,7 @@ export const planilhaVendasService = {
         const existentesMap = new Map<string, PlanilhaEstande>();
         (existentes || []).forEach(e => existentesMap.set(e.stand_nr, e));
 
-        const toInsert: Database['public']['Tables']['planilha_vendas_estandes']['Insert'][] = [];
+        const toInsert: PlanilhaEstandeInsert[] = [];
         const toDelete: string[] = [];
 
         for (const cat of categorias) {
