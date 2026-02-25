@@ -65,11 +65,10 @@ export const planilhaVendasService = {
         const estandes: Database['public']['Tables']['planilha_vendas_estandes']['Insert'][] = [];
 
         categorias.forEach(cat => {
-            for (let i = 0; i < cat.count; i++) {
-                const num = String(i + 1).padStart(2, '0');
+            for (let i = 1; i <= cat.count; i++) {
                 estandes.push({
                     config_id: configId,
-                    stand_nr: `${cat.prefix} ${num}`,
+                    stand_nr: planilhaVendasService.buildStandNr(cat, i),
                     tipo_venda: 'DISPONÍVEL',
                     opcionais_selecionados: {},
                     desconto: 0,
@@ -95,6 +94,16 @@ export const planilhaVendasService = {
     },
 
     /**
+     * Gera o stand_nr de uma categoria para um número (1-indexed).
+     * Regra: se tem prefix → "PREFIX NN"; se não tem → "TAG NN"
+     */
+    buildStandNr(cat: CategoriaSetup, n: number): string {
+        const id = (cat.prefix || cat.tag || '').trim();
+        const num = String(n).padStart(2, '0');
+        return id ? `${id} ${num}` : num;
+    },
+
+    /**
      * Sincroniza os estandes de uma planilha já existente com as categorias atualizadas.
      * - Insere estandes novos para categorias novas ou com count aumentado.
      * - Remove estandes excedentes de categorias com count reduzido (apenas os sem dados).
@@ -114,13 +123,19 @@ export const planilhaVendasService = {
         const toDelete: string[] = [];
 
         for (const cat of categorias) {
+            const id = (cat.prefix || cat.tag || '').trim();
+
+            // Busca estandes que pertencem a esta categoria
             const existingForCat = (existentes || [])
-                .filter(e => e.stand_nr.startsWith(`${cat.prefix} `))
+                .filter(e => {
+                    if (!id) return false;
+                    return e.stand_nr === id || e.stand_nr.startsWith(`${id} `);
+                })
                 .sort((a, b) => a.stand_nr.localeCompare(b.stand_nr, undefined, { numeric: true }));
 
             // Insert missing stands
-            for (let i = 0; i < cat.count; i++) {
-                const standNr = `${cat.prefix} ${String(i + 1).padStart(2, '0')}`;
+            for (let i = 1; i <= cat.count; i++) {
+                const standNr = planilhaVendasService.buildStandNr(cat, i);
                 if (!existentesMap.has(standNr)) {
                     toInsert.push({
                         config_id: configId,

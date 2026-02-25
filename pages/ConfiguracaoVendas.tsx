@@ -66,7 +66,7 @@ const ConfiguracaoVendas: React.FC = () => {
                 // Load custom prices
                 setOpcionaisPrecos((config.opcionais_precos as Record<string, number>) || {});
                 const counts: Record<string, number> = {};
-                mappedCats.forEach(cat => { counts[cat.prefix] = cat.count; });
+                mappedCats.forEach(cat => { counts[cat.tag] = cat.count; });
                 setSavedCounts(counts);
 
                 const { data: estandes } = await supabase
@@ -132,14 +132,16 @@ const ConfiguracaoVendas: React.FC = () => {
 
     const removeCategoria = async (idx: number) => {
         const cat = categorias[idx];
+        // Usa o prefixo se existir; senão usa a tag como identificador
+        const identifier = (cat.prefix || cat.tag || '').trim();
 
         // Se já existe uma planilha gerada, verificar se há estandes com dados
-        if (configId && cat.prefix) {
+        if (configId && identifier) {
             const { data: estandes } = await supabase
                 .from('planilha_vendas_estandes')
                 .select('stand_nr, cliente_id, cliente_nome_livre, tipo_venda')
                 .eq('config_id', configId)
-                .like('stand_nr', `${cat.prefix} %`);
+                .like('stand_nr', `${identifier} %`);
 
             if (estandes && estandes.length > 0) {
                 const comDados = estandes.filter(e =>
@@ -148,7 +150,7 @@ const ConfiguracaoVendas: React.FC = () => {
 
                 if (comDados.length > 0) {
                     alert(
-                        `⛔ A categoria "${cat.tag}" (${cat.prefix}) não pode ser removida.\n\n` +
+                        `⛔ A categoria "${cat.tag}" não pode ser removida.\n\n` +
                         `${comDados.length} estande(s) com dados cadastrados:\n` +
                         comDados.map(e => `• ${e.stand_nr}`).join('\n') +
                         `\n\nLimpe os dados na planilha antes de remover esta categoria.`
@@ -162,10 +164,27 @@ const ConfiguracaoVendas: React.FC = () => {
                     `Ao confirmar, eles serão removidos da planilha. Deseja continuar?`
                 );
                 if (!ok) return;
+
+                // Deleta os estandes do banco
+                await supabase
+                    .from('planilha_vendas_estandes')
+                    .delete()
+                    .eq('config_id', configId)
+                    .like('stand_nr', `${identifier} %`);
             }
         }
 
-        setCategorias(prev => prev.filter((_, i) => i !== idx));
+        // Remove da lista e salva config automaticamente
+        const novasCategorias = categorias.filter((_, i) => i !== idx);
+        setCategorias(novasCategorias);
+
+        // Persiste a config sem a categoria removida
+        if (configId) {
+            await supabase
+                .from('planilha_configuracoes')
+                .update({ categorias_config: novasCategorias as unknown as import('../database.types').Json[] })
+                .eq('id', configId);
+        }
     };
 
     // ── Opcionais handlers ─────────────────────────────────────
@@ -281,9 +300,24 @@ const ConfiguracaoVendas: React.FC = () => {
         }
     };
 
+    // ── Validate categories ────────────────────────────────────
+    const validateCategorias = (): string | null => {
+        for (const cat of categorias) {
+            if (!cat.tag || cat.tag.trim() === '' || cat.tag.trim().toUpperCase() === 'NOVA') {
+                return `Todas as categorias precisam de uma TAG válida (não pode ser vazia ou "NOVA"). Corrija antes de continuar.`;
+            }
+            if (cat.count < 1) {
+                return `A categoria "${cat.tag}" precisa ter ao menos 1 stand (QTD ≥ 1).`;
+            }
+        }
+        return null;
+    };
+
     // ── Save config ────────────────────────────────────────────
     const handleSave = async () => {
         if (!edicaoId) return;
+        const catErr = validateCategorias();
+        if (catErr) { alert(`⚠️ ${catErr}`); return; }
         const err = await validateCountReduction();
         if (err) { alert(`⚠️ ${err}`); return; }
         try {
@@ -322,6 +356,8 @@ const ConfiguracaoVendas: React.FC = () => {
             alert(`⛔ Planilha já existe com ${totalStands} estandes. Limpe os dados na planilha antes de gerar novamente.`);
             return;
         }
+        const catErr = validateCategorias();
+        if (catErr) { alert(`⚠️ ${catErr}`); return; }
         const err = await validateCountReduction();
         if (err) { alert(`⚠️ ${err}`); return; }
         if (!confirm('Gerar planilha com as categorias definidas?')) return;

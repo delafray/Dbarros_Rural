@@ -94,20 +94,22 @@ const PlanilhaVendas: React.FC = () => {
         new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 
     // ─── Row helpers ──────────────────────────────────────────────
+    // Espelha a lógica de buildStandNr: match pelo prefixo (se existir) ou pela tag
     const getCategoriaOfRow = useCallback((row: PlanilhaEstande): CategoriaSetup | undefined => {
         const nr = row.stand_nr.toLowerCase();
 
-        // Ordena categorias do prefixo mais longo pro mais curto para que "MA" seja avaliado antes de "M"
-        const sortedCats = [...categorias].sort((a, b) => b.prefix.length - a.prefix.length);
+        // Ordena do identificador mais longo para o mais curto para evitar falso match (ex: "M" casando "MA 01")
+        const sortedCats = [...categorias].sort((a, b) => {
+            const idA = (a.prefix || a.tag || '').length;
+            const idB = (b.prefix || b.tag || '').length;
+            return idB - idA;
+        });
 
         return sortedCats.find(c => {
-            const prefix = c.prefix.toLowerCase();
-            const tag = c.tag.toLowerCase();
-            // Verifica se começa com "prefixo " (com espaço) ou é exatamente o prefixo
-            const matchesPrefix = nr === prefix || nr.startsWith(`${prefix} `);
-            const matchesTag = nr.includes(`${tag} ${prefix}`);
-
-            return matchesPrefix || matchesTag;
+            const id = (c.prefix || c.tag || '').toLowerCase().trim();
+            if (!id) return false;
+            // Match exato: "M 01" começa com "m " ou é apenas "m"
+            return nr === id || nr.startsWith(`${id} `);
         });
     }, [categorias]);
 
@@ -294,7 +296,7 @@ const PlanilhaVendas: React.FC = () => {
                 </div>
             }
         >
-            <div className="overflow-x-auto bg-white shadow-xl rounded-lg border border-slate-200">
+            <div className="overflow-x-auto overflow-y-auto bg-white shadow-xl rounded-lg border border-slate-200" style={{ maxHeight: 'calc(100vh - 80px)' }}>
                 <table className="border-collapse text-[11px] font-sans" style={{ minWidth: 'max-content' }}>
                     <thead className="sticky top-0 z-10 shadow-sm">
 
@@ -344,15 +346,15 @@ const PlanilhaVendas: React.FC = () => {
                             <th className={`${thStyle} w-16`}>Stand</th>
                             <th className={`${thStyle} min-w-[180px]`}>Cliente:</th>
                             {comboLabels.map(label => (
-                                <th key={label} className={`${thStyle} w-6 align-bottom p-0`}>
-                                    <div className="vertical-text h-20 flex items-end justify-center uppercase text-[9px] pb-1 px-1 text-white">
+                                <th key={label} className={`${thStyle} w-6 align-bottom p-0 font-normal`}>
+                                    <div className="vertical-text h-20 flex items-end justify-center uppercase text-[8px] leading-none py-1 px-0.5 text-white font-normal">
                                         {label}
                                     </div>
                                 </th>
                             ))}
                             {opcionaisAtivos.map(opt => (
-                                <th key={opt.id} className={`${thStyle} w-6 align-bottom p-0`}>
-                                    <div className="vertical-text h-20 flex items-end justify-center uppercase text-[9px] pb-1 px-1">
+                                <th key={opt.id} className={`${thStyle} w-6 align-bottom p-0 font-normal`}>
+                                    <div className="vertical-text h-20 flex items-end justify-center uppercase text-[8px] leading-none py-1 px-0.5 font-normal">
                                         {opt.nome}
                                     </div>
                                 </th>
@@ -378,13 +380,24 @@ const PlanilhaVendas: React.FC = () => {
                                 >
                                     {/* Stand nº */}
                                     <td className={`${tdStyle} px-1 py-0 align-middle w-[90px] min-w-[90px] max-w-[90px]`}>
-                                        <div className="flex items-center w-full h-full gap-1">
+                                        <div className="flex items-center gap-1 leading-none">
+                                            {/* TAG: sempre visível, pequena */}
                                             {cat?.tag && (
-                                                <span className="text-[7.5px] text-slate-500/80 font-normal uppercase tracking-tighter text-left pointer-events-none shrink-0" style={{ lineHeight: 1 }}>
+                                                <span
+                                                    className="text-[7px] text-slate-500/80 font-normal uppercase tracking-tighter text-left pointer-events-none shrink-0"
+                                                    style={{ lineHeight: 1 }}
+                                                >
                                                     {cat.tag}
                                                 </span>
                                             )}
-                                            <span className="flex-1 text-center font-bold text-[13px] whitespace-nowrap pr-1">{row.stand_nr}</span>
+                                            {/* Se tem prefixo → mostra stand_nr completo ("M 01")
+                                                Se não tem prefixo → retira a tag do início e mostra só o número ("01") */}
+                                            <span className="flex-1 text-center font-bold text-[11px] whitespace-nowrap">
+                                                {cat?.prefix?.trim()
+                                                    ? row.stand_nr
+                                                    : row.stand_nr.replace(new RegExp(`^${cat?.tag ?? ''}\\s*`, 'i'), '').trim()
+                                                }
+                                            </span>
                                         </div>
                                     </td>
 
