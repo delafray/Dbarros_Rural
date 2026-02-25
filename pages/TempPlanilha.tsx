@@ -96,10 +96,18 @@ const PlanilhaVendas: React.FC = () => {
     // ─── Row helpers ──────────────────────────────────────────────
     const getCategoriaOfRow = useCallback((row: PlanilhaEstande): CategoriaSetup | undefined => {
         const nr = row.stand_nr.toLowerCase();
-        return categorias.find(c => {
+
+        // Ordena categorias do prefixo mais longo pro mais curto para que "MA" seja avaliado antes de "M"
+        const sortedCats = [...categorias].sort((a, b) => b.prefix.length - a.prefix.length);
+
+        return sortedCats.find(c => {
             const prefix = c.prefix.toLowerCase();
             const tag = c.tag.toLowerCase();
-            return nr.startsWith(prefix) || nr.includes(`${tag} ${prefix}`);
+            // Verifica se começa com "prefixo " (com espaço) ou é exatamente o prefixo
+            const matchesPrefix = nr === prefix || nr.startsWith(`${prefix} `);
+            const matchesTag = nr.includes(`${tag} ${prefix}`);
+
+            return matchesPrefix || matchesTag;
         });
     }, [categorias]);
 
@@ -250,10 +258,20 @@ const PlanilhaVendas: React.FC = () => {
             const ordA = catA?.ordem ?? 0;
             const ordB = catB?.ordem ?? 0;
 
+            // 1. Ordem numérica explícita
             if (ordA !== ordB) return ordA - ordB;
+
+            // 2. Desempate por Ordem de Inserção na Configuração (para quando a Ordem é 1-1, 2-2)
+            if (catA && catB) {
+                const idxA = categorias.findIndex(c => c === catA);
+                const idxB = categorias.findIndex(c => c === catB);
+                if (idxA !== idxB) return idxA - idxB;
+            }
+
+            // 3. Desempate dentro do mesmo prefixo/categoria: M 01, M 02
             return naturalSort(a.stand_nr, b.stand_nr);
         });
-    }, [rows, clientes, searchTerm, getCategoriaOfRow]);
+    }, [rows, clientes, searchTerm, getCategoriaOfRow, categorias]);
 
     if (loading) return <Layout title="Planilha"><div className="p-8 text-center">Carregando dados da planilha...</div></Layout>;
 
@@ -359,13 +377,15 @@ const PlanilhaVendas: React.FC = () => {
                                     className={`${cat?.cor || 'bg-white'} border-b border-slate-300 hover:brightness-95`}
                                 >
                                     {/* Stand nº */}
-                                    <td className={`${tdStyle} px-2 py-0 text-center font-bold whitespace-nowrap relative`}>
-                                        {cat?.tag && (
-                                            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[8px] text-slate-500/70 font-normal uppercase tracking-tighter pointer-events-none">
-                                                {cat.tag}
-                                            </span>
-                                        )}
-                                        {row.stand_nr}
+                                    <td className={`${tdStyle} px-1 py-0 align-middle w-[90px] min-w-[90px] max-w-[90px]`}>
+                                        <div className="flex items-center w-full h-full gap-1">
+                                            {cat?.tag && (
+                                                <span className="text-[7.5px] text-slate-500/80 font-normal uppercase tracking-tighter text-left pointer-events-none shrink-0" style={{ lineHeight: 1 }}>
+                                                    {cat.tag}
+                                                </span>
+                                            )}
+                                            <span className="flex-1 text-center font-bold text-[13px] whitespace-nowrap pr-1">{row.stand_nr}</span>
+                                        </div>
                                     </td>
 
                                     {/* Cliente — clica para abrir popup */}

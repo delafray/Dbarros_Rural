@@ -120,11 +120,15 @@ const ConfiguracaoVendas: React.FC = () => {
         setCategorias(prev => prev.map(c => ({ ...c, combos: Array.isArray(c.combos) ? c.combos.slice(0, -1) : [] })));
     };
 
-    const addCategoria = () =>
-        setCategorias(prev => [...prev, {
-            tag: 'NOVA', prefix: 'Prefixo', cor: CORES[prev.length % CORES.length],
-            count: 1, standBase: 0, combos: Array(numCombos).fill(0), ordem: 1
-        }]);
+    const addCategoria = () => {
+        setCategorias(prev => {
+            const maxOrdem = prev.reduce((max, cat) => Math.max(max, cat.ordem ?? 0), 0);
+            return [...prev, {
+                tag: 'NOVA', prefix: 'Prefixo', cor: CORES[prev.length % CORES.length],
+                count: 1, standBase: 0, combos: Array(numCombos).fill(0), ordem: maxOrdem + 1
+            }];
+        });
+    };
 
     const removeCategoria = async (idx: number) => {
         const cat = categorias[idx];
@@ -371,7 +375,7 @@ const ConfiguracaoVendas: React.FC = () => {
                             <span className="ml-3 text-slate-400 text-xs">{totalEstandes} stand(s) no total</span>
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                            <button onClick={addCombo} className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 transition-colors">+ Coluna Combo</button>
+                            <button onClick={addCombo} className="text-xs font-bold bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 transition-colors shadow-sm">+ Adicionar Combo</button>
                             {numCombos > 0 && <button onClick={removeCombo} className="text-xs bg-red-900/60 hover:bg-red-800 text-red-200 px-3 py-1.5 transition-colors">− Remover Combo</button>}
                             <div className="w-px bg-slate-600 mx-1" />
                             <button onClick={addCategoria} className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 font-bold transition-colors">+ Categoria</button>
