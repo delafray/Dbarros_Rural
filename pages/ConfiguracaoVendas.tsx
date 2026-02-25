@@ -126,7 +126,43 @@ const ConfiguracaoVendas: React.FC = () => {
             count: 1, standBase: 0, combos: Array(numCombos).fill(0)
         }]);
 
-    const removeCategoria = (idx: number) => setCategorias(prev => prev.filter((_, i) => i !== idx));
+    const removeCategoria = async (idx: number) => {
+        const cat = categorias[idx];
+
+        // Se já existe uma planilha gerada, verificar se há estandes com dados
+        if (configId && cat.prefix) {
+            const { data: estandes } = await supabase
+                .from('planilha_vendas_estandes')
+                .select('stand_nr, cliente_id, cliente_nome_livre, tipo_venda')
+                .eq('config_id', configId)
+                .like('stand_nr', `${cat.prefix} %`);
+
+            if (estandes && estandes.length > 0) {
+                const comDados = estandes.filter(e =>
+                    e.cliente_id || e.cliente_nome_livre || (e.tipo_venda && e.tipo_venda !== 'DISPONÍVEL')
+                );
+
+                if (comDados.length > 0) {
+                    alert(
+                        `⛔ A categoria "${cat.tag}" (${cat.prefix}) não pode ser removida.\n\n` +
+                        `${comDados.length} estande(s) com dados cadastrados:\n` +
+                        comDados.map(e => `• ${e.stand_nr}`).join('\n') +
+                        `\n\nLimpe os dados na planilha antes de remover esta categoria.`
+                    );
+                    return;
+                }
+
+                // Estandes existem mas sem dados — confirmar antes de apagar
+                const ok = confirm(
+                    `⚠️ A categoria "${cat.tag}" possui ${estandes.length} estande(s) vazio(s) na planilha.\n\n` +
+                    `Ao confirmar, eles serão removidos da planilha. Deseja continuar?`
+                );
+                if (!ok) return;
+            }
+        }
+
+        setCategorias(prev => prev.filter((_, i) => i !== idx));
+    };
 
     // ── Opcionais handlers ─────────────────────────────────────
     const toggleOpcional = (id: string) => {
