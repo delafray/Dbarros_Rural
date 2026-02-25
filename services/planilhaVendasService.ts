@@ -10,8 +10,9 @@ export interface CategoriaSetup {
     prefix: string;
     cor: string;
     count: number;
-    standBase: number;
-    combos: number[];
+    standBase?: number;
+    combos?: number[];
+    ordem?: number;
 }
 
 export const planilhaVendasService = {

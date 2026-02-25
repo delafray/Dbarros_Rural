@@ -123,7 +123,7 @@ const ConfiguracaoVendas: React.FC = () => {
     const addCategoria = () =>
         setCategorias(prev => [...prev, {
             tag: 'NOVA', prefix: 'Prefixo', cor: CORES[prev.length % CORES.length],
-            count: 1, standBase: 0, combos: Array(numCombos).fill(0)
+            count: 1, standBase: 0, combos: Array(numCombos).fill(0), ordem: 1
         }]);
 
     const removeCategoria = async (idx: number) => {
@@ -381,6 +381,7 @@ const ConfiguracaoVendas: React.FC = () => {
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 border-b border-slate-200">
                                 <tr>
+                                    <th className="px-4 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-16 border border-slate-200">Ord.</th>
                                     <th className="px-4 py-1 text-left text-[11px] font-bold uppercase text-slate-500 w-28 border border-slate-200">Tag</th>
                                     <th className="px-4 py-1 text-left text-[11px] font-bold uppercase text-slate-500 w-36 border border-slate-200">Prefixo</th>
                                     <th className="px-4 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-20 border border-slate-200">Qtd.</th>
@@ -392,10 +393,16 @@ const ConfiguracaoVendas: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {categorias.map((cat, idx) => {
+                                {[...categorias].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)).map((cat) => {
+                                    const idx = categorias.indexOf(cat);
                                     const isReducing = savedCounts[cat.prefix] && cat.count < savedCounts[cat.prefix];
                                     return (
                                         <tr key={idx} className={`${cat.cor} hover:brightness-95 transition-all`}>
+                                            <td className="px-2 py-0.5 border border-slate-200">
+                                                <input type="number"
+                                                    className="w-full p-1 border border-black/10 font-mono font-bold text-[12px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 text-center"
+                                                    value={cat.ordem ?? 0} onChange={e => updateCat(idx, 'ordem', e.target.value)} />
+                                            </td>
                                             <td className="px-2 py-0.5 border border-slate-200">
                                                 <input className="w-full p-1 border border-black/10 font-mono text-[12px] uppercase bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 font-bold"
                                                     value={cat.tag} onChange={e => updateCat(idx, 'tag', e.target.value)} placeholder="NAMING" />

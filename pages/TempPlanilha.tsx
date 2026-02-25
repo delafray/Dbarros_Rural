@@ -236,17 +236,24 @@ const PlanilhaVendas: React.FC = () => {
     };
 
     // ─── Render ───────────────────────────────────────────────────
-    const filtered = useMemo(() =>
-        rows
-            .filter(r =>
-                r.stand_nr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                clientes.find(c => c.id === r.cliente_id)?.nome_fantasia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                clientes.find(c => c.id === r.cliente_id)?.razao_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                r.cliente_nome_livre?.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-            .sort((a, b) => naturalSort(a.stand_nr, b.stand_nr)),
-        [rows, clientes, searchTerm]
-    );
+    const filtered = useMemo(() => {
+        const arr = rows.filter(r =>
+            r.stand_nr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            clientes.find(c => c.id === r.cliente_id)?.nome_fantasia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            clientes.find(c => c.id === r.cliente_id)?.razao_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            r.cliente_nome_livre?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return arr.sort((a, b) => {
+            const catA = getCategoriaOfRow(a);
+            const catB = getCategoriaOfRow(b);
+            const ordA = catA?.ordem ?? 0;
+            const ordB = catB?.ordem ?? 0;
+
+            if (ordA !== ordB) return ordA - ordB;
+            return naturalSort(a.stand_nr, b.stand_nr);
+        });
+    }, [rows, clientes, searchTerm, getCategoriaOfRow]);
 
     if (loading) return <Layout title="Planilha"><div className="p-8 text-center">Carregando dados da planilha...</div></Layout>;
 
