@@ -248,6 +248,93 @@ export const atendimentosService = {
         if (text.length <= limit) return text;
         return text.substring(0, limit) + '...';
     },
+
+    /** Busca outras edições de eventos (exceto a atual) para importação, ordenadas pela data de início DESC */
+    async getOtherEditions(excludeEdicaoId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('eventos_edicoes')
+            .select('*, eventos(nome)')
+            .neq('id', excludeEdicaoId)
+            .order('data_inicio', { ascending: false });
+
+        if (error) throw error;
+        return data || [];
+    },
+
+    /** Importa atendimentos de outras edições para a edição atual com desduplicação */
+    async importFromEditions(targetEdicaoId: string, sourceEdicaoIds: string[]): Promise<void> {
+        // 1. Busca atendimentos das fontes
+        const { data: sourceData, error: sourceError } = await supabase
+            .from('atendimentos')
+            .select('*')
+            .in('edicao_id', sourceEdicaoIds);
+
+        if (sourceError) throw sourceError;
+        if (!sourceData || sourceData.length === 0) return;
+
+        // 2. Busca atendimentos atuais para evitar duplicatas
+        const { data: currentData, error: currentError } = await supabase
+            .from('atendimentos')
+            .select('cliente_id, cliente_nome')
+            .eq('edicao_id', targetEdicaoId);
+
+        if (currentError) throw currentError;
+
+        const alreadyExists = new Set<string>();
+        currentData?.forEach(a => {
+            if (a.cliente_id) alreadyExists.add(`id:${a.cliente_id}`);
+            else if (a.cliente_nome) alreadyExists.add(`nome:${a.cliente_nome.toLowerCase().trim()}`);
+        });
+
+        // 3. Processa e desduplica o sourceData (pode haver o mesmo cliente em edições diferentes)
+        const toAdd = new Map<string, any>();
+        sourceData.forEach(a => {
+            const key = a.cliente_id ? `id:${a.cliente_id}` : `nome:${(a.cliente_nome || '').toLowerCase().trim()}`;
+            if (!alreadyExists.has(key) && !toAdd.has(key)) {
+                toAdd.set(key, a);
+            }
+        });
+
+        if (toAdd.size === 0) return;
+
+        // 4. Prepara inserts
+        const inserts: AtendimentoInsert[] = Array.from(toAdd.values()).map(a => ({
+            edicao_id: targetEdicaoId,
+            cliente_id: a.cliente_id,
+            cliente_nome: a.cliente_nome,
+            contato_id: a.contato_id,
+            contato_nome: a.contato_nome,
+            telefone: a.telefone,
+            probabilidade: null, // Reseta probabilidade na importação
+            data_retorno: null,
+            ultima_obs: 'Importado de outra edição',
+            ultima_obs_at: new Date().toISOString(),
+            resolvido: false,
+        }));
+
+        // 5. Inserção em massa
+        const { data: inserted, error: insertError } = await supabase
+            .from('atendimentos')
+            .insert(inserts)
+            .select('id');
+
+        if (insertError) throw insertError;
+
+        // 6. Registra histórico inicial para os importados
+        const { data: { user } } = await supabase.auth.getUser();
+        const histories: HistoricoInsert[] = (inserted || []).map(a => ({
+            atendimento_id: a.id,
+            descricao: 'Atendimento importado de edição anterior.',
+            probabilidade: null,
+            data_retorno: null,
+            resolvido: false,
+            user_id: user?.id || null,
+        }));
+
+        if (histories.length > 0) {
+            await supabase.from('atendimentos_historico').insert(histories);
+        }
+    },
 };
 
 /** Mapa de cor de fundo por probabilidade (0-100, de 10 em 10) */

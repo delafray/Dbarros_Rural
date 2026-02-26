@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ClienteSelectorWidget, ClienteComContato } from '../components/ClienteSelectorWidget';
+import { ImportAtendimentosModal } from '../components/ImportAtendimentosModal';
 import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
 import {
@@ -215,9 +216,11 @@ interface AtendimentoFormProps {
     clientes: ClienteOption[];
     onClose: () => void;
     onSaved: (a: Atendimento) => void;
+    onViewHistory: (a: Atendimento) => void;
+    existingAtendimentos: Atendimento[];
 }
 
-function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved }: AtendimentoFormProps) {
+function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved, onViewHistory, existingAtendimentos }: AtendimentoFormProps) {
     const [mode, setMode] = useState<'cadastrado' | 'livre'>(
         atendimento?.cliente_id ? 'cadastrado' : 'livre'
     );
@@ -236,6 +239,7 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved }: 
     const [search, setSearch] = useState('');
     const [showSelector, setShowSelector] = useState(false);
     const [selectedFullCliente, setSelectedFullCliente] = useState<ClienteComContato | null>(null);
+    const [duplicateWarning, setDuplicateWarning] = useState<{ show: boolean, existingAtend: Atendimento | null }>({ show: false, existingAtend: null });
 
     const selectedCliente = clientes.find(c => c.id === clienteId);
 
@@ -321,6 +325,16 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved }: 
                 ultima_obs_at: isNew ? now : (atendimento?.ultima_obs_at || null),
                 resolvido: atendimento?.resolvido ?? false,
             };
+
+            // Regra: Não permitir duplicar atendimento para o mesmo cliente na mesma edição
+            if (!atendimento?.id && mode === 'cadastrado' && clienteId) {
+                const existing = existingAtendimentos.find(a => a.cliente_id === clienteId);
+                if (existing) {
+                    setDuplicateWarning({ show: true, existingAtend: existing });
+                    setSaving(false);
+                    return;
+                }
+            }
 
             let saved: Atendimento;
             if (atendimento?.id) {
@@ -409,6 +423,47 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved }: 
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
             <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                {/* Modal de Aviso de Duplicidade */}
+                {duplicateWarning.show && (
+                    <div className="absolute inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-slate-200">
+                            <div className="bg-amber-500 px-5 py-4 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <h2 className="font-bold text-white text-sm">Atenção: Duplicidade</h2>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                <p className="text-sm text-slate-600 leading-relaxed text-center font-medium">
+                                    Já existe um atendimento para <span className="font-black text-slate-800">{duplicateWarning.existingAtend ? atendimentosService.getNomeExibicao(duplicateWarning.existingAtend) : 'esta empresa'}</span> nesta edição.
+                                </p>
+
+                                <div className="flex flex-col gap-2 pt-2">
+                                    <button
+                                        onClick={() => setDuplicateWarning({ show: false, existingAtend: null })}
+                                        className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+                                    >
+                                        Entendido, OK
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (duplicateWarning.existingAtend) {
+                                                onViewHistory(duplicateWarning.existingAtend);
+                                                onClose();
+                                            }
+                                        }}
+                                        className="w-full py-2.5 bg-[#1F497D] hover:bg-blue-800 text-white font-bold text-xs rounded-xl transition-colors shadow-sm"
+                                    >
+                                        Abrir Histórico do Cliente
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
                     <h2 className="font-black text-slate-800 text-sm">{atendimento ? 'Editar Atendimento' : 'Novo Atendimento'}</h2>
                     <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
@@ -576,6 +631,7 @@ const Atendimentos: React.FC = () => {
     const [showForm, setShowForm] = useState(false);
     const [editingAtend, setEditingAtend] = useState<Atendimento | null>(null);
     const [histAtend, setHistAtend] = useState<Atendimento | null>(null);
+    const [showImport, setShowImport] = useState(false);
 
     const load = useCallback(async () => {
         if (!edicaoId) return;
@@ -680,6 +736,8 @@ const Atendimentos: React.FC = () => {
                     clientes={clientes}
                     onClose={() => { setShowForm(false); setEditingAtend(null); }}
                     onSaved={handleSaved}
+                    onViewHistory={(a) => setHistAtend(a)}
+                    existingAtendimentos={atendimentos}
                 />
             )}
             {histAtend && (
@@ -687,6 +745,13 @@ const Atendimentos: React.FC = () => {
                     atendimento={histAtend}
                     onClose={() => setHistAtend(null)}
                     onSaved={handleSaved}
+                />
+            )}
+            {showImport && (
+                <ImportAtendimentosModal
+                    currentEdicaoId={edicaoId!}
+                    onClose={() => setShowImport(false)}
+                    onImported={load}
                 />
             )}
 
@@ -729,6 +794,16 @@ const Atendimentos: React.FC = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                         </svg>
                         Atendimento
+                    </button>
+
+                    <button
+                        onClick={() => setShowImport(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                    >
+                        <svg className="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Importar
                     </button>
                 </div>
 
