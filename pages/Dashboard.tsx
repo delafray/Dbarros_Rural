@@ -111,14 +111,35 @@ const Dashboard: React.FC = () => {
                                             </h4>
                                         </div>
 
-                                        <div className="flex-shrink-0 flex items-center gap-3">
-                                            <div className="hidden sm:block text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-70 group-hover:opacity-100 transition-opacity">
-                                                Abrir Planilha
+                                        <div className="flex-shrink-0 flex items-center gap-6 pr-2">
+                                            {/* Atalho Atendimento */}
+                                            <div
+                                                className="flex items-center gap-2 group/atend cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/atendimentos/${edicao.id}`);
+                                                }}
+                                            >
+                                                <div className="hidden sm:block text-[9px] font-bold text-slate-500 uppercase tracking-tighter opacity-60 group-hover/atend:opacity-100 transition-opacity">
+                                                    Abrir Atendimento
+                                                </div>
+                                                <div className="w-7 h-7 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover/atend:bg-blue-600 group-hover/atend:text-white transition-all shadow-sm border border-slate-200 group-hover/atend:border-blue-600">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z" />
+                                                    </svg>
+                                                </div>
                                             </div>
-                                            <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm border border-blue-100">
-                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                </svg>
+
+                                            {/* Atalho Planilha (Existente) */}
+                                            <div className="flex items-center gap-2">
+                                                <div className="hidden sm:block text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-70 group-hover:opacity-100 transition-opacity">
+                                                    Abrir Planilha
+                                                </div>
+                                                <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm border border-blue-100">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

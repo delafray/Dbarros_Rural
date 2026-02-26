@@ -503,6 +503,13 @@ const CadastroEvento: React.FC = () => {
                                                                         CONFIGURAR
                                                                     </button>
                                                                     <button
+                                                                        onClick={() => navigate(`/atendimentos/${ed.id}`)}
+                                                                        className="px-2 py-0.5 text-[10px] font-bold border border-amber-200 text-amber-600 hover:bg-amber-50"
+                                                                        title="Planilha de Atendimentos"
+                                                                    >
+                                                                        ATEND.
+                                                                    </button>
+                                                                    <button
                                                                         onClick={() => navigate(`/planilha-vendas/${ed.id}`)}
                                                                         className="px-2 py-0.5 text-[10px] font-bold border border-green-200 text-green-600 hover:bg-green-50"
                                                                         title="Ver Planilha de Vendas"

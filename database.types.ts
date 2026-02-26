@@ -14,6 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
+      atendimentos: {
+        Row: {
+          cliente_id: string | null
+          cliente_nome: string | null
+          contato_id: string | null
+          contato_nome: string | null
+          created_at: string | null
+          data_retorno: string | null
+          edicao_id: string
+          id: string
+          probabilidade: number
+          telefone: string | null
+          ultima_obs: string | null
+          ultima_obs_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          contato_id?: string | null
+          contato_nome?: string | null
+          created_at?: string | null
+          data_retorno?: string | null
+          edicao_id: string
+          id?: string
+          probabilidade?: number
+          telefone?: string | null
+          ultima_obs?: string | null
+          ultima_obs_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          contato_id?: string | null
+          contato_nome?: string | null
+          created_at?: string | null
+          data_retorno?: string | null
+          edicao_id?: string
+          id?: string
+          probabilidade?: number
+          telefone?: string | null
+          ultima_obs?: string | null
+          ultima_obs_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atendimentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atendimentos_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atendimentos_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "eventos_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      atendimentos_historico: {
+        Row: {
+          atendimento_id: string
+          created_at: string | null
+          data_retorno: string | null
+          descricao: string
+          id: string
+          probabilidade: number | null
+          user_id: string | null
+        }
+        Insert: {
+          atendimento_id: string
+          created_at?: string | null
+          data_retorno?: string | null
+          descricao: string
+          id?: string
+          probabilidade?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          atendimento_id?: string
+          created_at?: string | null
+          data_retorno?: string | null
+          descricao?: string
+          id?: string
+          probabilidade?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atendimentos_historico_atendimento_id_fkey"
+            columns: ["atendimento_id"]
+            isOneToOne: false
+            referencedRelation: "atendimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           cnpj: string | null
@@ -193,10 +301,10 @@ export type Database = {
       }
       eventos: {
         Row: {
+          contato_principal: string | null
           created_at: string | null
           id: string
           nome: string
-          contato_principal: string | null
           promotor_email: string | null
           promotor_endereco: string | null
           promotor_nome: string | null
@@ -205,10 +313,10 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          contato_principal?: string | null
           created_at?: string | null
           id?: string
           nome: string
-          contato_principal?: string | null
           promotor_email?: string | null
           promotor_endereco?: string | null
           promotor_nome?: string | null
@@ -217,10 +325,10 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          contato_principal?: string | null
           created_at?: string | null
           id?: string
           nome?: string
-          contato_principal?: string | null
           promotor_email?: string | null
           promotor_endereco?: string | null
           promotor_nome?: string | null
@@ -416,7 +524,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      search_clientes: {
+        Args: { search_term: string }
+        Returns: {
+          cnpj: string
+          contatos: Json
+          cpf: string
+          created_at: string
+          id: string
+          nome_completo: string
+          nome_fantasia: string
+          razao_social: string
+          tipo_pessoa: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
