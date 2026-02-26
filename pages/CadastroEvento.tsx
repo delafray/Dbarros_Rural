@@ -358,6 +358,8 @@ const CadastroEvento: React.FC = () => {
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Início (Data)</label>
                                             <input
                                                 type="date"
+                                                min="2024-01-01"
+                                                max="2099-12-31"
                                                 value={editingEdicao.data_inicio ? editingEdicao.data_inicio.split('T')[0] : ''}
                                                 onChange={e => {
                                                     const date = e.target.value;
@@ -384,6 +386,8 @@ const CadastroEvento: React.FC = () => {
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Fim (Data)</label>
                                             <input
                                                 type="date"
+                                                min="2024-01-01"
+                                                max="2099-12-31"
                                                 value={editingEdicao.data_fim ? editingEdicao.data_fim.split('T')[0] : ''}
                                                 onChange={e => {
                                                     const date = e.target.value;
@@ -415,6 +419,8 @@ const CadastroEvento: React.FC = () => {
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Início Montagem</label>
                                             <input
                                                 type="date"
+                                                min="2024-01-01"
+                                                max="2099-12-31"
                                                 value={editingEdicao.montagem_inicio ? editingEdicao.montagem_inicio.split('T')[0] : ''}
                                                 onChange={e => setEditingEdicao({ ...editingEdicao, montagem_inicio: e.target.value ? `${e.target.value} T10:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
@@ -424,6 +430,8 @@ const CadastroEvento: React.FC = () => {
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Fim Montagem</label>
                                             <input
                                                 type="date"
+                                                min="2024-01-01"
+                                                max="2099-12-31"
                                                 value={editingEdicao.montagem_fim ? editingEdicao.montagem_fim.split('T')[0] : ''}
                                                 onChange={e => setEditingEdicao({ ...editingEdicao, montagem_fim: e.target.value ? `${e.target.value} T18:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
@@ -433,6 +441,8 @@ const CadastroEvento: React.FC = () => {
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Início Desmontagem</label>
                                             <input
                                                 type="date"
+                                                min="2024-01-01"
+                                                max="2099-12-31"
                                                 value={editingEdicao.desmontagem_inicio ? editingEdicao.desmontagem_inicio.split('T')[0] : ''}
                                                 onChange={e => setEditingEdicao({ ...editingEdicao, desmontagem_inicio: e.target.value ? `${e.target.value} T10:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
@@ -442,6 +452,8 @@ const CadastroEvento: React.FC = () => {
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Fim Desmontagem</label>
                                             <input
                                                 type="date"
+                                                min="2024-01-01"
+                                                max="2099-12-31"
                                                 value={editingEdicao.desmontagem_fim ? editingEdicao.desmontagem_fim.split('T')[0] : ''}
                                                 onChange={e => setEditingEdicao({ ...editingEdicao, desmontagem_fim: e.target.value ? `${e.target.value} T18:00:00Z` : null })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"

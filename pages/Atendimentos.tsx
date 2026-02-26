@@ -45,7 +45,7 @@ function ProbBadge({ value }: { value: number | null }) {
             className="inline-flex items-center justify-center font-black text-[10px] rounded-full px-2 py-0.5 min-w-[40px]"
             style={{ background: bg, color }}
         >
-            {value}%
+            {value}
         </span>
     );
 }
@@ -83,6 +83,7 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
                 descricao: desc.trim(),
                 probabilidade: prob,
                 data_retorno: dataRetorno ? new Date(dataRetorno).toISOString() : null,
+                resolvido: null, // Deixa o serviço decidir se limpa o resolvido baseado na data_retorno
                 user_id: user?.id || null,
             });
 
@@ -304,6 +305,9 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved }: 
     const handleSave = async () => {
         setSaving(true);
         try {
+            const isNew = !atendimento?.id;
+            const now = new Date().toISOString();
+
             const payload: AtendimentoInsert = {
                 edicao_id: edicaoId,
                 cliente_id: mode === 'cadastrado' ? (clienteId || null) : null,
@@ -313,16 +317,33 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved }: 
                 telefone: telefone || null,
                 probabilidade: prob,
                 data_retorno: atendimento?.data_retorno || null,
-                ultima_obs: atendimento?.ultima_obs || null,
-                ultima_obs_at: atendimento?.ultima_obs_at || null,
+                ultima_obs: isNew ? 'Novo cadastro' : (atendimento?.ultima_obs || null),
+                ultima_obs_at: isNew ? now : (atendimento?.ultima_obs_at || null),
+                resolvido: atendimento?.resolvido ?? false,
             };
 
             let saved: Atendimento;
             if (atendimento?.id) {
+                // Se o atendimento atual possui data de retorno e estamos salvando, 
+                // garantimos que ele não esteja marcado como resolvido
+                if (payload.data_retorno) {
+                    (payload as any).resolvido = false;
+                }
                 await atendimentosService.update(atendimento.id, payload);
-                saved = { ...atendimento, ...payload };
+                saved = { ...atendimento, ...payload, resolvido: payload.data_retorno ? false : (atendimento.resolvido || false) };
             } else {
                 saved = await atendimentosService.create(payload);
+
+                // Cria o histórico inicial automático
+                const { data: { user } } = await supabase.auth.getUser();
+                await atendimentosService.addHistorico({
+                    atendimento_id: saved.id,
+                    descricao: 'Novo cadastro',
+                    probabilidade: prob,
+                    data_retorno: null,
+                    resolvido: false,
+                    user_id: user?.id || null,
+                });
             }
             onSaved(saved);
             onClose();
@@ -713,17 +734,17 @@ const Atendimentos: React.FC = () => {
 
                 {/* Tabela */}
                 <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-[12px] bg-white border border-slate-300">
+                    <table className="w-full border-collapse text-[12px] bg-white border border-slate-300 table-fixed">
                         <thead className="bg-[#1F497D] text-white">
                             <tr className="text-[11px] font-bold uppercase tracking-wide">
-                                <th className="px-3 py-1 border border-slate-300 text-left w-[180px] max-w-[180px]">Empresa / Cliente</th>
-                                <th className="px-3 py-1 border border-slate-300 text-left w-[120px] max-w-[120px]">Contato</th>
-                                <th className="px-3 py-1 border border-slate-300 text-left w-[100px] max-w-[100px]">Telefone</th>
-                                <th className="px-3 py-1 border border-slate-300 text-center w-12">%</th>
-                                <th className="px-3 py-1 border border-slate-300 text-left w-24">Registro</th>
-                                <th className="px-3 py-1 border border-slate-300 text-left w-24">Retorno</th>
-                                <th className="px-3 py-1 border border-slate-300 text-left">Último Contato</th>
-                                <th className="px-2 py-1 border border-slate-300 text-center w-16">Ações</th>
+                                <th className="px-2 py-1 border border-slate-300 text-left w-[150px]">Empresa / Cliente</th>
+                                <th className="px-2 py-1 border border-slate-300 text-left w-[100px]">Contato</th>
+                                <th className="px-2 py-1 border border-slate-300 text-left w-[110px]">Telefone</th>
+                                <th className="px-1 py-1 border border-slate-300 text-center w-[45px]">%</th>
+                                <th className="px-2 py-1 border border-slate-300 text-left w-[110px]">Registro</th>
+                                <th className="px-2 py-1 border border-slate-300 text-left w-[110px]">Retorno</th>
+                                <th className="px-2 py-1 border border-slate-300 text-left min-w-[200px]">Último Contato</th>
+                                <th className="px-1 py-1 border border-slate-300 text-center w-20">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -752,8 +773,8 @@ const Atendimentos: React.FC = () => {
                                             className="hover:bg-blue-100/40 even:bg-slate-200/40 transition-colors"
                                         >
                                             {/* Empresa */}
-                                            <td className="px-3 py-0.5 border border-slate-300 font-semibold text-slate-800 whitespace-nowrap max-w-[180px] truncate align-middle">
-                                                <div className="flex items-center gap-1">
+                                            <td className="px-2 py-0.5 border border-slate-300 font-semibold text-slate-800 align-middle">
+                                                <div className="flex items-center gap-1 overflow-hidden">
                                                     <span className="truncate" title={nome}>{nome}</span>
                                                     {isCadastrado && (
                                                         <span className="inline-flex items-center text-[8px] font-black text-blue-600 bg-blue-100 rounded px-1 flex-shrink-0">CRM</span>
@@ -762,42 +783,45 @@ const Atendimentos: React.FC = () => {
                                             </td>
 
                                             {/* Contato */}
-                                            <td className="px-3 py-0.5 border border-slate-300 text-slate-700 whitespace-nowrap max-w-[120px] truncate align-middle">
+                                            <td className="px-2 py-0.5 border border-slate-300 text-slate-700 align-middle">
                                                 <div className="truncate" title={contato}>{contato}</div>
                                             </td>
 
                                             {/* Telefone */}
-                                            <td className="px-3 py-0.5 border border-slate-300 text-slate-600 font-mono text-[11px] whitespace-nowrap max-w-[100px] truncate align-middle">
+                                            <td className="px-2 py-0.5 border border-slate-300 text-slate-600 font-mono text-[10px] align-middle overflow-hidden" style={{ fontStretch: 'extra-condensed', letterSpacing: '-0.5px' }}>
                                                 <div className="truncate" title={tel}>{tel}</div>
                                             </td>
 
                                             {/* Probabilidade */}
-                                            <td className="px-2 py-0.5 border border-slate-300 text-center align-middle">
-                                                <ProbBadge value={a.probabilidade} />
+                                            <td className="px-1 py-0.5 border border-slate-300 text-center align-middle overflow-hidden">
+                                                <div className="flex justify-center">
+                                                    <ProbBadge value={a.probabilidade} />
+                                                </div>
                                             </td>
 
                                             {/* Registro */}
-                                            <td className="px-3 py-0.5 border border-slate-300 text-[11px] text-slate-500 font-medium whitespace-nowrap align-middle">
+                                            <td className="px-2 py-0.5 border border-slate-300 text-[11px] text-slate-500 font-medium align-middle">
                                                 {a.ultima_obs_at ? fmt(a.ultima_obs_at) : '—'}
                                             </td>
 
                                             {/* Data de retorno */}
-                                            <td className="px-3 py-0.5 border border-slate-300 text-[11px] whitespace-nowrap align-middle">
+                                            <td className="px-2 py-0.5 border border-slate-300 text-[11px] align-middle">
                                                 {a.data_retorno
                                                     ? <span className="text-amber-700 font-bold">{fmt(a.data_retorno)}</span>
                                                     : <span className="text-slate-300 font-normal">—</span>}
                                             </td>
 
                                             {/* Último contato */}
-                                            <td className="px-3 py-0.5 border border-slate-300 text-slate-600 max-w-[200px] xl:max-w-[450px] whitespace-nowrap truncate align-middle">
+                                            <td className="px-2 py-0.5 border border-slate-300 text-slate-600 align-middle">
                                                 <div className="truncate" title={a.ultima_obs || ''}>
                                                     {a.ultima_obs || <span className="text-slate-300 font-light italic">Sem registros</span>}
                                                 </div>
                                             </td>
 
+
                                             {/* Ações */}
-                                            <td className="px-2 py-0.5 border border-slate-300 align-middle">
-                                                <div className="flex items-center justify-center gap-1">
+                                            <td className="px-3 py-0.5 border border-slate-300 align-middle">
+                                                <div className="flex items-center justify-center gap-2">
                                                     {/* Botão histórico (discreto) */}
                                                     <button
                                                         onClick={() => setHistAtend(a)}

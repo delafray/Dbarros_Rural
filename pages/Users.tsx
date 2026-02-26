@@ -182,9 +182,9 @@ const Users: React.FC = () => {
     const handleCopyTempUser = () => {
         if (!createdTempUser) return;
 
-        const message = `*Acesso Temporário - Galeria de Fotos*\n\n` +
+        const message = `*Acesso Temporário - Dbarros Rural*\n\n` +
             `Olá! Segue seu acesso de visitante:\n\n` +
-            `🔗 *Link:* https://galeria-de-fotos-one-delta.vercel.app/#/login\n` +
+            `🔗 *Link:* https://dbarros.vercel.app/#/login\n` +
             `👤 *Email:* ${createdTempUser.user.email}\n` +
             `🔑 *Senha:* ${createdTempUser.passwordRaw}\n\n` +
             `📅 *Válido até:* ${new Date(createdTempUser.user.expiresAt!).toLocaleDateString()}\n\n` +
@@ -204,7 +204,7 @@ const Users: React.FC = () => {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
-                        Voltar para Galeria
+                        Voltar ao Início
                     </Button>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -562,7 +562,7 @@ const Users: React.FC = () => {
                                 <div>
                                     <span className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">Link de Acesso</span>
                                     <code className="block bg-slate-50 p-2 rounded text-blue-600 text-[11px] sm:text-sm break-all select-all">
-                                        https://galeria-de-fotos-one-delta.vercel.app/#/login
+                                        https://dbarros.vercel.app/#/login
                                     </code>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

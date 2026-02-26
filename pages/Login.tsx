@@ -71,11 +71,11 @@ const Login: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="mb-8 text-center">
         <img
-          src="assets/logo.jpg"
-          alt="Logo Galeria de Fotos"
+          src="assets/logo.png"
+          alt="Logo Dbarros Rural"
           className="w-24 h-24 object-contain mx-auto mb-4 rounded-2xl shadow-lg"
         />
-        <h1 className="text-3xl font-bold text-slate-900">Galeria de Fotos</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Dbarros Rural</h1>
       </div>
 
       <Card className="w-full max-w-md p-8">
@@ -138,7 +138,7 @@ const Login: React.FC = () => {
       </Card>
 
       <p className="mt-8 text-sm text-slate-400">
-        &copy; {new Date().getFullYear()} Galeria de Fotos. Todos os direitos reservados.
+        &copy; {new Date().getFullYear()} Dbarros Rural. Todos os direitos reservados.
       </p>
     </div >
   );

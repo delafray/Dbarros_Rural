@@ -433,7 +433,7 @@ const CadastroCliente: React.FC = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Data de Nascimento</label>
-                                            <input name="dataNascimento" value={dados.dataNascimento} onChange={handleInputChange} type="date" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                                            <input name="dataNascimento" value={dados.dataNascimento} onChange={handleInputChange} type="date" min="1900-01-01" max="2099-12-31" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                                         </div>
                                     </>
                                 ) : (

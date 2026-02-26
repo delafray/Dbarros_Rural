@@ -113,13 +113,13 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
         <div className="p-3 md:p-6 flex items-center justify-between">
           <div className="flex items-center">
             <img
-              src="assets/logo.jpg"
-              alt="Logo"
-              className="w-8 h-8 object-contain mr-3 rounded shadow-sm bg-white"
+              src="assets/logo.png"
+              alt="Logo Dbarros Rural"
+              className="w-10 h-10 object-contain p-1.5 bg-white rounded-lg shadow-sm border border-slate-100"
             />
             <div>
               <h1 className="text-xl font-bold text-blue-600 tracking-tight leading-none">
-                Galeria de Fotos
+                Dbarros Rural
               </h1>
               <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
                 v{APP_VERSION}

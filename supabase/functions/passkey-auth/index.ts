@@ -59,7 +59,7 @@ serve(async (req) => {
             if (userError || !user) throw new Error("Unauthorized");
 
             const options = await generateRegistrationOptions({
-                rpName: "Galeria de Fotos",
+                rpName: "Dbarros Rural",
                 rpID,
                 // userID must be a Uint8Array to be correctly encoded as Base64URL in the response
                 userID: new TextEncoder().encode(user.id),

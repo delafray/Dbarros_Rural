@@ -1734,7 +1734,7 @@ const Photos: React.FC = () => {
 
                     try {
                       await navigator.share({
-                        title: 'Galeria de Fotos',
+                        title: 'Dbarros Rural',
                         text: txtToShare,
                         files: [pdfFile]
                       });
