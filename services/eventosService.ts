@@ -134,5 +134,16 @@ export const eventosService = {
             .delete()
             .eq('id', id);
         if (error) throw error;
+    },
+
+    async hasPlanilha(edicaoId: string): Promise<boolean> {
+        const { data, error } = await supabase
+            .from('planilha_configuracoes')
+            .select('id')
+            .eq('edicao_id', edicaoId)
+            .maybeSingle();
+
+        if (error) throw error;
+        return !!data;
     }
 };

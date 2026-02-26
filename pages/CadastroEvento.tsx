@@ -127,15 +127,33 @@ const CadastroEvento: React.FC = () => {
     };
 
     const handleDeleteEdicao = async (edicaoId: string) => {
-        if (!confirm('Deseja realmente excluir esta edição?')) return;
-
         try {
             setIsSaving(true);
+            const temPlanilha = await eventosService.hasPlanilha(edicaoId);
+            if (temPlanilha) {
+                await appDialog.alert({
+                    title: 'Impossível Excluir',
+                    message: 'Impossível excluir: existe uma planilha vinculada a esta edição.',
+                    type: 'warning'
+                });
+                return;
+            }
+
+            const confirmed = await appDialog.confirm({
+                title: 'Excluir Edição',
+                message: 'Deseja realmente excluir esta edição? Esta ação não pode ser desfeita.',
+                confirmText: 'Sim, Excluir',
+                type: 'danger'
+            });
+
+            if (!confirmed) return;
+
             await eventosService.deleteEdicao(edicaoId);
             if (eventoId) await fetchEdicoes(eventoId);
+            await appDialog.alert({ title: 'Sucesso', message: 'Edição excluída com sucesso.', type: 'success' });
         } catch (error) {
             console.error('Erro ao excluir edição:', error);
-            alert('Erro ao excluir edição.');
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao excluir edição.', type: 'danger' });
         } finally {
             setIsSaving(false);
         }
