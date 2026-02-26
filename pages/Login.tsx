@@ -21,7 +21,7 @@ const Login: React.FC = () => {
 
   React.useEffect(() => {
     if (user) {
-      navigate('/fotos');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -36,7 +36,7 @@ const Login: React.FC = () => {
 
     try {
       await login(trimmedIdentifier, trimmedPassword);
-      navigate('/fotos');
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
     } finally {
@@ -52,7 +52,7 @@ const Login: React.FC = () => {
       // If identifier is provided, use it to limit credentials. 
       // Otherwise, use "discoverable credentials" (resident keys).
       await loginWithBiometrics(identifier.trim() || undefined);
-      navigate('/fotos');
+      navigate('/dashboard');
     } catch (err: any) {
       if (err.message?.includes('cancelado')) return;
 

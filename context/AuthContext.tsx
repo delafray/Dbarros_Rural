@@ -14,16 +14,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>({
-        id: 'mock-dev-id',
-        name: 'Dev Admin',
-        email: 'dev@local.teste',
-        isAdmin: true,
-        canManageTags: true,
-        isVisitor: false,
-        isProjetista: false
-    });
-    const [isLoading, setIsLoading] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         let mounted = true;

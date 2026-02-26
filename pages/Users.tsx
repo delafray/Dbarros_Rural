@@ -305,7 +305,7 @@ const Users: React.FC = () => {
                                     if (e.target.checked) { setIsAdmin(false); setIsVisitor(false); setCanManageTags(false); }
                                 }} />
                                 <div className="flex flex-col gap-1 relative z-10">
-                                    <span className={`text-[11px] font-black tracking-widest uppercase ${isProjetista ? 'text-orange-700' : 'text-slate-700'}`}>Projetista</span>
+                                    <span className={`text-[11px] font-black tracking-widest uppercase ${isProjetista ? 'text-orange-700' : 'text-slate-700'}`}>Usuário</span>
                                     <span className={`text-[10px] font-bold ${isProjetista ? 'text-orange-600/80' : 'text-slate-500'}`}>Gere e edita seus próprios registros</span>
                                 </div>
                                 {isProjetista && <div className="absolute top-0 right-0 w-0 h-0 border-t-[30px] border-l-[30px] border-t-orange-500 border-l-transparent"></div>}
@@ -435,7 +435,7 @@ const Users: React.FC = () => {
                                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700 uppercase tracking-tighter">Admin</span>
                                                 )}
                                                 {user.isProjetista && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-700 uppercase tracking-tighter">Projetista</span>
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-700 uppercase tracking-tighter">Usuário</span>
                                                 )}
                                                 {user.isVisitor && (
                                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 uppercase tracking-tighter">Visitante</span>
@@ -512,7 +512,7 @@ const Users: React.FC = () => {
                                     <div className="flex flex-wrap gap-1.5 w-full">
                                         {user.isAdmin && user.canManageTags && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-purple-100 text-purple-700 uppercase tracking-widest">Master</span>}
                                         {user.isAdmin && !user.canManageTags && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-indigo-100 text-indigo-700 uppercase tracking-widest">Admin</span>}
-                                        {user.isProjetista && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-orange-100 text-orange-700 uppercase tracking-widest">Projetista</span>}
+                                        {user.isProjetista && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-orange-100 text-orange-700 uppercase tracking-widest">Usuário</span>}
                                         {user.isVisitor && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-blue-100 text-blue-700 uppercase tracking-widest">Visitante</span>}
                                         {!user.isAdmin && !user.isVisitor && !user.isProjetista && <span className="px-2 py-0.5 rounded-sm text-[9px] font-black bg-slate-100 text-slate-700 uppercase tracking-widest">Usuário</span>}
                                     </div>

@@ -125,8 +125,14 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                                         {item.ultima_obs || <span className="text-slate-400 font-normal">Sem histórico</span>}
                                     </div>
                                     {item.ultima_obs_at && (
-                                        <div className="text-[9px] text-slate-400 mt-1 font-medium">
-                                            {format(parseISO(item.ultima_obs_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                                        <div className="text-[9px] text-slate-400 mt-1 font-medium flex items-center gap-2">
+                                            <span>{format(parseISO(item.ultima_obs_at), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
+                                            {item.users?.name && (
+                                                <span className="text-blue-600 font-bold uppercase flex items-center gap-1">
+                                                    <span className="text-slate-300">•</span>
+                                                    {item.users.name}
+                                                </span>
+                                            )}
                                         </div>
                                     )}
                                 </td>

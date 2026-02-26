@@ -186,7 +186,7 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
                             <div key={h.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                        {h.user_id ? 'Usuário' : 'Sistema'}
+                                        {h.user_id ? (h.users?.name || 'Usuário') : 'Sistema'}
                                         {h.probabilidade !== null && (
                                             <span className="ml-2 font-normal text-slate-400">→ {h.probabilidade}%</span>
                                         )}

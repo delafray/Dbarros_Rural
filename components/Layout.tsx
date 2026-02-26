@@ -146,12 +146,12 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
             <NavItem to="/clientes" label="Clientes" icon={UsersIcon} />
 
             <div className="pt-2 md:pt-4 pb-1 md:pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivos</div>
-            <NavItem to="/fotos" label="Fotos" icon={CameraIcon} />
+            {/* <NavItem to="/fotos" label="Fotos" icon={CameraIcon} /> */}
             <NavItem to="/itens-opcionais" label="Itens Opcionais" icon={PlusCircleIcon} />
-            {user?.canManageTags && <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />}
+            {/* {user?.canManageTags && <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />} */}
 
             <div className="pt-2 md:pt-4 pb-1 md:pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sistema</div>
-            {user?.canManageTags && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
+            {user?.isAdmin && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
 
             {isBiometricsSupported && !user?.isVisitor && (
               <div

@@ -123,3 +123,10 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 **(Economia de Tokens e Testes Profundos)**
 **O que ele faz:** Estabelece um protocolo de teste "manual" realizado pela IA apenas sob demanda, focando em verificação visual e funcional exaustiva.
 **Por que é genial:** Previne o gasto excessivo de recursos (tokens) fazendo com que a IA use o navegador e capturas de tela apenas quando a alteração for visualmente crítica, mantendo o desenvolvimento ágil e econômico para tarefas de lógica pura.
+
+---
+
+## 18. 🔄 `PROMPT_RESTORE_PHOTO_SYSTEM.md`
+**(Manutenção e Flexibilidade de Interface)**
+**O que ele faz:** Fornece o código e as instruções exatas para reativar os menus de "Fotos" e "Tags de Busca" caso você decida voltar a usá-los no futuro.
+**Por que é genial:** Em vez de você ter que lembrar onde o código foi escondido ou como ele funcionava, este manual guarda o "interruptor" pronto para ser acionado. Garante que nenhuma funcionalidade seja perdida, apenas guardada para o momento certo.

@@ -15,6 +15,7 @@ export interface Atendimento {
     resolvido: boolean;
     created_at: string;
     updated_at: string;
+    user_id?: string | null;
     // Joined via query
     clientes?: {
         razao_social: string | null;
@@ -25,6 +26,7 @@ export interface Atendimento {
     } | null;
     contatos?: { id: string; nome: string | null; telefone: string | null; email: string | null; principal: boolean | null } | null;
     eventos_edicoes?: { id: string; titulo: string; eventos: { nome: string } | null } | null;
+    users?: { name: string | null } | null;
 }
 
 export interface AtendimentoHistorico {
@@ -36,9 +38,11 @@ export interface AtendimentoHistorico {
     resolvido: boolean | null;
     user_id: string | null;
     created_at: string;
+    // Joined
+    users?: { name: string | null } | null;
 }
 
-export type AtendimentoInsert = Omit<Atendimento, 'id' | 'created_at' | 'updated_at' | 'clientes' | 'contatos'>;
+export type AtendimentoInsert = Omit<Atendimento, 'id' | 'created_at' | 'updated_at' | 'clientes' | 'contatos' | 'users'>;
 export type HistoricoInsert = Omit<AtendimentoHistorico, 'id' | 'created_at'>;
 
 export const atendimentosService = {
@@ -46,7 +50,7 @@ export const atendimentosService = {
     async getByEdicao(edicaoId: string): Promise<Atendimento[]> {
         const { data, error } = await supabase
             .from('atendimentos')
-            .select('*, clientes(razao_social, nome_completo, nome_fantasia, tipo_pessoa), contatos(nome, telefone, email)')
+            .select('*, clientes(razao_social, nome_completo, nome_fantasia, tipo_pessoa), contatos(nome, telefone, email), users(name)')
             .eq('edicao_id', edicaoId)
             .order('probabilidade', { ascending: false })
             .order('updated_at', { ascending: false });
@@ -72,7 +76,8 @@ export const atendimentosService = {
                     contatos(id, nome, telefone, email, principal)
                 ), 
                 contatos(id, nome, telefone, email, principal),
-                eventos_edicoes(id, titulo, eventos(nome))
+                eventos_edicoes(id, titulo, eventos(nome)),
+                users(name)
             `) as any)
             .or('resolvido.eq.false,resolvido.is.null')
             .not('data_retorno', 'is', null)
@@ -90,11 +95,11 @@ export const atendimentosService = {
         const { data: inserted, error } = await supabase
             .from('atendimentos')
             .insert({ ...data, updated_at: new Date().toISOString() })
-            .select('*, clientes(razao_social, nome_completo, nome_fantasia), contatos(nome, telefone)')
+            .select('*, clientes(razao_social, nome_completo, nome_fantasia), contatos(nome, telefone), users(name)')
             .single();
 
         if (error) throw error;
-        return inserted as Atendimento;
+        return inserted as any as Atendimento;
     },
 
     /** Atualiza campos de um atendimento */
@@ -124,12 +129,12 @@ export const atendimentosService = {
     async getHistorico(atendimentoId: string): Promise<AtendimentoHistorico[]> {
         const { data, error } = await supabase
             .from('atendimentos_historico')
-            .select('*')
+            .select('*, users(name)')
             .eq('atendimento_id', atendimentoId)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return (data || []) as AtendimentoHistorico[];
+        return (data as any || []) as AtendimentoHistorico[];
     },
 
     /** Adiciona nova entrada no histórico e atualiza o snapshot na tabela pai */
@@ -147,6 +152,7 @@ export const atendimentosService = {
             ultima_obs: entry.descricao,
             ultima_obs_at: hist.created_at,
             updated_at: new Date().toISOString(),
+            user_id: entry.user_id,
         };
         if (entry.probabilidade !== null && entry.probabilidade !== undefined) {
             updatePayload.probabilidade = entry.probabilidade;
