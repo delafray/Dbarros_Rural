@@ -84,6 +84,17 @@ export const imagensService = {
         if (error) throw error;
     },
 
+    // Atualiza origem_ref quando uma tag de categoria é renomeada
+    async updateOrigemRef(edicaoId: string, oldRef: string, newRef: string): Promise<void> {
+        const { error } = await db
+            .from('edicao_imagens_config')
+            .update({ origem_ref: newRef })
+            .eq('edicao_id', edicaoId)
+            .eq('origem_tipo', 'stand_categoria')
+            .eq('origem_ref', oldRef);
+        if (error) throw error;
+    },
+
     async updateAvulsoStatus(id: string, status: AvulsoStatus, obs?: string): Promise<void> {
         const { error } = await db
             .from('edicao_imagens_config')

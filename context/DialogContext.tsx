@@ -35,6 +35,14 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setOptions(opts);
         setIsOpen(true);
         setIsAlert(true);
+
+        // Auto-dismiss for success alerts after 3 seconds
+        if (opts.type === 'success') {
+            setTimeout(() => {
+                setIsOpen(false);
+            }, 3000);
+        }
+
         return new Promise<void>((resolve) => {
             setResolveFn(() => resolve as unknown as (value: boolean) => void);
         });

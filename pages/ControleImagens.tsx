@@ -149,10 +149,21 @@ const ControleImagens: React.FC = () => {
   );
 
   // Apenas configs de stand_categoria e item_opcional (não avulso)
-  const columnConfigs = useMemo(
-    () => imagensConfig.filter((cfg) => cfg.origem_tipo !== "avulso"),
-    [imagensConfig],
-  );
+  // Ordenação: stand_categoria primeiro (na ordem das categorias do setup), depois item_opcional
+  const columnConfigs = useMemo(() => {
+    const filtered = imagensConfig.filter((cfg) => cfg.origem_tipo !== "avulso");
+    return [...filtered].sort((a, b) => {
+      if (a.origem_tipo !== b.origem_tipo) {
+        return a.origem_tipo === "stand_categoria" ? -1 : 1;
+      }
+      if (a.origem_tipo === "stand_categoria") {
+        const idxA = categorias.findIndex((c) => c.tag === a.origem_ref);
+        const idxB = categorias.findIndex((c) => c.tag === b.origem_ref);
+        return idxA - idxB;
+      }
+      return 0;
+    });
+  }, [imagensConfig, categorias]);
 
   // ── Status por linha ─────────────────────────────────────────
   const getRowStatus = useCallback(

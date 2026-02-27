@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { Button } from "../components/UI";
@@ -22,6 +22,7 @@ import {
   StandImagemStatus,
   StandStatus,
 } from "../services/imagensService";
+import { supabase } from "../services/supabaseClient";
 
 // Module-level constant — not recreated on every render
 const naturalSort = (a: string, b: string) =>
@@ -63,6 +64,8 @@ const PlanilhaVendas: React.FC = () => {
   } | null>(null);
   const [modalRecebimentos, setModalRecebimentos] = useState<Record<string, boolean>>({});
   const [modalRecebLoading, setModalRecebLoading] = useState(false);
+  const [realtimeToast, setRealtimeToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!statusModal?.rowId) { setModalRecebimentos({}); return; }
@@ -76,6 +79,53 @@ const PlanilhaVendas: React.FC = () => {
   useEffect(() => {
     if (edicaoId) loadData();
   }, [edicaoId]);
+
+  // ─── Realtime subscription ────────────────────────────────────
+  useEffect(() => {
+    if (!config?.id) return;
+
+    const channel = supabase
+      .channel(`planilha_realtime_${config.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "planilha_vendas_estandes",
+          filter: `config_id=eq.${config.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setRows((prev) => {
+              if (prev.some((r) => r.id === (payload.new as PlanilhaEstande).id)) return prev;
+              return [...prev, payload.new as PlanilhaEstande];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            setRows((prev) =>
+              prev.map((r) =>
+                r.id === (payload.new as PlanilhaEstande).id
+                  ? (payload.new as PlanilhaEstande)
+                  : r,
+              ),
+            );
+          } else if (payload.eventType === "DELETE") {
+            setRows((prev) =>
+              prev.filter((r) => r.id !== (payload.old as { id: string }).id),
+            );
+          }
+          // Show toast notification
+          setRealtimeToast(true);
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = setTimeout(() => setRealtimeToast(false), 3000);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [config?.id]);
 
   // Clear pending action on Escape
   useEffect(() => {
@@ -543,6 +593,16 @@ const PlanilhaVendas: React.FC = () => {
         </div>
       }
     >
+      {/* Realtime update toast */}
+      {realtimeToast && (
+        <div
+          className="fixed bottom-5 right-5 z-[200] flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium text-white"
+          style={{ background: "#1e293b", opacity: 0.92 }}
+        >
+          <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          Atualizado por outro usuário
+        </div>
+      )}
       <div
         className="overflow-x-auto overflow-y-auto bg-white shadow-xl rounded-lg border border-slate-200"
         style={{ maxHeight: "calc(100vh - 80px)" }}

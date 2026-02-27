@@ -82,6 +82,8 @@ const ConfiguracaoVendas: React.FC = () => {
     dimensoes: "",
   });
   const [savingImagem, setSavingImagem] = useState(false);
+  // Tags salvas no banco — usadas para detectar renames na hora de salvar
+  const [savedTags, setSavedTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (edicaoId) loadData();
@@ -138,6 +140,7 @@ const ConfiguracaoVendas: React.FC = () => {
         setComboNames(savedComboNames);
 
         setCategorias(mappedCats);
+        setSavedTags(mappedCats.map((c) => c.tag));
         setOpcionaisSelecionados(config.opcionais_ativos || []);
         // Load custom prices
         setOpcionaisPrecos(
@@ -570,8 +573,22 @@ const ConfiguracaoVendas: React.FC = () => {
     }
     try {
       setSaving(true);
+
+      // Detecta tags renomeadas e atualiza edicao_imagens_config antes de salvar
+      const renames = savedTags
+        .map((oldTag, i) => ({ oldTag, newTag: categorias[i]?.tag }))
+        .filter(({ oldTag, newTag }) => oldTag && newTag && oldTag !== newTag);
+      if (renames.length > 0) {
+        await Promise.all(
+          renames.map(({ oldTag, newTag }) =>
+            imagensService.updateOrigemRef(edicaoId, oldTag, newTag),
+          ),
+        );
+      }
+
       const savedId = await persistConfig();
       setConfigId(savedId);
+      setSavedTags(categorias.map((c) => c.tag));
 
       // Sincroniza estandes (insere novos, remove excedentes sem dados)
       if (planilhaExiste || savedId) {
