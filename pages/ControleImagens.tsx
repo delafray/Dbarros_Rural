@@ -616,15 +616,18 @@ const ControleImagens: React.FC = () => {
                   >
                     {/* Stand nº */}
                     <td
-                      className={`${tdStyle} w-[90px] min-w-[90px] max-w-[90px]`}
+                      className={`${tdStyle} px-1 py-0 align-middle w-[90px] min-w-[90px] max-w-[90px]`}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 leading-none">
                         {cat?.tag && (
-                          <span className="text-[7px] text-slate-400/80 font-normal uppercase tracking-tighter pointer-events-none shrink-0">
+                          <span
+                            className="text-[7px] text-slate-500/80 font-normal uppercase tracking-tighter text-left pointer-events-none shrink-0"
+                            style={{ lineHeight: 1 }}
+                          >
                             {cat.tag}
                           </span>
                         )}
-                        <span className="font-bold text-[11px] text-slate-800">
+                        <span className="flex-1 text-center font-bold text-[11px] whitespace-nowrap">
                           {cat?.prefix?.trim()
                             ? row.stand_nr
                             : row.stand_nr

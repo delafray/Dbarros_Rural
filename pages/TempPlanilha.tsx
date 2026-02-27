@@ -18,6 +18,7 @@ import ClienteSelectorPopup from "../components/ClienteSelectorPopup";
 import {
   imagensService,
   ImagemConfig,
+  RecebimentosMap,
   StandImagemStatus,
   StandStatus,
 } from "../services/imagensService";
@@ -55,6 +56,7 @@ const PlanilhaVendas: React.FC = () => {
   const [statusMap, setStatusMap] = useState<
     Record<string, StandImagemStatus>
   >({});
+  const [recebimentosMap, setRecebimentosMap] = useState<RecebimentosMap>({});
   const [statusModal, setStatusModal] = useState<{
     rowId: string;
     obs: string;
@@ -101,13 +103,14 @@ const PlanilhaVendas: React.FC = () => {
         return;
       }
 
-      const [estandes, opcionais, listaClientes, imagens, statusData] =
+      const [estandes, opcionais, listaClientes, imagens, statusData, recData] =
         await Promise.all([
           planilhaVendasService.getEstandes(configData.id),
           itensOpcionaisService.getItens(),
           clientesService.getClientes(),
           imagensService.getConfig(edicaoId!),
           imagensService.getStatusByConfig(configData.id),
+          imagensService.getRecebimentos(configData.id),
         ]);
 
       setConfig(configData);
@@ -117,6 +120,7 @@ const PlanilhaVendas: React.FC = () => {
       setClientes(listaClientes);
       setImagensConfig(imagens || []);
       setStatusMap(statusData || {});
+      setRecebimentosMap(recData || {});
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
     } finally {
@@ -245,56 +249,46 @@ const PlanilhaVendas: React.FC = () => {
     [getCategoriaOfRow, imagensConfig],
   );
 
-  const handleUpdateStatus = async (
-    rowId: string,
-    status: StandStatus,
-    obs: string,
-  ) => {
-    try {
-      await imagensService.upsertStatus(rowId, status, obs);
-      setStatusMap((prev) => ({
-        ...prev,
-        [rowId]: {
-          id: prev[rowId]?.id || "",
-          estande_id: rowId,
-          status,
-          observacoes: obs || null,
-          atualizado_em: new Date().toISOString(),
-        },
-      }));
-      setStatusModal(null);
-    } catch (err) {
-      alert(
-        "Erro ao salvar status: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
-    }
+
+  // Apenas atualiza o estado local — DB é salvo em handleSaveModal
+  const handleToggleRecebimento = (configId: string) => {
+    setModalRecebimentos((prev) => ({ ...prev, [configId]: !prev[configId] }));
   };
 
-  const handleToggleRecebimento = async (configId: string) => {
+  // Salva tudo de uma vez: checkboxes + status + obs
+  const handleSaveModal = async (status: StandStatus) => {
     if (!statusModal) return;
-    const newVal = !modalRecebimentos[configId];
-    const newMap = { ...modalRecebimentos, [configId]: newVal };
-    setModalRecebimentos(newMap);
+    const row = rows.find((r) => r.id === statusModal.rowId);
+    const imgDoStand = row ? getImagensDoStand(row) : [];
     try {
-      await imagensService.setRecebimento(statusModal.rowId, configId, newVal);
-      const row = rows.find((r) => r.id === statusModal.rowId);
-      const imgDoStand = row ? getImagensDoStand(row) : [];
-      const newStatus = imagensService.computeStandStatus(newMap, imgDoStand.map((c) => c.id));
-      await imagensService.upsertStatus(statusModal.rowId, newStatus, statusModal.obs);
+      if (imgDoStand.length > 0) {
+        await Promise.all(
+          imgDoStand.map((cfg: ImagemConfig) =>
+            imagensService.setRecebimento(statusModal.rowId, cfg.id, !!modalRecebimentos[cfg.id]),
+          ),
+        );
+      }
+      await imagensService.upsertStatus(statusModal.rowId, status, statusModal.obs);
+      // Atualiza recebimentosMap para o contador na badge
+      const newRec: Record<string, boolean> = {};
+      imgDoStand.forEach((cfg: ImagemConfig) => { newRec[cfg.id] = !!modalRecebimentos[cfg.id]; });
+      setRecebimentosMap((prev) => ({
+        ...prev,
+        [statusModal.rowId]: { ...(prev[statusModal.rowId] || {}), ...newRec },
+      }));
       setStatusMap((prev) => ({
         ...prev,
         [statusModal.rowId]: {
           id: prev[statusModal.rowId]?.id || "",
           estande_id: statusModal.rowId,
-          status: newStatus,
+          status,
           observacoes: statusModal.obs || null,
           atualizado_em: new Date().toISOString(),
         },
       }));
+      setStatusModal(null);
     } catch (err) {
-      setModalRecebimentos((prev) => ({ ...prev, [configId]: !newVal }));
-      console.error("Erro ao salvar recebimento:", err);
+      alert("Erro ao salvar: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -994,6 +988,9 @@ const PlanilhaVendas: React.FC = () => {
                         />
                       );
                     const computed = getComputedStatus(row);
+                    const imgDoStand = getImagensDoStand(row);
+                    const rowRec = recebimentosMap[row.id] || {};
+                    const receivedCount = imgDoStand.filter((c: ImagemConfig) => rowRec[c.id]).length;
                     const badgeConfig = {
                       sem_config: {
                         label: "Sem config",
@@ -1030,6 +1027,11 @@ const PlanilhaVendas: React.FC = () => {
                           }
                         >
                           {badgeConfig.label}
+                          {imgDoStand.length > 0 && (
+                            <span className="ml-1 font-mono font-normal normal-case opacity-80">
+                              {receivedCount}/{imgDoStand.length}
+                            </span>
+                          )}
                         </button>
                       </td>
                     );
@@ -1189,37 +1191,19 @@ const PlanilhaVendas: React.FC = () => {
                   </p>
                   <div className="flex gap-2 flex-wrap">
                     <button
-                      onClick={() =>
-                        handleUpdateStatus(
-                          statusModal.rowId,
-                          "pendente",
-                          statusModal.obs,
-                        )
-                      }
+                      onClick={() => handleSaveModal("pendente")}
                       className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "pendente" ? "bg-yellow-100 border-yellow-400 text-yellow-800" : "border-slate-300 text-slate-500 hover:bg-yellow-50 hover:border-yellow-300"}`}
                     >
                       Pendente
                     </button>
                     <button
-                      onClick={() =>
-                        handleUpdateStatus(
-                          statusModal.rowId,
-                          "solicitado",
-                          statusModal.obs,
-                        )
-                      }
+                      onClick={() => handleSaveModal("solicitado")}
                       className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "solicitado" ? "bg-blue-100 border-blue-400 text-blue-800" : "border-slate-300 text-slate-500 hover:bg-blue-50 hover:border-blue-300"}`}
                     >
                       Solicitado
                     </button>
                     <button
-                      onClick={() =>
-                        handleUpdateStatus(
-                          statusModal.rowId,
-                          "completo",
-                          statusModal.obs,
-                        )
-                      }
+                      onClick={() => handleSaveModal("completo")}
                       className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "completo" ? "bg-green-100 border-green-400 text-green-800" : "border-slate-300 text-slate-500 hover:bg-green-50 hover:border-green-300"}`}
                     >
                       Completo
@@ -1233,16 +1217,10 @@ const PlanilhaVendas: React.FC = () => {
                       Cancelar
                     </button>
                     <button
-                      onClick={() =>
-                        handleUpdateStatus(
-                          statusModal.rowId,
-                          currentStatus as StandStatus,
-                          statusModal.obs,
-                        )
-                      }
+                      onClick={() => handleSaveModal(currentStatus as StandStatus)}
                       className="flex-1 text-sm font-bold text-white bg-slate-700 hover:bg-slate-900 py-1.5 transition-colors"
                     >
-                      Salvar obs.
+                      Salvar
                     </button>
                   </div>
                 </div>
