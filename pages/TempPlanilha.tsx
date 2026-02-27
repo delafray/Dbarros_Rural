@@ -571,9 +571,24 @@ const PlanilhaVendas: React.FC = () => {
   const tdStyle =
     "border border-slate-300 text-[12px] px-2 py-0 whitespace-nowrap";
 
+  const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const formatPeriodo = (ini: string | null, fim: string | null): string => {
+    if (!ini) return '';
+    const d1 = new Date(ini);
+    const dia1 = d1.getUTCDate();
+    const mes1 = d1.getUTCMonth();
+    if (!fim) return `${dia1} de ${MESES[mes1]}`;
+    const d2 = new Date(fim);
+    const dia2 = d2.getUTCDate();
+    const mes2 = d2.getUTCMonth();
+    if (mes1 === mes2) return `${dia1} a ${dia2} de ${MESES[mes1]}`;
+    return `${dia1} de ${MESES[mes1]} a ${dia2} de ${MESES[mes2]}`;
+  };
+  const periodo = edicao ? formatPeriodo(edicao.data_inicio, edicao.data_fim) : '';
+
   return (
     <Layout
-      title={edicao ? `Planilha :: ${edicao.titulo}` : "Planilha de Vendas"}
+      title={edicao ? `Planilha :: ${edicao.titulo}${periodo ? ` · ${periodo}` : ''}` : "Planilha de Vendas"}
       headerActions={
         <div className="flex gap-2 items-center">
           <Button
@@ -582,6 +597,13 @@ const PlanilhaVendas: React.FC = () => {
             onClick={() => navigate(`/configuracao-vendas/${edicaoId}`)}
           >
             ⚙️ Setup
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/controle-imagens', { state: { edicaoId } })}
+          >
+            🖼 Controle de Imagens
           </Button>
           <input
             type="text"

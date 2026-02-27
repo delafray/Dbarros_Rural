@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { eventosService, EventoEdicao } from "../services/eventosService";
 import {
@@ -33,6 +34,10 @@ const naturalSort = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 
 const ControleImagens: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const initialEdicaoId = (location.state as any)?.edicaoId ?? "";
+
   // ── Seleção de edição ─────────────────────────────────────────
   const [edicoes, setEdicoes] = useState<
     (EventoEdicao & { eventos: { nome: string } | null })[]
@@ -74,11 +79,15 @@ const ControleImagens: React.FC = () => {
       .then((data) => {
         setEdicoes(data);
         if (data.length > 0) {
-          const barraMansa = data.find((e) =>
-            ((e.eventos as any)?.nome || '').toLowerCase().includes('barra mansa') ||
-            (e.titulo || '').toLowerCase().includes('barra mansa'),
-          );
-          setSelectedEdicaoId((barraMansa || data[0]).id);
+          if (initialEdicaoId && data.find((e) => e.id === initialEdicaoId)) {
+            setSelectedEdicaoId(initialEdicaoId);
+          } else {
+            const barraMansa = data.find((e) =>
+              ((e.eventos as any)?.nome || '').toLowerCase().includes('barra mansa') ||
+              (e.titulo || '').toLowerCase().includes('barra mansa'),
+            );
+            setSelectedEdicaoId((barraMansa || data[0]).id);
+          }
         }
       })
       .catch((err) => console.error("Erro ao carregar edições:", err));
@@ -424,7 +433,32 @@ const ControleImagens: React.FC = () => {
 
   // ── Render ────────────────────────────────────────────────────
   return (
-    <Layout title="Controle de Imagens">
+    <Layout
+      title="Controle de Imagens"
+      headerActions={
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Buscar stand ou cliente..."
+            value={searchTerm}
+            onChange={(ev) => setSearchTerm(ev.target.value)}
+            className="border border-slate-300 text-sm px-3 py-1.5 rounded w-52 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+          {selectedEdicaoId && (
+            <button
+              onClick={() => navigate(`/planilha-vendas/${selectedEdicaoId}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors whitespace-nowrap"
+              title="Abrir planilha desta edição"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18" />
+              </svg>
+              Planilha
+            </button>
+          )}
+        </div>
+      }
+    >
       {/* ── Barra superior ── */}
       <div className="flex flex-wrap gap-2 items-center mb-3">
         {/* Seletor de edição */}
@@ -440,15 +474,6 @@ const ControleImagens: React.FC = () => {
             </option>
           ))}
         </select>
-
-        {/* Busca */}
-        <input
-          type="text"
-          placeholder="Buscar stand ou cliente..."
-          value={searchTerm}
-          onChange={(ev) => setSearchTerm(ev.target.value)}
-          className="border border-slate-300 text-sm px-3 py-1.5 rounded w-52 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
 
         {/* Filtros de status */}
         <div className="flex gap-1">
@@ -533,7 +558,7 @@ const ControleImagens: React.FC = () => {
           </div>
         ) : (
           <table
-            className="border-collapse text-[11px] font-sans"
+            className="border-collapse text-[11px] font-sans w-full"
             style={{ minWidth: "max-content" }}
           >
             <thead className="sticky top-0 z-10 shadow-sm">

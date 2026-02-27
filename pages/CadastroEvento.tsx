@@ -16,7 +16,7 @@ type TabType = 'dados' | 'edicoes';
 const CadastroEvento: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<TabType>('dados');
+    const [activeTab, setActiveTab] = useState<TabType>(id ? 'edicoes' : 'dados');
     const [eventoId, setEventoId] = useState<string | null>(id || null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);

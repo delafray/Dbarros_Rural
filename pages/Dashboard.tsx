@@ -50,19 +50,8 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <Layout title="Dashboard">
+        <Layout title="Dashboard Central">
             <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-black tracking-tight text-slate-800">
-                            Dashboard Central
-                        </h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Monitoramento de retornos e acesso às edições ativas.
-                        </p>
-                    </div>
-                </div>
-
                 <div className="border-t border-slate-100">
                     <h2 className="text-lg font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2 text-[12px]">
                         <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -95,7 +84,7 @@ const Dashboard: React.FC = () => {
                             </div>
                         </Card>
                     ) : (
-                        <div className="max-w-4xl">
+                        <div>
                             <Card className="overflow-hidden border-slate-200 shadow-sm transition-all hover:shadow-md">
                                 <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
                                     <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
@@ -220,7 +209,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Dashboard Alerts - Highlighted Follow-ups */}
-                <div className="max-w-5xl border-t border-slate-100 pt-6">
+                <div className="border-t border-slate-100 pt-6">
                     <DashboardAlerts
                         onOpenResolucao={(a) => setSelectedAtendimento(a)}
                         refreshTrigger={refreshTrigger}

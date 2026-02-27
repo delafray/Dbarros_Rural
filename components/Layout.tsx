@@ -238,7 +238,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800 truncate">{title}</h2>
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-800 truncate">{title}</h2>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">

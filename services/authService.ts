@@ -1,10 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 import { Database } from '../database.types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+// Using shared supabase client from ./supabaseClient
 
 export interface User {
     id: string;
@@ -20,12 +17,6 @@ export interface User {
     isProjetista: boolean;
 }
 
-// Deprecated getAdminClient (not needed for RPC registration)
-const getAdminClient = () => {
-    return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: false, autoRefreshToken: false }
-    });
-};
 
 export const authService = {
     // Check if biometric login is supported

@@ -186,7 +186,14 @@ const Eventos: React.FC = () => {
                                                 ref={isLast && hasMore ? setSentinel : null}
                                                 className="hover:bg-blue-100/30 even:bg-slate-200/40 transition-colors group"
                                             >
-                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[250px] truncate text-[12px] font-semibold text-slate-700">{e.nome}</td>
+                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[250px] truncate text-[12px] font-semibold text-slate-700">
+                                                    <button
+                                                        onClick={() => navigate(`/eventos/editar/${e.id}`)}
+                                                        className="hover:text-blue-600 hover:underline text-left"
+                                                    >
+                                                        {e.nome}
+                                                    </button>
+                                                </td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_nome || '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap text-[12px] text-slate-600">{e.promotor_telefone || '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_email || '-'}</td>
