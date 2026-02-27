@@ -82,6 +82,12 @@ const ConfiguracaoVendas: React.FC = () => {
     dimensoes: "",
   });
   const [savingImagem, setSavingImagem] = useState(false);
+  const [editingImagem, setEditingImagem] = useState<{
+    id: string;
+    tipo: "imagem" | "logo";
+    descricao: string;
+    dimensoes: string;
+  } | null>(null);
   // Tags salvas no banco — usadas para detectar renames na hora de salvar
   const [savedTags, setSavedTags] = useState<string[]>([]);
 
@@ -403,6 +409,7 @@ const ConfiguracaoVendas: React.FC = () => {
   ) => {
     setImagensModal({ tipo, ref, label });
     setNovaImagem({ tipo: "imagem", descricao: "", dimensoes: "" });
+    setEditingImagem(null);
   };
 
   const handleAddImagem = async () => {
@@ -441,6 +448,32 @@ const ConfiguracaoVendas: React.FC = () => {
         "Erro ao remover: " +
           (err instanceof Error ? err.message : String(err)),
       );
+    }
+  };
+
+  const handleUpdateImagem = async () => {
+    if (!editingImagem || !editingImagem.descricao.trim()) return;
+    setSavingImagem(true);
+    try {
+      const updated = await imagensService.updateConfig(editingImagem.id, {
+        tipo: editingImagem.tipo,
+        descricao: editingImagem.descricao.trim(),
+        dimensoes:
+          editingImagem.tipo === "imagem" && editingImagem.dimensoes.trim()
+            ? editingImagem.dimensoes.trim()
+            : null,
+      });
+      setImagensConfig((prev) =>
+        prev.map((c) => (c.id === updated.id ? updated : c)),
+      );
+      setEditingImagem(null);
+    } catch (err) {
+      alert(
+        "Erro ao atualizar: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      setSavingImagem(false);
     }
   };
 
@@ -1132,46 +1165,122 @@ const ConfiguracaoVendas: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {avulsas.map((av) => (
-                        <tr key={av.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-2 font-semibold text-slate-800">
-                            {av.descricao}
-                          </td>
-                          <td className="px-4 py-2 text-center text-xs text-slate-500 uppercase">
-                            {av.tipo}
-                          </td>
-                          <td className="px-4 py-2 text-center text-xs font-mono text-slate-500">
-                            {av.dimensoes || "—"}
-                          </td>
-                          <td className="px-4 py-2 text-center">
-                            <select
-                              value={av.avulso_status}
-                              onChange={(e) =>
-                                handleUpdateAvulsoStatus(
-                                  av.id,
-                                  e.target.value as AvulsoStatus,
-                                )
-                              }
-                              className={`text-xs font-bold px-2 py-1 border-0 rounded cursor-pointer focus:outline-none ${avulsoStatusColor[av.avulso_status] || "bg-slate-100 text-slate-600"}`}
-                            >
-                              <option value="pendente">Pendente</option>
-                              <option value="solicitado">Solicitado</option>
-                              <option value="recebido">Recebido</option>
-                            </select>
-                            <span className="sr-only">
-                              {avulsoStatusLabel[av.avulso_status]}
-                            </span>
-                          </td>
-                          <td className="px-2 text-center">
-                            <button
-                              onClick={() => handleRemoveImagem(av.id)}
-                              className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 transition-colors text-sm"
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {avulsas.map((av) => {
+                        const isEditing = editingImagem?.id === av.id;
+                        if (isEditing) {
+                          return (
+                            <tr key={av.id} className="bg-violet-50">
+                              <td colSpan={5} className="px-3 py-2">
+                                <div className="flex gap-2 items-center">
+                                  <select
+                                    value={editingImagem.tipo}
+                                    onChange={(e) =>
+                                      setEditingImagem((p) =>
+                                        p ? { ...p, tipo: e.target.value as "imagem" | "logo", dimensoes: "" } : null
+                                      )
+                                    }
+                                    className="border border-slate-300 text-sm px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
+                                  >
+                                    <option value="imagem">📐 Imagem</option>
+                                    <option value="logo">🏷️ Logo</option>
+                                  </select>
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={editingImagem.descricao}
+                                    onChange={(e) =>
+                                      setEditingImagem((p) =>
+                                        p ? { ...p, descricao: e.target.value } : null
+                                      )
+                                    }
+                                    onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
+                                    className="flex-1 border border-violet-400 text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                    placeholder="Descrição"
+                                  />
+                                  {editingImagem.tipo === "imagem" && (
+                                    <input
+                                      type="text"
+                                      value={editingImagem.dimensoes}
+                                      onChange={(e) =>
+                                        setEditingImagem((p) =>
+                                          p ? { ...p, dimensoes: e.target.value } : null
+                                        )
+                                      }
+                                      onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
+                                      className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                      placeholder="Dimensões"
+                                    />
+                                  )}
+                                  <button
+                                    onClick={handleUpdateImagem}
+                                    disabled={savingImagem || !editingImagem.descricao.trim()}
+                                    className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors disabled:opacity-50 shrink-0"
+                                  >
+                                    {savingImagem ? "Salvando..." : "Salvar"}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingImagem(null)}
+                                    className="text-xs text-slate-500 border border-slate-300 px-3 py-1.5 hover:bg-slate-100 transition-colors shrink-0"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return (
+                          <tr key={av.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-2 font-semibold text-slate-800">
+                              {av.descricao}
+                            </td>
+                            <td className="px-4 py-2 text-center text-xs text-slate-500 uppercase">
+                              {av.tipo}
+                            </td>
+                            <td className="px-4 py-2 text-center text-xs font-mono text-slate-500">
+                              {av.dimensoes || "—"}
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              <select
+                                value={av.avulso_status}
+                                onChange={(e) =>
+                                  handleUpdateAvulsoStatus(
+                                    av.id,
+                                    e.target.value as AvulsoStatus,
+                                  )
+                                }
+                                className={`text-xs font-bold px-2 py-1 border-0 rounded cursor-pointer focus:outline-none ${avulsoStatusColor[av.avulso_status] || "bg-slate-100 text-slate-600"}`}
+                              >
+                                <option value="pendente">Pendente</option>
+                                <option value="solicitado">Solicitado</option>
+                                <option value="recebido">Recebido</option>
+                              </select>
+                            </td>
+                            <td className="px-2 text-center">
+                              <button
+                                onClick={() =>
+                                  setEditingImagem({
+                                    id: av.id,
+                                    tipo: av.tipo,
+                                    descricao: av.descricao,
+                                    dimensoes: av.dimensoes || "",
+                                  })
+                                }
+                                className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-1 rounded transition-colors"
+                                title="Editar"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleRemoveImagem(av.id)}
+                                className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 transition-colors text-sm"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1225,9 +1334,12 @@ const ConfiguracaoVendas: React.FC = () => {
       {imagensModal && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
-          onClick={(e) =>
-            e.target === e.currentTarget && setImagensModal(null)
-          }
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setImagensModal(null);
+              setEditingImagem(null);
+            }
+          }}
         >
           <div className="bg-white shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
             {/* Header */}
@@ -1245,7 +1357,7 @@ const ConfiguracaoVendas: React.FC = () => {
                 </p>
               </div>
               <button
-                onClick={() => setImagensModal(null)}
+                onClick={() => { setImagensModal(null); setEditingImagem(null); }}
                 className="text-slate-400 hover:text-white text-2xl leading-none ml-4"
               >
                 ×
@@ -1262,37 +1374,125 @@ const ConfiguracaoVendas: React.FC = () => {
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {getImagensForRef(imagensModal.tipo, imagensModal.ref).map(
-                    (cfg) => (
-                      <li
-                        key={cfg.id}
-                        className="flex items-center justify-between px-5 py-3 hover:bg-slate-50"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">
-                            {cfg.tipo === "logo" ? "🏷️" : "📐"}
-                          </span>
-                          <div>
-                            <span className="font-semibold text-slate-800 text-sm">
-                              {cfg.descricao}
-                            </span>
-                            {cfg.dimensoes && (
-                              <span className="ml-2 text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5">
-                                {cfg.dimensoes}
-                              </span>
-                            )}
-                            <span className="ml-2 text-[10px] font-bold uppercase text-violet-500">
-                              {cfg.tipo}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveImagem(cfg.id)}
-                          className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    ),
+                    (cfg) => {
+                      const isEditing = editingImagem?.id === cfg.id;
+                      return (
+                        <li key={cfg.id} className="px-5 py-2 hover:bg-slate-50">
+                          {isEditing ? (
+                            /* ── Modo edição inline ── */
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <select
+                                  value={editingImagem.tipo}
+                                  onChange={(e) =>
+                                    setEditingImagem((p) =>
+                                      p
+                                        ? {
+                                            ...p,
+                                            tipo: e.target.value as "imagem" | "logo",
+                                            dimensoes: "",
+                                          }
+                                        : null,
+                                    )
+                                  }
+                                  className="border border-slate-300 text-sm px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
+                                >
+                                  <option value="imagem">📐 Imagem</option>
+                                  <option value="logo">🏷️ Logo</option>
+                                </select>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={editingImagem.descricao}
+                                  onChange={(e) =>
+                                    setEditingImagem((p) =>
+                                      p ? { ...p, descricao: e.target.value } : null,
+                                    )
+                                  }
+                                  onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
+                                  className="flex-1 border border-violet-400 text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                  placeholder="Descrição"
+                                />
+                                {editingImagem.tipo === "imagem" && (
+                                  <input
+                                    type="text"
+                                    value={editingImagem.dimensoes}
+                                    onChange={(e) =>
+                                      setEditingImagem((p) =>
+                                        p ? { ...p, dimensoes: e.target.value } : null,
+                                      )
+                                    }
+                                    onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
+                                    className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                    placeholder="Dimensões"
+                                  />
+                                )}
+                              </div>
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  onClick={() => setEditingImagem(null)}
+                                  className="text-xs text-slate-500 border border-slate-300 px-3 py-1 hover:bg-slate-100 transition-colors"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={handleUpdateImagem}
+                                  disabled={savingImagem || !editingImagem.descricao.trim()}
+                                  className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1 font-bold transition-colors disabled:opacity-50"
+                                >
+                                  {savingImagem ? "Salvando..." : "Salvar"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* ── Modo visualização ── */
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">
+                                  {cfg.tipo === "logo" ? "🏷️" : "📐"}
+                                </span>
+                                <div>
+                                  <span className="font-semibold text-slate-800 text-sm">
+                                    {cfg.descricao}
+                                  </span>
+                                  {cfg.dimensoes && (
+                                    <span className="ml-2 text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5">
+                                      {cfg.dimensoes}
+                                    </span>
+                                  )}
+                                  <span className="ml-2 text-[10px] font-bold uppercase text-violet-500">
+                                    {cfg.tipo}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() =>
+                                    setEditingImagem({
+                                      id: cfg.id,
+                                      tipo: cfg.tipo,
+                                      descricao: cfg.descricao,
+                                      dimensoes: cfg.dimensoes || "",
+                                    })
+                                  }
+                                  className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-1 rounded transition-colors"
+                                  title="Editar"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveImagem(cfg.id)}
+                                  className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                                  title="Remover"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    },
                   )}
                 </ul>
               )}
@@ -1349,7 +1549,7 @@ const ConfiguracaoVendas: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2">
                 <button
-                  onClick={() => setImagensModal(null)}
+                  onClick={() => { setImagensModal(null); setEditingImagem(null); }}
                   className="text-sm text-slate-600 border border-slate-300 px-4 py-1.5 hover:bg-slate-100 transition-colors"
                 >
                   Fechar

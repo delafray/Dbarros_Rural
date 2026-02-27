@@ -14,6 +14,7 @@ import {
   RecebimentosMap,
   StandImagemStatus,
   StandStatus,
+  AvulsoStatus,
 } from "../services/imagensService";
 
 type FilterStatus = "todos" | "pendente" | "parcial" | "completo";
@@ -55,13 +56,30 @@ const ControleImagens: React.FC = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [detailModal, setDetailModal] = useState<{ rowId: string; obs: string } | null>(null);
 
+  // ── Imagens Avulsas ───────────────────────────────────────────
+  const [avulsaAddOpen, setAvulsaAddOpen] = useState(false);
+  const [novaAvulsa, setNovaAvulsa] = useState({ tipo: "imagem" as "imagem" | "logo", descricao: "", dimensoes: "" });
+  const [savingAvulsa, setSavingAvulsa] = useState(false);
+  const [editingAvulsa, setEditingAvulsa] = useState<{
+    id: string;
+    tipo: "imagem" | "logo";
+    descricao: string;
+    dimensoes: string;
+  } | null>(null);
+
   // ── Carrega edições ativas no mount ───────────────────────────
   useEffect(() => {
     eventosService
       .getActiveEdicoes()
       .then((data) => {
         setEdicoes(data);
-        if (data.length > 0) setSelectedEdicaoId(data[0].id);
+        if (data.length > 0) {
+          const barraMansa = data.find((e) =>
+            ((e.eventos as any)?.nome || '').toLowerCase().includes('barra mansa') ||
+            (e.titulo || '').toLowerCase().includes('barra mansa'),
+          );
+          setSelectedEdicaoId((barraMansa || data[0]).id);
+        }
       })
       .catch((err) => console.error("Erro ao carregar edições:", err));
   }, []);
@@ -338,6 +356,66 @@ const ControleImagens: React.FC = () => {
     }
   };
 
+  // ── Handlers de Imagens Avulsas ──────────────────────────────
+  const handleAddAvulsa = async () => {
+    if (!novaAvulsa.descricao.trim() || !selectedEdicaoId) return;
+    setSavingAvulsa(true);
+    try {
+      const added = await imagensService.addConfig({
+        edicao_id: selectedEdicaoId,
+        origem_tipo: "avulso",
+        origem_ref: "__avulso__",
+        tipo: novaAvulsa.tipo,
+        descricao: novaAvulsa.descricao.trim(),
+        dimensoes: novaAvulsa.tipo === "imagem" && novaAvulsa.dimensoes.trim() ? novaAvulsa.dimensoes.trim() : null,
+      });
+      setImagensConfig((prev) => [...prev, added]);
+      setNovaAvulsa({ tipo: "imagem", descricao: "", dimensoes: "" });
+      setAvulsaAddOpen(false);
+    } catch (err) {
+      alert("Erro ao adicionar: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setSavingAvulsa(false);
+    }
+  };
+
+  const handleUpdateAvulsoStatus = async (id: string, status: AvulsoStatus) => {
+    try {
+      await imagensService.updateAvulsoStatus(id, status);
+      setImagensConfig((prev) => prev.map((c) => (c.id === id ? { ...c, avulso_status: status } : c)));
+    } catch (err) {
+      alert("Erro ao atualizar status: " + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
+  const handleRemoveAvulsa = async (id: string) => {
+    if (!confirm("Remover esta imagem avulsa?")) return;
+    try {
+      await imagensService.removeConfig(id);
+      setImagensConfig((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      alert("Erro ao remover: " + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
+  const handleUpdateAvulsa = async () => {
+    if (!editingAvulsa || !editingAvulsa.descricao.trim()) return;
+    setSavingAvulsa(true);
+    try {
+      const updated = await imagensService.updateConfig(editingAvulsa.id, {
+        tipo: editingAvulsa.tipo,
+        descricao: editingAvulsa.descricao.trim(),
+        dimensoes: editingAvulsa.tipo === "imagem" && editingAvulsa.dimensoes.trim() ? editingAvulsa.dimensoes.trim() : null,
+      });
+      setImagensConfig((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setEditingAvulsa(null);
+    } catch (err) {
+      alert("Erro ao atualizar: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setSavingAvulsa(false);
+    }
+  };
+
   // ── Estilos ───────────────────────────────────────────────────
   const thStyle =
     "border border-slate-400/40 px-1 py-1 text-[11px] font-bold uppercase whitespace-nowrap text-white text-center bg-[#1F497D]";
@@ -428,8 +506,7 @@ const ControleImagens: React.FC = () => {
 
       {/* ── Tabela ── */}
       <div
-        className="overflow-x-auto overflow-y-auto bg-white shadow-xl border border-slate-200 rounded-lg"
-        style={{ maxHeight: "calc(100vh - 145px)" }}
+        className="overflow-x-auto bg-white shadow-xl border border-slate-200 rounded-lg"
       >
         {loading ? (
           <div className="p-8 text-center text-slate-400 text-sm">
@@ -709,9 +786,10 @@ const ControleImagens: React.FC = () => {
                               ✓
                             </span>
                           ) : (
-                            <span className="text-red-300 text-[14px] leading-none">
-                              ○
-                            </span>
+                            <span
+                              className="inline-block w-3.5 h-3.5 rounded-full border-2 border-red-500 bg-red-100"
+                              style={{ boxShadow: "0 0 0 1px #ef4444" }}
+                            />
                           )}
                         </td>
                       );
@@ -770,6 +848,195 @@ const ControleImagens: React.FC = () => {
           </table>
         )}
       </div>
+
+      {/* ── Imagens Avulsas ── */}
+      {selectedEdicaoId && (() => {
+        const avulsas = imagensConfig.filter((c) => c.origem_tipo === "avulso");
+        const avulsoStatusColor: Record<string, string> = {
+          pendente: "bg-slate-100 text-slate-600",
+          solicitado: "bg-blue-100 text-blue-700",
+          recebido: "bg-green-100 text-green-700",
+        };
+        return (
+          <div className="mt-4 bg-white border border-slate-200 overflow-hidden shadow-sm">
+            <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-sm uppercase tracking-wider">Imagens Avulsas</span>
+                <span className="ml-3 text-slate-400 text-xs">não vinculadas a stands específicos (produtor, portal de entrada, palco...)</span>
+              </div>
+              <button
+                onClick={() => { setAvulsaAddOpen((v) => !v); setNovaAvulsa({ tipo: "imagem", descricao: "", dimensoes: "" }); }}
+                className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors"
+              >
+                + Adicionar
+              </button>
+            </div>
+
+            {/* Formulário de adição inline */}
+            {avulsaAddOpen && (
+              <div className="px-5 py-3 bg-violet-50 border-b border-violet-200 flex gap-2 items-center flex-wrap">
+                <select
+                  value={novaAvulsa.tipo}
+                  onChange={(e) => setNovaAvulsa((p) => ({ ...p, tipo: e.target.value as "imagem" | "logo", dimensoes: "" }))}
+                  className="border border-slate-300 text-sm px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
+                >
+                  <option value="imagem">📐 Imagem</option>
+                  <option value="logo">🏷️ Logo</option>
+                </select>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Descrição (ex: Fundo de Palco)"
+                  className="flex-1 min-w-[180px] border border-slate-300 text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                  value={novaAvulsa.descricao}
+                  onChange={(e) => setNovaAvulsa((p) => ({ ...p, descricao: e.target.value }))}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddAvulsa()}
+                />
+                {novaAvulsa.tipo === "imagem" && (
+                  <input
+                    type="text"
+                    placeholder="Dimensões (ex: 10x5)"
+                    className="w-32 shrink-0 border border-slate-300 text-sm px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                    value={novaAvulsa.dimensoes}
+                    onChange={(e) => setNovaAvulsa((p) => ({ ...p, dimensoes: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddAvulsa()}
+                  />
+                )}
+                <button
+                  onClick={handleAddAvulsa}
+                  disabled={savingAvulsa || !novaAvulsa.descricao.trim()}
+                  className="text-sm bg-violet-700 hover:bg-violet-600 text-white px-5 py-1.5 font-bold transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {savingAvulsa ? "Salvando..." : "+ Adicionar"}
+                </button>
+                <button
+                  onClick={() => setAvulsaAddOpen(false)}
+                  className="text-sm text-slate-500 border border-slate-300 px-4 py-1.5 hover:bg-slate-100 transition-colors shrink-0"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+
+            {avulsas.length === 0 && !avulsaAddOpen ? (
+              <div className="px-6 py-6 text-center text-slate-400 italic text-sm">
+                Nenhuma imagem avulsa cadastrada.
+              </div>
+            ) : avulsas.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-[11px] font-bold uppercase text-slate-500">Descrição</th>
+                      <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-24">Tipo</th>
+                      <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-28">Dimensões</th>
+                      <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-36">Status</th>
+                      <th className="w-20" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {avulsas.map((av) => {
+                      const isEditing = editingAvulsa?.id === av.id;
+                      if (isEditing) {
+                        return (
+                          <tr key={av.id} className="bg-violet-50">
+                            <td colSpan={5} className="px-3 py-2">
+                              <div className="flex gap-2 items-center">
+                                <select
+                                  value={editingAvulsa.tipo}
+                                  onChange={(e) =>
+                                    setEditingAvulsa((p) =>
+                                      p ? { ...p, tipo: e.target.value as "imagem" | "logo", dimensoes: "" } : null
+                                    )
+                                  }
+                                  className="border border-slate-300 text-sm px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
+                                >
+                                  <option value="imagem">📐 Imagem</option>
+                                  <option value="logo">🏷️ Logo</option>
+                                </select>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={editingAvulsa.descricao}
+                                  onChange={(e) =>
+                                    setEditingAvulsa((p) => p ? { ...p, descricao: e.target.value } : null)
+                                  }
+                                  onKeyDown={(e) => e.key === "Enter" && handleUpdateAvulsa()}
+                                  className="flex-1 border border-violet-400 text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                  placeholder="Descrição"
+                                />
+                                {editingAvulsa.tipo === "imagem" && (
+                                  <input
+                                    type="text"
+                                    value={editingAvulsa.dimensoes}
+                                    onChange={(e) =>
+                                      setEditingAvulsa((p) => p ? { ...p, dimensoes: e.target.value } : null)
+                                    }
+                                    onKeyDown={(e) => e.key === "Enter" && handleUpdateAvulsa()}
+                                    className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1 focus:outline-none"
+                                    placeholder="Dimensões"
+                                  />
+                                )}
+                                <button
+                                  onClick={handleUpdateAvulsa}
+                                  disabled={savingAvulsa || !editingAvulsa.descricao.trim()}
+                                  className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors disabled:opacity-50 shrink-0"
+                                >
+                                  {savingAvulsa ? "Salvando..." : "Salvar"}
+                                </button>
+                                <button
+                                  onClick={() => setEditingAvulsa(null)}
+                                  className="text-xs text-slate-500 border border-slate-300 px-3 py-1.5 hover:bg-slate-100 transition-colors shrink-0"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+                      return (
+                        <tr key={av.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-2 font-semibold text-slate-800">{av.descricao}</td>
+                          <td className="px-4 py-2 text-center text-xs text-slate-500 uppercase">{av.tipo}</td>
+                          <td className="px-4 py-2 text-center text-xs font-mono text-slate-500">{av.dimensoes || "—"}</td>
+                          <td className="px-4 py-2 text-center">
+                            <select
+                              value={av.avulso_status}
+                              onChange={(e) => handleUpdateAvulsoStatus(av.id, e.target.value as AvulsoStatus)}
+                              className={`text-xs font-bold px-2 py-1 border-0 rounded cursor-pointer focus:outline-none ${avulsoStatusColor[av.avulso_status] || "bg-slate-100 text-slate-600"}`}
+                            >
+                              <option value="pendente">Pendente</option>
+                              <option value="solicitado">Solicitado</option>
+                              <option value="recebido">Recebido</option>
+                            </select>
+                          </td>
+                          <td className="px-2 text-center">
+                            <button
+                              onClick={() => setEditingAvulsa({ id: av.id, tipo: av.tipo, descricao: av.descricao, dimensoes: av.dimensoes || "" })}
+                              className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-1 rounded transition-colors"
+                              title="Editar"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleRemoveAvulsa(av.id)}
+                              className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 transition-colors"
+                              title="Remover"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        );
+      })()}
 
       <style>{`
         .vertical-text {
