@@ -73,12 +73,24 @@ export const authService = {
 
     // Login user
     login: async (identifier: string, password: string): Promise<User> => {
-        const { data, error } = await supabase
+        // Busca por email primeiro, depois por nome — evita interpolação de string no .or()
+        let { data, error } = await supabase
             .from('users')
             .select('*')
-            .or(`email.eq.${identifier},name.ilike.${identifier}`)
+            .eq('email', identifier)
             .limit(1)
             .maybeSingle();
+
+        if (!error && !data) {
+            const byName = await supabase
+                .from('users')
+                .select('*')
+                .ilike('name', identifier)
+                .limit(1)
+                .maybeSingle();
+            data = byName.data;
+            error = byName.error;
+        }
 
         if (error || !data) {
             throw new Error('E-mail, usuário ou senha inválidos');

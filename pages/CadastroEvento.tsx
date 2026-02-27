@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Button, Input } from '../components/UI';
 import { useAppDialog } from '../context/DialogContext';
 import { eventosService, Evento, EventoEdicao } from '../services/eventosService';
+import { edicaoDocsService, DocTipo } from '../services/edicaoDocsService';
+
+type EventoEdicaoComDocs = EventoEdicao & {
+    proposta_comercial_path?: string | null;
+    planta_baixa_path?: string | null;
+};
 
 type TabType = 'dados' | 'edicoes';
 
@@ -26,7 +32,10 @@ const CadastroEvento: React.FC = () => {
         contato_principal: '',
     });
 
-    const [edicoes, setEdicoes] = useState<EventoEdicao[]>([]);
+    const [edicoes, setEdicoes] = useState<EventoEdicaoComDocs[]>([]);
+    const [uploadingDoc, setUploadingDoc] = useState<Record<string, boolean>>({});
+    const [pendingUpload, setPendingUpload] = useState<{ edicaoId: string; tipo: DocTipo } | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (id) {
@@ -41,7 +50,7 @@ const CadastroEvento: React.FC = () => {
             if (data) {
                 const { eventos_edicoes, ...eventoData } = data as any;
                 setDados(eventoData);
-                setEdicoes(eventos_edicoes || []);
+                setEdicoes((eventos_edicoes || []) as EventoEdicaoComDocs[]);
             }
         } catch (error) {
             console.error('Erro ao buscar evento:', error);
@@ -53,7 +62,7 @@ const CadastroEvento: React.FC = () => {
     const fetchEdicoes = async (uid: string) => {
         try {
             const data = await eventosService.getEdicoes(uid);
-            setEdicoes(data);
+            setEdicoes(data as EventoEdicaoComDocs[]);
         } catch (error) {
             console.error('Erro ao buscar edições:', error);
         }
@@ -185,6 +194,65 @@ const CadastroEvento: React.FC = () => {
         }
     };
 
+    const handleClickUploadDoc = (edicaoId: string, tipo: DocTipo) => {
+        setPendingUpload({ edicaoId, tipo });
+        fileInputRef.current?.click();
+    };
+
+    const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file || !pendingUpload) return;
+
+        const key = `${pendingUpload.edicaoId}-${pendingUpload.tipo}`;
+        setUploadingDoc(prev => ({ ...prev, [key]: true }));
+        const { edicaoId, tipo } = pendingUpload;
+        setPendingUpload(null);
+
+        try {
+            await edicaoDocsService.upload(edicaoId, tipo, file);
+            if (eventoId) await fetchEdicoes(eventoId);
+        } catch (err) {
+            alert('Erro ao enviar arquivo. Verifique se o bucket "edicao-docs" existe no Supabase Storage.');
+        } finally {
+            setUploadingDoc(prev => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const handleRemoveDoc = async (edicaoId: string, tipo: DocTipo) => {
+        const confirmed = await appDialog.confirm({
+            title: 'Remover Documento',
+            message: 'Deseja remover este arquivo? Esta acao nao pode ser desfeita.',
+            confirmText: 'Sim, Remover',
+            type: 'danger'
+        });
+        if (!confirmed) return;
+
+        try {
+            await edicaoDocsService.remove(edicaoId, tipo);
+            if (eventoId) await fetchEdicoes(eventoId);
+        } catch (err) {
+            alert('Erro ao remover arquivo.');
+        }
+    };
+
+    const handleShareDoc = async (url: string, label: string) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
+            const fileName = `${label.replace(/ /g, '_')}.${ext}`;
+            const file = new File([blob], fileName, { type: blob.type });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: label });
+            } else {
+                appDialog.alert({ title: 'Nao suportado', message: 'Seu dispositivo nao suporta compartilhamento direto. Use o botao Baixar para salvar o arquivo.', type: 'warning' });
+            }
+        } catch {
+            appDialog.alert({ title: 'Erro', message: 'Nao foi possivel preparar o arquivo para compartilhar.', type: 'danger' });
+        }
+    };
+
     const isTabLocked = (tab: TabType) => {
         return tab === 'edicoes' && !eventoId;
     };
@@ -198,6 +266,13 @@ const CadastroEvento: React.FC = () => {
                 </Button>
             }
         >
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                className="hidden"
+                onChange={handleFileSelected}
+            />
             <div className="bg-white border border-slate-300 rounded-none shadow-sm overflow-hidden flex flex-col min-h-[600px]">
                 {/* Tabs Header */}
                 <div className="flex bg-slate-50 border-b border-slate-300">
@@ -337,7 +412,7 @@ const CadastroEvento: React.FC = () => {
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
                                             />
                                         </div>
-                                        <div className="md:col-span-3">
+                                        <div className="md:col-span-2">
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título da Edição</label>
                                             <input
                                                 type="text"
@@ -345,6 +420,16 @@ const CadastroEvento: React.FC = () => {
                                                 onChange={e => setEditingEdicao({ ...editingEdicao, titulo: e.target.value })}
                                                 className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none font-bold"
                                                 placeholder={`Ex: ${dados.nome} ${editingEdicao.ano || ''} `}
+                                            />
+                                        </div>
+                                        <div className="md:col-span-1">
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Email Oficial da Feira</label>
+                                            <input
+                                                type="email"
+                                                value={editingEdicao.email_oficial || ''}
+                                                onChange={e => setEditingEdicao({ ...editingEdicao, email_oficial: e.target.value })}
+                                                className="w-full border border-slate-300 rounded-none px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-500 outline-none"
+                                                placeholder="email@feira.com.br"
                                             />
                                         </div>
                                         <div className="md:col-span-2">
@@ -506,8 +591,11 @@ const CadastroEvento: React.FC = () => {
                                                         <td colSpan={5} className="px-3 py-8 text-center text-slate-400 text-[12px]">Nenhuma edição cadastrada.</td>
                                                     </tr>
                                                 ) : (
-                                                    edicoes.map(ed => (
-                                                        <tr key={ed.id} className="hover:bg-slate-50 even:bg-slate-100/50 text-[12px]">
+                                                    edicoes.map(ed => {
+                                                        const propostaUrl = ed.proposta_comercial_path ? edicaoDocsService.getPublicUrl(ed.proposta_comercial_path) : null;
+                                                        const plantaUrl = ed.planta_baixa_path ? edicaoDocsService.getPublicUrl(ed.planta_baixa_path) : null;
+                                                        return (<React.Fragment key={ed.id}>
+                                                        <tr className="hover:bg-slate-50 even:bg-slate-100/50 text-[12px]">
                                                             <td className="px-3 py-1 border-b border-r border-slate-300 font-bold">{ed.ano}</td>
                                                             <td className="px-3 py-1 border-b border-r border-slate-300">{ed.titulo}</td>
                                                             <td className="px-3 py-1 border-b border-r border-slate-300">{ed.local_resumido || '-'}</td>
@@ -568,7 +656,57 @@ const CadastroEvento: React.FC = () => {
                                                                 </div>
                                                             </td>
                                                         </tr>
-                                                    ))
+                                                        <tr className="bg-slate-50 text-[10px]">
+                                                            <td colSpan={6} className="px-3 py-1 border-b border-slate-200">
+                                                                <div className="flex items-center gap-6">
+                                                                    <span className="text-slate-400 font-black uppercase tracking-wider shrink-0">Docs:</span>
+                                                                    {/* Proposta Comercial */}
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-slate-500 font-semibold mr-1">Proposta Comercial</span>
+                                                                        {propostaUrl ? (
+                                                                            <>
+                                                                                <button onClick={() => window.open(propostaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50">VER</button>
+                                                                                <a href={propostaUrl} download target="_blank" rel="noreferrer" className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</a>
+                                                                                <button onClick={() => handleShareDoc(propostaUrl, 'Proposta Comercial')} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
+                                                                                <button onClick={() => handleClickUploadDoc(ed.id, 'proposta_comercial')} disabled={!!uploadingDoc[`${ed.id}-proposta_comercial`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50">{uploadingDoc[`${ed.id}-proposta_comercial`] ? '...' : 'ALTERAR'}</button>
+                                                                                <button onClick={() => handleRemoveDoc(ed.id, 'proposta_comercial')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50">X</button>
+                                                                            </>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => handleClickUploadDoc(ed.id, 'proposta_comercial')}
+                                                                                disabled={!!uploadingDoc[`${ed.id}-proposta_comercial`]}
+                                                                                className="px-2 py-0.5 font-bold border border-slate-300 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                                                                            >
+                                                                                {uploadingDoc[`${ed.id}-proposta_comercial`] ? 'Enviando...' : '↑ Enviar'}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                    {/* Planta Baixa */}
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-slate-500 font-semibold mr-1">Planta Baixa</span>
+                                                                        {plantaUrl ? (
+                                                                            <>
+                                                                                <button onClick={() => window.open(plantaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50">VER</button>
+                                                                                <a href={plantaUrl} download target="_blank" rel="noreferrer" className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</a>
+                                                                                <button onClick={() => handleShareDoc(plantaUrl, 'Planta Baixa')} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
+                                                                                <button onClick={() => handleClickUploadDoc(ed.id, 'planta_baixa')} disabled={!!uploadingDoc[`${ed.id}-planta_baixa`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50">{uploadingDoc[`${ed.id}-planta_baixa`] ? '...' : 'ALTERAR'}</button>
+                                                                                <button onClick={() => handleRemoveDoc(ed.id, 'planta_baixa')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50">X</button>
+                                                                            </>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => handleClickUploadDoc(ed.id, 'planta_baixa')}
+                                                                                disabled={!!uploadingDoc[`${ed.id}-planta_baixa`]}
+                                                                                className="px-2 py-0.5 font-bold border border-slate-300 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                                                                            >
+                                                                                {uploadingDoc[`${ed.id}-planta_baixa`] ? 'Enviando...' : '↑ Enviar'}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        </React.Fragment>);
+                                                    })
                                                 )}
                                             </tbody>
                                         </table>

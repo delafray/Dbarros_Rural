@@ -119,6 +119,8 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 **Por que é genial:** Em sistemas de gestão, o usuário não quer ver botões redondos e espaços vazios; ele quer ver 100 clientes de uma vez na tela para decidir rápido. Esse Blueprint ensina a técnica de "Linha Única Perfeita": o texto nunca quebra (usa reticências se for grande), as bordas são bem visíveis como no Excel e as linhas mudam de cor alternadamente para o olho não se perder na leitura horizontal.
 ---
 
+---
+
 ## 17. 🧪 `NA_UNHA.md`
 **(Economia de Tokens e Testes Profundos)**
 **O que ele faz:** Estabelece um protocolo de teste "manual" realizado pela IA apenas sob demanda, focando em verificação visual e funcional exaustiva.
@@ -130,3 +132,11 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 **(Manutenção e Flexibilidade de Interface)**
 **O que ele faz:** Fornece o código e as instruções exatas para reativar os menus de "Fotos" e "Tags de Busca" caso você decida voltar a usá-los no futuro.
 **Por que é genial:** Em vez de você ter que lembrar onde o código foi escondido ou como ele funcionava, este manual guarda o "interruptor" pronto para ser acionado. Garante que nenhuma funcionalidade seja perdida, apenas guardada para o momento certo.
+
+---
+
+## 19. 📧 `PROMPT_19_ENVIO_EMAIL_TRANSACIONAL.md`
+**(Comunicação Automatizada e Profissional)**
+**O que ele faz:** Ensina a IA a configurar um sistema de envio de e-mails (como convites, contratos e comunicados) usando o e-mail oficial da sua feira.
+**Por que é genial:** Em vez de usar e-mails comuns que caem no SPAM, este Blueprint ensina a usar ferramentas profissionais (como o Resend) integradas ao Supabase. Ele explica como garantir que o e-mail chegue ao cliente com o nome da sua empresa, suporte a anexos (PDFs) e como enviar para grupos inteiros de uma só vez de forma segura e rápida.
+

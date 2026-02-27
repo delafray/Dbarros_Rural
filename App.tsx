@@ -16,6 +16,7 @@ import ConfiguracaoVendas from './pages/ConfiguracaoVendas';
 import ItensOpcionais from './pages/ItensOpcionais';
 import Dashboard from './pages/Dashboard';
 import Atendimentos from './pages/Atendimentos';
+import Tarefas from './pages/Tarefas';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -54,6 +55,8 @@ const App: React.FC = () => {
         <Route path="/configuracao-vendas/:edicaoId" element={<ProtectedRoute><ConfiguracaoVendas /></ProtectedRoute>} />
         <Route path="/atendimentos/:edicaoId" element={<ProtectedRoute><Atendimentos /></ProtectedRoute>} />
         <Route path="/itens-opcionais" element={<ProtectedRoute><ItensOpcionais /></ProtectedRoute>} />
+
+        <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
 
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
 

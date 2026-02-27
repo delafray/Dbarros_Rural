@@ -144,6 +144,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
             <div className="pt-2 md:pt-4 pb-1 md:pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cadastros</div>
             <NavItem to="/eventos" label="Eventos" icon={CalendarIcon} />
             <NavItem to="/clientes" label="Clientes" icon={UsersIcon} />
+            <NavItem to="/tarefas" label="Tarefas" icon={ClipboardIcon} />
 
             <div className="pt-2 md:pt-4 pb-1 md:pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivos</div>
             {/* <NavItem to="/fotos" label="Fotos" icon={CameraIcon} /> */}
@@ -270,6 +271,7 @@ const LogOutIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 2
 const FingerprintIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 0a10.003 10.003 0 019.143 5.94l.054.09m-9.197-6.03V3m0 0a10 10 0 00-3.95 19.191m6.95-6.191l-.054.09c-1.744 2.772-2.753 6.054-2.753 9.571m-6.95-15.761V3" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517 1.009 6.799 2.753 9.571m3.44-2.04l-.054-.09A10.003 10.003 0 0112 3" /></svg>;
 const CalendarIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const PlusCircleIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const ClipboardIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>;
 
 export default Layout;
 

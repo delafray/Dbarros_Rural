@@ -48,6 +48,14 @@ function applyUserFilter<T>(query: T, userId: string): T {
   return query;
 }
 
+// Helper para mutações: não-admins só podem modificar seus próprios recursos
+function applyOwnershipFilter<T>(query: T, userId: string): T {
+  if (!isAdmin()) {
+    return (query as any).eq('user_id', userId);
+  }
+  return query;
+}
+
 export const supabaseService: GalleryService = {
   // ==================== TAG CATEGORIES ====================
   getTagCategories: async () => {
@@ -104,18 +112,21 @@ export const supabaseService: GalleryService = {
   },
 
   updateTagCategory: async (id, data) => {
+    const userId = getCurrentUserId();
     const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.order !== undefined) updateData.order = data.order;
     if (data.isRequired !== undefined) updateData.is_required = data.isRequired;
     if (data.peerCategoryIds !== undefined) updateData.peer_category_ids = data.peerCategoryIds;
 
-    const { data: updatedCategory, error } = await supabase
+    let updateQuery = supabase
       .from('tag_categories')
       .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+
+    updateQuery = applyOwnershipFilter(updateQuery, userId);
+
+    const { data: updatedCategory, error } = await updateQuery.select().single();
 
     if (error) throw new Error(`Failed to update tag category: ${error.message}`);
 
@@ -131,11 +142,15 @@ export const supabaseService: GalleryService = {
   },
 
   deleteTagCategory: async (id) => {
-    const { error } = await supabase
+    const userId = getCurrentUserId();
+    let query = supabase
       .from('tag_categories')
       .delete()
       .eq('id', id);
 
+    query = applyOwnershipFilter(query, userId);
+
+    const { error } = await query;
     if (error) throw new Error(`Failed to delete tag category: ${error.message}`);
   },
 
@@ -192,18 +207,21 @@ export const supabaseService: GalleryService = {
   },
 
   updateTag: async (id, data) => {
+    const userId = getCurrentUserId();
     const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.order !== undefined) updateData.order = data.order;
     if (data.categoryId !== undefined) updateData.category_id = data.categoryId;
     // if (data.requiresSubTags !== undefined) updateData.requires_sub_tags = data.requiresSubTags; // Removed from Tag
 
-    const { data: updatedTag, error } = await supabase
+    let updateQuery = supabase
       .from('tags')
       .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+
+    updateQuery = applyOwnershipFilter(updateQuery, userId);
+
+    const { data: updatedTag, error } = await updateQuery.select().single();
 
     if (error) throw new Error(`Failed to update tag: ${error.message}`);
 
@@ -218,11 +236,15 @@ export const supabaseService: GalleryService = {
   },
 
   deleteTag: async (id) => {
-    const { error } = await supabase
+    const userId = getCurrentUserId();
+    let query = supabase
       .from('tags')
       .delete()
       .eq('id', id);
 
+    query = applyOwnershipFilter(query, userId);
+
+    const { error } = await query;
     if (error) throw new Error(`Failed to delete tag: ${error.message}`);
   },
 
@@ -418,23 +440,24 @@ export const supabaseService: GalleryService = {
     if (data.url !== undefined) updateData.url = data.url;
     if (data.thumbnailUrl !== undefined) updateData.thumbnail_url = data.thumbnailUrl;
     if (data.localPath !== undefined) updateData.local_path = data.localPath;
-    if (data.userId !== undefined) updateData.user_id = data.userId;
+    // Apenas admins podem reatribuir a foto para outro usuário
+    if (data.userId !== undefined && isAdmin()) updateData.user_id = data.userId;
     if (data.videoUrl !== undefined) updateData.video_url = data.videoUrl;
 
-    const { data: updatedPhoto, error: photoError } = await supabase
+    const { error: photoError } = await supabase
       .from('photos')
       .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
 
     if (photoError) throw new Error(`Failed to update photo: ${photoError.message}`);
 
     if (data.tagIds !== undefined) {
-      await supabase
+      const { error: deleteError } = await supabase
         .from('photo_tags')
         .delete()
         .eq('photo_id', id);
+
+      if (deleteError) throw new Error(`Failed to remove photo tags: ${deleteError.message}`);
 
       if (data.tagIds.length > 0) {
         const photoTagsData = data.tagIds.map(tagId => ({
