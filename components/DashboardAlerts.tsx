@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Badge, LoadingSpinner } from './UI';
 import { atendimentosService, Atendimento } from '../services/atendimentosService';
 import { format, isToday, isBefore, isAfter, parseISO, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '../context/AuthContext';
 
 interface DashboardAlertsProps {
     onOpenResolucao: (atendimento: Atendimento) => void;
@@ -10,8 +11,11 @@ interface DashboardAlertsProps {
 }
 
 const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refreshTrigger }) => {
+    const { user } = useAuth();
     const [retornos, setRetornos] = useState<Atendimento[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [somentesMeus, setSomentesMeus] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState<string>('todos');
 
     useEffect(() => {
         fetchRetornos();
@@ -28,6 +32,22 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
             setIsLoading(false);
         }
     };
+
+    // Lista de usuários únicos presentes nos retornos
+    const usuarios = useMemo(() => {
+        const map = new Map<string, string>();
+        retornos.forEach(r => {
+            if (r.user_id && r.users?.name) map.set(r.user_id, r.users.name);
+        });
+        return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+    }, [retornos]);
+
+    // Retornos filtrados
+    const retornosFiltrados = useMemo(() => {
+        if (somentesMeus && user?.id) return retornos.filter(r => r.user_id === user.id);
+        if (selectedUserId !== 'todos') return retornos.filter(r => r.user_id === selectedUserId);
+        return retornos;
+    }, [retornos, somentesMeus, selectedUserId, user?.id]);
 
     const getRowColor = (dateStr: string | null) => {
         if (!dateStr) return '';
@@ -57,18 +77,46 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
         );
     }
 
-    if (retornos.length === 0) return null;
+    if (!isLoading && retornos.length === 0) return null;
 
     return (
         <Card className="overflow-hidden border-slate-200 shadow-md">
-            <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex justify-between items-center">
+            <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex flex-wrap justify-between items-center gap-2">
                 <h3 className="text-[11px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                     Alertas de Retorno Pendentes
                 </h3>
-                <Badge variant="danger" className="text-[9px] font-bold px-1.5 py-0.5">
-                    {retornos.length} AGENDADO(S)
-                </Badge>
+                <div className="flex items-center gap-2">
+                    {/* Toggle: Meus Retornos */}
+                    <button
+                        onClick={() => { setSomentesMeus(v => !v); setSelectedUserId('todos'); }}
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${
+                            somentesMeus
+                                ? 'bg-blue-500 border-blue-400 text-white'
+                                : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'
+                        }`}
+                    >
+                        {somentesMeus ? '● Meus' : '○ Meus'}
+                    </button>
+
+                    {/* Dropdown: outros usuários */}
+                    {!somentesMeus && usuarios.length > 1 && (
+                        <select
+                            value={selectedUserId}
+                            onChange={e => setSelectedUserId(e.target.value)}
+                            className="text-[10px] font-bold bg-slate-700 border border-slate-600 text-slate-200 px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        >
+                            <option value="todos">Todos</option>
+                            {usuarios.map(u => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                        </select>
+                    )}
+
+                    <Badge variant="danger" className="text-[9px] font-bold px-1.5 py-0.5">
+                        {retornosFiltrados.length} AGENDADO(S)
+                    </Badge>
+                </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -84,7 +132,7 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {retornos.map((item) => (
+                        {retornosFiltrados.map((item) => (
                             <tr key={item.id} className={`${getRowColor(item.data_retorno)} transition-colors hover:brightness-95`}>
                                 <td className="px-3 py-2.5 w-[140px]">
                                     <div className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter truncate" title={item.eventos_edicoes?.eventos?.nome || ''}>
