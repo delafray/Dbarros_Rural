@@ -69,6 +69,27 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+
+      {/* Bloqueio mobile */}
+      <div className="md:hidden flex flex-col items-center justify-center text-center px-6 py-12">
+        <img
+          src="assets/logo.png"
+          alt="Logo Dbarros Rural"
+          className="w-20 h-20 object-contain mx-auto mb-6 rounded-2xl shadow-lg"
+        />
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 max-w-xs">
+          <div className="text-4xl mb-3">🖥️</div>
+          <h2 className="text-lg font-black text-amber-800 mb-2">Versão Mobile em Produção</h2>
+          <p className="text-sm text-amber-700 leading-relaxed">
+            A versão para celular ainda está sendo desenvolvida.<br /><br />
+            Por favor, acesse pelo <strong>computador</strong>.
+          </p>
+        </div>
+        <p className="mt-6 text-xs text-slate-400">&copy; {new Date().getFullYear()} Dbarros Rural</p>
+      </div>
+
+      {/* Formulário — apenas desktop */}
+      <div className="hidden md:flex flex-col items-center w-full">
       <div className="mb-8 text-center">
         <img
           src="assets/logo.png"
@@ -140,7 +161,9 @@ const Login: React.FC = () => {
       <p className="mt-8 text-sm text-slate-400">
         &copy; {new Date().getFullYear()} Dbarros Rural. Todos os direitos reservados.
       </p>
-    </div >
+      </div>{/* fim hidden md:flex */}
+
+    </div>
   );
 };
 
