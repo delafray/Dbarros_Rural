@@ -148,6 +148,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
 
             <div className="pt-2 md:pt-4 pb-1 md:pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivos</div>
             {/* <NavItem to="/fotos" label="Fotos" icon={CameraIcon} /> */}
+            <NavItem to="/controle-imagens" label="Imagens" icon={ImageIcon} />
             <NavItem to="/itens-opcionais" label="Itens Opcionais" icon={PlusCircleIcon} />
             {/* {user?.canManageTags && <NavItem to="/tags" label="Tags de Busca" icon={TagIcon} />} */}
 
@@ -272,6 +273,7 @@ const FingerprintIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0
 const CalendarIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const PlusCircleIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const ClipboardIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>;
+const ImageIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 
 export default Layout;
 

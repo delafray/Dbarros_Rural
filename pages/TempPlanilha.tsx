@@ -15,6 +15,12 @@ import {
 import { clientesService, Cliente } from "../services/clientesService";
 import { eventosService, EventoEdicao } from "../services/eventosService";
 import ClienteSelectorPopup from "../components/ClienteSelectorPopup";
+import {
+  imagensService,
+  ImagemConfig,
+  StandImagemStatus,
+  StandStatus,
+} from "../services/imagensService";
 
 // Module-level constant — not recreated on every render
 const naturalSort = (a: string, b: string) =>
@@ -45,6 +51,25 @@ const PlanilhaVendas: React.FC = () => {
     rowId: string;
     field: string;
   } | null>(null);
+  const [imagensConfig, setImagensConfig] = useState<ImagemConfig[]>([]);
+  const [statusMap, setStatusMap] = useState<
+    Record<string, StandImagemStatus>
+  >({});
+  const [statusModal, setStatusModal] = useState<{
+    rowId: string;
+    obs: string;
+  } | null>(null);
+  const [modalRecebimentos, setModalRecebimentos] = useState<Record<string, boolean>>({});
+  const [modalRecebLoading, setModalRecebLoading] = useState(false);
+
+  useEffect(() => {
+    if (!statusModal?.rowId) { setModalRecebimentos({}); return; }
+    setModalRecebLoading(true);
+    imagensService.getRecebimentosByEstande(statusModal.rowId)
+      .then(setModalRecebimentos)
+      .catch(console.error)
+      .finally(() => setModalRecebLoading(false));
+  }, [statusModal?.rowId]);
 
   useEffect(() => {
     if (edicaoId) loadData();
@@ -76,17 +101,22 @@ const PlanilhaVendas: React.FC = () => {
         return;
       }
 
-      const [estandes, opcionais, listaClientes] = await Promise.all([
-        planilhaVendasService.getEstandes(configData.id),
-        itensOpcionaisService.getItens(),
-        clientesService.getClientes(),
-      ]);
+      const [estandes, opcionais, listaClientes, imagens, statusData] =
+        await Promise.all([
+          planilhaVendasService.getEstandes(configData.id),
+          itensOpcionaisService.getItens(),
+          clientesService.getClientes(),
+          imagensService.getConfig(edicaoId!),
+          imagensService.getStatusByConfig(configData.id),
+        ]);
 
       setConfig(configData);
       setEdicao(edicaoData);
       setRows(estandes);
       setAllItensOpcionais(opcionais);
       setClientes(listaClientes);
+      setImagensConfig(imagens || []);
+      setStatusMap(statusData || {});
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
     } finally {
@@ -172,6 +202,101 @@ const PlanilhaVendas: React.FC = () => {
     () => (config?.opcionais_precos as Record<string, number>) || {},
     [config],
   );
+
+  const configsByOrigem = useMemo(
+    () => imagensService.buildConfigsByOrigem(imagensConfig),
+    [imagensConfig],
+  );
+
+  const getComputedStatus = useCallback(
+    (row: PlanilhaEstande) => {
+      const cat = getCategoriaOfRow(row);
+      const manual = statusMap[row.id];
+      return imagensService.computeStatus(
+        (row.opcionais_selecionados as Record<string, string>) || null,
+        cat?.tag,
+        configsByOrigem,
+        manual?.status,
+      );
+    },
+    [getCategoriaOfRow, configsByOrigem, statusMap],
+  );
+
+  const getImagensDoStand = useCallback(
+    (row: PlanilhaEstande) => {
+      const cat = getCategoriaOfRow(row);
+      const sel =
+        (row.opcionais_selecionados as Record<string, string>) || {};
+      const result: ImagemConfig[] = [];
+      imagensConfig.forEach((cfg) => {
+        if (
+          cfg.origem_tipo === "stand_categoria" &&
+          cfg.origem_ref === cat?.tag
+        )
+          result.push(cfg);
+        else if (
+          cfg.origem_tipo === "item_opcional" &&
+          (sel[cfg.origem_ref] === "x" || sel[cfg.origem_ref] === "*")
+        )
+          result.push(cfg);
+      });
+      return result;
+    },
+    [getCategoriaOfRow, imagensConfig],
+  );
+
+  const handleUpdateStatus = async (
+    rowId: string,
+    status: StandStatus,
+    obs: string,
+  ) => {
+    try {
+      await imagensService.upsertStatus(rowId, status, obs);
+      setStatusMap((prev) => ({
+        ...prev,
+        [rowId]: {
+          id: prev[rowId]?.id || "",
+          estande_id: rowId,
+          status,
+          observacoes: obs || null,
+          atualizado_em: new Date().toISOString(),
+        },
+      }));
+      setStatusModal(null);
+    } catch (err) {
+      alert(
+        "Erro ao salvar status: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
+  };
+
+  const handleToggleRecebimento = async (configId: string) => {
+    if (!statusModal) return;
+    const newVal = !modalRecebimentos[configId];
+    const newMap = { ...modalRecebimentos, [configId]: newVal };
+    setModalRecebimentos(newMap);
+    try {
+      await imagensService.setRecebimento(statusModal.rowId, configId, newVal);
+      const row = rows.find((r) => r.id === statusModal.rowId);
+      const imgDoStand = row ? getImagensDoStand(row) : [];
+      const newStatus = imagensService.computeStandStatus(newMap, imgDoStand.map((c) => c.id));
+      await imagensService.upsertStatus(statusModal.rowId, newStatus, statusModal.obs);
+      setStatusMap((prev) => ({
+        ...prev,
+        [statusModal.rowId]: {
+          id: prev[statusModal.rowId]?.id || "",
+          estande_id: statusModal.rowId,
+          status: newStatus,
+          observacoes: statusModal.obs || null,
+          atualizado_em: new Date().toISOString(),
+        },
+      }));
+    } catch (err) {
+      setModalRecebimentos((prev) => ({ ...prev, [configId]: !newVal }));
+      console.error("Erro ao salvar recebimento:", err);
+    }
+  };
 
   const getPrecoForCombo = (
     cat: CategoriaSetup | undefined,
@@ -468,12 +593,14 @@ const PlanilhaVendas: React.FC = () => {
               <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-red-400 font-bold uppercase bg-slate-800/40">
                 Pendente
               </th>
+              <th className="border border-white/10 bg-violet-900/20" />
             </tr>
 
             {/* ── Row 2: Summary Values ── */}
             <tr className="bg-slate-800 text-slate-300">
-              <th className="border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-tighter">
-                Num
+              <th className="border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-tighter text-center">
+                <div className="text-[8px] text-slate-500 font-normal leading-none">stands</div>
+                <div className="text-[13px] font-black text-white leading-none">{rows.length}</div>
               </th>
               <th className="border border-white/10 px-2 py-0.5 text-[10px] text-left uppercase font-black text-slate-400">
                 Totais:
@@ -519,6 +646,7 @@ const PlanilhaVendas: React.FC = () => {
               >
                 {formatMoney(totals.pendente)}
               </th>
+              <th className="border border-white/10 bg-violet-900/20" />
             </tr>
 
             {/* ── Row 3: Column headers (Excel Style) ── */}
@@ -557,6 +685,12 @@ const PlanilhaVendas: React.FC = () => {
               <th className={`${thStyle}`}>TOTAL</th>
               <th className={`${thStyle} bg-[#385723]`}>PAGO</th>
               <th className={`${thStyle} bg-[#C00000]`}>PENDENTE</th>
+              <th
+                className={`${thStyle} w-20 bg-violet-900/60`}
+                title="Status de recebimento de imagens"
+              >
+                Imagens
+              </th>
             </tr>
           </thead>
 
@@ -848,13 +982,65 @@ const PlanilhaVendas: React.FC = () => {
                   >
                     {formatMoney(calc.pendente)}
                   </td>
+
+                  {/* Imagens status */}
+                  {(() => {
+                    const hasCliente =
+                      row.cliente_id || row.cliente_nome_livre;
+                    if (!hasCliente)
+                      return (
+                        <td
+                          className={`${tdStyle} w-20 text-center`}
+                        />
+                      );
+                    const computed = getComputedStatus(row);
+                    const badgeConfig = {
+                      sem_config: {
+                        label: "Sem config",
+                        cls: "bg-slate-100 text-slate-400 border-slate-200",
+                      },
+                      pendente: {
+                        label: "Pendente",
+                        cls: "bg-yellow-100 text-yellow-700 border-yellow-300 cursor-pointer hover:bg-yellow-200",
+                      },
+                      solicitado: {
+                        label: "Solicitado",
+                        cls: "bg-blue-100 text-blue-700 border-blue-300 cursor-pointer hover:bg-blue-200",
+                      },
+                      completo: {
+                        label: "Completo",
+                        cls: "bg-green-100 text-green-700 border-green-300 cursor-pointer hover:bg-green-200",
+                      },
+                    }[computed];
+                    return (
+                      <td className={`${tdStyle} w-20 text-center px-1`}>
+                        <button
+                          className={`text-[9px] font-bold uppercase px-1.5 py-0.5 border rounded-sm transition-colors w-full ${badgeConfig.cls}`}
+                          onClick={() =>
+                            computed !== "sem_config" &&
+                            setStatusModal({
+                              rowId: row.id,
+                              obs: statusMap[row.id]?.observacoes || "",
+                            })
+                          }
+                          title={
+                            computed === "sem_config"
+                              ? "Configure imagens na tela de Setup"
+                              : "Clique para atualizar status"
+                          }
+                        >
+                          {badgeConfig.label}
+                        </button>
+                      </td>
+                    );
+                  })()}
                 </tr>
               );
             })}
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={2 + comboLabels.length + opcionaisAtivos.length + 5}
+                  colSpan={3 + comboLabels.length + opcionaisAtivos.length + 5}
                   className="py-8 text-center text-slate-400"
                 >
                   {rows.length === 0
@@ -887,6 +1073,181 @@ const PlanilhaVendas: React.FC = () => {
               }
               onClose={() => setPopupRowId(null)}
             />
+          );
+        })()}
+
+      {/* ── Modal de Status de Imagens ── */}
+      {statusModal &&
+        (() => {
+          const row = rows.find((r) => r.id === statusModal.rowId);
+          if (!row) return null;
+          const imagens = getImagensDoStand(row);
+          const currentStatus = statusMap[row.id]?.status || "pendente";
+          const cliente = clientes.find((c) => c.id === row.cliente_id);
+          const nomeCliente =
+            cliente
+              ? cliente.tipo_pessoa === "PJ"
+                ? cliente.razao_social
+                : cliente.nome_completo
+              : row.cliente_nome_livre || row.stand_nr;
+          return (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+              onClick={(e) =>
+                e.target === e.currentTarget && setStatusModal(null)
+              }
+            >
+              <div className="bg-white shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
+                {/* Header */}
+                <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between flex-shrink-0">
+                  <div>
+                    <span className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">
+                      {row.stand_nr}
+                    </span>
+                    <p className="font-black text-sm truncate max-w-[280px]">
+                      {nomeCliente}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setStatusModal(null)}
+                    className="text-slate-400 hover:text-white text-2xl leading-none ml-4"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Lista de imagens exigidas */}
+                <div className="flex-1 overflow-y-auto px-5 py-4">
+                  <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-3">
+                    Imagens exigidas ({imagens.length})
+                  </p>
+                  {imagens.length === 0 ? (
+                    <p className="text-slate-400 italic text-sm">
+                      Nenhuma imagem configurada para este stand.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {imagens.map((cfg) => {
+                        const recebido = !!modalRecebimentos[cfg.id];
+                        return (
+                          <li
+                            key={cfg.id}
+                            className={`flex items-center gap-2 text-sm py-1 px-2 rounded transition-colors ${recebido ? "bg-green-50" : "hover:bg-slate-50"}`}
+                          >
+                            <button
+                              onClick={() => handleToggleRecebimento(cfg.id)}
+                              disabled={modalRecebLoading}
+                              title={recebido ? "Marcar como não recebido" : "Marcar como recebido"}
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                recebido
+                                  ? "bg-green-500 border-green-500 text-white"
+                                  : "bg-white border-slate-300 hover:border-green-400"
+                              }`}
+                            >
+                              {recebido && <span className="text-[10px] font-black leading-none">✓</span>}
+                            </button>
+                            <span>{cfg.tipo === "logo" ? "🏷️" : "📐"}</span>
+                            <span className={`font-semibold flex-1 ${recebido ? "text-green-700 line-through" : "text-slate-700"}`}>
+                              {cfg.descricao}
+                            </span>
+                            {cfg.dimensoes && (
+                              <span className="text-xs font-mono text-slate-400 bg-slate-100 px-1">
+                                {cfg.dimensoes}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-violet-400 uppercase">
+                              {cfg.tipo}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  <div className="mt-4">
+                    <label className="block text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-1">
+                      Observação (opcional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      className="w-full border border-slate-300 text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-violet-400 resize-none"
+                      placeholder="Ex: Cliente enviou só a logo, falta a testeira"
+                      value={statusModal.obs}
+                      onChange={(e) =>
+                        setStatusModal((p) =>
+                          p ? { ...p, obs: e.target.value } : null,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Botões de status */}
+                <div className="flex-shrink-0 border-t border-slate-200 px-5 py-4 bg-slate-50">
+                  <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-3">
+                    Atualizar status
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() =>
+                        handleUpdateStatus(
+                          statusModal.rowId,
+                          "pendente",
+                          statusModal.obs,
+                        )
+                      }
+                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "pendente" ? "bg-yellow-100 border-yellow-400 text-yellow-800" : "border-slate-300 text-slate-500 hover:bg-yellow-50 hover:border-yellow-300"}`}
+                    >
+                      Pendente
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleUpdateStatus(
+                          statusModal.rowId,
+                          "solicitado",
+                          statusModal.obs,
+                        )
+                      }
+                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "solicitado" ? "bg-blue-100 border-blue-400 text-blue-800" : "border-slate-300 text-slate-500 hover:bg-blue-50 hover:border-blue-300"}`}
+                    >
+                      Solicitado
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleUpdateStatus(
+                          statusModal.rowId,
+                          "completo",
+                          statusModal.obs,
+                        )
+                      }
+                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "completo" ? "bg-green-100 border-green-400 text-green-800" : "border-slate-300 text-slate-500 hover:bg-green-50 hover:border-green-300"}`}
+                    >
+                      Completo
+                    </button>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => setStatusModal(null)}
+                      className="flex-1 text-sm text-slate-500 py-1.5 hover:bg-slate-100 transition-colors border border-transparent"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleUpdateStatus(
+                          statusModal.rowId,
+                          currentStatus as StandStatus,
+                          statusModal.obs,
+                        )
+                      }
+                      className="flex-1 text-sm font-bold text-white bg-slate-700 hover:bg-slate-900 py-1.5 transition-colors"
+                    >
+                      Salvar obs.
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           );
         })()}
     </Layout>

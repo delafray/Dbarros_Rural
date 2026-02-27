@@ -10,6 +10,12 @@ import {
   ItemOpcional,
 } from "../services/itensOpcionaisService";
 import { supabase } from "../services/supabaseClient";
+import {
+  imagensService,
+  ImagemConfig,
+  OrigemTipo,
+  AvulsoStatus,
+} from "../services/imagensService";
 
 const CORES = [
   "bg-[#FCE4D6]",
@@ -63,6 +69,19 @@ const ConfiguracaoVendas: React.FC = () => {
   );
   // IDs de linhas com preço salvo recentemente (feedback visual)
   const [salvosOk, setSalvosOk] = useState<Set<string>>(new Set());
+  // Imagens
+  const [imagensConfig, setImagensConfig] = useState<ImagemConfig[]>([]);
+  const [imagensModal, setImagensModal] = useState<{
+    tipo: OrigemTipo;
+    ref: string;
+    label: string;
+  } | null>(null);
+  const [novaImagem, setNovaImagem] = useState({
+    tipo: "imagem" as "imagem" | "logo",
+    descricao: "",
+    dimensoes: "",
+  });
+  const [savingImagem, setSavingImagem] = useState(false);
 
   useEffect(() => {
     if (edicaoId) loadData();
@@ -71,9 +90,10 @@ const ConfiguracaoVendas: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [config, allOpcionais] = await Promise.all([
+      const [config, allOpcionais, imagens] = await Promise.all([
         planilhaVendasService.getConfig(edicaoId!),
         itensOpcionaisService.getItens(),
+        imagensService.getConfig(edicaoId!),
       ]);
       if (config) {
         setConfigId(config.id);
@@ -151,6 +171,7 @@ const ConfiguracaoVendas: React.FC = () => {
         }
       }
       setOpcionaisDisponiveis(allOpcionais);
+      setImagensConfig(imagens || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -364,6 +385,74 @@ const ConfiguracaoVendas: React.FC = () => {
         }),
       2500,
     );
+  };
+
+  // ── Imagens handlers ───────────────────────────────────────
+  const getImagensForRef = (tipo: OrigemTipo, ref: string) =>
+    imagensConfig.filter(
+      (c) => c.origem_tipo === tipo && c.origem_ref === ref,
+    );
+
+  const handleOpenImagensModal = (
+    tipo: OrigemTipo,
+    ref: string,
+    label: string,
+  ) => {
+    setImagensModal({ tipo, ref, label });
+    setNovaImagem({ tipo: "imagem", descricao: "", dimensoes: "" });
+  };
+
+  const handleAddImagem = async () => {
+    if (!novaImagem.descricao.trim() || !edicaoId || !imagensModal) return;
+    setSavingImagem(true);
+    try {
+      const added = await imagensService.addConfig({
+        edicao_id: edicaoId,
+        origem_tipo: imagensModal.tipo,
+        origem_ref: imagensModal.ref,
+        tipo: novaImagem.tipo,
+        descricao: novaImagem.descricao.trim(),
+        dimensoes:
+          novaImagem.tipo === "imagem" && novaImagem.dimensoes.trim()
+            ? novaImagem.dimensoes.trim()
+            : null,
+      });
+      setImagensConfig((prev) => [...prev, added]);
+      setNovaImagem({ tipo: "imagem", descricao: "", dimensoes: "" });
+    } catch (err) {
+      alert(
+        "Erro ao adicionar: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      setSavingImagem(false);
+    }
+  };
+
+  const handleRemoveImagem = async (id: string) => {
+    try {
+      await imagensService.removeConfig(id);
+      setImagensConfig((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      alert(
+        "Erro ao remover: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
+  };
+
+  const handleUpdateAvulsoStatus = async (id: string, status: AvulsoStatus) => {
+    try {
+      await imagensService.updateAvulsoStatus(id, status);
+      setImagensConfig((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, avulso_status: status } : c)),
+      );
+    } catch (err) {
+      alert(
+        "Erro ao atualizar status: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
   };
 
   // ── Validation ─────────────────────────────────────────────
@@ -666,6 +755,9 @@ const ConfiguracaoVendas: React.FC = () => {
                       />
                     </th>
                   ))}
+                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-violet-600 w-20 border border-slate-200">
+                    Imagens
+                  </th>
                   <th className="w-8 border border-slate-200" />
                 </tr>
               </thead>
@@ -761,6 +853,29 @@ const ConfiguracaoVendas: React.FC = () => {
                           </td>
                         ))}
                         <td className="px-1 py-0.5 text-center border border-slate-200">
+                          {(() => {
+                            const cnt = getImagensForRef(
+                              "stand_categoria",
+                              cat.tag,
+                            ).length;
+                            return (
+                              <button
+                                onClick={() =>
+                                  handleOpenImagensModal(
+                                    "stand_categoria",
+                                    cat.tag,
+                                    cat.prefix || cat.tag,
+                                  )
+                                }
+                                className={`text-[10px] font-bold px-1.5 py-0.5 border transition-colors whitespace-nowrap ${cnt > 0 ? "text-violet-700 bg-violet-50 border-violet-300 hover:bg-violet-100" : "text-slate-400 border-slate-200 hover:text-violet-600 hover:border-violet-300"}`}
+                                title="Configurar imagens exigidas para esta categoria"
+                              >
+                                🖼 {cnt > 0 ? cnt : "+"}
+                              </button>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-1 py-0.5 text-center border border-slate-200">
                           <button
                             onClick={() => removeCategoria(idx)}
                             className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors font-bold text-xs"
@@ -826,6 +941,9 @@ const ConfiguracaoVendas: React.FC = () => {
                     </th>
                     <th className="w-20 text-center text-[11px] font-bold uppercase text-slate-400">
                       Ações
+                    </th>
+                    <th className="w-20 text-center text-[11px] font-bold uppercase text-violet-500">
+                      Imagens
                     </th>
                   </tr>
                 </thead>
@@ -904,6 +1022,29 @@ const ConfiguracaoVendas: React.FC = () => {
                             </button>
                           </div>
                         </td>
+                        <td className="px-2 py-2 text-center">
+                          {(() => {
+                            const cnt = getImagensForRef(
+                              "item_opcional",
+                              item.nome,
+                            ).length;
+                            return (
+                              <button
+                                onClick={() =>
+                                  handleOpenImagensModal(
+                                    "item_opcional",
+                                    item.nome,
+                                    item.nome,
+                                  )
+                                }
+                                className={`text-[10px] font-bold px-1.5 py-0.5 border transition-colors whitespace-nowrap ${cnt > 0 ? "text-violet-700 bg-violet-50 border-violet-300 hover:bg-violet-100" : "text-slate-400 border-slate-200 hover:text-violet-600 hover:border-violet-300"}`}
+                                title="Configurar imagens exigidas para este item"
+                              >
+                                🖼 {cnt > 0 ? cnt : "+"}
+                              </button>
+                            );
+                          })()}
+                        </td>
                       </tr>
                     );
                   })}
@@ -912,6 +1053,115 @@ const ConfiguracaoVendas: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* ── Imagens Avulsas ── */}
+        {(() => {
+          const avulsas = imagensConfig.filter(
+            (c) => c.origem_tipo === "avulso",
+          );
+          const avulsoStatusLabel: Record<string, string> = {
+            pendente: "Pendente",
+            solicitado: "Solicitado",
+            recebido: "Recebido",
+          };
+          const avulsoStatusColor: Record<string, string> = {
+            pendente: "bg-slate-100 text-slate-600",
+            solicitado: "bg-blue-100 text-blue-700",
+            recebido: "bg-green-100 text-green-700",
+          };
+          return (
+            <div className="bg-white border border-slate-200 overflow-hidden shadow-sm">
+              <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-sm uppercase tracking-wider">
+                    Imagens Avulsas
+                  </span>
+                  <span className="ml-3 text-slate-400 text-xs">
+                    não vinculadas a stands específicos (produtor, portal de
+                    entrada, palco...)
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    handleOpenImagensModal("avulso", "__avulso__", "Avulsa")
+                  }
+                  className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors"
+                >
+                  + Adicionar
+                </button>
+              </div>
+              {avulsas.length === 0 ? (
+                <div className="px-6 py-6 text-center text-slate-400 italic text-sm">
+                  Nenhuma imagem avulsa cadastrada.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-[11px] font-bold uppercase text-slate-500">
+                          Descrição
+                        </th>
+                        <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-24">
+                          Tipo
+                        </th>
+                        <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-28">
+                          Dimensões
+                        </th>
+                        <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-36">
+                          Status
+                        </th>
+                        <th className="w-12" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {avulsas.map((av) => (
+                        <tr key={av.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-2 font-semibold text-slate-800">
+                            {av.descricao}
+                          </td>
+                          <td className="px-4 py-2 text-center text-xs text-slate-500 uppercase">
+                            {av.tipo}
+                          </td>
+                          <td className="px-4 py-2 text-center text-xs font-mono text-slate-500">
+                            {av.dimensoes || "—"}
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            <select
+                              value={av.avulso_status}
+                              onChange={(e) =>
+                                handleUpdateAvulsoStatus(
+                                  av.id,
+                                  e.target.value as AvulsoStatus,
+                                )
+                              }
+                              className={`text-xs font-bold px-2 py-1 border-0 rounded cursor-pointer focus:outline-none ${avulsoStatusColor[av.avulso_status] || "bg-slate-100 text-slate-600"}`}
+                            >
+                              <option value="pendente">Pendente</option>
+                              <option value="solicitado">Solicitado</option>
+                              <option value="recebido">Recebido</option>
+                            </select>
+                            <span className="sr-only">
+                              {avulsoStatusLabel[av.avulso_status]}
+                            </span>
+                          </td>
+                          <td className="px-2 text-center">
+                            <button
+                              onClick={() => handleRemoveImagem(av.id)}
+                              className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 transition-colors text-sm"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Sticky footer ── */}
@@ -953,6 +1203,152 @@ const ConfiguracaoVendas: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Modal de Imagens ── */}
+      {imagensModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+          onClick={(e) =>
+            e.target === e.currentTarget && setImagensModal(null)
+          }
+        >
+          <div className="bg-white shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
+            {/* Header */}
+            <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between flex-shrink-0">
+              <div>
+                <span className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">
+                  {imagensModal.tipo === "stand_categoria"
+                    ? "Categoria"
+                    : imagensModal.tipo === "item_opcional"
+                      ? "Item Opcional"
+                      : "Imagem Avulsa"}
+                </span>
+                <p className="font-black text-sm uppercase">
+                  Imagens — {imagensModal.label}
+                </p>
+              </div>
+              <button
+                onClick={() => setImagensModal(null)}
+                className="text-slate-400 hover:text-white text-2xl leading-none ml-4"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Lista existente */}
+            <div className="flex-1 overflow-y-auto">
+              {getImagensForRef(imagensModal.tipo, imagensModal.ref).length ===
+              0 ? (
+                <div className="px-6 py-6 text-center text-slate-400 italic text-sm">
+                  Nenhuma imagem configurada ainda.
+                </div>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {getImagensForRef(imagensModal.tipo, imagensModal.ref).map(
+                    (cfg) => (
+                      <li
+                        key={cfg.id}
+                        className="flex items-center justify-between px-5 py-3 hover:bg-slate-50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">
+                            {cfg.tipo === "logo" ? "🏷️" : "📐"}
+                          </span>
+                          <div>
+                            <span className="font-semibold text-slate-800 text-sm">
+                              {cfg.descricao}
+                            </span>
+                            {cfg.dimensoes && (
+                              <span className="ml-2 text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5">
+                                {cfg.dimensoes}
+                              </span>
+                            )}
+                            <span className="ml-2 text-[10px] font-bold uppercase text-violet-500">
+                              {cfg.tipo}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveImagem(cfg.id)}
+                          className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              )}
+            </div>
+
+            {/* Formulário de adição */}
+            <div className="flex-shrink-0 border-t border-slate-200 px-5 py-4 bg-slate-50 space-y-3">
+              <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+                Adicionar imagem
+              </p>
+              <div className="flex gap-2">
+                <select
+                  value={novaImagem.tipo}
+                  onChange={(e) =>
+                    setNovaImagem((p) => ({
+                      ...p,
+                      tipo: e.target.value as "imagem" | "logo",
+                      dimensoes: "",
+                    }))
+                  }
+                  className="border border-slate-300 text-sm px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
+                >
+                  <option value="imagem">📐 Imagem</option>
+                  <option value="logo">🏷️ Logo</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Descrição (ex: Testeira, Fundo)"
+                  className="flex-1 border border-slate-300 text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                  value={novaImagem.descricao}
+                  onChange={(e) =>
+                    setNovaImagem((p) => ({
+                      ...p,
+                      descricao: e.target.value,
+                    }))
+                  }
+                  onKeyDown={(e) => e.key === "Enter" && handleAddImagem()}
+                />
+                {novaImagem.tipo === "imagem" && (
+                  <input
+                    type="text"
+                    placeholder="Dimensões (ex: 5x1m)"
+                    className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                    value={novaImagem.dimensoes}
+                    onChange={(e) =>
+                      setNovaImagem((p) => ({
+                        ...p,
+                        dimensoes: e.target.value,
+                      }))
+                    }
+                    onKeyDown={(e) => e.key === "Enter" && handleAddImagem()}
+                  />
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setImagensModal(null)}
+                  className="text-sm text-slate-600 border border-slate-300 px-4 py-1.5 hover:bg-slate-100 transition-colors"
+                >
+                  Fechar
+                </button>
+                <button
+                  onClick={handleAddImagem}
+                  disabled={savingImagem || !novaImagem.descricao.trim()}
+                  className="text-sm bg-violet-700 hover:bg-violet-600 text-white px-5 py-1.5 font-bold transition-colors disabled:opacity-50"
+                >
+                  {savingImagem ? "Salvando..." : "+ Adicionar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Popup de Seleção de Opcionais ── */}
       {showOpcionaisPopup && (
