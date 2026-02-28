@@ -28,7 +28,7 @@ const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: a
     }
   >
     <Icon className="w-5 h-5 flex-shrink-0" />
-    <span className="font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+    <span className="font-medium whitespace-nowrap opacity-0 group-data-[expanded]:opacity-100 transition-opacity duration-100">
       {label}
     </span>
   </NavLink>
@@ -37,7 +37,7 @@ const NavItem = ({ to, label, icon: Icon }: { to: string; label: string; icon: a
 const SectionLabel = ({ label }: { label: string }) => (
   <div className="px-3 pt-3 pb-1">
     <div className="h-px bg-slate-100 w-full" />
-    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 whitespace-nowrap opacity-0 group-data-[expanded]:opacity-100 transition-opacity duration-100">
       {label}
     </p>
   </div>
@@ -47,6 +47,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
@@ -116,15 +117,23 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
 
       {/* Sidebar Rail */}
       <aside
+        data-expanded={isSidebarExpanded ? '' : undefined}
         className={`
           group flex flex-col fixed inset-y-0 left-0 z-50
           bg-white border-r border-slate-200 overflow-hidden
           transition-[width,transform,box-shadow] duration-200 ease-in-out
           w-56
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0 md:w-16 md:hover:w-56 md:hover:shadow-xl md:hover:border-transparent
+          md:translate-x-0 md:w-16
+          ${isSidebarExpanded ? 'md:!w-56 md:shadow-xl md:border-transparent' : ''}
         `}
+        onMouseLeave={() => setIsSidebarExpanded(false)}
       >
+        {/* Faixa invisível de trigger — borda direita do sidebar (~12px) */}
+        <div
+          className="hidden md:block absolute inset-y-0 right-0 w-3 z-10"
+          onMouseEnter={() => setIsSidebarExpanded(true)}
+        />
         {/* Logo */}
         <div className="flex items-center gap-3 px-[11px] py-4 flex-shrink-0">
           <img
@@ -132,7 +141,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
             alt="Logo"
             className="w-8 h-8 object-contain flex-shrink-0 rounded-lg"
           />
-          <div className="overflow-hidden whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+          <div className="overflow-hidden whitespace-nowrap opacity-0 group-data-[expanded]:opacity-100 transition-opacity duration-100">
             <p className="text-sm font-bold text-blue-600 leading-tight">Dbarros Rural</p>
             <p className="text-[10px] text-slate-400 font-mono">v{APP_VERSION}</p>
           </div>
@@ -171,11 +180,11 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
                 title="Logar com digital"
               >
                 <FingerprintIcon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 flex-1">
+                <span className="font-medium whitespace-nowrap opacity-0 group-data-[expanded]:opacity-100 transition-opacity duration-100 flex-1">
                   Logar com digital
                 </span>
                 <div
-                  className={`relative w-9 h-5 flex items-center rounded-full p-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 ${
+                  className={`relative w-9 h-5 flex items-center rounded-full p-0.5 flex-shrink-0 opacity-0 group-data-[expanded]:opacity-100 transition-opacity duration-100 ${
                     isEnrolled ? 'bg-green-500' : isEnrolling ? 'bg-orange-300' : 'bg-slate-200'
                   }`}
                 >
@@ -210,11 +219,11 @@ const Layout: React.FC<LayoutProps> = ({ children, title, headerActions, mobileS
             className="flex items-center gap-3 px-[11px] py-2.5 w-full rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
           >
             <LogOutIcon className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+            <span className="font-medium whitespace-nowrap opacity-0 group-data-[expanded]:opacity-100 transition-opacity duration-100">
               Sair
             </span>
           </button>
-          <div className="px-[11px] pb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+          <div className="px-[11px] pb-1 opacity-0 group-data-[expanded]:opacity-100 transition-opacity duration-100">
             <p className="text-[9px] text-slate-400 font-medium leading-relaxed whitespace-nowrap">
               {getSystemInfo().label}
             </p>

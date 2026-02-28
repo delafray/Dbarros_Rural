@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { supabase } from '../services/supabaseClient';
 
@@ -55,7 +55,9 @@ interface AtendimentoVinculado {
 const CadastroCliente: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<TabType>('dados');
+    const location = useLocation();
+    const initialTab = (location.state as any)?.tab as TabType | undefined;
+    const [activeTab, setActiveTab] = useState<TabType>(initialTab || 'dados');
     const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>('PJ');
     const [clienteId, setClienteId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);

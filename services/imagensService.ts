@@ -36,6 +36,9 @@ export interface StandImagemStatus {
     status: StandStatus;
     observacoes: string | null;
     atualizado_em: string;
+    pendente_em: string | null;
+    solicitado_em: string | null;
+    completo_em: string | null;
 }
 
 export interface ConfigsByOrigem {
@@ -143,15 +146,31 @@ export const imagensService = {
         return map;
     },
 
-    async upsertStatus(estandeId: string, status: StandStatus, obs?: string): Promise<void> {
+    async upsertStatus(
+        estandeId: string,
+        status: StandStatus,
+        obs?: string,
+        existingTimestamps?: { pendente_em?: string | null; solicitado_em?: string | null; completo_em?: string | null },
+        clearTimestamps?: Array<'pendente_em' | 'solicitado_em' | 'completo_em'>,
+    ): Promise<void> {
+        const now = new Date().toISOString();
+        const tsKey = `${status}_em` as 'pendente_em' | 'solicitado_em' | 'completo_em';
+        // Preserva o timestamp se ja foi registrado — so grava na primeira vez
+        const tsValue = existingTimestamps?.[tsKey] ?? now;
+        const payload: Record<string, unknown> = {
+            estande_id: estandeId,
+            status,
+            observacoes: obs ?? null,
+            atualizado_em: now,
+            [tsKey]: tsValue,
+        };
+        // Limpa timestamps de status superiores ao reverter
+        if (clearTimestamps) {
+            clearTimestamps.forEach((k) => { payload[k] = null; });
+        }
         const { error } = await db
             .from('stand_imagens_status')
-            .upsert({
-                estande_id: estandeId,
-                status,
-                observacoes: obs ?? null,
-                atualizado_em: new Date().toISOString(),
-            }, { onConflict: 'estande_id' });
+            .upsert(payload, { onConflict: 'estande_id' });
         if (error) throw error;
     },
 

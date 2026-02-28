@@ -274,9 +274,12 @@ const Clientes: React.FC = () => {
                                                 className="hover:bg-blue-100/40 even:bg-slate-200/40 transition-colors group"
                                             >
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[250px] truncate">
-                                                    <span className="text-[12px] font-semibold text-slate-800">
+                                                    <button
+                                                        onClick={() => navigate(`/clientes/editar/${c.id}`)}
+                                                        className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 hover:underline text-left"
+                                                    >
                                                         {c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}
-                                                    </span>
+                                                    </button>
                                                 </td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 text-[12px] text-slate-700 whitespace-nowrap max-w-[150px] truncate">
                                                     {c.contato_nome}
@@ -290,8 +293,14 @@ const Clientes: React.FC = () => {
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 text-[12px] text-slate-700 whitespace-nowrap max-w-[150px] truncate">
                                                     {c.contato_email}
                                                 </td>
-                                                <td className="px-2 py-0.5 border-b border-slate-300 text-right whitespace-nowrap bg-slate-100/30">
+                                                <td className="px-2 py-0.5 border-b border-slate-300 text-right whitespace-nowrap bg-slate-100/30 w-px">
                                                     <div className="flex items-center justify-end gap-1">
+                                                        <button
+                                                            onClick={() => navigate(`/clientes/editar/${c.id}`, { state: { tab: 'contratos' } })}
+                                                            className="px-2 py-0.5 text-[10px] font-bold text-violet-600 hover:text-violet-800 hover:bg-white rounded border border-violet-200 shadow-sm transition-all uppercase tracking-tight"
+                                                        >
+                                                            Contratos / Atendimentos
+                                                        </button>
                                                         <button
                                                             onClick={() => navigate(`/clientes/editar/${c.id}`)}
                                                             className="p-1 text-slate-500 hover:text-blue-600 hover:bg-white rounded border border-slate-200 shadow-sm transition-all"

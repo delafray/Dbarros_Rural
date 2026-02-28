@@ -11,6 +11,7 @@ const ItensOpcionais: React.FC = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({ nome: '', preco_base: 0 });
     const [isAdding, setIsAdding] = useState(false);
+    const [bloqueioModal, setBloqueioModal] = useState<{ nome: string; planilhas: { titulo: string; evento: string }[] } | null>(null);
 
     useEffect(() => {
         loadItens();
@@ -40,11 +41,20 @@ const ItensOpcionais: React.FC = () => {
         try {
             if (!editForm.nome) return;
 
+            // Detecta se houve rename (apenas em edição, não em adição)
+            const itemAnterior = editingId ? itens.find(i => i.id === editingId) : null;
+            const nomeAnterior = itemAnterior?.nome;
+
             await itensOpcionaisService.upsertItem({
                 id: editingId || undefined,
                 nome: editForm.nome,
                 preco_base: editForm.preco_base
             });
+
+            // Se o nome mudou, propaga a alteração para todas as referências (estandes + imagens)
+            if (nomeAnterior && nomeAnterior !== editForm.nome) {
+                await itensOpcionaisService.renameItemReferences(nomeAnterior, editForm.nome);
+            }
 
             setEditingId(null);
             setIsAdding(false);
@@ -55,7 +65,21 @@ const ItensOpcionais: React.FC = () => {
         }
     };
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: string, nome: string) => {
+        let planilhas: { titulo: string; evento: string }[] = [];
+        try {
+            planilhas = await itensOpcionaisService.getPlanilhasUsingItem(id);
+        } catch (err) {
+            console.error('Erro ao verificar uso do item:', err);
+            alert('Não foi possível verificar se o item está em uso. Tente novamente.');
+            return;
+        }
+
+        if (planilhas.length > 0) {
+            setBloqueioModal({ nome, planilhas });
+            return;
+        }
+
         if (!confirm('Deseja excluir este item?')) return;
         try {
             await itensOpcionaisService.deleteItem(id);
@@ -194,7 +218,7 @@ const ItensOpcionais: React.FC = () => {
                                                     <button onClick={() => startEdit(item)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Editar">
                                                         ✎
                                                     </button>
-                                                    <button onClick={() => handleDelete(item.id)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Excluir">
+                                                    <button onClick={() => handleDelete(item.id, item.nome)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Excluir">
                                                         🗑
                                                     </button>
                                                 </>
@@ -213,6 +237,45 @@ const ItensOpcionais: React.FC = () => {
                     permitindo que você ajuste o valor fixo individualmente por evento se necessário.
                 </div>
             </div>
+
+            {/* Modal de bloqueio de exclusão */}
+            {bloqueioModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                        <div className="bg-red-600 px-5 py-4 flex items-center gap-3">
+                            <svg className="w-5 h-5 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                            </svg>
+                            <h2 className="text-white font-black text-[13px] uppercase tracking-wide">Impossível Excluir</h2>
+                        </div>
+                        <div className="px-5 py-4">
+                            <p className="text-[13px] text-slate-700 mb-3">
+                                O item <strong>"{bloqueioModal.nome}"</strong> está vinculado às seguintes planilhas:
+                            </p>
+                            <ul className="space-y-1.5 mb-4">
+                                {bloqueioModal.planilhas.map((p, i) => (
+                                    <li key={i} className="flex items-center gap-2 bg-red-50 border border-red-100 rounded px-3 py-2">
+                                        <span className="text-red-400">📋</span>
+                                        <div>
+                                            <div className="text-[11px] font-bold text-slate-700">{p.titulo}</div>
+                                            <div className="text-[10px] text-slate-500">{p.evento}</div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-[11px] text-slate-500 italic mb-4">
+                                Para excluir, acesse cada planilha acima → <strong>⚙️ Setup</strong> → aba de Itens Opcionais → desmarque este item.
+                            </p>
+                            <button
+                                onClick={() => setBloqueioModal(null)}
+                                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-[12px] uppercase py-2 rounded transition-colors"
+                            >
+                                Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 };

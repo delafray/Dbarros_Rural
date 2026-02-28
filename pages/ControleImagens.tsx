@@ -345,20 +345,53 @@ const ControleImagens: React.FC = () => {
     [saving, columnConfigs, estandes, isApplicable, recebimentos],
   );
 
+  const STATUS_ORDER: Record<StandStatus, number> = { pendente: 0, solicitado: 1, completo: 2 };
+  const TS_KEY: Record<StandStatus, 'pendente_em' | 'solicitado_em' | 'completo_em'> = {
+    pendente: 'pendente_em', solicitado: 'solicitado_em', completo: 'completo_em',
+  };
+  const STATUS_LABELS: Record<StandStatus, string> = {
+    pendente: 'Pendente', solicitado: 'Solicitado', completo: 'Completo',
+  };
+
   // ── Salva status + obs do modal de detalhe ───────────────────
   const handleSaveStatus = async (rowId: string, status: StandStatus, obs: string) => {
+    const existingSt = statusMap[rowId];
+    const currentLevel = STATUS_ORDER[existingSt?.status as StandStatus ?? 'pendente'] ?? 0;
+    const newLevel = STATUS_ORDER[status];
+
+    let clearTimestamps: Array<'pendente_em' | 'solicitado_em' | 'completo_em'> | undefined;
+    if (newLevel < currentLevel) {
+      const confirmed = confirm(
+        `Atenção: você está voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serão apagadas. Confirma?`
+      );
+      if (!confirmed) return;
+      clearTimestamps = (Object.keys(STATUS_ORDER) as StandStatus[])
+        .filter((s) => STATUS_ORDER[s] > newLevel)
+        .map((s) => TS_KEY[s]);
+    }
+
     try {
-      await imagensService.upsertStatus(rowId, status, obs);
-      setStatusMap((prev) => ({
-        ...prev,
-        [rowId]: {
-          id: prev[rowId]?.id || "",
+      await imagensService.upsertStatus(rowId, status, obs, existingSt, clearTimestamps);
+
+      const now = new Date().toISOString();
+      const tsKey = TS_KEY[status];
+
+      setStatusMap((prev) => {
+        const existing = prev[rowId] as any;
+        const updated: any = {
+          ...existing,
+          id: existing?.id || "",
           estande_id: rowId,
           status,
           observacoes: obs || null,
-          atualizado_em: new Date().toISOString(),
-        },
-      }));
+          atualizado_em: now,
+          [tsKey]: existing?.[tsKey] ?? now,
+        };
+        // Limpa timestamps superiores no estado local também
+        if (clearTimestamps) clearTimestamps.forEach((k) => { updated[k] = null; });
+        return { ...prev, [rowId]: updated as StandImagemStatus };
+      });
+
       setDetailModal(null);
     } catch (err) {
       alert("Erro ao salvar: " + (err instanceof Error ? err.message : String(err)));
@@ -488,8 +521,7 @@ const ControleImagens: React.FC = () => {
             <button
               key={key}
               onClick={() => setFilterStatus(key)}
-              className={`text-[10px] font-bold uppercase px-2 py-1 border rounded-sm transition-colors ${
-                filterStatus === key
+              className={`text-[10px] font-bold uppercase px-2 py-1 border rounded-sm transition-colors ${filterStatus === key
                   ? key === "todos"
                     ? "bg-slate-800 text-white border-slate-800"
                     : key === "pendente"
@@ -498,7 +530,7 @@ const ControleImagens: React.FC = () => {
                         ? "bg-yellow-500 text-white border-yellow-500"
                         : "bg-green-600 text-white border-green-600"
                   : "bg-white text-slate-500 border-slate-300 hover:bg-slate-50"
-              }`}
+                }`}
             >
               {label}
               {key !== "todos" && (
@@ -583,11 +615,10 @@ const ControleImagens: React.FC = () => {
                       title={cfg.descricao + (cfg.dimensoes ? ` — ${cfg.dimensoes}` : "")}
                     >
                       <span
-                        className={`inline-block text-[8px] font-bold uppercase px-1 py-0 rounded-sm ${
-                          cfg.origem_tipo === "stand_categoria"
+                        className={`inline-block text-[8px] font-bold uppercase px-1 py-0 rounded-sm ${cfg.origem_tipo === "stand_categoria"
                             ? "bg-violet-600/60 text-violet-200"
                             : "bg-blue-600/60 text-blue-200"
-                        }`}
+                          }`}
                       >
                         {cfg.origem_tipo === "stand_categoria"
                           ? cfg.origem_ref
@@ -744,11 +775,11 @@ const ControleImagens: React.FC = () => {
                           {cat?.prefix?.trim()
                             ? row.stand_nr
                             : row.stand_nr
-                                .replace(
-                                  new RegExp(`^${cat?.tag ?? ""}\\s*`, "i"),
-                                  "",
-                                )
-                                .trim()}
+                              .replace(
+                                new RegExp(`^${cat?.tag ?? ""}\\s*`, "i"),
+                                "",
+                              )
+                              .trim()}
                         </span>
                       </div>
                     </td>
@@ -784,13 +815,12 @@ const ControleImagens: React.FC = () => {
                       return (
                         <td
                           key={cfg.id}
-                          className={`${tdStyle} text-center w-8 cursor-pointer select-none transition-colors ${
-                            isSaving
+                          className={`${tdStyle} text-center w-8 cursor-pointer select-none transition-colors ${isSaving
                               ? "opacity-50"
                               : received
                                 ? "bg-green-50/60 hover:bg-green-100/60"
                                 : "hover:bg-red-50/60"
-                          }`}
+                            }`}
                           onClick={() =>
                             !isSaving && handleToggle(row.id, cfg.id, received)
                           }
@@ -826,13 +856,12 @@ const ControleImagens: React.FC = () => {
                         <span className="text-slate-300 text-[9px]">—</span>
                       ) : (
                         <span
-                          className={`text-[9px] font-bold uppercase px-1.5 py-0.5 border inline-block ${
-                            status === "completo"
+                          className={`text-[9px] font-bold uppercase px-1.5 py-0.5 border inline-block ${status === "completo"
                               ? "bg-green-100 text-green-700 border-green-300"
                               : status === "parcial"
                                 ? "bg-yellow-100 text-yellow-700 border-yellow-300"
                                 : "bg-red-100 text-red-600 border-red-200"
-                          }`}
+                            }`}
                           title={`${receivedCount} de ${applicable.length} recebidas`}
                         >
                           {receivedCount}/{applicable.length}
@@ -1126,10 +1155,9 @@ const ControleImagens: React.FC = () => {
                             onClick={() => !isSaving && handleToggle(row.id, cfg.id, recebido)}
                             disabled={isSaving}
                             title={recebido ? "Marcar como não recebido" : "Marcar como recebido"}
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                              isSaving ? "opacity-50 cursor-wait" :
-                              recebido ? "bg-green-500 border-green-500 text-white" : "bg-white border-slate-300 hover:border-green-400"
-                            }`}
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSaving ? "opacity-50 cursor-wait" :
+                                recebido ? "bg-green-500 border-green-500 text-white" : "bg-white border-slate-300 hover:border-green-400"
+                              }`}
                           >
                             {recebido && <span className="text-[10px] font-black leading-none">✓</span>}
                           </button>
@@ -1170,13 +1198,12 @@ const ControleImagens: React.FC = () => {
                     <button
                       key={s}
                       onClick={() => handleSaveStatus(detailModal.rowId, s, detailModal.obs)}
-                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors capitalize ${
-                        currentStatus === s
+                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors capitalize ${currentStatus === s
                           ? s === "pendente" ? "bg-yellow-100 border-yellow-400 text-yellow-800"
                             : s === "solicitado" ? "bg-blue-100 border-blue-400 text-blue-800"
-                            : "bg-green-100 border-green-400 text-green-800"
+                              : "bg-green-100 border-green-400 text-green-800"
                           : "border-slate-300 text-slate-500 hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       {s.charAt(0).toUpperCase() + s.slice(1)}
                     </button>

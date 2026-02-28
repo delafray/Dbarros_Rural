@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { Button } from "../components/UI";
@@ -305,11 +307,36 @@ const PlanilhaVendas: React.FC = () => {
     setModalRecebimentos((prev) => ({ ...prev, [configId]: !prev[configId] }));
   };
 
+  const STATUS_ORDER: Record<StandStatus, number> = { pendente: 0, solicitado: 1, completo: 2 };
+  const TS_KEY: Record<StandStatus, 'pendente_em' | 'solicitado_em' | 'completo_em'> = {
+    pendente: 'pendente_em', solicitado: 'solicitado_em', completo: 'completo_em',
+  };
+  const STATUS_LABELS: Record<StandStatus, string> = {
+    pendente: 'Pendente', solicitado: 'Solicitado', completo: 'Completo',
+  };
+
   // Salva tudo de uma vez: checkboxes + status + obs
   const handleSaveModal = async (status: StandStatus) => {
     if (!statusModal) return;
     const row = rows.find((r) => r.id === statusModal.rowId);
     const imgDoStand = row ? getImagensDoStand(row) : [];
+    const existingSt = statusMap[statusModal.rowId];
+    const currentLevel = STATUS_ORDER[existingSt?.status as StandStatus ?? 'pendente'] ?? 0;
+    const newLevel = STATUS_ORDER[status];
+
+    // Detecta regressão de status — pede confirmação e limpa timestamps superiores
+    let clearTimestamps: Array<'pendente_em' | 'solicitado_em' | 'completo_em'> | undefined;
+    if (newLevel < currentLevel) {
+      const confirmed = confirm(
+        `Atenção: você está voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serão apagadas. Confirma?`
+      );
+      if (!confirmed) return;
+      // Coleta quais timestamps precisam ser zerados (todos acima do novo status)
+      clearTimestamps = (Object.keys(STATUS_ORDER) as StandStatus[])
+        .filter((s) => STATUS_ORDER[s] > newLevel)
+        .map((s) => TS_KEY[s]);
+    }
+
     try {
       if (imgDoStand.length > 0) {
         await Promise.all(
@@ -318,7 +345,7 @@ const PlanilhaVendas: React.FC = () => {
           ),
         );
       }
-      await imagensService.upsertStatus(statusModal.rowId, status, statusModal.obs);
+      await imagensService.upsertStatus(statusModal.rowId, status, statusModal.obs, existingSt, clearTimestamps);
       // Atualiza recebimentosMap para o contador na badge
       const newRec: Record<string, boolean> = {};
       imgDoStand.forEach((cfg: ImagemConfig) => { newRec[cfg.id] = !!modalRecebimentos[cfg.id]; });
@@ -326,19 +353,27 @@ const PlanilhaVendas: React.FC = () => {
         ...prev,
         [statusModal.rowId]: { ...(prev[statusModal.rowId] || {}), ...newRec },
       }));
-      setStatusMap((prev) => ({
-        ...prev,
-        [statusModal.rowId]: {
-          id: prev[statusModal.rowId]?.id || "",
+      const now = new Date().toISOString();
+      const tsKey = TS_KEY[status];
+      setStatusMap((prev) => {
+        const existing = prev[statusModal.rowId] as any;
+        const updated: any = {
+          ...existing,
+          id: existing?.id || "",
           estande_id: statusModal.rowId,
           status,
           observacoes: statusModal.obs || null,
-          atualizado_em: new Date().toISOString(),
-        },
-      }));
+          atualizado_em: now,
+          [tsKey]: existing?.[tsKey] ?? now,
+        };
+        // Limpa timestamps superiores no estado local também
+        if (clearTimestamps) clearTimestamps.forEach((k) => { updated[k] = null; });
+        return { ...prev, [statusModal.rowId]: updated as StandImagemStatus };
+      });
       setStatusModal(null);
     } catch (err) {
-      alert("Erro ao salvar: " + (err instanceof Error ? err.message : String(err)));
+      const msg = err instanceof Error ? err.message : (err as any)?.message || JSON.stringify(err);
+      alert("Erro ao salvar: " + msg);
     }
   };
 
@@ -626,11 +661,11 @@ const PlanilhaVendas: React.FC = () => {
         </div>
       )}
       <div
-        className="overflow-x-auto overflow-y-auto bg-white shadow-xl rounded-lg border border-slate-200"
+        className="overflow-x-auto overflow-y-auto bg-white shadow-xl rounded-lg border border-slate-200 select-none"
         style={{ maxHeight: "calc(100vh - 80px)" }}
       >
         <table
-          className="border-collapse text-[11px] font-sans"
+          className="border-collapse text-[11px] font-sans select-none"
           style={{ minWidth: "max-content" }}
         >
           <thead className="sticky top-0 z-10 shadow-sm">
@@ -1073,6 +1108,7 @@ const PlanilhaVendas: React.FC = () => {
                     const imgDoStand = getImagensDoStand(row);
                     const rowRec = recebimentosMap[row.id] || {};
                     const receivedCount = imgDoStand.filter((c: ImagemConfig) => rowRec[c.id]).length;
+                    const todasRecebidas = computed === "solicitado" && imgDoStand.length > 0 && receivedCount === imgDoStand.length;
                     const badgeConfig = {
                       sem_config: {
                         label: "Sem config",
@@ -1084,7 +1120,9 @@ const PlanilhaVendas: React.FC = () => {
                       },
                       solicitado: {
                         label: "Solicitado",
-                        cls: "bg-blue-100 text-blue-700 border-blue-300 cursor-pointer hover:bg-blue-200",
+                        cls: todasRecebidas
+                          ? "bg-green-100 text-green-800 border-green-400 cursor-pointer hover:bg-green-200"
+                          : "bg-blue-100 text-blue-700 border-blue-300 cursor-pointer hover:bg-blue-200",
                       },
                       completo: {
                         label: "Completo",
@@ -1271,26 +1309,33 @@ const PlanilhaVendas: React.FC = () => {
                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-3">
                     Atualizar status
                   </p>
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => handleSaveModal("pendente")}
-                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "pendente" ? "bg-yellow-100 border-yellow-400 text-yellow-800" : "border-slate-300 text-slate-500 hover:bg-yellow-50 hover:border-yellow-300"}`}
-                    >
-                      Pendente
-                    </button>
-                    <button
-                      onClick={() => handleSaveModal("solicitado")}
-                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "solicitado" ? "bg-blue-100 border-blue-400 text-blue-800" : "border-slate-300 text-slate-500 hover:bg-blue-50 hover:border-blue-300"}`}
-                    >
-                      Solicitado
-                    </button>
-                    <button
-                      onClick={() => handleSaveModal("completo")}
-                      className={`flex-1 text-xs font-bold px-3 py-2 border transition-colors ${currentStatus === "completo" ? "bg-green-100 border-green-400 text-green-800" : "border-slate-300 text-slate-500 hover:bg-green-50 hover:border-green-300"}`}
-                    >
-                      Completo
-                    </button>
-                  </div>
+                  {(() => {
+                    const st = statusMap[row.id];
+                    const fmtDate = (d: string | null | undefined) =>
+                      d ? format(parseISO(d), "dd/MM/yy HH:mm", { locale: ptBR }) : null;
+                    const items = [
+                      { key: "pendente" as StandStatus, label: "Pendente", date: fmtDate(st?.pendente_em), active: currentStatus === "pendente", activeClass: "bg-yellow-100 border-yellow-400 text-yellow-800", hoverClass: "hover:bg-yellow-50 hover:border-yellow-300" },
+                      { key: "solicitado" as StandStatus, label: "Solicitado", date: fmtDate(st?.solicitado_em), active: currentStatus === "solicitado", activeClass: "bg-blue-100 border-blue-400 text-blue-800", hoverClass: "hover:bg-blue-50 hover:border-blue-300" },
+                      { key: "completo" as StandStatus, label: "Completo", date: fmtDate(st?.completo_em), active: currentStatus === "completo", activeClass: "bg-green-100 border-green-400 text-green-800", hoverClass: "hover:bg-green-50 hover:border-green-300" },
+                    ];
+                    return (
+                      <div className="flex gap-2">
+                        {items.map(({ key, label, date, active, activeClass, hoverClass }) => (
+                          <div key={key} className="flex-1 flex flex-col items-center gap-0.5">
+                            <button
+                              onClick={() => handleSaveModal(key)}
+                              className={`w-full text-xs font-bold px-3 py-2 border transition-colors ${active ? activeClass : `border-slate-300 text-slate-500 ${hoverClass}`}`}
+                            >
+                              {label}
+                            </button>
+                            {date && (
+                              <span className="text-[9px] text-slate-400 font-mono leading-tight text-center">{date}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <div className="mt-3 flex gap-2">
                     <button
                       onClick={() => setStatusModal(null)}

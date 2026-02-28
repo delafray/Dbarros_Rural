@@ -34,5 +34,28 @@ export const itensOpcionaisService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    /** Propaga rename do item para opcionais_selecionados nos estandes e origem_ref nas configs de imagem */
+    async renameItemReferences(oldNome: string, newNome: string): Promise<void> {
+        const { error } = await supabase.rpc('rename_opcional_item', {
+            old_nome: oldNome,
+            new_nome: newNome,
+        });
+        if (error) throw error;
+    },
+
+    /** Retorna lista de planilhas (edições) que têm este item em opcionais_ativos */
+    async getPlanilhasUsingItem(itemId: string): Promise<{ titulo: string; evento: string }[]> {
+        const { data, error } = await supabase
+            .from('planilha_config')
+            .select('edicao_id, eventos_edicoes(titulo, eventos(nome))')
+            .contains('opcionais_ativos', [itemId]) as any;
+
+        if (error) throw error;
+        return (data || []).map((row: any) => ({
+            titulo: row.eventos_edicoes?.titulo || '—',
+            evento: row.eventos_edicoes?.eventos?.nome || '—',
+        }));
     }
 };
