@@ -18,6 +18,7 @@ import Dashboard from './pages/Dashboard';
 import Atendimentos from './pages/Atendimentos';
 import Tarefas from './pages/Tarefas';
 import ControleImagens from './pages/ControleImagens';
+import TodosEventos from './pages/TodosEventos';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -58,6 +59,7 @@ const App: React.FC = () => {
         <Route path="/controle-imagens" element={<ProtectedRoute><ControleImagens /></ProtectedRoute>} />
         <Route path="/itens-opcionais" element={<ProtectedRoute><ItensOpcionais /></ProtectedRoute>} />
 
+        <Route path="/todos-eventos" element={<ProtectedRoute><TodosEventos /></ProtectedRoute>} />
         <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
 
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />

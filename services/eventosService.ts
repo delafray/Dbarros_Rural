@@ -78,6 +78,26 @@ export const eventosService = {
         return data as (EventoEdicao & { eventos: { nome: string } | null })[];
     },
 
+    async getAllEdicoes() {
+        const { data, error } = await supabase
+            .from('eventos_edicoes')
+            .select(`
+                id, titulo, ano, created_at, proposta_comercial_path, planta_baixa_path,
+                eventos ( id, nome )
+            `)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        return (data as any[]).sort((a, b) => {
+            const nA = (a.eventos?.nome || '').toLowerCase();
+            const nB = (b.eventos?.nome || '').toLowerCase();
+            const cmp = nA.localeCompare(nB, 'pt-BR');
+            if (cmp !== 0) return cmp;
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        }) as (EventoEdicao & { eventos: { id: string; nome: string } | null })[];
+    },
+
     async getEdicoes(eventoId: string) {
         const { data, error } = await supabase
             .from('eventos_edicoes')

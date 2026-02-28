@@ -49,8 +49,20 @@ const Dashboard: React.FC = () => {
         setRefreshTrigger(prev => prev + 1);
     };
 
+    const allPanelButton = (
+        <button
+            onClick={() => navigate('/todos-eventos')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all shadow-sm"
+        >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Todos os Eventos
+        </button>
+    );
+
     return (
-        <Layout title="Dashboard Central">
+        <Layout title="Dashboard Central" headerActions={allPanelButton}>
             <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
                 <div className="border-t border-slate-100">
                     <h2 className="text-lg font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2 text-[12px]">
@@ -201,11 +213,11 @@ const Dashboard: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-2">
-                                                    <div className="hidden sm:block text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-70 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex items-center gap-2 group/planilha cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/planilha-vendas/${edicao.id}`); }}>
+                                                    <div className="hidden sm:block text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-70 group-hover/planilha:opacity-100 transition-opacity">
                                                         Abrir Planilha
                                                     </div>
-                                                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm border border-blue-100">
+                                                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover/planilha:bg-blue-600 group-hover/planilha:text-white transition-all shadow-sm border border-blue-100">
                                                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                                                         </svg>
@@ -310,6 +322,7 @@ const Dashboard: React.FC = () => {
                     />
                 )}
             </div>
+
         </Layout>
     );
 };
