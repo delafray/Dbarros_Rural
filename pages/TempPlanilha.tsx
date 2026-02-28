@@ -1177,7 +1177,7 @@ const PlanilhaVendas: React.FC = () => {
                         >
                           {badgeConfig.label}
                           {imgDoStand.length > 0 && (
-                            <span className="ml-1 font-mono font-normal normal-case opacity-80">
+                            <span className="ml-1">
                               {receivedCount}/{imgDoStand.length}
                             </span>
                           )}
@@ -1245,10 +1245,22 @@ const PlanilhaVendas: React.FC = () => {
       {popupRowId &&
         (() => {
           const popupRow = rows.find((r) => r.id === popupRowId);
+          const popupCliente = clientes.find((c: ClienteComContatos) => c.id === popupRow?.cliente_id);
+          const popupClienteNome = popupCliente
+            ? (popupCliente.tipo_pessoa === 'PJ'
+                ? (popupCliente.razao_social || popupCliente.nome_fantasia)
+                : popupCliente.nome_completo) || null
+            : null;
+          const rowHasData = !!popupRow && (
+            popupRow.tipo_venda !== 'DISPONÍVEL' ||
+            Object.keys((popupRow.opcionais_selecionados as Record<string, unknown>) || {}).length > 0
+          );
           return (
             <ClienteSelectorPopup
               currentClienteId={popupRow?.cliente_id}
               currentNomeLivre={popupRow?.cliente_nome_livre}
+              currentClienteNome={popupClienteNome}
+              rowHasData={rowHasData}
               onSelect={(clienteId, nomeLivre) =>
                 handleClienteSelect(popupRowId, clienteId, nomeLivre)
               }
