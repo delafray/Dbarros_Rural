@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, User } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import { STORAGE_KEYS } from '../utils/constants';
 
 interface AuthContextType {
     user: User | null;
@@ -97,7 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleForceLogout = async (message: string) => {
         await authService.logout();
         setUser(null);
-        alert(message);
+        // Armazena a mensagem para exibição na tela de login (sem alert() bloqueante)
+        sessionStorage.setItem(STORAGE_KEYS.FORCE_LOGOUT_MESSAGE, message);
         window.location.href = '#/login';
     };
 

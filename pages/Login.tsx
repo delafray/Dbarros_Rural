@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Input, Card } from '../components/UI';
 import { authService } from '../services/authService';
+import { STORAGE_KEYS } from '../utils/constants';
 
 const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
@@ -10,13 +11,22 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
-  const [isBiometricsEnrolled, setIsBiometricsEnrolled] = useState(localStorage.getItem('biometricsEnrolled') === 'true');
+  const [isBiometricsEnrolled, setIsBiometricsEnrolled] = useState(
+    localStorage.getItem(STORAGE_KEYS.BIOMETRICS_ENROLLED) === 'true',
+  );
   const navigate = useNavigate();
   const { login, loginWithBiometrics, user } = useAuth();
 
   React.useEffect(() => {
     setIsBiometricsSupported(authService.checkBiometricSupport());
-    setIsBiometricsEnrolled(localStorage.getItem('biometricsEnrolled') === 'true');
+    setIsBiometricsEnrolled(localStorage.getItem(STORAGE_KEYS.BIOMETRICS_ENROLLED) === 'true');
+
+    // Exibe mensagem de logout forçado (conta desativada / expirada)
+    const forceMsg = sessionStorage.getItem(STORAGE_KEYS.FORCE_LOGOUT_MESSAGE);
+    if (forceMsg) {
+      setError(forceMsg);
+      sessionStorage.removeItem(STORAGE_KEYS.FORCE_LOGOUT_MESSAGE);
+    }
   }, []);
 
   React.useEffect(() => {

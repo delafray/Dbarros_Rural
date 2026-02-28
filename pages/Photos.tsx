@@ -269,7 +269,6 @@ const Photos: React.FC = () => {
         return;
       }
 
-      console.log("Fetching gallery data for user:", user.id);
 
       const [index, t, c, u, allU, configLimit] = await Promise.all([
         api.getPhotoIndex(user.id, onlyMine),
@@ -285,7 +284,6 @@ const Photos: React.FC = () => {
         if (!isNaN(parsedLimit)) setPdfLimit(parsedLimit);
       }
 
-      console.log(`Fetch success: ${index.length} photos, ${t.length} tags`);
 
       setPhotoIndex(index);
       setTags(t);

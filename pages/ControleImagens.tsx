@@ -1285,7 +1285,8 @@ const ControleImagens: React.FC = () => {
         if (!row) return null;
         const cliente = clientes.find((c) => c.id === row.cliente_id);
         const nomeCliente = cliente
-          ? cliente.tipo_pessoa === "PJ" ? cliente.razao_social : cliente.nome_completo
+          ? cliente.nome_fantasia ||
+            (cliente.tipo_pessoa === "PJ" ? cliente.razao_social : cliente.nome_completo)
           : row.cliente_nome_livre || row.stand_nr;
         const cat = getCategoriaOfRow(row);
         const applicable = columnConfigs.filter((cfg) => isApplicable(row, cfg));

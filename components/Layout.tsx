@@ -7,6 +7,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { authService } from '../services/authService';
 
 import { APP_VERSION } from '../version';
+import { STORAGE_KEYS } from '../utils/constants';
 
 interface LayoutProps {
   children: ReactNode;
@@ -54,7 +55,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerAct
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
-  const [isEnrolled, setIsEnrolled] = useState(localStorage.getItem('biometricsEnrolled') === 'true');
+  const [isEnrolled, setIsEnrolled] = useState(localStorage.getItem(STORAGE_KEYS.BIOMETRICS_ENROLLED) === 'true');
 
   useEffect(() => {
     setIsBiometricsSupported(authService.checkBiometricSupport());
@@ -90,14 +91,14 @@ const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerAct
   const handleEnrollBiometrics = async () => {
     if (isEnrolling) return;
     if (isEnrolled) {
-      localStorage.setItem('biometricsEnrolled', 'false');
+      localStorage.setItem(STORAGE_KEYS.BIOMETRICS_ENROLLED, 'false');
       setIsEnrolled(false);
       return;
     }
     setIsEnrolling(true);
     try {
       await authService.enrollPasskey();
-      localStorage.setItem('biometricsEnrolled', 'true');
+      localStorage.setItem(STORAGE_KEYS.BIOMETRICS_ENROLLED, 'true');
       setIsEnrolled(true);
       await appDialog.alert({ title: 'Biometria Cadastrada', message: 'Biometria cadastrada com sucesso!', type: 'success' });
     } catch (error: any) {
