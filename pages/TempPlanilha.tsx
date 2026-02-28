@@ -683,12 +683,11 @@ const PlanilhaVendas: React.FC = () => {
         </div>
       )}
       <div
-        className="overflow-x-auto overflow-y-auto bg-white shadow-xl rounded-lg border border-slate-200 select-none"
+        className="overflow-x-auto overflow-y-auto bg-white shadow-xl rounded-lg border border-slate-200 select-none w-full"
         style={{ maxHeight: "calc(100vh - 80px)" }}
       >
         <table
-          className="border-collapse text-[11px] font-sans select-none"
-          style={{ minWidth: "max-content" }}
+          className="border-collapse text-[11px] font-sans select-none w-full"
         >
           <thead className="sticky top-0 z-10 shadow-sm">
             {/* ── Row 1: Summary Titles ── */}
@@ -876,7 +875,7 @@ const PlanilhaVendas: React.FC = () => {
 
                   {/* Cliente — clica para abrir popup */}
                   <td
-                    className={`${tdStyle} w-[200px] min-w-[200px] max-w-[200px] cursor-pointer group px-2`}
+                    className={`${tdStyle} min-w-[200px] cursor-pointer group px-2`}
                     onClick={() => setPopupRowId(row.id)}
                     title="Clique para selecionar cliente"
                   >
@@ -895,7 +894,7 @@ const PlanilhaVendas: React.FC = () => {
                       }
                       if (row.cliente_nome_livre)
                         return (
-                          <span className="text-amber-900 font-black italic truncate block max-w-[250px]">
+                          <span className="text-amber-900 font-black italic truncate block">
                             {row.cliente_nome_livre}
                           </span>
                         );

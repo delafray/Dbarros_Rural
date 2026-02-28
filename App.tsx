@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Users from './pages/Users';
 import { useAuth } from './context/AuthContext';
+import { PresenceProvider } from './context/PresenceContext';
 import Photos from './pages/Photos';
 import Tags from './pages/Tags';
 import CadastroCliente from './pages/CadastroCliente';
@@ -37,6 +38,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 const App: React.FC = () => {
   return (
     <HashRouter>
+      <PresenceProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
@@ -66,6 +68,7 @@ const App: React.FC = () => {
 
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
+      </PresenceProvider>
     </HashRouter>
   );
 };

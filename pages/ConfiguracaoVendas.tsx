@@ -1315,9 +1315,12 @@ const ConfiguracaoVendas: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={() => navigate(`/planilha-vendas/${edicaoId}`)}
-              className="text-sm text-slate-600 border border-slate-300 px-4 py-2 hover:bg-slate-50 transition-colors"
+              className="text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 border-2 border-blue-400 px-5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2"
             >
-              ← Ver Planilha
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+              Ver Planilha
             </button>
             <button
               onClick={handleSave}

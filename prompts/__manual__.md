@@ -140,3 +140,10 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 **O que ele faz:** Ensina a IA a configurar um sistema de envio de e-mails (como convites, contratos e comunicados) usando o e-mail oficial da sua feira.
 **Por que é genial:** Em vez de usar e-mails comuns que caem no SPAM, este Blueprint ensina a usar ferramentas profissionais (como o Resend) integradas ao Supabase. Ele explica como garantir que o e-mail chegue ao cliente com o nome da sua empresa, suporte a anexos (PDFs) e como enviar para grupos inteiros de uma só vez de forma segura e rápida.
 
+---
+
+## 20. 📐 `PROMPT_20_COLUNA_CLIENTE_PLANILHA_FLEX.md`
+**(Reversão / Ajuste Visual da Planilha de Vendas)**
+**O que ele faz:** Documenta a mudança da coluna CLIENTE na Planilha de Vendas de **largura fixa (200px)** para **largura flexível** — e guarda o código exato para reverter caso o resultado pareça estranho.
+**Por que é genial:** Em monitores grandes (1920px), a coluna do cliente agora expande e mostra o nome completo sem cortar. Em monitores menores, trunca com "..." normalmente. Se um dia você achar que a tabela ficou desequilibrada ou larga demais, basta abrir este arquivo e copiar o bloco "Como Reverter" — em 2 minutos está de volta ao estado original fixo, sem precisar lembrar de nada.
+

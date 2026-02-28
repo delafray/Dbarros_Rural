@@ -7,6 +7,8 @@ import DashboardAlerts from '../components/DashboardAlerts';
 import ResolucaoAtendimentoModal from '../components/ResolucaoAtendimentoModal';
 import { Atendimento } from '../services/atendimentosService';
 import { edicaoDocsService } from '../services/edicaoDocsService';
+import { useAuth } from '../context/AuthContext';
+import { usePresence } from '../context/PresenceContext';
 
 type EdicaoComDocs = EventoEdicao & {
     eventos: { nome: string } | null;
@@ -18,6 +20,8 @@ type DocModalState = { tipo: 'proposta_comercial' | 'planta_baixa'; url: string 
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const { onlineUsers } = usePresence();
     const [edicoes, setEdicoes] = useState<EdicaoComDocs[]>([]);
     const [docModal, setDocModal] = useState<DocModalState>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -61,8 +65,37 @@ const Dashboard: React.FC = () => {
         </button>
     );
 
+    const onlineBadge = user?.isAdmin ? (
+        <div className="relative group/online flex-shrink-0">
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded cursor-default select-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
+                <span className="text-[11px] text-slate-400 leading-none">{onlineUsers.length}</span>
+            </div>
+            {/* Tooltip */}
+            <div className="absolute left-0 top-full mt-2 z-50 hidden group-hover/online:block min-w-[180px] pointer-events-none">
+                <div className="bg-slate-900 rounded-xl shadow-2xl p-3">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Online agora</p>
+                    {onlineUsers.length === 0 ? (
+                        <p className="text-[11px] text-slate-500 italic">Nenhum usuário</p>
+                    ) : (
+                        <div className="flex flex-col gap-1.5">
+                            {onlineUsers.map((u) => (
+                                <div key={u.user_id} className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[9px] font-black text-white uppercase flex-shrink-0">
+                                        {u.name.substring(0, 2)}
+                                    </div>
+                                    <span className="text-[11px] font-medium text-white truncate">{u.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    ) : null;
+
     return (
-        <Layout title="Dashboard Central" headerActions={allPanelButton}>
+        <Layout title="Dashboard Central" titleExtras={onlineBadge} headerActions={allPanelButton}>
             <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
                 <div className="border-t border-slate-100">
                     <h2 className="text-lg font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2 text-[12px]">
