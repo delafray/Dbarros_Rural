@@ -67,6 +67,11 @@ const ControleImagens: React.FC = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [detailModal, setDetailModal] = useState<{ rowId: string; obs: string } | null>(null);
 
+  // ── Drive Link ────────────────────────────────────────────────
+  const [driveLink, setDriveLink] = useState<string>("");
+  const [driveLinkEditing, setDriveLinkEditing] = useState(false);
+  const [driveLinkInput, setDriveLinkInput] = useState("");
+
   // ── Imagens Avulsas ───────────────────────────────────────────
   const [avulsaAddOpen, setAvulsaAddOpen] = useState(false);
   const [novaAvulsa, setNovaAvulsa] = useState({ tipo: "imagem" as "imagem" | "logo", descricao: "", dimensoes: "" });
@@ -104,6 +109,24 @@ const ControleImagens: React.FC = () => {
     if (!selectedEdicaoId) return;
     loadEdicao(selectedEdicaoId);
   }, [selectedEdicaoId]);
+
+  // ── Carrega/limpa Drive link ao trocar de edição ──────────────
+  useEffect(() => {
+    if (!selectedEdicaoId) { setDriveLink(""); return; }
+    const saved = localStorage.getItem(`drive_link_${selectedEdicaoId}`) || "";
+    setDriveLink(saved);
+    setDriveLinkEditing(false);
+  }, [selectedEdicaoId]);
+
+  const handleSaveDriveLink = () => {
+    const trimmed = driveLinkInput.trim();
+    if (selectedEdicaoId) {
+      if (trimmed) localStorage.setItem(`drive_link_${selectedEdicaoId}`, trimmed);
+      else localStorage.removeItem(`drive_link_${selectedEdicaoId}`);
+    }
+    setDriveLink(trimmed);
+    setDriveLinkEditing(false);
+  };
 
   const loadEdicao = async (edicaoId: string) => {
     setLoading(true);
@@ -528,6 +551,73 @@ const ControleImagens: React.FC = () => {
             onChange={(ev) => setSearchTerm(ev.target.value)}
             className="border border-slate-300 text-sm px-3 py-1.5 rounded w-52 focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
+
+          {/* ── Drive Link ── */}
+          {selectedEdicaoId && (
+            driveLinkEditing ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  type="url"
+                  value={driveLinkInput}
+                  onChange={(e) => setDriveLinkInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveDriveLink();
+                    if (e.key === "Escape") setDriveLinkEditing(false);
+                  }}
+                  placeholder="Cole o link do Google Drive..."
+                  className="border border-slate-300 text-sm px-2 py-1.5 rounded w-60 focus:outline-none focus:ring-1 focus:ring-green-400"
+                />
+                <button
+                  onClick={handleSaveDriveLink}
+                  className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-medium transition-colors whitespace-nowrap"
+                >
+                  Salvar
+                </button>
+                <button
+                  onClick={() => setDriveLinkEditing(false)}
+                  className="text-slate-400 hover:text-slate-700 px-1.5 py-1.5 rounded hover:bg-slate-100 transition-colors text-base leading-none"
+                  title="Cancelar"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : driveLink ? (
+              <div className="flex items-center gap-1">
+                <a
+                  href={driveLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded transition-colors whitespace-nowrap border border-slate-300"
+                  title="Abrir pasta do Google Drive"
+                >
+                  <svg className="w-4 h-4 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6.28 3h11.44L22 11.6l-4 6.93H6l-4-6.93zm1.14 1.5L3.7 11h16.6l-3.72-6.5zm.86 9.5v1.5h7.44v-1.5zm-2 3v1.5h11.44v-1.5z" />
+                  </svg>
+                  Drive
+                </a>
+                <button
+                  onClick={() => { setDriveLinkInput(driveLink); setDriveLinkEditing(true); }}
+                  className="text-xs text-slate-400 hover:text-slate-700 px-2 py-1.5 rounded hover:bg-slate-100 transition-colors whitespace-nowrap border border-slate-200"
+                  title="Alterar link do Drive"
+                >
+                  Alterar link
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setDriveLinkInput(""); setDriveLinkEditing(true); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 text-sm font-medium rounded transition-colors whitespace-nowrap border border-dashed border-slate-300 hover:border-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                title="Adicionar link da pasta do Google Drive"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6.28 3h11.44L22 11.6l-4 6.93H6l-4-6.93zm1.14 1.5L3.7 11h16.6l-3.72-6.5zm.86 9.5v1.5h7.44v-1.5zm-2 3v1.5h11.44v-1.5z" />
+                </svg>
+                Incluir link Drive
+              </button>
+            )
+          )}
+
           {selectedEdicaoId && (
             <button
               onClick={() => navigate(`/planilha-vendas/${selectedEdicaoId}`)}
