@@ -37,6 +37,37 @@ const DEFAULT_CATS: CategoriaSetup[] = [
   },
 ];
 
+// ── Componente de input com máscara de moeda BRL ────────────
+const CurrencyField: React.FC<{
+  value: number;
+  onChange: (n: number) => void;
+  className?: string;
+}> = ({ value, onChange, className }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState('');
+
+  const formatted = value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={editing ? draft : formatted}
+      onFocus={(e) => {
+        setEditing(true);
+        setDraft(value === 0 ? '' : String(value));
+        setTimeout(() => e.target.select(), 0);
+      }}
+      onChange={(e) => setDraft(e.target.value.replace(/[^0-9,]/g, ''))}
+      onBlur={() => {
+        setEditing(false);
+        onChange(parseFloat(draft.replace(',', '.')) || 0);
+      }}
+      className={className}
+    />
+  );
+};
+
 const ConfiguracaoVendas: React.FC = () => {
   const { edicaoId } = useParams<{ edicaoId: string }>();
   const navigate = useNavigate();
@@ -873,14 +904,10 @@ const ConfiguracaoVendas: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-2 py-0.5 border border-slate-200">
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full p-1 border border-black/10 text-right font-mono font-bold text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[90px]"
+                          <CurrencyField
                             value={cat.standBase}
-                            onChange={(e) =>
-                              updateCat(idx, "standBase", e.target.value)
-                            }
+                            onChange={(n) => updateCat(idx, "standBase", n)}
+                            className="w-full p-1 border border-black/10 text-right font-mono font-bold text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[90px]"
                           />
                         </td>
                         {Array.from({ length: numCombos }).map((_, ci) => (
@@ -888,18 +915,10 @@ const ConfiguracaoVendas: React.FC = () => {
                             key={ci}
                             className="px-2 py-0.5 border border-slate-200"
                           >
-                            <input
-                              type="number"
-                              min="0"
+                            <CurrencyField
+                              value={Array.isArray(cat.combos) ? cat.combos[ci] || 0 : 0}
+                              onChange={(n) => updateCombo(idx, ci, n)}
                               className="w-full p-1 border border-blue-200 text-right text-blue-900 font-black font-mono text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[90px]"
-                              value={
-                                Array.isArray(cat.combos)
-                                  ? cat.combos[ci] || 0
-                                  : 0
-                              }
-                              onChange={(e) =>
-                                updateCombo(idx, ci, e.target.value)
-                              }
                             />
                           </td>
                         ))}
@@ -981,19 +1000,19 @@ const ConfiguracaoVendas: React.FC = () => {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase text-slate-500">
+                    <th className="px-3 py-0.5 text-left text-[11px] font-bold uppercase text-slate-500">
                       Item Opcional
                     </th>
-                    <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase text-slate-400">
+                    <th className="px-3 py-0.5 text-right text-[11px] font-bold uppercase text-slate-400">
                       Preço Sugerido
                     </th>
-                    <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase text-green-700 w-56">
+                    <th className="px-3 py-0.5 text-right text-[11px] font-bold uppercase text-green-700 w-48">
                       Preço Nesta Edição ✏️
                     </th>
-                    <th className="w-20 text-center text-[11px] font-bold uppercase text-slate-400">
+                    <th className="w-16 text-center text-[11px] font-bold uppercase text-slate-400">
                       Ações
                     </th>
-                    <th className="w-20 text-center text-[11px] font-bold uppercase text-violet-500">
+                    <th className="w-16 text-center text-[11px] font-bold uppercase text-violet-500">
                       Imagens
                     </th>
                   </tr>
@@ -1007,8 +1026,8 @@ const ConfiguracaoVendas: React.FC = () => {
                         key={item.id}
                         className={`transition-colors ${emUso ? "bg-amber-50 hover:bg-amber-100/60" : "hover:bg-slate-50"}`}
                       >
-                        <td className="px-4 py-2.5">
-                          <span className="font-semibold text-slate-800">
+                        <td className="px-3 py-0.5">
+                          <span className="font-semibold text-slate-800 text-[12px]">
                             {item.nome}
                           </span>
                           {emUso && (
@@ -1017,41 +1036,29 @@ const ConfiguracaoVendas: React.FC = () => {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-slate-400 font-mono text-xs">
+                        <td className="px-3 py-0.5 text-right text-slate-400 font-mono text-[11px]">
                           R${" "}
                           {Number(item.preco_base).toLocaleString("pt-BR", {
                             minimumFractionDigits: 2,
                           })}
                         </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-slate-500 text-xs">R$</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className={`w-36 p-1.5 border-2 text-right font-bold font-mono focus:bg-white focus:outline-none focus:ring-2
-                                                                ${
-                                                                  emUso
-                                                                    ? "border-amber-400 text-amber-900 bg-amber-50 focus:ring-amber-500"
-                                                                    : "border-green-400 text-green-800 bg-green-50 focus:ring-green-500"
-                                                                }`}
-                              value={
-                                opcionaisPrecos[item.id] ??
-                                Number(item.preco_base)
-                              }
-                              onChange={(e) =>
-                                updatePreco(item.id, e.target.value)
-                              }
-                            />
-                          </div>
+                        <td className="px-3 py-0.5 text-right">
+                          <CurrencyField
+                            value={opcionaisPrecos[item.id] ?? Number(item.preco_base)}
+                            onChange={(n) => updatePreco(item.id, String(n))}
+                            className={`w-36 p-1 border-2 text-right font-bold font-mono text-[12px] focus:bg-white focus:outline-none focus:ring-1
+                              ${emUso
+                                ? "border-amber-400 text-amber-900 bg-amber-50 focus:ring-amber-500"
+                                : "border-green-400 text-green-800 bg-green-50 focus:ring-green-500"
+                              }`}
+                          />
                         </td>
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-2 py-0.5 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => handleSavePreco(item.id)}
                               title="Confirmar preço"
-                              className={`p-1.5 transition-colors text-sm font-bold
+                              className={`p-1 transition-colors text-sm font-bold
                                                                 ${
                                                                   salvo
                                                                     ? "text-green-600 bg-green-50"
@@ -1067,13 +1074,13 @@ const ConfiguracaoVendas: React.FC = () => {
                                   ? "Desmarque nos estandes antes de remover"
                                   : "Remover da edição"
                               }
-                              className="p-1.5 text-red-400 hover:text-red-700 hover:bg-red-50 transition-colors text-sm"
+                              className="p-1 text-red-400 hover:text-red-700 hover:bg-red-50 transition-colors text-sm"
                             >
                               ✕
                             </button>
                           </div>
                         </td>
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-2 py-0.5 text-center">
                           {(() => {
                             const cnt = getImagensForRef(
                               "item_opcional",
@@ -1151,16 +1158,16 @@ const ConfiguracaoVendas: React.FC = () => {
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-4 py-2 text-left text-[11px] font-bold uppercase text-slate-500">
+                        <th className="px-3 py-0.5 text-left text-[11px] font-bold uppercase text-slate-500">
                           Descrição
                         </th>
-                        <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-24">
+                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-24">
                           Tipo
                         </th>
-                        <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-28">
+                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-28">
                           Dimensões
                         </th>
-                        <th className="px-4 py-2 text-center text-[11px] font-bold uppercase text-slate-500 w-36">
+                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-36">
                           Status
                         </th>
                         <th className="w-12" />
@@ -1233,16 +1240,16 @@ const ConfiguracaoVendas: React.FC = () => {
                         }
                         return (
                           <tr key={av.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-2 font-semibold text-slate-800">
+                            <td className="px-3 py-0.5 font-semibold text-[12px] text-slate-800">
                               {av.descricao}
                             </td>
-                            <td className="px-4 py-2 text-center text-xs text-slate-500 uppercase">
+                            <td className="px-3 py-0.5 text-center text-[11px] text-slate-500 uppercase">
                               {av.tipo}
                             </td>
-                            <td className="px-4 py-2 text-center text-xs font-mono text-slate-500">
+                            <td className="px-3 py-0.5 text-center text-[11px] font-mono text-slate-500">
                               {av.dimensoes || "—"}
                             </td>
-                            <td className="px-4 py-2 text-center">
+                            <td className="px-3 py-0.5 text-center">
                               <select
                                 value={av.avulso_status}
                                 onChange={(e) =>

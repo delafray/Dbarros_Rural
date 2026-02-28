@@ -106,84 +106,87 @@ const ItensOpcionais: React.FC = () => {
         new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
     return (
-        <Layout title="Cadastros · Itens Opcionais">
-            <div className="max-w-4xl mx-auto p-4">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        <span className="w-2 h-6 bg-blue-600 rounded-full"></span>
-                        Itens Opcionais
-                    </h1>
-                    <button
-                        onClick={openNew}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm flex items-center gap-2 transition-colors uppercase"
-                    >
-                        + Adicionar Item
-                    </button>
-                </div>
+        <Layout
+            title="Cadastros · Itens Opcionais"
+            headerActions={
+                <button
+                    onClick={openNew}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm flex items-center gap-2 transition-colors uppercase"
+                >
+                    + Adicionar Item
+                </button>
+            }
+        >
+            <div className="bg-white border border-slate-300 rounded-none shadow-sm overflow-hidden flex flex-col h-[calc(100vh-140px)]">
 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 rounded">
+                    <div className="px-3 py-1.5 bg-red-50 border-b border-red-200 text-red-700 text-[11px] flex items-center gap-2">
                         <span>⚠️</span> {error}
                     </div>
                 )}
 
-                <div className="bg-white border border-slate-200 shadow-sm overflow-hidden rounded">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
-                                <th className="px-4 py-3 border-r border-slate-200">Descrição do Item (Vertical na Planilha)</th>
-                                <th className="px-4 py-3 border-r border-slate-200 w-36 text-right">Preço Base</th>
-                                <th className="px-4 py-3 border-r border-slate-200 w-36 text-center">Tipo Padrão</th>
-                                <th className="px-4 py-3 w-24 text-center">Ações</th>
+                {/* Table */}
+                <div className="flex-1 overflow-auto">
+                    <table className="w-full border-collapse">
+                        <thead className="sticky top-0 z-10">
+                            <tr className="bg-slate-100 text-slate-600 text-[11px] font-bold uppercase tracking-tight">
+                                <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">Descrição do Item (Vertical na Planilha)</th>
+                                <th className="px-3 py-0.5 border-b border-r border-slate-300 text-right w-36">Preço Base</th>
+                                <th className="px-3 py-0.5 border-b border-r border-slate-300 text-center w-36">Tipo Padrão</th>
+                                <th className="px-3 py-0.5 border-b border-slate-300 text-center w-20">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">Carregando itens...</td>
+                                    <td colSpan={4} className="px-3 py-4 text-center text-slate-400 text-[12px]">Carregando itens...</td>
                                 </tr>
                             )}
 
                             {!isLoading && itens.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">Nenhum item cadastrado.</td>
+                                    <td colSpan={4} className="px-3 py-4 text-center text-slate-400 text-[12px]">Nenhum item cadastrado.</td>
                                 </tr>
                             )}
 
                             {itens.map(item => {
                                 const badge = item.tipo_padrao ? TIPO_BADGE[item.tipo_padrao] : null;
                                 return (
-                                    <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors text-[13px]">
-                                        <td className="px-4 py-2.5 border-r border-slate-200 font-medium text-slate-700">
+                                    <tr key={item.id} className="hover:bg-blue-100/30 even:bg-slate-200/40 transition-colors group">
+                                        <td className="px-3 py-0.5 border-b border-r border-slate-300 text-[12px] font-semibold text-slate-700">
                                             {item.nome}
                                         </td>
-                                        <td className="px-4 py-2.5 border-r border-slate-200 text-right font-mono text-slate-600">
+                                        <td className="px-3 py-0.5 border-b border-r border-slate-300 text-right font-mono text-[12px] text-slate-600">
                                             {formatMoney(Number(item.preco_base))}
                                         </td>
-                                        <td className="px-4 py-2.5 border-r border-slate-200 text-center">
+                                        <td className="px-3 py-0.5 border-b border-r border-slate-300 text-center">
                                             {badge ? (
-                                                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 border rounded-full ${badge.cls}`}>
+                                                <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 border rounded-full ${badge.cls}`}>
                                                     {badge.label}
                                                 </span>
                                             ) : (
                                                 <span className="text-slate-300 text-[11px]">—</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-2.5">
-                                            <div className="flex justify-center gap-1.5">
+                                        <td className="px-3 py-0.5 border-b border-slate-300">
+                                            <div className="flex justify-center gap-1">
                                                 <button
                                                     onClick={() => openEdit(item)}
-                                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded-none border border-transparent hover:border-slate-200 transition-all"
                                                     title="Editar"
                                                 >
-                                                    ✎
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(item.id, item.nome)}
-                                                    className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                    className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded-none border border-transparent hover:border-slate-200 transition-all"
                                                     title="Excluir"
                                                 >
-                                                    🗑
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
                                                 </button>
                                             </div>
                                         </td>
@@ -194,11 +197,10 @@ const ItensOpcionais: React.FC = () => {
                     </table>
                 </div>
 
-                <div className="mt-8 p-4 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-500 leading-relaxed italic">
-                    <strong>Regra de Negócio:</strong> Os preços definidos aqui são os valores base padrão.
-                    Ao editar um evento específico, esses itens serão carregados por padrão com estes valores,
-                    permitindo que você ajuste o valor fixo individualmente por evento se necessário.
-                    O <strong>Tipo Padrão</strong> pré-seleciona automaticamente o tipo de imagem ao configurar o item em uma edição de evento.
+                {/* Status Bar */}
+                <div className="px-3 py-1 bg-slate-100 border-t border-slate-300 flex justify-between items-center text-[10px] text-slate-500 font-medium">
+                    <span>{itens.length} {itens.length === 1 ? 'item' : 'itens'} cadastrados</span>
+                    <span className="italic">Preços são sugestão — ajuste por edição de evento</span>
                 </div>
             </div>
 

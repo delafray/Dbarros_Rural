@@ -4,13 +4,25 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Button } from '../components/UI';
 import { supabase } from '../services/supabaseClient';
-import { Evento } from '../services/eventosService';
+import { Evento, EventoEdicao } from '../services/eventosService';
 
 const PAGE_SIZE = 50;
 
+type EventoComEdicoes = Evento & {
+    eventos_edicoes?: Pick<EventoEdicao, 'id' | 'titulo' | 'ano' | 'data_inicio' | 'created_at'>[];
+};
+
+const ultimaEdicao = (e: EventoComEdicoes) => {
+    if (!e.eventos_edicoes || e.eventos_edicoes.length === 0) return null;
+    return [...e.eventos_edicoes].sort((a, b) => {
+        if (b.ano !== a.ano) return b.ano - a.ano;
+        return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+    })[0];
+};
+
 const Eventos: React.FC = () => {
     const navigate = useNavigate();
-    const [eventos, setEventos] = useState<Evento[]>([]);
+    const [eventos, setEventos] = useState<EventoComEdicoes[]>([]);
     const [totalCount, setTotalCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -62,7 +74,7 @@ const Eventos: React.FC = () => {
             const from = page * PAGE_SIZE;
             const { data, error } = await supabase
                 .from('eventos')
-                .select('*')
+                .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
                 .order('nome')
                 .range(from, from + PAGE_SIZE - 1);
 
@@ -84,7 +96,7 @@ const Eventos: React.FC = () => {
             setLoading(true);
             const { data, error } = await supabase
                 .from('eventos')
-                .select('*')
+                .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
                 .or(`nome.ilike.%${term}%,promotor_nome.ilike.%${term}%,promotor_email.ilike.%${term}%`)
                 .order('nome')
                 .limit(200);
@@ -164,17 +176,18 @@ const Eventos: React.FC = () => {
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">Promotor</th>
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">Telefone</th>
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">E-mail</th>
+                                <th className="px-3 py-0.5 border-b border-r border-slate-300 text-center">Última Edição</th>
                                 <th className="px-3 py-0.5 border-b border-slate-300 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-3 py-4 text-center text-slate-400 text-[12px]">Carregando eventos...</td>
+                                    <td colSpan={6} className="px-3 py-4 text-center text-slate-400 text-[12px]">Carregando eventos...</td>
                                 </tr>
                             ) : displayed.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-3 py-4 text-center text-slate-400 text-[12px]">Nenhum evento encontrado.</td>
+                                    <td colSpan={6} className="px-3 py-4 text-center text-slate-400 text-[12px]">Nenhum evento encontrado.</td>
                                 </tr>
                             ) : (
                                 <>
@@ -197,6 +210,27 @@ const Eventos: React.FC = () => {
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_nome || '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap text-[12px] text-slate-600">{e.promotor_telefone || '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_email || '-'}</td>
+                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 text-center whitespace-nowrap">
+                                                    {(() => {
+                                                        const ed = ultimaEdicao(e);
+                                                        if (!ed) return <span className="text-slate-300 text-[11px]">—</span>;
+                                                        return (
+                                                            <button
+                                                                onClick={() => navigate(`/planilha-vendas/${ed.id}`)}
+                                                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                                                                title={`Abrir planilha: ${ed.titulo}`}
+                                                            >
+                                                                <span className="bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-black">
+                                                                    {ed.ano}
+                                                                </span>
+                                                                {ed.titulo}
+                                                                <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                                </svg>
+                                                            </button>
+                                                        );
+                                                    })()}
+                                                </td>
                                                 <td className="px-3 py-0.5 border-b border-slate-300 text-right">
                                                     <div className="flex justify-end gap-1">
                                                         <button
@@ -215,7 +249,7 @@ const Eventos: React.FC = () => {
                                     })}
                                     {loadingMore && (
                                         <tr>
-                                            <td colSpan={5} className="py-3 text-center text-slate-400 text-xs">Carregando mais...</td>
+                                            <td colSpan={6} className="py-3 text-center text-slate-400 text-xs">Carregando mais...</td>
                                         </tr>
                                     )}
                                 </>
