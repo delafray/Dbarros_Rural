@@ -406,9 +406,10 @@ const ConfiguracaoVendas: React.FC = () => {
     tipo: OrigemTipo,
     ref: string,
     label: string,
+    tipoPadrao?: "imagem" | "logo" | null,
   ) => {
     setImagensModal({ tipo, ref, label });
-    setNovaImagem({ tipo: "imagem", descricao: "", dimensoes: "" });
+    setNovaImagem({ tipo: tipoPadrao ?? "imagem", descricao: "", dimensoes: "" });
     setEditingImagem(null);
   };
 
@@ -1085,6 +1086,7 @@ const ConfiguracaoVendas: React.FC = () => {
                                     "item_opcional",
                                     item.nome,
                                     item.nome,
+                                    item.tipo_padrao as "imagem" | "logo" | null,
                                   )
                                 }
                                 className={`text-[10px] font-bold px-1.5 py-0.5 border transition-colors whitespace-nowrap ${cnt > 0 ? "text-violet-700 bg-violet-50 border-violet-300 hover:bg-violet-100" : "text-slate-400 border-slate-200 hover:text-violet-600 hover:border-violet-300"}`}
