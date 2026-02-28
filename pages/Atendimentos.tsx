@@ -855,7 +855,15 @@ const Atendimentos: React.FC = () => {
                                             {/* Empresa */}
                                             <td className="px-2 py-0.5 border border-slate-300 font-semibold text-slate-800 align-middle">
                                                 <div className="flex items-center gap-1 overflow-hidden">
-                                                    <span className="truncate" title={nome}>{nome}</span>
+                                                    {isCadastrado ? (
+                                                        <button
+                                                            onClick={e => { e.stopPropagation(); navigate(`/clientes/${a.cliente_id}`); }}
+                                                            className="truncate hover:text-blue-600 transition-colors text-left"
+                                                            title={nome}
+                                                        >{nome}</button>
+                                                    ) : (
+                                                        <span className="truncate" title={nome}>{nome}</span>
+                                                    )}
                                                     {isCadastrado && (
                                                         <span className="inline-flex items-center text-[8px] font-black text-blue-600 bg-blue-100 rounded px-1 flex-shrink-0">CRM</span>
                                                     )}
