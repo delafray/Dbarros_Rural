@@ -884,11 +884,14 @@ const PlanilhaVendas: React.FC = () => {
                         (c) => c.id === row.cliente_id,
                       );
                       if (cliente) {
+                        const nomeExibir =
+                          cliente.nome_fantasia ||
+                          (cliente.tipo_pessoa === "PJ"
+                            ? cliente.razao_social
+                            : cliente.nome_completo);
                         return (
                           <span className="font-bold text-slate-900 truncate block">
-                            {cliente.tipo_pessoa === "PJ"
-                              ? cliente.razao_social
-                              : cliente.nome_completo}
+                            {nomeExibir}
                           </span>
                         );
                       }
@@ -1285,12 +1288,12 @@ const PlanilhaVendas: React.FC = () => {
           const imagens = getImagensDoStand(row);
           const currentStatus = statusMap[row.id]?.status || "pendente";
           const cliente = clientes.find((c) => c.id === row.cliente_id);
-          const nomeCliente =
-            cliente
-              ? cliente.tipo_pessoa === "PJ"
+          const nomeCliente = cliente
+            ? cliente.nome_fantasia ||
+              (cliente.tipo_pessoa === "PJ"
                 ? cliente.razao_social
-                : cliente.nome_completo
-              : row.cliente_nome_livre || row.stand_nr;
+                : cliente.nome_completo)
+            : row.cliente_nome_livre || row.stand_nr;
           return (
             <div
               className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"

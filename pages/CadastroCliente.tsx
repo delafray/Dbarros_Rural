@@ -267,7 +267,7 @@ const CadastroCliente: React.FC = () => {
                 rg: tipoPessoa === 'PF' ? dados.rg : null,
                 data_nascimento: tipoPessoa === 'PF' ? (dados.dataNascimento || null) : null,
                 razao_social: tipoPessoa === 'PJ' ? dados.razaoSocial : null,
-                nome_fantasia: tipoPessoa === 'PJ' ? dados.nomeFantasia : null,
+                nome_fantasia: dados.nomeFantasia || null,
                 cnpj: tipoPessoa === 'PJ' ? dados.cnpj : null,
                 inscricao_estadual: tipoPessoa === 'PJ' ? dados.inscricaoEstadual : null,
                 user_id: user?.id || null // Associa ao usuário logado
@@ -497,6 +497,10 @@ const CadastroCliente: React.FC = () => {
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Data de Nascimento</label>
                                             <input name="dataNascimento" value={dados.dataNascimento} onChange={handleInputChange} type="date" min="1900-01-01" max="2099-12-31" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Nome Fantasia</label>
+                                            <input name="nomeFantasia" value={dados.nomeFantasia} onChange={handleInputChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nome pelo qual é conhecido" />
                                         </div>
                                     </>
                                 ) : (
