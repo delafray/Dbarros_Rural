@@ -284,9 +284,10 @@ const ControleImagens: React.FC = () => {
         if (simplify(row.stand_nr).includes(q)) return true;
         const cliente = clientes.find((c) => c.id === row.cliente_id);
         const nome = cliente
-          ? cliente.tipo_pessoa === "PJ"
-            ? cliente.razao_social || ""
-            : cliente.nome_completo || ""
+          ? cliente.nome_fantasia ||
+            (cliente.tipo_pessoa === "PJ"
+              ? cliente.razao_social || ""
+              : cliente.nome_completo || "")
           : row.cliente_nome_livre || "";
         return simplify(nome).includes(q);
       });
@@ -691,7 +692,7 @@ const ControleImagens: React.FC = () => {
               {/* ── Headers das colunas ── */}
               <tr className="bg-[#1F497D]">
                 <th className={`${thStyle} w-[90px] min-w-[90px]`}>Stand</th>
-                <th className={`${thStyle} min-w-[200px] text-left px-2`}>
+                <th className={`${thStyle} whitespace-nowrap text-left px-2`}>
                   Cliente
                 </th>
                 <th className={`${thStyle} whitespace-nowrap w-px px-1`}>
@@ -791,9 +792,10 @@ const ControleImagens: React.FC = () => {
 
                 const cliente = clientes.find((c) => c.id === row.cliente_id);
                 const nomeCliente = cliente
-                  ? cliente.tipo_pessoa === "PJ"
-                    ? cliente.razao_social || ""
-                    : cliente.nome_completo || ""
+                  ? cliente.nome_fantasia ||
+                    (cliente.tipo_pessoa === "PJ"
+                      ? cliente.razao_social || ""
+                      : cliente.nome_completo || "")
                   : row.cliente_nome_livre || "";
 
                 const rowBg =
@@ -842,18 +844,18 @@ const ControleImagens: React.FC = () => {
 
                     {/* Cliente */}
                     <td
-                      className={`${tdStyle} max-w-[240px] min-w-[180px]`}
+                      className={`${tdStyle} whitespace-nowrap`}
                     >
                       {cliente ? (
                         <span
-                          className="font-semibold text-slate-800 truncate block max-w-[230px] cursor-pointer hover:text-blue-600 transition-colors"
+                          className="font-semibold text-slate-800 cursor-pointer hover:text-blue-600 transition-colors"
                           onClick={() => navigate(`/clientes/editar/${cliente.id}`)}
                           title="Abrir cadastro do cliente"
                         >
                           {nomeCliente}
                         </span>
                       ) : (
-                        <span className="font-semibold text-slate-800 truncate block max-w-[230px]">
+                        <span className="font-semibold text-slate-800">
                           {nomeCliente}
                         </span>
                       )}
