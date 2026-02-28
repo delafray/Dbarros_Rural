@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { atendimentosService } from '../services/atendimentosService';
+import { useAppDialog } from '../context/DialogContext';
 
 interface Edition {
     id: string;
@@ -15,6 +16,7 @@ interface ImportAtendimentosModalProps {
 }
 
 export function ImportAtendimentosModal({ currentEdicaoId, onClose, onImported }: ImportAtendimentosModalProps) {
+    const appDialog = useAppDialog();
     const [editions, setEditions] = useState<Edition[]>([]);
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
@@ -41,7 +43,7 @@ export function ImportAtendimentosModal({ currentEdicaoId, onClose, onImported }
             onImported();
             onClose();
         } catch (err: any) {
-            alert('Erro ao importar: ' + err.message);
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao importar: ' + err.message, type: 'danger' });
         } finally {
             setImporting(false);
         }

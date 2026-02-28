@@ -1,6 +1,7 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAppDialog } from '../context/DialogContext';
 import { getSystemInfo } from '../utils/core_lic';
 import { ConfirmModal } from './ConfirmModal';
 import { authService } from '../services/authService';
@@ -47,6 +48,7 @@ const SectionLabel = ({ label }: { label: string }) => (
 const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerActions, mobileSidebarContent, onMobileBack }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const appDialog = useAppDialog();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -97,10 +99,10 @@ const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerAct
       await authService.enrollPasskey();
       localStorage.setItem('biometricsEnrolled', 'true');
       setIsEnrolled(true);
-      alert('Biometria cadastrada com sucesso!');
+      await appDialog.alert({ title: 'Biometria Cadastrada', message: 'Biometria cadastrada com sucesso!', type: 'success' });
     } catch (error: any) {
       if (error.message?.includes('cancelada')) return;
-      alert('Erro ao cadastrar biometria: ' + error.message);
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao cadastrar biometria: ' + error.message, type: 'danger' });
     } finally {
       setIsEnrolling(false);
     }

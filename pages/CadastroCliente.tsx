@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { useAppDialog } from '../context/DialogContext';
 import { supabase } from '../services/supabaseClient';
 
 type TabType = 'dados' | 'enderecos' | 'contatos' | 'contratos';
@@ -56,6 +57,7 @@ const CadastroCliente: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
+    const appDialog = useAppDialog();
     const initialTab = (location.state as any)?.tab as TabType | undefined;
     const [activeTab, setActiveTab] = useState<TabType>(initialTab || 'dados');
     const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>('PJ');
@@ -154,7 +156,7 @@ const CadastroCliente: React.FC = () => {
 
         } catch (error: any) {
             console.error('Erro ao carregar dados do cliente:', error);
-            alert('Erro ao carregar dados: ' + error.message);
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao carregar dados: ' + error.message, type: 'danger' });
         } finally {
             setLoading(false);
         }
@@ -375,7 +377,7 @@ const CadastroCliente: React.FC = () => {
                 }
                 setContatos(updatedContatos);
 
-                alert('Tudo salvo com sucesso!');
+                await appDialog.alert({ title: 'Salvo!', message: 'Tudo salvo com sucesso!', type: 'success' });
 
                 // Se era um cadastro novo, navega para a URL correta de edição sem recarregar
                 if (!id) {
@@ -384,7 +386,7 @@ const CadastroCliente: React.FC = () => {
             }
         } catch (error: any) {
             console.error('Erro ao salvar cliente:', error);
-            alert('Erro ao salvar cliente: ' + (error.message || 'Erro desconhecido'));
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar cliente: ' + (error.message || 'Erro desconhecido'), type: 'danger' });
         } finally {
             setSaving(false);
         }

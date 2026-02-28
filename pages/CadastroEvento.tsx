@@ -83,7 +83,7 @@ const CadastroEvento: React.FC = () => {
             // we should also save the ongoing edition work so it's not discarded.
             if (activeTab === 'edicoes' && editingEdicao) {
                 if (!editingEdicao.ano || !editingEdicao.titulo) {
-                    alert('Os dados do Evento foram salvos.\n\nA Edição em andamento NÃO pôde ser salva pois o Ano e o Título são obrigatórios. Por favor, preencha-os e clique em "Salvar Edição".');
+                    await appDialog.alert({ title: 'Edicao nao salva', message: 'Os dados do Evento foram salvos.\n\nA Edicao em andamento NAO pode ser salva pois o Ano e o Titulo sao obrigatorios. Por favor, preencha-os e clique em "Salvar Edicao".', type: 'warning' });
                 } else {
                     await eventosService.saveEdicao({
                         ...editingEdicao,
@@ -97,10 +97,10 @@ const CadastroEvento: React.FC = () => {
             if (!id) {
                 navigate(`/eventos/editar/${savedEvento.id}`, { replace: true });
             }
-            alert('Salvamento concluído com sucesso!');
+            await appDialog.alert({ title: 'Salvo!', message: 'Salvamento concluido com sucesso!', type: 'success' });
         } catch (error) {
             console.error('Erro ao salvar evento:', error);
-            alert('Erro ao salvar os dados.');
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar os dados.', type: 'danger' });
         } finally {
             setIsSaving(false);
         }
@@ -115,7 +115,7 @@ const CadastroEvento: React.FC = () => {
     const handleSaveEdicao = async () => {
         if (!eventoId || !editingEdicao) return;
         if (!editingEdicao.ano || !editingEdicao.titulo) {
-            alert('Ano e Título são obrigatórios.');
+            await appDialog.alert({ title: 'Campos obrigatorios', message: 'Ano e Titulo sao obrigatorios.', type: 'warning' });
             return;
         }
 
@@ -129,7 +129,7 @@ const CadastroEvento: React.FC = () => {
             setEditingEdicao(null);
         } catch (error) {
             console.error('Erro ao salvar edição:', error);
-            alert('Erro ao salvar edição.');
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar edicao.', type: 'danger' });
         } finally {
             setIsSaving(false);
         }
@@ -213,7 +213,7 @@ const CadastroEvento: React.FC = () => {
             await edicaoDocsService.upload(edicaoId, tipo, file);
             if (eventoId) await fetchEdicoes(eventoId);
         } catch (err) {
-            alert('Erro ao enviar arquivo. Verifique se o bucket "edicao-docs" existe no Supabase Storage.');
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao enviar arquivo. Verifique se o bucket "edicao-docs" existe no Supabase Storage.', type: 'danger' });
         } finally {
             setUploadingDoc(prev => ({ ...prev, [key]: false }));
         }
@@ -232,19 +232,42 @@ const CadastroEvento: React.FC = () => {
             await edicaoDocsService.remove(edicaoId, tipo);
             if (eventoId) await fetchEdicoes(eventoId);
         } catch (err) {
-            alert('Erro ao remover arquivo.');
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao remover arquivo.', type: 'danger' });
         }
     };
 
-    const handleShareDoc = async (url: string, label: string) => {
+    const buildDocFileName = (titulo: string, tipo: DocTipo, ext: string): string => {
+        const nomeEdicao = titulo.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+        const prefix = tipo === 'proposta_comercial' ? 'PROPOSTA_COMERCIAL' : 'PLANTA_BAIXA';
+        return `${prefix}_${nomeEdicao}.${ext}`;
+    };
+
+    const handleDownloadDoc = async (url: string, tipo: DocTipo, titulo: string) => {
         try {
             const response = await fetch(url);
             const blob = await response.blob();
             const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
-            const fileName = `${label.replace(/ /g, '_')}.${ext}`;
+            const fileName = buildDocFileName(titulo, tipo, ext);
+            const objectUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(objectUrl);
+        } catch {
+            appDialog.alert({ title: 'Erro', message: 'Nao foi possivel baixar o arquivo.', type: 'danger' });
+        }
+    };
+
+    const handleShareDoc = async (url: string, tipo: DocTipo, titulo: string) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
+            const fileName = buildDocFileName(titulo, tipo, ext);
             const file = new File([blob], fileName, { type: blob.type });
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: label });
+                await navigator.share({ files: [file], title: fileName });
             } else {
                 appDialog.alert({ title: 'Nao suportado', message: 'Seu dispositivo nao suporta compartilhamento direto. Use o botao Baixar para salvar o arquivo.', type: 'warning' });
             }
@@ -666,8 +689,8 @@ const CadastroEvento: React.FC = () => {
                                                                         {propostaUrl ? (
                                                                             <>
                                                                                 <button onClick={() => window.open(propostaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50">VER</button>
-                                                                                <a href={propostaUrl} download target="_blank" rel="noreferrer" className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</a>
-                                                                                <button onClick={() => handleShareDoc(propostaUrl, 'Proposta Comercial')} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
+                                                                                <button onClick={() => handleDownloadDoc(propostaUrl, 'proposta_comercial', ed.titulo)} className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</button>
+                                                                                <button onClick={() => handleShareDoc(propostaUrl, 'proposta_comercial', ed.titulo)} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
                                                                                 <button onClick={() => handleClickUploadDoc(ed.id, 'proposta_comercial')} disabled={!!uploadingDoc[`${ed.id}-proposta_comercial`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50">{uploadingDoc[`${ed.id}-proposta_comercial`] ? '...' : 'ALTERAR'}</button>
                                                                                 <button onClick={() => handleRemoveDoc(ed.id, 'proposta_comercial')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50">X</button>
                                                                             </>
@@ -687,8 +710,8 @@ const CadastroEvento: React.FC = () => {
                                                                         {plantaUrl ? (
                                                                             <>
                                                                                 <button onClick={() => window.open(plantaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50">VER</button>
-                                                                                <a href={plantaUrl} download target="_blank" rel="noreferrer" className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</a>
-                                                                                <button onClick={() => handleShareDoc(plantaUrl, 'Planta Baixa')} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
+                                                                                <button onClick={() => handleDownloadDoc(plantaUrl, 'planta_baixa', ed.titulo)} className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</button>
+                                                                                <button onClick={() => handleShareDoc(plantaUrl, 'planta_baixa', ed.titulo)} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
                                                                                 <button onClick={() => handleClickUploadDoc(ed.id, 'planta_baixa')} disabled={!!uploadingDoc[`${ed.id}-planta_baixa`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50">{uploadingDoc[`${ed.id}-planta_baixa`] ? '...' : 'ALTERAR'}</button>
                                                                                 <button onClick={() => handleRemoveDoc(ed.id, 'planta_baixa')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50">X</button>
                                                                             </>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { simplifyText } from '../src/utils/textUtils';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { useAppDialog } from '../context/DialogContext';
 import { supabase } from '../services/supabaseClient';
 import { Database } from '../database.types';
 
@@ -16,6 +17,7 @@ const PAGE_SIZE = 50;
 
 const Clientes: React.FC = () => {
     const navigate = useNavigate();
+    const appDialog = useAppDialog();
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [totalCount, setTotalCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -177,14 +179,15 @@ const Clientes: React.FC = () => {
     })();
 
     const handleDelete = async (id: string, name: string) => {
-        if (!window.confirm(`Excluir o cliente "${name}"?`)) return;
+        const confirmed = await appDialog.confirm({ title: 'Excluir Cliente', message: `Excluir o cliente "${name}"?`, confirmText: 'Excluir', type: 'danger' });
+        if (!confirmed) return;
         try {
             const { error } = await supabase.from('clientes').delete().eq('id', id);
             if (error) throw error;
             setClientes(prev => prev.filter(c => c.id !== id));
             setTotalCount(prev => prev !== null ? prev - 1 : null);
         } catch (err: any) {
-            alert('Erro ao excluir: ' + err.message);
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao excluir: ' + err.message, type: 'danger' });
         }
     };
 

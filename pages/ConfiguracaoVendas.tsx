@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import { useAppDialog } from "../context/DialogContext";
 import {
   planilhaVendasService,
   CategoriaSetup,
@@ -71,6 +72,7 @@ const CurrencyField: React.FC<{
 const ConfiguracaoVendas: React.FC = () => {
   const { edicaoId } = useParams<{ edicaoId: string }>();
   const navigate = useNavigate();
+  const appDialog = useAppDialog();
 
   const [categorias, setCategorias] = useState<CategoriaSetup[]>(DEFAULT_CATS);
   const [numCombos, setNumCombos] = useState(3);
@@ -329,12 +331,15 @@ const ConfiguracaoVendas: React.FC = () => {
         );
 
         if (comDados.length > 0) {
-          alert(
-            `⛔ A categoria "${cat.tag}" não pode ser removida.\n\n` +
+          await appDialog.alert({
+            title: 'Categoria com dados',
+            message:
+              `A categoria "${cat.tag}" nao pode ser removida.\n\n` +
               `${comDados.length} estande(s) com dados cadastrados:\n` +
               comDados.map((e) => `• ${e.stand_nr}`).join("\n") +
               `\n\nLimpe os dados na planilha antes de remover esta categoria.`,
-          );
+            type: 'danger',
+          });
           return;
         }
       }
@@ -346,33 +351,34 @@ const ConfiguracaoVendas: React.FC = () => {
   };
 
   // ── Opcionais handlers ─────────────────────────────────────
-  const toggleOpcional = (id: string) => {
-    setOpcionaisSelecionados((prev) => {
-      if (prev.includes(id)) {
-        // Bloquear se o item já foi usado na planilha
-        const item = opcionaisDisponiveis.find((o) => o.id === id);
-        if (item && opcionaisUsados.has(item.nome)) {
-          alert(
-            `⛔ O item "${item.nome}" já está marcado em estandes da planilha.\n\nPara removê-lo da edição, primeiro desmarque-o em todos os estandes na planilha.`,
-          );
-          return prev; // bloqueia
-        }
-        setOpcionaisPrecos((p) => {
-          const n = { ...p };
-          delete n[id];
-          return n;
-        });
-        return prev.filter((x) => x !== id);
-      }
-      // Adicionar: setar preço sugerido como padrão
+  const toggleOpcional = async (id: string) => {
+    if (opcionaisSelecionados.includes(id)) {
+      // Bloquear se o item já foi usado na planilha
       const item = opcionaisDisponiveis.find((o) => o.id === id);
-      if (item)
-        setOpcionaisPrecos((p) => ({
-          ...p,
-          [id]: Number(item.preco_base) || 0,
-        }));
-      return [...prev, id];
-    });
+      if (item && opcionaisUsados.has(item.nome)) {
+        await appDialog.alert({
+          title: 'Item em uso',
+          message: `O item "${item.nome}" ja esta marcado em estandes da planilha.\n\nPara remove-lo da edicao, primeiro desmarque-o em todos os estandes na planilha.`,
+          type: 'danger',
+        });
+        return;
+      }
+      setOpcionaisPrecos((p) => {
+        const n = { ...p };
+        delete n[id];
+        return n;
+      });
+      setOpcionaisSelecionados((prev) => prev.filter((x) => x !== id));
+      return;
+    }
+    // Adicionar: setar preço sugerido como padrão
+    const item = opcionaisDisponiveis.find((o) => o.id === id);
+    if (item)
+      setOpcionaisPrecos((p) => ({
+        ...p,
+        [id]: Number(item.preco_base) || 0,
+      }));
+    setOpcionaisSelecionados((prev) => [...prev, id]);
   };
 
   const updatePreco = (id: string, value: string) => {
@@ -381,7 +387,7 @@ const ConfiguracaoVendas: React.FC = () => {
 
   const handleSavePreco = async (id: string) => {
     if (!edicaoId || !configId) {
-      alert("Salve as configurações gerais primeiro.");
+      await appDialog.alert({ title: 'Aviso', message: 'Salve as configuracoes gerais primeiro.', type: 'warning' });
       return;
     }
     const item = opcionaisDisponiveis.find((o) => o.id === id);
@@ -391,11 +397,15 @@ const ConfiguracaoVendas: React.FC = () => {
     });
 
     if (item && opcionaisUsados.has(item.nome)) {
-      const ok = window.confirm(
-        `⚠️ O item "${item.nome}" já está marcado em estandes desta planilha.\n\n` +
-          `Ao confirmar, o novo preço de R$ ${precoFmt} será salvo na configuração e passará a valer para todos os cálculos da edição.\n\n` +
+      const ok = await appDialog.confirm({
+        title: 'Atualizar preco',
+        message:
+          `O item "${item.nome}" ja esta marcado em estandes desta planilha.\n\n` +
+          `Ao confirmar, o novo preco de R$ ${precoFmt} sera salvo na configuracao e passara a valer para todos os calculos da edicao.\n\n` +
           `Deseja continuar?`,
-      );
+        confirmText: 'Confirmar',
+        type: 'danger',
+      });
       if (!ok) return;
     }
 
@@ -410,7 +420,7 @@ const ConfiguracaoVendas: React.FC = () => {
       .eq("id", configId);
 
     if (error) {
-      alert("Erro ao salvar preço: " + error.message);
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar preco: ' + error.message, type: 'danger' });
       return;
     }
 
@@ -462,10 +472,7 @@ const ConfiguracaoVendas: React.FC = () => {
       setImagensConfig((prev) => [...prev, added]);
       setNovaImagem({ tipo: "imagem", descricao: "", dimensoes: "" });
     } catch (err) {
-      alert(
-        "Erro ao adicionar: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao adicionar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     } finally {
       setSavingImagem(false);
     }
@@ -476,10 +483,7 @@ const ConfiguracaoVendas: React.FC = () => {
       await imagensService.removeConfig(id);
       setImagensConfig((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
-      alert(
-        "Erro ao remover: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao remover: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     }
   };
 
@@ -500,10 +504,7 @@ const ConfiguracaoVendas: React.FC = () => {
       );
       setEditingImagem(null);
     } catch (err) {
-      alert(
-        "Erro ao atualizar: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao atualizar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     } finally {
       setSavingImagem(false);
     }
@@ -516,10 +517,7 @@ const ConfiguracaoVendas: React.FC = () => {
         prev.map((c) => (c.id === id ? { ...c, avulso_status: status } : c)),
       );
     } catch (err) {
-      alert(
-        "Erro ao atualizar status: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao atualizar status: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     }
   };
 
@@ -628,12 +626,12 @@ const ConfiguracaoVendas: React.FC = () => {
     if (!edicaoId) return;
     const catErr = validateCategorias();
     if (catErr) {
-      alert(`⚠️ ${catErr}`);
+      await appDialog.alert({ title: 'Validacao', message: catErr, type: 'warning' });
       return;
     }
     const err = await validateCountReduction();
     if (err) {
-      alert(`⚠️ ${err}`);
+      await appDialog.alert({ title: 'Validacao', message: err, type: 'warning' });
       return;
     }
     try {
@@ -673,14 +671,12 @@ const ConfiguracaoVendas: React.FC = () => {
       });
       setSavedCounts(counts);
 
-      alert("✅ Configurações salvas!");
+      await appDialog.alert({ title: 'Salvo!', message: 'Configuracoes salvas!', type: 'success' });
       // Redireciona para planilha para refletir novas cores/preços
       navigate(`/planilha-vendas/${edicaoId}`);
     } catch (err) {
       console.error(err);
-      alert(
-        "Erro ao salvar: " + (err instanceof Error ? err.message : String(err)),
-      );
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     } finally {
       setSaving(false);
     }
@@ -690,22 +686,25 @@ const ConfiguracaoVendas: React.FC = () => {
   const handleGenerate = async () => {
     if (!edicaoId) return;
     if (planilhaExiste) {
-      alert(
-        `⛔ Planilha já existe com ${totalStands} estandes. Limpe os dados na planilha antes de gerar novamente.`,
-      );
+      await appDialog.alert({
+        title: 'Planilha ja existe',
+        message: `Planilha ja existe com ${totalStands} estandes. Limpe os dados na planilha antes de gerar novamente.`,
+        type: 'danger',
+      });
       return;
     }
     const catErr = validateCategorias();
     if (catErr) {
-      alert(`⚠️ ${catErr}`);
+      await appDialog.alert({ title: 'Validacao', message: catErr, type: 'warning' });
       return;
     }
     const err = await validateCountReduction();
     if (err) {
-      alert(`⚠️ ${err}`);
+      await appDialog.alert({ title: 'Validacao', message: err, type: 'warning' });
       return;
     }
-    if (!confirm("Gerar planilha com as categorias definidas?")) return;
+    const confirmed = await appDialog.confirm({ title: 'Gerar Planilha', message: 'Gerar planilha com as categorias definidas?', confirmText: 'Gerar Planilha', type: 'danger' });
+    if (!confirmed) return;
     try {
       setSaving(true);
       const savedId = await persistConfig();
@@ -713,14 +712,11 @@ const ConfiguracaoVendas: React.FC = () => {
       await planilhaVendasService.generateEstandes(savedId, categorias);
       setPlanilhaExiste(true);
       setTotalStands(categorias.reduce((s, c) => s + c.count, 0));
-      alert("✅ Planilha gerada com sucesso!");
+      await appDialog.alert({ title: 'Gerado!', message: 'Planilha gerada com sucesso!', type: 'success' });
       navigate(`/planilha-vendas/${edicaoId}`);
     } catch (err) {
       console.error(err);
-      alert(
-        "Erro ao gerar planilha: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao gerar planilha: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     } finally {
       setSaving(false);
     }

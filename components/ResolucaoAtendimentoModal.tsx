@@ -3,6 +3,7 @@ import { Button, Card, Badge } from './UI';
 import { atendimentosService, Atendimento, AtendimentoHistorico, probBgColor, probTextColor } from '../services/atendimentosService';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAppDialog } from '../context/DialogContext';
 
 interface ResolucaoAtendimentoModalProps {
     atendimento: Atendimento;
@@ -11,6 +12,7 @@ interface ResolucaoAtendimentoModalProps {
 }
 
 const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ atendimento, onClose, onSuccess }) => {
+    const appDialog = useAppDialog();
     const [historico, setHistorico] = useState<AtendimentoHistorico[]>([]);
     const [loadingHistorico, setLoadingHistorico] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,7 +52,7 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
             onSuccess();
             onClose();
         } catch (err: any) {
-            alert('Erro ao salvar: ' + err.message);
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar: ' + err.message, type: 'danger' });
         } finally {
             setIsSubmitting(false);
         }

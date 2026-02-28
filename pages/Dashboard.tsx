@@ -9,6 +9,7 @@ import { Atendimento } from '../services/atendimentosService';
 import { edicaoDocsService } from '../services/edicaoDocsService';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
+import { useAppDialog } from '../context/DialogContext';
 
 type EdicaoComDocs = EventoEdicao & {
     eventos: { nome: string } | null;
@@ -16,12 +17,13 @@ type EdicaoComDocs = EventoEdicao & {
     planta_baixa_path?: string | null;
 };
 
-type DocModalState = { tipo: 'proposta_comercial' | 'planta_baixa'; url: string } | null;
+type DocModalState = { tipo: 'proposta_comercial' | 'planta_baixa'; url: string; eventoNome: string } | null;
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { onlineUsers } = usePresence();
+    const appDialog = useAppDialog();
     const [edicoes, setEdicoes] = useState<EdicaoComDocs[]>([]);
     const [docModal, setDocModal] = useState<DocModalState>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -182,7 +184,7 @@ const Dashboard: React.FC = () => {
                                                                 className="flex items-center gap-1.5 group/prop cursor-pointer"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    setDocModal({ tipo: 'proposta_comercial', url: edicaoDocsService.getPublicUrl(edicao.proposta_comercial_path!) });
+                                                                    setDocModal({ tipo: 'proposta_comercial', url: edicaoDocsService.getPublicUrl(edicao.proposta_comercial_path!), eventoNome: edicao.titulo });
                                                                 }}
                                                             >
                                                                 <div className="hidden lg:block text-[9px] font-bold text-violet-500 uppercase tracking-tighter opacity-60 group-hover/prop:opacity-100 transition-opacity">Proposta</div>
@@ -198,7 +200,7 @@ const Dashboard: React.FC = () => {
                                                                 className="flex items-center gap-1.5 group/planta cursor-pointer"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    setDocModal({ tipo: 'planta_baixa', url: edicaoDocsService.getPublicUrl(edicao.planta_baixa_path!) });
+                                                                    setDocModal({ tipo: 'planta_baixa', url: edicaoDocsService.getPublicUrl(edicao.planta_baixa_path!), eventoNome: edicao.titulo });
                                                                 }}
                                                             >
                                                                 <div className="hidden lg:block text-[9px] font-bold text-teal-500 uppercase tracking-tighter opacity-60 group-hover/planta:opacity-100 transition-opacity">Planta</div>
@@ -283,20 +285,36 @@ const Dashboard: React.FC = () => {
                 {docModal && (() => {
                     const label = docModal.tipo === 'proposta_comercial' ? 'Proposta Comercial' : 'Planta Baixa';
                     const url = docModal.url;
+                    const nomeEvento = docModal.eventoNome.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+                    const prefix = docModal.tipo === 'proposta_comercial' ? 'PROPOSTA_COMERCIAL' : 'PLANTA_BAIXA';
+                    const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
+                    const fileName = `${prefix}_${nomeEvento}.${ext}`;
+                    const handleDownload = async () => {
+                        try {
+                            const response = await fetch(url);
+                            const blob = await response.blob();
+                            const objectUrl = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = objectUrl;
+                            a.download = fileName;
+                            a.click();
+                            URL.revokeObjectURL(objectUrl);
+                        } catch {
+                            await appDialog.alert({ title: 'Erro', message: 'Nao foi possivel baixar o arquivo.', type: 'danger' });
+                        }
+                    };
                     const handleShare = async () => {
                         try {
                             const response = await fetch(url);
                             const blob = await response.blob();
-                            const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
-                            const fileName = `${label.replace(/ /g, '_')}.${ext}`;
                             const file = new File([blob], fileName, { type: blob.type });
                             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                await navigator.share({ files: [file], title: label });
+                                await navigator.share({ files: [file], title: fileName });
                             } else {
-                                alert('Seu dispositivo não suporta compartilhamento direto. Use o botão Baixar para salvar o arquivo.');
+                                await appDialog.alert({ title: 'Compartilhamento nao disponivel', message: 'Seu dispositivo nao suporta compartilhamento direto. Use o botao Baixar para salvar o arquivo.', type: 'info' });
                             }
                         } catch {
-                            alert('Não foi possível preparar o arquivo para compartilhar.');
+                            await appDialog.alert({ title: 'Erro', message: 'Nao foi possivel preparar o arquivo para compartilhar.', type: 'danger' });
                         }
                     };
                     return (
@@ -320,16 +338,13 @@ const Dashboard: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                         Visualizar
                                     </button>
-                                    <a
-                                        href={url}
-                                        download
-                                        target="_blank"
-                                        rel="noreferrer"
+                                    <button
+                                        onClick={handleDownload}
                                         className="w-full py-3 rounded-xl bg-slate-800 text-white font-black text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-900 transition-colors"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                         Baixar
-                                    </a>
+                                    </button>
                                     <button
                                         onClick={handleShare}
                                         className="w-full py-3 rounded-xl bg-green-600 text-white font-black text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"

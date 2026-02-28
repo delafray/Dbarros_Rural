@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import { useAppDialog } from "../context/DialogContext";
 import { eventosService, EventoEdicao } from "../services/eventosService";
 import {
   planilhaVendasService,
@@ -38,6 +39,7 @@ const naturalSort = (a: string, b: string) =>
 const ControleImagens: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const appDialog = useAppDialog();
   const initialEdicaoId = (location.state as any)?.edicaoId ?? "";
 
   // ── Seleção de edição ─────────────────────────────────────────
@@ -381,12 +383,12 @@ const ControleImagens: React.FC = () => {
             [imagemConfigId]: currentValue,
           },
         }));
-        alert("Erro ao salvar. Tente novamente.");
+        void appDialog.alert({ title: 'Erro', message: 'Erro ao salvar. Tente novamente.', type: 'danger' });
       } finally {
         setSaving(null);
       }
     },
-    [saving, columnConfigs, estandes, isApplicable, recebimentos],
+    [saving, columnConfigs, estandes, isApplicable, recebimentos, appDialog],
   );
 
   const STATUS_ORDER: Record<StandStatus, number> = { pendente: 0, solicitado: 1, completo: 2 };
@@ -405,9 +407,12 @@ const ControleImagens: React.FC = () => {
 
     let clearTimestamps: Array<'pendente_em' | 'solicitado_em' | 'completo_em'> | undefined;
     if (newLevel < currentLevel) {
-      const confirmed = confirm(
-        `Atenção: você está voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serão apagadas. Confirma?`
-      );
+      const confirmed = await appDialog.confirm({
+        title: 'Regredir status',
+        message: `Atencao: voce esta voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serao apagadas. Confirma?`,
+        confirmText: 'Confirmar',
+        type: 'warning',
+      });
       if (!confirmed) return;
       clearTimestamps = (Object.keys(STATUS_ORDER) as StandStatus[])
         .filter((s) => STATUS_ORDER[s] > newLevel)
@@ -438,7 +443,7 @@ const ControleImagens: React.FC = () => {
 
       setDetailModal(null);
     } catch (err) {
-      alert("Erro ao salvar: " + (err instanceof Error ? err.message : String(err)));
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     }
   };
 
@@ -459,7 +464,7 @@ const ControleImagens: React.FC = () => {
       setNovaAvulsa({ tipo: "imagem", descricao: "", dimensoes: "" });
       setAvulsaAddOpen(false);
     } catch (err) {
-      alert("Erro ao adicionar: " + (err instanceof Error ? err.message : String(err)));
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao adicionar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     } finally {
       setSavingAvulsa(false);
     }
@@ -470,17 +475,18 @@ const ControleImagens: React.FC = () => {
       await imagensService.updateAvulsoStatus(id, status);
       setImagensConfig((prev) => prev.map((c) => (c.id === id ? { ...c, avulso_status: status } : c)));
     } catch (err) {
-      alert("Erro ao atualizar status: " + (err instanceof Error ? err.message : String(err)));
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao atualizar status: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     }
   };
 
   const handleRemoveAvulsa = async (id: string) => {
-    if (!confirm("Remover esta imagem avulsa?")) return;
+    const confirmed = await appDialog.confirm({ title: 'Remover Imagem', message: 'Remover esta imagem avulsa?', confirmText: 'Remover', type: 'danger' });
+    if (!confirmed) return;
     try {
       await imagensService.removeConfig(id);
       setImagensConfig((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
-      alert("Erro ao remover: " + (err instanceof Error ? err.message : String(err)));
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao remover: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     }
   };
 
@@ -496,7 +502,7 @@ const ControleImagens: React.FC = () => {
       setImagensConfig((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
       setEditingAvulsa(null);
     } catch (err) {
-      alert("Erro ao atualizar: " + (err instanceof Error ? err.message : String(err)));
+      await appDialog.alert({ title: 'Erro', message: 'Erro ao atualizar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
     } finally {
       setSavingAvulsa(false);
     }

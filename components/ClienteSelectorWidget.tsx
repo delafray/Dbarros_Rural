@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { simplifyText } from '../src/utils/textUtils';
+import { useAppDialog } from '../context/DialogContext';
 import { supabase } from '../services/supabaseClient';
 
 export type ClienteComContato = {
@@ -31,6 +32,7 @@ const PAGE_SIZE = 50;
 export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
     onSelect, currentClienteId, currentNomeLivre, onRequestNomeLivreFallback, hideTabs, hideNovoCliente
 }) => {
+    const appDialog = useAppDialog();
     const [clientes, setClientes] = useState<ClienteComContato[]>([]);
     const [totalCount, setTotalCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -179,7 +181,7 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
 
     const handleSaveNovoCliente = async () => {
         if (!novoClienteForm.nome.trim() || !novoClienteForm.contato.trim()) {
-            alert('Nome da empresa / Cliente e nome do Contato Principal são obrigatórios.');
+            await appDialog.alert({ title: 'Campo obrigatório', message: 'Nome da empresa / Cliente e nome do Contato Principal são obrigatórios.', type: 'warning' });
             return;
         }
 
@@ -228,7 +230,7 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
             onSelect(formatRow(fullCliente), null);
         } catch (err: any) {
             console.error(err);
-            alert('Erro ao cadastrar novo cliente: ' + err.message);
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao cadastrar novo cliente: ' + err.message, type: 'danger' });
         } finally {
             setSavingNovoCliente(false);
         }

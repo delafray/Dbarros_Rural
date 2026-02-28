@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ClienteSelectorWidget, ClienteComContato } from '../components/ClienteSelectorWidget';
 import { ImportAtendimentosModal } from '../components/ImportAtendimentosModal';
 import Layout from '../components/Layout';
+import { useAppDialog } from '../context/DialogContext';
 import { supabase } from '../services/supabaseClient';
 import {
     atendimentosService,
@@ -59,6 +60,7 @@ interface HistoricoPopupProps {
 }
 
 function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) {
+    const appDialog = useAppDialog();
     const [historico, setHistorico] = useState<AtendimentoHistorico[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -102,7 +104,7 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
             setDesc('');
             setDataRetorno('');
         } catch (err: any) {
-            alert('Erro ao salvar: ' + err.message);
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar: ' + err.message, type: 'danger' });
         } finally {
             setSaving(false);
         }
@@ -221,6 +223,7 @@ interface AtendimentoFormProps {
 }
 
 function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved, onViewHistory, existingAtendimentos }: AtendimentoFormProps) {
+    const appDialog = useAppDialog();
     const [mode, setMode] = useState<'cadastrado' | 'livre'>(
         atendimento?.cliente_id ? 'cadastrado' : 'livre'
     );
@@ -362,7 +365,7 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved, on
             onSaved(saved);
             onClose();
         } catch (err: any) {
-            alert(err.message || 'Erro ao salvar atendimento.');
+            await appDialog.alert({ title: 'Erro', message: err.message || 'Erro ao salvar atendimento.', type: 'danger' });
         } finally {
             setSaving(false);
         }
@@ -623,6 +626,7 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved, on
 const Atendimentos: React.FC = () => {
     const { edicaoId } = useParams<{ edicaoId: string }>();
     const navigate = useNavigate();
+    const appDialog = useAppDialog();
     const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
     const [clientes, setClientes] = useState<ClienteOption[]>([]);
     const [loading, setLoading] = useState(true);
@@ -704,7 +708,8 @@ const Atendimentos: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Remover este atendimento e todo seu histórico?')) return;
+        const confirmed = await appDialog.confirm({ title: 'Remover Atendimento', message: 'Remover este atendimento e todo seu histórico?', confirmText: 'Remover', type: 'danger' });
+        if (!confirmed) return;
         await atendimentosService.delete(id);
         setAtendimentos(prev => prev.filter(a => a.id !== id));
     };
