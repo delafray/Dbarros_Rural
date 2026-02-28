@@ -1251,7 +1251,7 @@ const PlanilhaVendas: React.FC = () => {
                 : popupCliente.nome_completo) || null
             : null;
           const rowHasData = !!popupRow && (
-            popupRow.tipo_venda !== 'DISPONÍVEL' ||
+            (!!popupRow.tipo_venda && popupRow.tipo_venda !== 'DISPONÍVEL') ||
             Object.keys((popupRow.opcionais_selecionados as Record<string, unknown>) || {}).length > 0
           );
           return (
