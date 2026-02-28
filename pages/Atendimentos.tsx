@@ -857,7 +857,7 @@ const Atendimentos: React.FC = () => {
                                                 <div className="flex items-center gap-1 overflow-hidden">
                                                     {isCadastrado ? (
                                                         <button
-                                                            onClick={e => { e.stopPropagation(); navigate(`/clientes/${a.cliente_id}`); }}
+                                                            onClick={e => { e.stopPropagation(); navigate(`/clientes/editar/${a.cliente_id}`); }}
                                                             className="truncate hover:text-blue-600 transition-colors text-left"
                                                             title={nome}
                                                         >{nome}</button>
