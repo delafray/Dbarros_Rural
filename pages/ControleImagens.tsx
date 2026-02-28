@@ -8,7 +8,7 @@ import {
   PlanilhaEstande,
   CategoriaSetup,
 } from "../services/planilhaVendasService";
-import { clientesService, Cliente } from "../services/clientesService";
+import { clientesService, ClienteComContatos } from "../services/clientesService";
 import {
   imagensService,
   ImagemConfig,
@@ -17,6 +17,8 @@ import {
   StandStatus,
   AvulsoStatus,
 } from "../services/imagensService";
+import { atendimentosService, Atendimento } from "../services/atendimentosService";
+import ResolucaoAtendimentoModal from "../components/ResolucaoAtendimentoModal";
 
 type FilterStatus = "todos" | "pendente" | "parcial" | "completo";
 type RowStatus = "sem_config" | "pendente" | "parcial" | "completo";
@@ -47,7 +49,9 @@ const ControleImagens: React.FC = () => {
   // ── Dados da edição selecionada ───────────────────────────────
   const [config, setConfig] = useState<PlanilhaConfig | null>(null);
   const [estandes, setEstandes] = useState<PlanilhaEstande[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<ClienteComContatos[]>([]);
+  const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
+  const [atendimentoModal, setAtendimentoModal] = useState<Atendimento | null>(null);
   const [imagensConfig, setImagensConfig] = useState<ImagemConfig[]>([]);
   const [recebimentos, setRecebimentos] = useState<RecebimentosMap>({});
   const [statusMap, setStatusMap] = useState<Record<string, StandImagemStatus>>(
@@ -105,14 +109,16 @@ const ControleImagens: React.FC = () => {
     setRecebimentos({});
     setStatusMap({});
     try {
-      const [configData, listaClientes, imagens] = await Promise.all([
+      const [configData, listaClientes, imagens, listaAtendimentos] = await Promise.all([
         planilhaVendasService.getConfig(edicaoId),
-        clientesService.getClientes(),
+        clientesService.getClientesComContatos(),
         imagensService.getConfig(edicaoId),
+        atendimentosService.getByEdicao(edicaoId),
       ]);
 
       setConfig(configData);
       setClientes(listaClientes);
+      setAtendimentos(listaAtendimentos);
       setImagensConfig(imagens || []);
 
       if (configData) {
@@ -211,6 +217,44 @@ const ControleImagens: React.FC = () => {
     () => estandes.filter((e) => e.cliente_id || e.cliente_nome_livre),
     [estandes],
   );
+
+  // ── Mapa telefone: último atendimento > contato principal ─────
+  const phoneMap = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    const sorted = [...atendimentos].sort((a, b) => {
+      const da = a.updated_at || a.created_at;
+      const db = b.updated_at || b.created_at;
+      return db.localeCompare(da);
+    });
+    for (const at of sorted) {
+      if (at.cliente_id && !map[at.cliente_id]) {
+        const tel = atendimentosService.getTelefoneExibicao(at);
+        if (tel !== "—") map[at.cliente_id] = tel;
+      }
+    }
+    for (const c of clientes) {
+      if (!map[c.id] && c.contatos && c.contatos.length > 0) {
+        const principal = c.contatos.find((ct) => ct.principal);
+        const raw = principal?.telefone ?? (c.contatos.length === 1 ? c.contatos[0].telefone : null);
+        if (raw) map[c.id] = atendimentosService.formatTelefone(raw);
+      }
+    }
+    return map;
+  }, [atendimentos, clientes]);
+
+  // ── Mapa atendimento: cliente_id → último atendimento ─────────
+  const atendimentoMap = useMemo<Record<string, Atendimento>>(() => {
+    const map: Record<string, Atendimento> = {};
+    const sorted = [...atendimentos].sort((a, b) => {
+      const da = a.updated_at || a.created_at;
+      const db = b.updated_at || b.created_at;
+      return db.localeCompare(da);
+    });
+    for (const at of sorted) {
+      if (at.cliente_id && !map[at.cliente_id]) map[at.cliente_id] = at;
+    }
+    return map;
+  }, [atendimentos]);
 
   // ── Ordenação + filtros ───────────────────────────────────────
   const filteredEstandes = useMemo(() => {
@@ -602,6 +646,9 @@ const ControleImagens: React.FC = () => {
                 >
                   Stand / Cliente
                 </th>
+                <th className="border border-white/10 px-1 py-0.5 text-center text-[10px] text-slate-400 font-bold whitespace-nowrap w-px">
+                  Tel.
+                </th>
                 {columnConfigs.map((cfg) => {
                   const hasSubLabel = cfg.dimensoes || cfg.tipo === "logo";
                   return (
@@ -640,6 +687,9 @@ const ControleImagens: React.FC = () => {
                 <th className={`${thStyle} w-[90px] min-w-[90px]`}>Stand</th>
                 <th className={`${thStyle} min-w-[200px] text-left px-2`}>
                   Cliente
+                </th>
+                <th className={`${thStyle} whitespace-nowrap w-px px-1`}>
+                  Tel.
                 </th>
                 {columnConfigs.map((cfg) => {
                   const subLabel = cfg.dimensoes
@@ -788,9 +838,40 @@ const ControleImagens: React.FC = () => {
                     <td
                       className={`${tdStyle} max-w-[240px] min-w-[180px]`}
                     >
-                      <span className="font-semibold text-slate-800 truncate block max-w-[230px]">
-                        {nomeCliente}
-                      </span>
+                      {cliente ? (
+                        <span
+                          className="font-semibold text-slate-800 truncate block max-w-[230px] cursor-pointer hover:text-blue-600 transition-colors"
+                          onClick={() => navigate(`/clientes/editar/${cliente.id}`)}
+                          title="Abrir cadastro do cliente"
+                        >
+                          {nomeCliente}
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-slate-800 truncate block max-w-[230px]">
+                          {nomeCliente}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Telefone */}
+                    <td className={`${tdStyle} w-px px-1`}>
+                      {row.cliente_id && phoneMap[row.cliente_id] ? (
+                        atendimentoMap[row.cliente_id] ? (
+                          <button
+                            onClick={() => setAtendimentoModal(atendimentoMap[row.cliente_id])}
+                            className="text-blue-600 hover:text-blue-800 font-mono text-[11px] hover:underline transition-colors text-left"
+                            title="Ver histórico de atendimento"
+                          >
+                            {phoneMap[row.cliente_id]}
+                          </button>
+                        ) : (
+                          <span className="text-slate-500 font-mono text-[11px]">
+                            {phoneMap[row.cliente_id]}
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-300 text-[11px]">—</span>
+                      )}
                     </td>
 
                     {/* Colunas de imagem */}
@@ -1228,6 +1309,20 @@ const ControleImagens: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* ── Modal de histórico de atendimento ── */}
+      {atendimentoModal && (
+        <ResolucaoAtendimentoModal
+          atendimento={atendimentoModal}
+          onClose={() => setAtendimentoModal(null)}
+          onSuccess={() => {
+            setAtendimentoModal(null);
+            atendimentosService.getByEdicao(selectedEdicaoId)
+              .then(setAtendimentos)
+              .catch(console.error);
+          }}
+        />
+      )}
     </Layout>
   );
 };

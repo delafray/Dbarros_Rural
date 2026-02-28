@@ -14,9 +14,11 @@ import {
   itensOpcionaisService,
   ItemOpcional,
 } from "../services/itensOpcionaisService";
-import { clientesService, Cliente } from "../services/clientesService";
+import { clientesService, ClienteComContatos } from "../services/clientesService";
+import { atendimentosService, Atendimento } from "../services/atendimentosService";
 import { eventosService, EventoEdicao } from "../services/eventosService";
 import ClienteSelectorPopup from "../components/ClienteSelectorPopup";
+import ResolucaoAtendimentoModal from "../components/ResolucaoAtendimentoModal";
 import {
   imagensService,
   ImagemConfig,
@@ -43,7 +45,9 @@ const PlanilhaVendas: React.FC = () => {
   const [allItensOpcionais, setAllItensOpcionais] = useState<ItemOpcional[]>(
     [],
   );
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<ClienteComContatos[]>([]);
+  const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
+  const [atendimentoModal, setAtendimentoModal] = useState<Atendimento | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [popupRowId, setPopupRowId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{
@@ -155,14 +159,15 @@ const PlanilhaVendas: React.FC = () => {
         return;
       }
 
-      const [estandes, opcionais, listaClientes, imagens, statusData, recData] =
+      const [estandes, opcionais, listaClientes, imagens, statusData, recData, listaAtendimentos] =
         await Promise.all([
           planilhaVendasService.getEstandes(configData.id),
           itensOpcionaisService.getItens(),
-          clientesService.getClientes(),
+          clientesService.getClientesComContatos(),
           imagensService.getConfig(edicaoId!),
           imagensService.getStatusByConfig(configData.id),
           imagensService.getRecebimentos(configData.id),
+          atendimentosService.getByEdicao(edicaoId!),
         ]);
 
       setConfig(configData);
@@ -170,6 +175,7 @@ const PlanilhaVendas: React.FC = () => {
       setRows(estandes);
       setAllItensOpcionais(opcionais);
       setClientes(listaClientes);
+      setAtendimentos(listaAtendimentos);
       setImagensConfig(imagens || []);
       setStatusMap(statusData || {});
       setRecebimentosMap(recData || {});
@@ -230,6 +236,22 @@ const PlanilhaVendas: React.FC = () => {
       style: "currency",
       currency: "BRL",
     }).format(value || 0);
+
+  // ─── Atendimento map: clienteId → último atendimento desta edição ────
+  const atendimentoMap = useMemo<Record<string, Atendimento>>(() => {
+    const map: Record<string, Atendimento> = {};
+    const sorted = [...atendimentos].sort((a, b) => {
+      const da = a.updated_at || a.created_at;
+      const db = b.updated_at || b.created_at;
+      return db.localeCompare(da);
+    });
+    for (const at of sorted) {
+      if (at.cliente_id && !map[at.cliente_id]) {
+        map[at.cliente_id] = at;
+      }
+    }
+    return map;
+  }, [atendimentos]);
 
   // ─── Row helpers ──────────────────────────────────────────────
   // Espelha a lógica de buildStandNr: match pelo prefixo (se existir) ou pela tag
@@ -705,6 +727,8 @@ const PlanilhaVendas: React.FC = () => {
                 Pendente
               </th>
               <th className="border border-white/10 bg-violet-900/20" />
+              <th className="border border-white/10 bg-violet-900/30" />
+              <th className="border border-white/10 bg-violet-900/30" />
             </tr>
 
             {/* ── Row 2: Summary Values ── */}
@@ -758,12 +782,14 @@ const PlanilhaVendas: React.FC = () => {
                 {formatMoney(totals.pendente)}
               </th>
               <th className="border border-white/10 bg-violet-900/20" />
+              <th className="border border-white/10 bg-violet-900/30" />
+              <th className="border border-white/10 bg-violet-900/30" />
             </tr>
 
             {/* ── Row 3: Column headers (Excel Style) ── */}
             <tr className="bg-[#1F497D]">
               <th className={`${thStyle} w-16`}>Stand</th>
-              <th className={`${thStyle} min-w-[180px]`}>Cliente:</th>
+              <th className={`${thStyle} min-w-[180px]`}>Cliente</th>
               {comboLabels.map((label) => (
                 <th
                   key={label}
@@ -802,6 +828,8 @@ const PlanilhaVendas: React.FC = () => {
               >
                 Imagens
               </th>
+              <th className={`${thStyle} w-px whitespace-nowrap bg-violet-900/60`}>Cadastro</th>
+              <th className={`${thStyle} w-px whitespace-nowrap bg-violet-900/60`}>Contato</th>
             </tr>
           </thead>
 
@@ -856,14 +884,15 @@ const PlanilhaVendas: React.FC = () => {
                       const cliente = clientes.find(
                         (c) => c.id === row.cliente_id,
                       );
-                      if (cliente)
+                      if (cliente) {
                         return (
-                          <span className="font-bold text-slate-900 truncate block max-w-[250px]">
+                          <span className="font-bold text-slate-900 truncate block">
                             {cliente.tipo_pessoa === "PJ"
                               ? cliente.razao_social
                               : cliente.nome_completo}
                           </span>
                         );
+                      }
                       if (row.cliente_nome_livre)
                         return (
                           <span className="text-amber-900 font-black italic truncate block max-w-[250px]">
@@ -1156,13 +1185,43 @@ const PlanilhaVendas: React.FC = () => {
                       </td>
                     );
                   })()}
+
+                  {/* Cadastro — abre cadastro do cliente */}
+                  <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
+                    {row.cliente_id && clientes.find((c) => c.id === row.cliente_id) ? (
+                      <button
+                        onClick={() => navigate(`/clientes/editar/${row.cliente_id}`)}
+                        className="text-violet-700 hover:text-violet-900 hover:underline text-[10px] font-bold transition-colors whitespace-nowrap"
+                        title="Abrir cadastro do cliente"
+                      >
+                        Abrir
+                      </button>
+                    ) : (
+                      <span className="text-slate-200 text-[10px]">—</span>
+                    )}
+                  </td>
+
+                  {/* Contato — abre histórico de atendimento */}
+                  <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
+                    {row.cliente_id && atendimentoMap[row.cliente_id] ? (
+                      <button
+                        onClick={() => setAtendimentoModal(atendimentoMap[row.cliente_id])}
+                        className="text-blue-600 hover:text-blue-800 hover:underline text-[10px] font-bold transition-colors whitespace-nowrap"
+                        title="Ver histórico de atendimento"
+                      >
+                        Histórico
+                      </button>
+                    ) : (
+                      <span className="text-slate-200 text-[10px]">—</span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={3 + comboLabels.length + opcionaisAtivos.length + 5}
+                  colSpan={5 + comboLabels.length + opcionaisAtivos.length + 5}
                   className="py-8 text-center text-slate-400"
                 >
                   {rows.length === 0
@@ -1197,6 +1256,15 @@ const PlanilhaVendas: React.FC = () => {
             />
           );
         })()}
+
+      {/* ── Modal de Histórico de Atendimento ── */}
+      {atendimentoModal && (
+        <ResolucaoAtendimentoModal
+          atendimento={atendimentoModal}
+          onClose={() => setAtendimentoModal(null)}
+          onSuccess={() => setAtendimentoModal(null)}
+        />
+      )}
 
       {/* ── Modal de Status de Imagens ── */}
       {statusModal &&
