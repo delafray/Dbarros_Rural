@@ -153,7 +153,7 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                                             {atendimentosService.getContatoExibicao(item)}
                                         </span>
                                         {atendimentosService.getTelefoneExibicao(item) !== '—' && (
-                                            <span className="bg-slate-100 text-[#1a1a1a] px-1.5 py-0.5 rounded border border-slate-400 font-bold text-[7px] font-mono shadow-sm">
+                                            <span className="bg-white text-slate-900 px-1.5 py-0.5 rounded border border-slate-400 font-black text-[8px] tracking-wide shadow-sm">
                                                 {atendimentosService.getTelefoneExibicao(item)}
                                             </span>
                                         )}

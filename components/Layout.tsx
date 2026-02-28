@@ -251,7 +251,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerAct
               </svg>
             </button>
             <div className="flex items-center gap-2.5 min-w-0">
-              <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-800 truncate">{title}</h2>
+              <h2 className="text-sm md:text-[15px] font-bold text-slate-800 truncate">{title}</h2>
               {titleExtras}
             </div>
           </div>
