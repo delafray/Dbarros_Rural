@@ -150,8 +150,8 @@ export const planilhaVendasService = {
                 const isEmpty =
                     !e.cliente_id &&
                     !e.cliente_nome_livre &&
-                    e.tipo_venda === 'DISPONÍVEL' &&
-                    (!e.opcionais_selecionados || Object.keys(e.opcionais_selecionados as object).length === 0);
+                    (!e.tipo_venda || e.tipo_venda === 'DISPONÍVEL') &&
+                    (!e.opcionais_selecionados || !Object.values(e.opcionais_selecionados as Record<string, string>).some(v => !!v));
                 if (isEmpty) {
                     toDelete.push(e.id);
                 }
