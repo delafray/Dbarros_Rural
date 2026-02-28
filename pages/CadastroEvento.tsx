@@ -266,10 +266,19 @@ const CadastroEvento: React.FC = () => {
             const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
             const fileName = buildDocFileName(titulo, tipo, ext);
             const file = new File([blob], fileName, { type: blob.type });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            if (typeof navigator.share !== 'function') {
+                appDialog.alert({ title: 'Compartilhamento nao disponivel', message: 'Seu navegador nao suporta compartilhamento. Use o botao Baixar para salvar o arquivo.', type: 'info' });
+                return;
+            }
+            try {
                 await navigator.share({ files: [file], title: fileName });
-            } else {
-                appDialog.alert({ title: 'Nao suportado', message: 'Seu dispositivo nao suporta compartilhamento direto. Use o botao Baixar para salvar o arquivo.', type: 'warning' });
+            } catch (shareErr: unknown) {
+                if (shareErr instanceof Error && shareErr.name === 'AbortError') return;
+                try {
+                    await navigator.share({ title: fileName, url });
+                } catch {
+                    appDialog.alert({ title: 'Compartilhamento nao disponivel', message: 'Nao foi possivel compartilhar. Use o botao Baixar para salvar o arquivo.', type: 'info' });
+                }
             }
         } catch {
             appDialog.alert({ title: 'Erro', message: 'Nao foi possivel preparar o arquivo para compartilhar.', type: 'danger' });

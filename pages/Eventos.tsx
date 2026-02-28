@@ -176,7 +176,7 @@ const Eventos: React.FC = () => {
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">Promotor</th>
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">Telefone</th>
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">E-mail</th>
-                                <th className="px-3 py-0.5 border-b border-r border-slate-300 text-center">Última Edição</th>
+                                <th className="px-3 py-0.5 border-b border-r border-slate-300 text-left">Última Edição</th>
                                 <th className="px-3 py-0.5 border-b border-slate-300 text-right">Ações</th>
                             </tr>
                         </thead>
@@ -210,21 +210,18 @@ const Eventos: React.FC = () => {
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_nome || '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap text-[12px] text-slate-600">{e.promotor_telefone || '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_email || '-'}</td>
-                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 text-center whitespace-nowrap">
+                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 text-left whitespace-nowrap">
                                                     {(() => {
                                                         const ed = ultimaEdicao(e);
                                                         if (!ed) return <span className="text-slate-300 text-[11px]">—</span>;
                                                         return (
                                                             <button
                                                                 onClick={() => navigate(`/planilha-vendas/${ed.id}`)}
-                                                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                                                                className="inline-flex items-center gap-1 text-[11px] text-slate-700 hover:text-blue-600 transition-colors"
                                                                 title={`Abrir planilha: ${ed.titulo}`}
                                                             >
-                                                                <span className="bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-black">
-                                                                    {ed.ano}
-                                                                </span>
                                                                 {ed.titulo}
-                                                                <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <svg className="w-3 h-3 opacity-40 hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                                                 </svg>
                                                             </button>

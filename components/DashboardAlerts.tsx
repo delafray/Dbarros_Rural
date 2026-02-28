@@ -123,18 +123,18 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[140px]">Evento</th>
-                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[140px]">Cliente</th>
-                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[180px]">Contato</th>
-                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[110px]">Data Retorno</th>
-                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Último Histórico</th>
-                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter text-center w-[50px]">Ação</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[140px]">Evento</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[140px]">Cliente</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[180px]">Contato</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[110px]">Data Retorno</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Último Histórico</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter text-center w-[50px]">Ação</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-300">
                         {retornosFiltrados.map((item) => (
                             <tr key={item.id} className={`${getRowColor(item.data_retorno)} transition-colors hover:brightness-95`}>
-                                <td className="px-3 py-2.5 w-[140px]">
+                                <td className="px-3 py-1 w-[140px]">
                                     <div className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter truncate" title={item.eventos_edicoes?.eventos?.nome || ''}>
                                         {item.eventos_edicoes?.eventos?.nome || '—'}
                                     </div>
@@ -142,24 +142,24 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                                         {item.eventos_edicoes?.titulo || '—'}
                                     </div>
                                 </td>
-                                <td className="px-3 py-2.5 w-[140px]">
+                                <td className="px-3 py-1 w-[140px]">
                                     <div className="text-[11px] font-bold text-slate-800 uppercase tracking-tight leading-none truncate" title={atendimentosService.getNomeExibicao(item)}>
                                         {atendimentosService.getNomeExibicao(item)}
                                     </div>
                                 </td>
-                                <td className="px-3 py-2.5 w-[180px]">
-                                    <div className="flex flex-col gap-1 items-start">
+                                <td className="px-3 py-1 w-[180px]">
+                                    <div className="flex flex-col gap-0.5 items-start">
                                         <span className="text-[11px] font-bold text-slate-700 uppercase tracking-tight leading-none truncate w-full" title={atendimentosService.getContatoExibicao(item)}>
                                             {atendimentosService.getContatoExibicao(item)}
                                         </span>
                                         {atendimentosService.getTelefoneExibicao(item) !== '—' && (
-                                            <span className="bg-slate-100 text-[#1a1a1a] px-1.5 py-0.5 rounded border border-slate-200 font-bold text-[10px] font-mono shadow-sm">
+                                            <span className="bg-slate-100 text-[#1a1a1a] px-1.5 py-0.5 rounded border border-slate-400 font-bold text-[7px] font-mono shadow-sm">
                                                 {atendimentosService.getTelefoneExibicao(item)}
                                             </span>
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                <td className="px-3 py-1 whitespace-nowrap">
                                     <div className={`text-[11px] font-black font-mono ${getStatusTextColor(item.data_retorno)}`}>
                                         {item.data_retorno ? format(parseISO(item.data_retorno), 'dd/MM/yy, HH:mm', { locale: ptBR }) : '—'}
                                     </div>
@@ -168,12 +168,12 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                                             item.data_retorno && isBefore(parseISO(item.data_retorno), startOfToday()) ? 'Atrasado' : 'Agendado'}
                                     </div>
                                 </td>
-                                <td className="px-3 py-2.5">
+                                <td className="px-3 py-1">
                                     <div className="text-[11px] text-slate-700 italic line-clamp-3 leading-tight whitespace-normal">
                                         {item.ultima_obs || <span className="text-slate-400 font-normal">Sem histórico</span>}
                                     </div>
                                     {item.ultima_obs_at && (
-                                        <div className="text-[9px] text-slate-400 mt-1 font-medium flex items-center gap-2">
+                                        <div className="text-[9px] text-slate-400 font-medium flex items-center gap-2">
                                             <span>{format(parseISO(item.ultima_obs_at), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
                                             {item.users?.name && (
                                                 <span className="text-blue-600 font-bold uppercase flex items-center gap-1">
@@ -184,7 +184,7 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                                         </div>
                                     )}
                                 </td>
-                                <td className="px-3 py-2.5 text-center">
+                                <td className="px-3 py-1 text-center">
                                     <button
                                         onClick={() => onOpenResolucao(item)}
                                         className="w-8 h-8 rounded bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-all group"

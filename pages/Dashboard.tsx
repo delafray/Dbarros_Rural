@@ -98,9 +98,9 @@ const Dashboard: React.FC = () => {
 
     return (
         <Layout title="Dashboard Central" titleExtras={onlineBadge} headerActions={allPanelButton}>
-            <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-                <div className="border-t border-slate-100">
-                    <h2 className="text-lg font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2 text-[12px]">
+            <div className="max-w-7xl mx-auto space-y-[2px] animate-in fade-in duration-500">
+                <div className="border-t border-slate-100 pt-1">
+                    <h2 className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-2">
                         <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
@@ -133,7 +133,7 @@ const Dashboard: React.FC = () => {
                     ) : (
                         <div>
                             <Card className="overflow-hidden border-slate-200 shadow-sm transition-all hover:shadow-md">
-                                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+                                <div className="bg-slate-50 px-4 py-1.5 border-b border-slate-200 flex justify-between items-center">
                                     <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
                                         <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -147,7 +147,7 @@ const Dashboard: React.FC = () => {
                                     {edicoes.map((edicao) => (
                                         <div
                                             key={edicao.id}
-                                            className="px-4 py-2 hover:bg-blue-50 transition-colors cursor-pointer group flex items-center justify-between"
+                                            className="px-4 py-1 hover:bg-blue-50 transition-colors cursor-pointer group flex items-center justify-between"
                                             onClick={() => navigate(`/planilha-vendas/${edicao.id}`)}
                                         >
                                             <div className="flex-1 min-w-0 pr-4">
@@ -155,14 +155,15 @@ const Dashboard: React.FC = () => {
                                                     <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1 rounded border border-blue-100 uppercase">
                                                         {edicao.ano}
                                                     </span>
+                                                    <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate max-w-[220px]">
+                                                        {edicao.eventos?.nome || 'Evento'}
+                                                    </span>
                                                     {(edicao.data_inicio || edicao.data_fim) && (
                                                         <span className="text-[9px] font-bold text-slate-600 uppercase font-mono bg-slate-50 px-1 rounded border border-slate-100">
                                                             {edicao.data_inicio ? new Date(edicao.data_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'} - {edicao.data_fim ? new Date(edicao.data_fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}
                                                         </span>
                                                     )}
-                                                    <span className="text-[10px] font-medium text-slate-600 uppercase tracking-tight truncate max-w-[180px]">
-                                                        {edicao.eventos?.nome || 'Evento'}
-                                                    </span>
+
                                                     {edicao.local && (
                                                         <span className="text-[9px] text-slate-500 truncate italic">
                                                             • {edicao.local}
@@ -170,7 +171,7 @@ const Dashboard: React.FC = () => {
                                                     )}
                                                 </div>
 
-                                                <h4 className="text-[15px] font-extrabold text-slate-800 group-hover:text-blue-600 transition-colors truncate">
+                                                <h4 className="text-[11px] font-medium text-slate-500 group-hover:text-blue-500 transition-colors truncate">
                                                     {edicao.titulo}
                                                 </h4>
                                             </div>
@@ -308,10 +309,19 @@ const Dashboard: React.FC = () => {
                             const response = await fetch(url);
                             const blob = await response.blob();
                             const file = new File([blob], fileName, { type: blob.type });
-                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            if (typeof navigator.share !== 'function') {
+                                await appDialog.alert({ title: 'Compartilhamento nao disponivel', message: 'Seu navegador nao suporta compartilhamento. Use o botao Baixar para salvar o arquivo.', type: 'info' });
+                                return;
+                            }
+                            try {
                                 await navigator.share({ files: [file], title: fileName });
-                            } else {
-                                await appDialog.alert({ title: 'Compartilhamento nao disponivel', message: 'Seu dispositivo nao suporta compartilhamento direto. Use o botao Baixar para salvar o arquivo.', type: 'info' });
+                            } catch (shareErr: unknown) {
+                                if (shareErr instanceof Error && shareErr.name === 'AbortError') return;
+                                try {
+                                    await navigator.share({ title: fileName, url });
+                                } catch {
+                                    await appDialog.alert({ title: 'Compartilhamento nao disponivel', message: 'Nao foi possivel compartilhar. Use o botao Baixar para salvar o arquivo.', type: 'info' });
+                                }
                             }
                         } catch {
                             await appDialog.alert({ title: 'Erro', message: 'Nao foi possivel preparar o arquivo para compartilhar.', type: 'danger' });
