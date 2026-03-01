@@ -4,6 +4,7 @@ import { ClienteSelectorWidget, ClienteComContato } from '../components/ClienteS
 import { ImportAtendimentosModal } from '../components/ImportAtendimentosModal';
 import Layout from '../components/Layout';
 import { useAppDialog } from '../context/DialogContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import {
     atendimentosService,
@@ -57,9 +58,10 @@ interface HistoricoPopupProps {
     atendimento: Atendimento;
     onClose: () => void;
     onSaved: (updated: Atendimento) => void;
+    isVisitor?: boolean;
 }
 
-function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) {
+function HistoricoPopup({ atendimento, onClose, onSaved, isVisitor = false }: HistoricoPopupProps) {
     const appDialog = useAppDialog();
     const [historico, setHistorico] = useState<AtendimentoHistorico[]>([]);
     const [loading, setLoading] = useState(true);
@@ -115,12 +117,12 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
 
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
                     <div>
-                        <h2 className="font-black text-slate-800 text-sm">{nomeExibicao}</h2>
-                        <p className="text-[11px] text-slate-500">Histórico de Comunicações</p>
+                        <h2 className="font-black text-slate-800 text-base">{nomeExibicao}</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">Histórico de Comunicações</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <ProbBadge value={atendimento.probabilidade} />
@@ -132,15 +134,16 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
                     </div>
                 </div>
 
-                {/* Formulário novo histórico — fica no TOPO */}
-                <div className="border-b border-slate-200 px-5 py-4 bg-slate-50 space-y-3">
+                {/* Formulário novo histórico — oculto para visitante */}
+                {!isVisitor && (
+                <div className="border-b border-slate-200 px-6 py-4 bg-white space-y-3">
                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Novo Registro</h3>
                     <textarea
                         value={desc}
                         onChange={e => setDesc(e.target.value)}
                         placeholder="Descreva o contato realizado..."
                         rows={3}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-slate-50"
                     />
                     <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -148,7 +151,7 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
                             <select
                                 value={prob === null ? '' : prob}
                                 onChange={e => setProb(e.target.value === '' ? null : Number(e.target.value))}
-                                className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                                className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold"
                                 style={prob !== null ? { background: probBgColor[prob], color: probTextColor[prob] } : {}}
                             >
                                 <option value="">— A contatar —</option>
@@ -161,7 +164,7 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
                                 type="datetime-local"
                                 value={dataRetorno}
                                 onChange={e => setDataRetorno(e.target.value)}
-                                className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                                className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                             />
                         </div>
                     </div>
@@ -169,39 +172,47 @@ function HistoricoPopup({ atendimento, onClose, onSaved }: HistoricoPopupProps) 
                         <button
                             onClick={handleSave}
                             disabled={saving || !desc.trim()}
-                            className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            className="px-5 py-2 text-xs font-black uppercase tracking-wider text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
                             {saving ? 'Salvando...' : 'Salvar Histórico'}
                         </button>
                     </div>
                 </div>
+                )}
 
-                {/* Lista de histórico — fica EMBAIXO, scrollável */}
-                <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2 min-h-0">
+                {/* Lista de histórico */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 bg-slate-50/50 min-h-0">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Histórico Anterior</h3>
                     {loading ? (
-                        <p className="text-xs text-slate-400 text-center py-6">Carregando...</p>
+                        <p className="text-sm text-slate-400 text-center py-4">Carregando...</p>
                     ) : historico.length === 0 ? (
-                        <p className="text-xs text-slate-400 text-center py-6 border-2 border-dashed border-slate-200 rounded-xl">
-                            Nenhum histórico ainda. Salve o primeiro registro acima.
+                        <p className="text-sm text-slate-300 text-center py-4 border-2 border-dashed border-slate-200 rounded-lg bg-white">
+                            Nenhum histórico ainda.
                         </p>
                     ) : (
                         historico.map(h => (
-                            <div key={h.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                            <div key={h.id} className="border-l-[3px] border-slate-200 pl-4 pr-4 py-2.5 bg-white rounded-r-lg hover:border-blue-400 transition-colors">
                                 <div className="flex justify-between items-center mb-1">
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-2 flex-wrap">
                                         {h.user_id ? (h.users?.name || 'Usuário') : 'Sistema'}
                                         {h.probabilidade !== null && (
-                                            <span className="ml-2 font-normal text-slate-400">→ {h.probabilidade}%</span>
+                                            <span className="font-black px-2 py-0.5 rounded text-[10px]" style={{ background: probBgColor[h.probabilidade], color: probTextColor[h.probabilidade] }}>
+                                                {h.probabilidade}%
+                                            </span>
+                                        )}
+                                        {h.data_retorno && (
+                                            <>
+                                                <span className="text-slate-300">·</span>
+                                                <span className="normal-case tracking-normal">
+                                                    <span className="text-slate-600 font-bold">Retorno:</span>
+                                                    {' '}<span className="text-amber-600 font-black">{fmt(h.data_retorno)}</span>
+                                                </span>
+                                            </>
                                         )}
                                     </span>
-                                    <span className="text-[10px] text-slate-400">{fmt(h.created_at)}</span>
+                                    <span className="text-[10px] text-slate-400 font-mono flex-shrink-0 ml-2">{fmt(h.created_at)}</span>
                                 </div>
-                                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{h.descricao}</p>
-                                {h.data_retorno && (
-                                    <p className="text-[10px] text-amber-600 mt-1 font-bold">
-                                        📅 Retorno: {fmt(h.data_retorno)}
-                                    </p>
-                                )}
+                                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-snug">{h.descricao}</p>
                             </div>
                         ))
                     )}
@@ -627,6 +638,8 @@ const Atendimentos: React.FC = () => {
     const { edicaoId } = useParams<{ edicaoId: string }>();
     const navigate = useNavigate();
     const appDialog = useAppDialog();
+    const { user } = useAuth();
+    const isVisitor = user?.isVisitor ?? false;
     const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
     const [clientes, setClientes] = useState<ClienteOption[]>([]);
     const [loading, setLoading] = useState(true);
@@ -750,6 +763,7 @@ const Atendimentos: React.FC = () => {
                     atendimento={histAtend}
                     onClose={() => setHistAtend(null)}
                     onSaved={handleSaved}
+                    isVisitor={isVisitor}
                 />
             )}
             {showImport && (
@@ -791,6 +805,7 @@ const Atendimentos: React.FC = () => {
                         <span className="text-[9px] text-slate-400 ml-1">0→100%</span>
                     </div>
 
+                    {!isVisitor && (
                     <button
                         onClick={() => { setEditingAtend(null); setShowForm(true); }}
                         className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -800,7 +815,9 @@ const Atendimentos: React.FC = () => {
                         </svg>
                         Atendimento
                     </button>
+                    )}
 
+                    {!isVisitor && (
                     <button
                         onClick={() => setShowImport(true)}
                         className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
@@ -810,6 +827,7 @@ const Atendimentos: React.FC = () => {
                         </svg>
                         Importar
                     </button>
+                    )}
                 </div>
 
                 {/* Tabela */}
@@ -920,7 +938,8 @@ const Atendimentos: React.FC = () => {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z" />
                                                         </svg>
                                                     </button>
-                                                    {/* Editar */}
+                                                    {/* Editar — oculto para visitante */}
+                                                    {!isVisitor && (
                                                     <button
                                                         onClick={() => { setEditingAtend(a); setShowForm(true); }}
                                                         className="p-1 rounded-sm border border-transparent hover:border-slate-300 hover:bg-white hover:shadow-sm transition-all"
@@ -930,7 +949,9 @@ const Atendimentos: React.FC = () => {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                         </svg>
                                                     </button>
-                                                    {/* Deletar */}
+                                                    )}
+                                                    {/* Deletar — oculto para visitante */}
+                                                    {!isVisitor && (
                                                     <button
                                                         onClick={() => handleDelete(a.id)}
                                                         className="p-1 rounded-sm border border-transparent hover:border-red-200 hover:bg-red-50 hover:shadow-sm transition-all"
@@ -940,6 +961,7 @@ const Atendimentos: React.FC = () => {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                         </svg>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

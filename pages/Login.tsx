@@ -31,7 +31,11 @@ const Login: React.FC = () => {
 
   React.useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      if (user.isVisitor && user.edicaoId) {
+        navigate(`/planilha-vendas/${user.edicaoId}`);
+      } else {
+        navigate('/dashboard');
+      }
     }
   }, [user, navigate]);
 
@@ -46,7 +50,12 @@ const Login: React.FC = () => {
 
     try {
       await login(trimmedIdentifier, trimmedPassword);
-      navigate('/dashboard');
+      const loggedUser = await authService.getCurrentUser();
+      if (loggedUser?.isVisitor && loggedUser?.edicaoId) {
+        navigate(`/planilha-vendas/${loggedUser.edicaoId}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
     } finally {
@@ -59,10 +68,15 @@ const Login: React.FC = () => {
     setError('');
 
     try {
-      // If identifier is provided, use it to limit credentials. 
+      // If identifier is provided, use it to limit credentials.
       // Otherwise, use "discoverable credentials" (resident keys).
       await loginWithBiometrics(identifier.trim() || undefined);
-      navigate('/dashboard');
+      const loggedUser = await authService.getCurrentUser();
+      if (loggedUser?.isVisitor && loggedUser?.edicaoId) {
+        navigate(`/planilha-vendas/${loggedUser.edicaoId}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       if (err.message?.includes('cancelado')) return;
 

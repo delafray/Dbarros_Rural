@@ -109,6 +109,54 @@ const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerAct
     }
   };
 
+  // Layout mínimo para visitantes — sem sidebar, sem headerActions de admin
+  if (user?.isVisitor) {
+    return (
+      <div className="flex min-h-screen bg-slate-50">
+        <main className="flex-1 px-1.5 py-2 sm:p-4 md:pt-4 md:px-8 w-full max-w-full">
+          <header className="mb-1 sm:mb-4 flex justify-between items-center gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <img src="assets/logo.png" alt="Logo" className="w-7 h-7 object-contain rounded-lg flex-shrink-0" />
+              <h2 className="text-sm md:text-[15px] font-bold text-slate-800 truncate">{title}</h2>
+              {titleExtras}
+            </div>
+            <div className="flex items-center gap-2">
+              {headerActions && (
+                <div className="flex items-center gap-2">
+                  {headerActions}
+                </div>
+              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="hidden sm:inline text-[10px] font-black text-slate-400 uppercase tracking-widest">Visitante</span>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[11px] font-black uppercase tracking-widest px-4 py-2 transition-colors shadow-md"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Sair
+                </button>
+              </div>
+            </div>
+          </header>
+          {children}
+        </main>
+
+        <ConfirmModal
+          isOpen={showLogoutConfirm}
+          title="Deseja realmente sair?"
+          message="Sua sessão será encerrada."
+          confirmText="Sim, Sair"
+          cancelText="Cancelar"
+          onConfirm={confirmLogout}
+          onCancel={cancelLogout}
+          type="danger"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       {/* Mobile Backdrop */}

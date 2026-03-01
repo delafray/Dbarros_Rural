@@ -4,6 +4,7 @@ import { ptBR } from "date-fns/locale";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { Button } from "../components/UI";
+import { useAuth } from "../context/AuthContext";
 import {
   planilhaVendasService,
   PlanilhaConfig,
@@ -35,6 +36,8 @@ const naturalSort = (a: string, b: string) =>
 const PlanilhaVendas: React.FC = () => {
   const { edicaoId } = useParams<{ edicaoId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isVisitor = user?.isVisitor ?? false;
 
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<PlanilhaConfig | null>(null);
@@ -648,20 +651,32 @@ const PlanilhaVendas: React.FC = () => {
       title={edicao ? `Planilha :: ${edicao.titulo}${periodo ? ` · ${periodo}` : ''}` : "Planilha de Vendas"}
       headerActions={
         <div className="flex gap-2 items-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/configuracao-vendas/${edicaoId}`)}
-          >
-            ⚙️ Setup
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/controle-imagens', { state: { edicaoId } })}
-          >
-            🖼 Controle de Imagens
-          </Button>
+          {isVisitor ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/atendimentos/${edicaoId}`)}
+            >
+              📋 Atendimentos
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/configuracao-vendas/${edicaoId}`)}
+              >
+                ⚙️ Setup
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/controle-imagens', { state: { edicaoId } })}
+              >
+                🖼 Controle de Imagens
+              </Button>
+            </>
+          )}
           <input
             type="text"
             placeholder="Buscar estande ou cliente..."
@@ -821,13 +836,15 @@ const PlanilhaVendas: React.FC = () => {
               <th className={`${thStyle}`}>TOTAL</th>
               <th className={`${thStyle} bg-[#385723]`}>PAGO</th>
               <th className={`${thStyle} bg-[#C00000]`}>PENDENTE</th>
-              <th
-                className={`${thStyle} w-20 bg-violet-900/60`}
-                title="Status de recebimento de imagens"
-              >
-                Imagens
-              </th>
-              <th className={`${thStyle} w-px whitespace-nowrap bg-violet-900/60`}>Cadastro</th>
+              {!isVisitor && (
+                <th
+                  className={`${thStyle} w-20 bg-violet-900/60`}
+                  title="Status de recebimento de imagens"
+                >
+                  Imagens
+                </th>
+              )}
+              {!isVisitor && <th className={`${thStyle} w-px whitespace-nowrap bg-violet-900/60 px-2`}>Cliente</th>}
               <th className={`${thStyle} w-px whitespace-nowrap bg-violet-900/60`}>Contato</th>
             </tr>
           </thead>
@@ -873,11 +890,11 @@ const PlanilhaVendas: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* Cliente — clica para abrir popup */}
+                  {/* Cliente — clica para abrir popup (desabilitado para visitante) */}
                   <td
-                    className={`${tdStyle} min-w-[200px] cursor-pointer group px-2`}
-                    onClick={() => setPopupRowId(row.id)}
-                    title="Clique para selecionar cliente"
+                    className={`${tdStyle} min-w-[200px] ${isVisitor ? '' : 'cursor-pointer'} group px-2`}
+                    onClick={() => !isVisitor && setPopupRowId(row.id)}
+                    title={isVisitor ? undefined : "Clique para selecionar cliente"}
                   >
                     {(() => {
                       const cliente = clientes.find(
@@ -920,7 +937,8 @@ const PlanilhaVendas: React.FC = () => {
                     return (
                       <td
                         key={label}
-                        className={`${tdStyle} text-center cursor-pointer font-black select-none w-6 h-5 leading-none px-0
+                        className={`${tdStyle} text-center font-black select-none w-6 h-5 leading-none px-0
+                                                ${!isVisitor ? "cursor-pointer" : ""}
                                                 ${
                                                   isPending
                                                     ? "!bg-slate-400 !text-white"
@@ -931,6 +949,7 @@ const PlanilhaVendas: React.FC = () => {
                                                         : "!bg-white hover:bg-blue-100/50 text-transparent"
                                                 }`}
                         onClick={() => {
+                          if (isVisitor) return;
                           if (isPending) {
                             handleSelectCombo(row.id, label);
                             setPendingAction(null);
@@ -965,7 +984,8 @@ const PlanilhaVendas: React.FC = () => {
                     return (
                       <td
                         key={opt.id}
-                        className={`${tdStyle} text-center cursor-pointer font-black w-6 h-5 leading-none select-none px-0
+                        className={`${tdStyle} text-center font-black w-6 h-5 leading-none select-none px-0
+                                                ${!isVisitor ? "cursor-pointer" : ""}
                                                 ${
                                                   isPending
                                                     ? "!bg-slate-400 !text-white"
@@ -976,6 +996,7 @@ const PlanilhaVendas: React.FC = () => {
                                                         : "!bg-white hover:bg-slate-100/50 text-transparent"
                                                 }`}
                         onClick={() => {
+                          if (isVisitor) return;
                           if (isPending) {
                             handleToggleOpcional(row.id, opt.nome);
                             setPendingAction(null);
@@ -1008,8 +1029,9 @@ const PlanilhaVendas: React.FC = () => {
 
                   {/* Desconto */}
                   <td
-                    className={`${tdStyle} px-2 py-0 text-right font-mono bg-white cursor-pointer group`}
+                    className={`${tdStyle} px-2 py-0 text-right font-mono bg-white group ${!isVisitor ? "cursor-pointer" : ""}`}
                     onClick={() => {
+                      if (isVisitor) return;
                       if (
                         !(
                           editing?.id === row.id &&
@@ -1022,7 +1044,7 @@ const PlanilhaVendas: React.FC = () => {
                           val: String(row.desconto || ""),
                         });
                     }}
-                    title="Clique para editar"
+                    title={isVisitor ? undefined : "Clique para editar"}
                   >
                     {editing?.id === row.id && editing?.field === "desconto" ? (
                       <input
@@ -1068,8 +1090,9 @@ const PlanilhaVendas: React.FC = () => {
 
                   {/* Valor Pago */}
                   <td
-                    className={`${tdStyle} px-2 py-0 text-right font-mono text-[12px] bg-green-50/60 cursor-pointer group`}
+                    className={`${tdStyle} px-2 py-0 text-right font-mono text-[12px] bg-green-50/60 group ${!isVisitor ? "cursor-pointer" : ""}`}
                     onClick={() => {
+                      if (isVisitor) return;
                       if (
                         !(
                           editing?.id === row.id &&
@@ -1082,7 +1105,7 @@ const PlanilhaVendas: React.FC = () => {
                           val: String(row.valor_pago || ""),
                         });
                     }}
-                    title="Clique para editar"
+                    title={isVisitor ? undefined : "Clique para editar"}
                   >
                     {editing?.id === row.id &&
                     editing?.field === "valor_pago" ? (
@@ -1127,6 +1150,7 @@ const PlanilhaVendas: React.FC = () => {
 
                   {/* Imagens status */}
                   {(() => {
+                    if (isVisitor) return null;
                     const hasCliente =
                       row.cliente_id || row.cliente_nome_livre;
                     if (!hasCliente)
@@ -1160,7 +1184,7 @@ const PlanilhaVendas: React.FC = () => {
                         cls: "bg-green-100 text-green-700 border-green-300 cursor-pointer hover:bg-green-200",
                       },
                     }[computed];
-                    return (
+                    return isVisitor ? null : (
                       <td className={`${tdStyle} w-20 text-center px-1`}>
                         <button
                           className={`text-[9px] font-bold uppercase px-1.5 py-0.5 border rounded-sm transition-colors w-full ${badgeConfig.cls}`}
@@ -1188,20 +1212,22 @@ const PlanilhaVendas: React.FC = () => {
                     );
                   })()}
 
-                  {/* Cadastro — abre cadastro do cliente */}
-                  <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
-                    {row.cliente_id && clientes.find((c) => c.id === row.cliente_id) ? (
-                      <button
-                        onClick={() => navigate(`/clientes/editar/${row.cliente_id}`)}
-                        className="text-violet-700 hover:text-violet-900 hover:underline text-[10px] font-bold transition-colors whitespace-nowrap"
-                        title="Abrir cadastro do cliente"
-                      >
-                        Abrir
-                      </button>
-                    ) : (
-                      <span className="text-slate-200 text-[10px]">—</span>
-                    )}
-                  </td>
+                  {/* Cadastro — oculto totalmente para visitante */}
+                  {!isVisitor && (
+                    <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
+                      {row.cliente_id && clientes.find((c) => c.id === row.cliente_id) ? (
+                        <button
+                          onClick={() => navigate(`/clientes/editar/${row.cliente_id}`)}
+                          className="text-violet-700 hover:text-violet-900 hover:underline text-[10px] font-bold transition-colors whitespace-nowrap"
+                          title="Abrir cadastro do cliente"
+                        >
+                          Abrir
+                        </button>
+                      ) : (
+                        <span className="text-slate-200 text-[10px]">—</span>
+                      )}
+                    </td>
+                  )}
 
                   {/* Contato — abre histórico de atendimento */}
                   <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
@@ -1277,6 +1303,7 @@ const PlanilhaVendas: React.FC = () => {
           atendimento={atendimentoModal}
           onClose={() => setAtendimentoModal(null)}
           onSuccess={() => setAtendimentoModal(null)}
+          readOnly={isVisitor}
         />
       )}
 

@@ -14,6 +14,9 @@ export interface User {
     isTemp: boolean;
     canManageTags: boolean;
     isProjetista: boolean;
+    edicaoId?: string;
+    password?: string; // Campo opcional para trânsito de dados (ajuste de senha)
+    tempPasswordPlain?: string; // Senha em texto plano para visitantes temp (só admin lê)
 }
 
 /** Tipo da linha retornada pelas queries na tabela `public.users` */
@@ -29,6 +32,8 @@ interface DbUser {
     is_temp: boolean | null;
     can_manage_tags: boolean | null;
     is_projetista: boolean | null;
+    edicao_id?: string | null;
+    temp_password_plain?: string | null;
 }
 
 // ── Factory: converte linha do DB para interface User ─────────────────────────
@@ -50,6 +55,8 @@ function mapDbUserToUser(row: DbUser): User {
         isTemp: row.is_temp ?? false,
         canManageTags: row.can_manage_tags ?? false,
         isProjetista: row.is_projetista ?? false,
+        edicaoId: row.edicao_id ?? undefined,
+        tempPasswordPlain: row.temp_password_plain ?? undefined,
     };
 }
 
@@ -62,6 +69,21 @@ function mapDbUserToUser(row: DbUser): User {
  */
 function sanitizeFilterValue(value: string): string {
     return value.replace(/[,'()"\\\n\r\t]/g, '');
+}
+
+/**
+ * Gera o prefixo base para usuários temporários a partir do título da edição.
+ * Usa a primeira palavra (sem acentos, max 8 chars) + ano do título (ou ano atual).
+ * Ex: "Barra Mansa 2026" → "barra2026"
+ *     "Expo Rural"       → "expo2026"  (usa ano atual)
+ */
+function generateTempBase(titulo: string): string {
+    const normalized = titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    // "Barra Mansa 2026" -> ["barra", "mansa", "2026"]
+    const firstWord = (normalized.match(/[a-z]+/) ?? ['visitante'])[0].slice(0, 8);
+    const yearMatch = titulo.match(/\b(20\d{2})\b/);
+    const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+    return `${firstWord}${year}`;
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -195,6 +217,15 @@ export const authService = {
         if (updates.canManageTags !== undefined) dbUpdates.can_manage_tags = updates.canManageTags;
         if (updates.isProjetista !== undefined) dbUpdates.is_projetista = updates.isProjetista;
 
+        // Se houver senha, usamos o RPC para atualizar no auth.users também
+        if (updates.password) {
+            const { error: pwdError } = await (supabase as any).rpc('update_user_password_admin', {
+                target_user_id: id,
+                new_password: updates.password
+            });
+            if (pwdError) throw new Error(`Erro ao atualizar senha: ${pwdError.message}`);
+        }
+
         const { error } = await (supabase as any)
             .from('users')
             .update(dbUpdates)
@@ -224,5 +255,68 @@ export const authService = {
         if (error) throw new Error(error.message);
 
         return mapDbUserToUser(data as DbUser);
+    },
+
+    /**
+     * Cria um usuário visitante temporário vinculado a uma edição específica.
+     * Gera credenciais aleatórias e retorna email + senha para compartilhar.
+     */
+    async createTempUser(expiresAt: Date, edicaoId: string, edicaoTitulo: string): Promise<{ user: User; passwordRaw: string }> {
+        const base = generateTempBase(edicaoTitulo || 'visitante');
+
+        // Conta quantos usuários já existem com esse base exato para gerar sequencial único
+        const { data: existing } = await (supabase as any)
+            .from('users')
+            .select('id')
+            .ilike('email', `${base}-%@temp.local`);
+        const seq = String(((existing as any[])?.length ?? 0) + 1).padStart(2, '0');
+
+        const username = `${base}-${seq}`;
+        const name = username;
+        const email = `${username}@temp.local`;
+        const password = Math.random().toString(36).slice(2, 10)
+            + Math.random().toString(36).slice(2, 5).toUpperCase();
+
+        // Cria o usuário base com flag visitor via RPC existente
+        await this.register(name, email, password, false, true, false, false);
+
+        // Atualiza campos específicos do visitante temporário
+        const { data, error } = await (supabase as any)
+            .from('users')
+            .update({
+                is_temp: true,
+                expires_at: expiresAt.toISOString(),
+                edicao_id: edicaoId,
+                temp_password_plain: password,
+            })
+            .eq('email', email)
+            .select('*')
+            .single();
+
+        if (error || !data) throw new Error(`Erro ao configurar usuário temporário: ${error?.message ?? 'sem dados retornados (RLS ou coluna ausente)'}`);
+
+
+        return { user: mapDbUserToUser(data as DbUser), passwordRaw: password };
+    },
+
+    /**
+     * Encerra imediatamente o acesso de um usuário temporário,
+     * desativando a conta e expirando o prazo.
+     */
+    async terminateTempUser(userId: string): Promise<void> {
+        const { error } = await (supabase as any)
+            .from('users')
+            .update({ is_active: false, expires_at: new Date().toISOString() })
+            .eq('id', userId);
+
+        if (error) throw new Error('Erro ao encerrar usuário temporário');
+    },
+
+    /** Exclui permanentemente um usuário (public e auth) via RPC. */
+    async deleteUser(userId: string): Promise<void> {
+        const { error } = await (supabase as any).rpc('delete_user_admin', {
+            target_user_id: userId
+        });
+        if (error) throw new Error(`Erro ao excluir usuário: ${error.message}`);
     },
 };

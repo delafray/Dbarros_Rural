@@ -10,6 +10,7 @@ import { edicaoDocsService } from '../services/edicaoDocsService';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { useAppDialog } from '../context/DialogContext';
+import { authService, User } from '../services/authService';
 
 type EdicaoComDocs = EventoEdicao & {
     eventos: { nome: string } | null;
@@ -33,8 +34,23 @@ const Dashboard: React.FC = () => {
     const [selectedAtendimento, setSelectedAtendimento] = useState<Atendimento | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    // State for "Criar acesso ao promotor" modal
+    type PromoStep = 'confirm' | 'existing' | 'create' | 'created';
+    const [promoModal, setPromoModal] = useState<{ edicao: EdicaoComDocs; step: PromoStep } | null>(null);
+    const [allVisitors, setAllVisitors] = useState<User[]>([]);
+    const [promoExpiresAt, setPromoExpiresAt] = useState('');
+    const [promoCreated, setPromoCreated] = useState<{ user: User; passwordRaw: string } | null>(null);
+    const [promoLoading, setPromoLoading] = useState(false);
+
     useEffect(() => {
         fetchActiveEdicoes();
+        // Carrega visitantes ativos para checar duplicatas por edição
+        authService.getAllUsers().then(users => {
+            setAllVisitors(users.filter((u: User) =>
+                u.isVisitor && u.isActive !== false &&
+                (!u.expiresAt || new Date(u.expiresAt) >= new Date())
+            ));
+        }).catch(() => {});
     }, []);
 
     const fetchActiveEdicoes = async () => {
@@ -51,8 +67,49 @@ const Dashboard: React.FC = () => {
     };
 
     const handleResolutionSuccess = () => {
-        // Trigger refresh of the alerts list
         setRefreshTrigger(prev => prev + 1);
+    };
+
+    const handleOpenPromoModal = (e: React.MouseEvent, edicao: EdicaoComDocs) => {
+        e.stopPropagation();
+        setPromoExpiresAt('');
+        setPromoCreated(null);
+        setPromoModal({ edicao, step: 'confirm' });
+    };
+
+    const handlePromoConfirm = () => {
+        if (!promoModal) return;
+        const existing = allVisitors.find(u => u.edicaoId === promoModal.edicao.id) ?? null;
+        if (existing) {
+            setPromoModal({ ...promoModal, step: 'existing' });
+        } else {
+            setPromoModal({ ...promoModal, step: 'create' });
+        }
+    };
+
+    const handlePromoCreate = async () => {
+        if (!promoModal || !promoExpiresAt) return;
+        setPromoLoading(true);
+        try {
+            const result = await authService.createTempUser(
+                new Date(promoExpiresAt),
+                promoModal.edicao.id,
+                promoModal.edicao.titulo
+            );
+            setPromoCreated(result);
+            setAllVisitors(prev => [...prev, result.user]);
+            setPromoModal({ ...promoModal, step: 'created' });
+        } catch (err: any) {
+            await appDialog.alert({ title: 'Erro', message: 'Erro ao criar acesso: ' + err.message, type: 'danger' });
+        } finally {
+            setPromoLoading(false);
+        }
+    };
+
+    const closePromoModal = () => {
+        setPromoModal(null);
+        setPromoExpiresAt('');
+        setPromoCreated(null);
     };
 
     const allPanelButton = (
@@ -177,43 +234,82 @@ const Dashboard: React.FC = () => {
                                             </div>
 
                                             <div className="flex-shrink-0 flex items-center gap-4 pr-2">
-                                                {/* Document quick-access buttons */}
-                                                {(edicao.proposta_comercial_path || edicao.planta_baixa_path) && (
-                                                    <div className="hidden sm:flex items-center gap-2 border-r border-slate-200 pr-4">
-                                                        {edicao.proposta_comercial_path && (
-                                                            <div
-                                                                className="flex items-center gap-1.5 group/prop cursor-pointer"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setDocModal({ tipo: 'proposta_comercial', url: edicaoDocsService.getPublicUrl(edicao.proposta_comercial_path!), eventoNome: edicao.titulo });
-                                                                }}
-                                                            >
-                                                                <div className="hidden lg:block text-[9px] font-bold text-violet-500 uppercase tracking-tighter opacity-60 group-hover/prop:opacity-100 transition-opacity">Proposta</div>
-                                                                <div className="w-7 h-7 rounded-full bg-violet-50 flex items-center justify-center text-violet-500 group-hover/prop:bg-violet-600 group-hover/prop:text-white transition-all shadow-sm border border-violet-100">
-                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                    </svg>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {edicao.planta_baixa_path && (
-                                                            <div
-                                                                className="flex items-center gap-1.5 group/planta cursor-pointer"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setDocModal({ tipo: 'planta_baixa', url: edicaoDocsService.getPublicUrl(edicao.planta_baixa_path!), eventoNome: edicao.titulo });
-                                                                }}
-                                                            >
-                                                                <div className="hidden lg:block text-[9px] font-bold text-teal-500 uppercase tracking-tighter opacity-60 group-hover/planta:opacity-100 transition-opacity">Planta</div>
-                                                                <div className="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center text-teal-500 group-hover/planta:bg-teal-600 group-hover/planta:text-white transition-all shadow-sm border border-teal-100">
-                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                                                                    </svg>
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                {/* Document quick-access buttons — sempre visíveis; X quando não cadastrado */}
+                                                <div className="hidden sm:flex items-center gap-2 border-r border-slate-200 pr-4">
+                                                    {/* Proposta Comercial */}
+                                                    <div
+                                                        className="flex items-center gap-1.5 group/prop cursor-pointer"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (edicao.proposta_comercial_path) {
+                                                                setDocModal({ tipo: 'proposta_comercial', url: edicaoDocsService.getPublicUrl(edicao.proposta_comercial_path), eventoNome: edicao.titulo });
+                                                            } else {
+                                                                navigate(`/eventos/editar/${edicao.evento_id}`);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <div className={`hidden lg:block text-[9px] font-bold uppercase tracking-tighter opacity-60 group-hover/prop:opacity-100 transition-opacity ${edicao.proposta_comercial_path ? 'text-violet-500' : 'text-slate-400'}`}>Proposta</div>
+                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm border ${
+                                                            edicao.proposta_comercial_path
+                                                                ? 'bg-violet-50 text-violet-500 group-hover/prop:bg-violet-600 group-hover/prop:text-white border-violet-100'
+                                                                : 'bg-slate-50 text-slate-300 group-hover/prop:bg-slate-200 group-hover/prop:text-slate-500 border-slate-100'
+                                                        }`}>
+                                                            {edicao.proposta_comercial_path ? (
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {/* Planta Baixa */}
+                                                    <div
+                                                        className="flex items-center gap-1.5 group/planta cursor-pointer"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (edicao.planta_baixa_path) {
+                                                                setDocModal({ tipo: 'planta_baixa', url: edicaoDocsService.getPublicUrl(edicao.planta_baixa_path), eventoNome: edicao.titulo });
+                                                            } else {
+                                                                navigate(`/eventos/editar/${edicao.evento_id}`);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <div className={`hidden lg:block text-[9px] font-bold uppercase tracking-tighter opacity-60 group-hover/planta:opacity-100 transition-opacity ${edicao.planta_baixa_path ? 'text-teal-500' : 'text-slate-400'}`}>Planta</div>
+                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm border ${
+                                                            edicao.planta_baixa_path
+                                                                ? 'bg-teal-50 text-teal-500 group-hover/planta:bg-teal-600 group-hover/planta:text-white border-teal-100'
+                                                                : 'bg-slate-50 text-slate-300 group-hover/planta:bg-slate-200 group-hover/planta:text-slate-500 border-slate-100'
+                                                        }`}>
+                                                            {edicao.planta_baixa_path ? (
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {/* Botão: Criar acesso ao promotor — visível apenas para admins */}
+                                                {user?.isAdmin && (
+                                                    <div
+                                                        className="flex items-center gap-1.5 group/promo cursor-pointer"
+                                                        onClick={(e) => handleOpenPromoModal(e, edicao)}
+                                                    >
+                                                        <div className="hidden lg:block text-[9px] font-bold text-rose-400 uppercase tracking-tighter opacity-60 group-hover/promo:opacity-100 transition-opacity">Promotor</div>
+                                                        <div className="w-7 h-7 rounded-full bg-rose-50 flex items-center justify-center text-rose-400 group-hover/promo:bg-rose-400 group-hover/promo:text-white transition-all shadow-sm border border-rose-100">
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                                            </svg>
+                                                        </div>
                                                     </div>
                                                 )}
+
                                                 {/* Controle de Imagens */}
                                                 <div
                                                     className="flex items-center gap-2 group/img cursor-pointer"
@@ -366,6 +462,196 @@ const Dashboard: React.FC = () => {
                                 <button onClick={() => setDocModal(null)} className="text-[11px] text-slate-400 hover:text-slate-600 font-medium transition-colors">
                                     Fechar
                                 </button>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* Modal: Criar acesso ao promotor */}
+                {promoModal && (() => {
+                    const existingVisitor = allVisitors.find(u => u.edicaoId === promoModal.edicao.id) ?? null;
+
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={closePromoModal}>
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+                                {/* Header */}
+                                <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-white font-black text-sm uppercase tracking-widest">Acesso ao Promotor</h2>
+                                        <p className="text-red-200 text-[10px] font-bold mt-0.5 uppercase tracking-wide truncate max-w-[260px]">{promoModal.edicao.titulo}</p>
+                                    </div>
+                                    <button onClick={closePromoModal} className="text-red-200 hover:text-white p-1 transition-colors">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+
+                                <div className="p-6 space-y-5">
+                                    {/* STEP 1: Confirmação */}
+                                    {promoModal.step === 'confirm' && (
+                                        <>
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                    <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-800">Liberar acesso externo à planilha</p>
+                                                    <p className="text-[12px] text-slate-600 mt-1.5 leading-relaxed">
+                                                        Você está prestes a gerar um <strong>acesso temporário de leitura</strong> para um promotor ou representante externo. Essa pessoa poderá visualizar a planilha de vendas e o histórico de atendimentos desta edição — <strong>sem permissão para alterar nenhum dado</strong>.
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-500 mt-2">Certifique-se de enviar as credenciais apenas para a pessoa autorizada.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3 pt-1">
+                                                <button onClick={closePromoModal} className="flex-1 py-2.5 text-xs font-bold text-slate-600 border border-slate-300 hover:border-slate-500 transition-colors">
+                                                    Cancelar
+                                                </button>
+                                                <button onClick={handlePromoConfirm} className="flex-1 py-2.5 text-xs font-black text-white bg-red-600 hover:bg-red-700 transition-colors">
+                                                    Entendido, prosseguir
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* STEP 2a: Já existe visitante — só cópia */}
+                                    {promoModal.step === 'existing' && existingVisitor && (
+                                        <>
+                                            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-2">
+                                                <span className="text-amber-500 text-base flex-shrink-0">⚠️</span>
+                                                <p className="text-[11px] text-amber-800 font-bold">Já existe um acesso ativo para esta edição. Copie e envie as credenciais abaixo.</p>
+                                            </div>
+                                            <div className="bg-slate-50 border border-slate-200 p-3 space-y-2 text-xs font-mono rounded-lg">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-500 font-sans font-bold uppercase text-[10px]">Usuário:</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <code className="text-slate-800 font-black">{existingVisitor.email.replace('@temp.local', '')}</code>
+                                                        <button onClick={() => navigator.clipboard.writeText(existingVisitor.email.replace('@temp.local', ''))} className="text-[10px] text-blue-600 hover:underline font-sans">Copiar</button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-500 font-sans font-bold uppercase text-[10px]">Senha:</span>
+                                                    <div className="flex items-center gap-2">
+                                                        {existingVisitor.tempPasswordPlain ? (
+                                                            <>
+                                                                <code className="text-slate-800 font-black tracking-wider">{existingVisitor.tempPasswordPlain}</code>
+                                                                <button onClick={() => navigator.clipboard.writeText(existingVisitor.tempPasswordPlain!)} className="text-[10px] text-blue-600 hover:underline font-sans">Copiar</button>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-slate-400 italic font-sans text-[10px]">não disponível</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-500 font-sans font-bold uppercase text-[10px]">Expira em:</span>
+                                                    <code className="text-amber-700 font-black">{existingVisitor.expiresAt ? new Date(existingVisitor.expiresAt).toLocaleDateString('pt-BR') : '—'}</code>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <button
+                                                    onClick={() => {
+                                                        const login = existingVisitor.email.replace('@temp.local', '');
+                                                        const senha = existingVisitor.tempPasswordPlain ?? '(não disponível)';
+                                                        const expira = existingVisitor.expiresAt ? new Date(existingVisitor.expiresAt).toLocaleDateString('pt-BR') : '—';
+                                                        const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${promoModal.edicao.titulo}*:\n\n🔗 *Link:* https://dbarros.vercel.app/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${senha}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
+                                                        navigator.clipboard.writeText(msg);
+                                                    }}
+                                                    className="w-full flex items-center justify-center gap-2 py-3 text-xs font-black text-white bg-slate-800 hover:bg-slate-950 transition-colors rounded-lg"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                    Copiar texto para WhatsApp
+                                                </button>
+                                                <p className="text-[10px] text-slate-400 text-center">Clique para copiar. Depois abra o WhatsApp e cole a mensagem pronta.</p>
+                                            </div>
+                                            <button onClick={closePromoModal} className="w-full py-2 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors">Fechar</button>
+                                        </>
+                                    )}
+
+                                    {/* STEP 2b: Nenhum visitante — criar novo */}
+                                    {promoModal.step === 'create' && (
+                                        <>
+                                            <p className="text-sm text-slate-600">Nenhum acesso ativo encontrado para esta edição. Defina a data de validade e gere o acesso.</p>
+                                            <div className="space-y-1.5">
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Data Limite de Acesso</label>
+                                                <input
+                                                    type="date"
+                                                    value={promoExpiresAt}
+                                                    onChange={e => setPromoExpiresAt(e.target.value)}
+                                                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-500 text-sm font-bold text-slate-800 p-3 rounded-lg outline-none transition-all"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <button onClick={closePromoModal} className="flex-1 py-2.5 text-xs font-bold text-slate-600 border border-slate-300 hover:border-slate-500 transition-colors rounded-lg">
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    onClick={handlePromoCreate}
+                                                    disabled={promoLoading || !promoExpiresAt}
+                                                    className="flex-1 py-2.5 text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors rounded-lg"
+                                                >
+                                                    {promoLoading ? 'Gerando...' : 'Gerar Acesso'}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* STEP 3: Criado com sucesso */}
+                                    {promoModal.step === 'created' && promoCreated && (
+                                        <>
+                                            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                </div>
+                                                <p className="text-sm font-black text-slate-800">Acesso criado com sucesso!</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Login de Acesso</label>
+                                                    <div className="flex bg-slate-50 border border-slate-200 p-1 rounded-lg">
+                                                        <code className="flex-1 px-3 py-2 text-sm font-black text-slate-800 break-all">{promoCreated.user.email.replace('@temp.local', '')}</code>
+                                                        <button onClick={() => navigator.clipboard.writeText(promoCreated.user.email.replace('@temp.local', ''))} className="p-2 text-slate-400 hover:text-slate-900 transition-colors" title="Copiar">
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Senha</label>
+                                                    <div className="flex bg-slate-50 border border-slate-200 p-1 rounded-lg">
+                                                        <code className="flex-1 px-3 py-2 text-sm font-black text-slate-800 tracking-wider">{promoCreated.passwordRaw}</code>
+                                                        <button onClick={() => navigator.clipboard.writeText(promoCreated.passwordRaw)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors" title="Copiar">
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div className="bg-amber-50 border border-amber-100 p-2.5 rounded-lg">
+                                                        <span className="text-[9px] font-black text-amber-600 uppercase block mb-0.5">Expira em</span>
+                                                        <span className="text-xs font-black text-amber-900">{new Date(promoCreated.user.expiresAt!).toLocaleDateString('pt-BR')}</span>
+                                                    </div>
+                                                    <div className="bg-blue-50 border border-blue-100 p-2.5 rounded-lg">
+                                                        <span className="text-[9px] font-black text-blue-600 uppercase block mb-0.5">Acesso em</span>
+                                                        <span className="text-[10px] font-black text-blue-800">dbarros.vercel.app</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <button
+                                                    onClick={() => {
+                                                        const login = promoCreated.user.email.replace('@temp.local', '');
+                                                        const expira = new Date(promoCreated.user.expiresAt!).toLocaleDateString('pt-BR');
+                                                        const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${promoModal.edicao.titulo}*:\n\n🔗 *Link:* https://dbarros.vercel.app/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${promoCreated.passwordRaw}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
+                                                        navigator.clipboard.writeText(msg);
+                                                    }}
+                                                    className="w-full flex items-center justify-center gap-2 py-3 text-xs font-black text-white bg-slate-800 hover:bg-slate-950 transition-colors rounded-lg"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                    Copiar texto para WhatsApp
+                                                </button>
+                                                <p className="text-[10px] text-slate-400 text-center">Clique para copiar. Depois abra o WhatsApp e cole a mensagem pronta.</p>
+                                            </div>
+                                            <button onClick={closePromoModal} className="w-full py-2 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors">Fechar</button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     );

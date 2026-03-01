@@ -688,10 +688,11 @@ const CadastroEvento: React.FC = () => {
                                                                 </div>
                                                             </td>
                                                         </tr>
-                                                        <tr className="bg-slate-50 text-[10px]">
-                                                            <td colSpan={6} className="px-3 py-1 border-b border-slate-200">
+                                                        <tr className="bg-blue-50/40 text-[10px]">
+                                                            <td colSpan={6} className="pl-0 pr-3 py-1.5 border-b border-blue-100">
                                                                 <div className="flex items-center gap-6">
-                                                                    <span className="text-slate-400 font-black uppercase tracking-wider shrink-0">Docs:</span>
+                                                                    <div className="w-1 self-stretch bg-blue-400 rounded-r mr-2 shrink-0" />
+                                                                    <span className="text-blue-600 font-black uppercase tracking-wider shrink-0">Docs:</span>
                                                                     {/* Proposta Comercial */}
                                                                     <div className="flex items-center gap-1">
                                                                         <span className="text-slate-500 font-semibold mr-1">Proposta Comercial</span>
@@ -707,7 +708,7 @@ const CadastroEvento: React.FC = () => {
                                                                             <button
                                                                                 onClick={() => handleClickUploadDoc(ed.id, 'proposta_comercial')}
                                                                                 disabled={!!uploadingDoc[`${ed.id}-proposta_comercial`]}
-                                                                                className="px-2 py-0.5 font-bold border border-slate-300 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                                                                                className="px-2 py-0.5 font-bold border border-violet-300 text-violet-600 bg-violet-50 hover:bg-violet-100 disabled:opacity-50"
                                                                             >
                                                                                 {uploadingDoc[`${ed.id}-proposta_comercial`] ? 'Enviando...' : '↑ Enviar'}
                                                                             </button>
@@ -728,7 +729,7 @@ const CadastroEvento: React.FC = () => {
                                                                             <button
                                                                                 onClick={() => handleClickUploadDoc(ed.id, 'planta_baixa')}
                                                                                 disabled={!!uploadingDoc[`${ed.id}-planta_baixa`]}
-                                                                                className="px-2 py-0.5 font-bold border border-slate-300 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                                                                                className="px-2 py-0.5 font-bold border border-teal-300 text-teal-600 bg-teal-50 hover:bg-teal-100 disabled:opacity-50"
                                                                             >
                                                                                 {uploadingDoc[`${ed.id}-planta_baixa`] ? 'Enviando...' : '↑ Enviar'}
                                                                             </button>
