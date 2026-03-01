@@ -68,7 +68,7 @@ export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: Reac
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className={`bg-white h-full sm:h-auto sm:rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in fade-in zoom-in duration-200 border-x sm:border border-slate-200 flex flex-col`}>
+      <div className={`bg-white h-full sm:h-auto sm:max-h-[90vh] sm:rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in fade-in zoom-in duration-200 border-x sm:border border-slate-200 flex flex-col`}>
         <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/30 flex-shrink-0">
           <div className="flex-1 mr-4 overflow-hidden">
             {typeof title === 'string' ? (
