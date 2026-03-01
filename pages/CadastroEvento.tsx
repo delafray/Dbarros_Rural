@@ -690,46 +690,50 @@ const CadastroEvento: React.FC = () => {
                                                         </tr>
                                                         <tr className="bg-blue-50/40 text-[10px]">
                                                             <td colSpan={6} className="pl-0 pr-3 py-1.5 border-b border-blue-100">
-                                                                <div className="flex items-center gap-6">
-                                                                    <div className="w-1 self-stretch bg-blue-400 rounded-r mr-2 shrink-0" />
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-1 self-stretch bg-blue-400 rounded-r mr-1 shrink-0" />
                                                                     <span className="text-blue-600 font-black uppercase tracking-wider shrink-0">Docs:</span>
                                                                     {/* Proposta Comercial */}
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="text-slate-500 font-semibold mr-1">Proposta Comercial</span>
+                                                                    <div className="flex items-center gap-1 border border-violet-200 rounded-md px-2 py-1 bg-violet-50/40">
+                                                                        <span className="text-violet-700 font-bold text-[11px] uppercase tracking-wide mr-1 shrink-0">Proposta Comercial</span>
+                                                                        <div className="w-px h-4 bg-violet-200 mx-0.5 shrink-0" />
                                                                         {propostaUrl ? (
                                                                             <>
-                                                                                <button onClick={() => window.open(propostaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50">VER</button>
-                                                                                <button onClick={() => handleDownloadDoc(propostaUrl, 'proposta_comercial', ed.titulo)} className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</button>
-                                                                                <button onClick={() => handleShareDoc(propostaUrl, 'proposta_comercial', ed.titulo)} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
-                                                                                <button onClick={() => handleClickUploadDoc(ed.id, 'proposta_comercial')} disabled={!!uploadingDoc[`${ed.id}-proposta_comercial`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50">{uploadingDoc[`${ed.id}-proposta_comercial`] ? '...' : 'ALTERAR'}</button>
-                                                                                <button onClick={() => handleRemoveDoc(ed.id, 'proposta_comercial')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50">X</button>
+                                                                                <button onClick={() => window.open(propostaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50 rounded">VER</button>
+                                                                                <button onClick={() => handleDownloadDoc(propostaUrl, 'proposta_comercial', ed.titulo)} className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50 rounded">BAIXAR</button>
+                                                                                <button onClick={() => handleShareDoc(propostaUrl, 'proposta_comercial', ed.titulo)} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 rounded">COMP.</button>
+                                                                                <button onClick={() => handleClickUploadDoc(ed.id, 'proposta_comercial')} disabled={!!uploadingDoc[`${ed.id}-proposta_comercial`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50 rounded">{uploadingDoc[`${ed.id}-proposta_comercial`] ? '...' : 'ALTERAR'}</button>
+                                                                                <button onClick={() => handleRemoveDoc(ed.id, 'proposta_comercial')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50 rounded">X</button>
                                                                             </>
                                                                         ) : (
                                                                             <button
                                                                                 onClick={() => handleClickUploadDoc(ed.id, 'proposta_comercial')}
                                                                                 disabled={!!uploadingDoc[`${ed.id}-proposta_comercial`]}
-                                                                                className="px-2 py-0.5 font-bold border border-violet-300 text-violet-600 bg-violet-50 hover:bg-violet-100 disabled:opacity-50"
+                                                                                className="px-2 py-0.5 font-bold border border-violet-300 text-violet-600 bg-violet-50 hover:bg-violet-100 disabled:opacity-50 rounded"
                                                                             >
                                                                                 {uploadingDoc[`${ed.id}-proposta_comercial`] ? 'Enviando...' : '↑ Enviar'}
                                                                             </button>
                                                                         )}
                                                                     </div>
+                                                                    {/* Separador */}
+                                                                    <div className="w-px h-6 bg-slate-300 shrink-0" />
                                                                     {/* Planta Baixa */}
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="text-slate-500 font-semibold mr-1">Planta Baixa</span>
+                                                                    <div className="flex items-center gap-1 border border-teal-200 rounded-md px-2 py-1 bg-teal-50/40">
+                                                                        <span className="text-teal-700 font-bold text-[11px] uppercase tracking-wide mr-1 shrink-0">Planta Baixa</span>
+                                                                        <div className="w-px h-4 bg-teal-200 mx-0.5 shrink-0" />
                                                                         {plantaUrl ? (
                                                                             <>
-                                                                                <button onClick={() => window.open(plantaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50">VER</button>
-                                                                                <button onClick={() => handleDownloadDoc(plantaUrl, 'planta_baixa', ed.titulo)} className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50">BAIXAR</button>
-                                                                                <button onClick={() => handleShareDoc(plantaUrl, 'planta_baixa', ed.titulo)} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100">COMP.</button>
-                                                                                <button onClick={() => handleClickUploadDoc(ed.id, 'planta_baixa')} disabled={!!uploadingDoc[`${ed.id}-planta_baixa`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50">{uploadingDoc[`${ed.id}-planta_baixa`] ? '...' : 'ALTERAR'}</button>
-                                                                                <button onClick={() => handleRemoveDoc(ed.id, 'planta_baixa')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50">X</button>
+                                                                                <button onClick={() => window.open(plantaUrl, '_blank')} className="px-2 py-0.5 font-bold border border-blue-200 text-blue-600 hover:bg-blue-50 rounded">VER</button>
+                                                                                <button onClick={() => handleDownloadDoc(plantaUrl, 'planta_baixa', ed.titulo)} className="px-2 py-0.5 font-bold border border-green-200 text-green-600 hover:bg-green-50 rounded">BAIXAR</button>
+                                                                                <button onClick={() => handleShareDoc(plantaUrl, 'planta_baixa', ed.titulo)} className="px-2 py-0.5 font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 rounded">COMP.</button>
+                                                                                <button onClick={() => handleClickUploadDoc(ed.id, 'planta_baixa')} disabled={!!uploadingDoc[`${ed.id}-planta_baixa`]} className="px-2 py-0.5 font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-50 rounded">{uploadingDoc[`${ed.id}-planta_baixa`] ? '...' : 'ALTERAR'}</button>
+                                                                                <button onClick={() => handleRemoveDoc(ed.id, 'planta_baixa')} className="px-2 py-0.5 font-bold border border-red-200 text-red-500 hover:bg-red-50 rounded">X</button>
                                                                             </>
                                                                         ) : (
                                                                             <button
                                                                                 onClick={() => handleClickUploadDoc(ed.id, 'planta_baixa')}
                                                                                 disabled={!!uploadingDoc[`${ed.id}-planta_baixa`]}
-                                                                                className="px-2 py-0.5 font-bold border border-teal-300 text-teal-600 bg-teal-50 hover:bg-teal-100 disabled:opacity-50"
+                                                                                className="px-2 py-0.5 font-bold border border-teal-300 text-teal-600 bg-teal-50 hover:bg-teal-100 disabled:opacity-50 rounded"
                                                                             >
                                                                                 {uploadingDoc[`${ed.id}-planta_baixa`] ? 'Enviando...' : '↑ Enviar'}
                                                                             </button>
