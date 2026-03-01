@@ -651,6 +651,23 @@ const Atendimentos: React.FC = () => {
     const [editingAtend, setEditingAtend] = useState<Atendimento | null>(null);
     const [histAtend, setHistAtend] = useState<Atendimento | null>(null);
     const [showImport, setShowImport] = useState(false);
+    type SortKey = 'nome' | 'contato' | 'prob' | 'registro' | 'retorno' | 'obs';
+    const [sortKey, setSortKey] = useState<SortKey | null>(null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir('desc'); // 1º clique: mais recente primeiro (datas) / Z→A (texto)
+        }
+    };
+
+    const SortIcon = ({ col }: { col: SortKey }) => {
+        if (sortKey !== col) return <span className="opacity-30 ml-0.5">⇅</span>;
+        return <span className="ml-0.5 text-yellow-300">{sortDir === 'desc' ? '↓' : '↑'}</span>;
+    };
 
     const load = useCallback(async () => {
         if (!edicaoId) return;
@@ -698,20 +715,53 @@ const Atendimentos: React.FC = () => {
             });
         }
 
-        // Ordenação: 1º Maior probabilidade (null = -1), 2º Ordem Alfabética
+        // Ordenação padrão (quando não há sortKey): 1º Maior probabilidade, 2º Alfabético
+        if (!sortKey) {
+            return [...result].sort((a, b) => {
+                const probA = a.probabilidade === null ? -1 : a.probabilidade;
+                const probB = b.probabilidade === null ? -1 : b.probabilidade;
+                if (probA !== probB) return probB - probA;
+                return atendimentosService.getNomeExibicao(a).toLowerCase()
+                    .localeCompare(atendimentosService.getNomeExibicao(b).toLowerCase(), 'pt-BR');
+            });
+        }
+
+        // Ordenação por coluna selecionada
+        const dir = sortDir === 'asc' ? 1 : -1;
         return [...result].sort((a, b) => {
-            const probA = a.probabilidade === null ? -1 : a.probabilidade;
-            const probB = b.probabilidade === null ? -1 : b.probabilidade;
-
-            if (probA !== probB) {
-                return probB - probA; // Maior probabilidade vem primeiro
+            if (sortKey === 'nome') {
+                const sA = atendimentosService.getNomeExibicao(a).toLowerCase();
+                const sB = atendimentosService.getNomeExibicao(b).toLowerCase();
+                return dir * sA.localeCompare(sB, 'pt-BR');
             }
-
-            const nomeA = atendimentosService.getNomeExibicao(a).toLowerCase();
-            const nomeB = atendimentosService.getNomeExibicao(b).toLowerCase();
-            return nomeA.localeCompare(nomeB, 'pt-BR');
+            if (sortKey === 'contato') {
+                const sA = atendimentosService.getContatoExibicao(a).toLowerCase();
+                const sB = atendimentosService.getContatoExibicao(b).toLowerCase();
+                return dir * sA.localeCompare(sB, 'pt-BR');
+            }
+            if (sortKey === 'obs') {
+                const sA = (a.ultima_obs || '').toLowerCase();
+                const sB = (b.ultima_obs || '').toLowerCase();
+                return dir * sA.localeCompare(sB, 'pt-BR');
+            }
+            if (sortKey === 'prob') {
+                const nA = a.probabilidade === null ? -1 : a.probabilidade;
+                const nB = b.probabilidade === null ? -1 : b.probabilidade;
+                return dir * (nA - nB);
+            }
+            if (sortKey === 'registro') {
+                const nA = a.ultima_obs_at ? new Date(a.ultima_obs_at).getTime() : 0;
+                const nB = b.ultima_obs_at ? new Date(b.ultima_obs_at).getTime() : 0;
+                return dir * (nA - nB);
+            }
+            if (sortKey === 'retorno') {
+                const nA = a.data_retorno ? new Date(a.data_retorno).getTime() : 0;
+                const nB = b.data_retorno ? new Date(b.data_retorno).getTime() : 0;
+                return dir * (nA - nB);
+            }
+            return 0;
         });
-    }, [atendimentos, search]);
+    }, [atendimentos, search, sortKey, sortDir]);
 
     const handleSaved = (saved: Atendimento) => {
         setAtendimentos(prev => {
@@ -837,13 +887,44 @@ const Atendimentos: React.FC = () => {
                     <table className="w-full border-collapse text-[12px] bg-white border border-slate-300 table-fixed">
                         <thead className="bg-[#1F497D] text-white">
                             <tr className="text-[11px] font-bold uppercase tracking-wide">
-                                <th className="px-2 py-1 border border-slate-300 text-left w-[150px]">Empresa / Cliente</th>
-                                <th className="px-2 py-1 border border-slate-300 text-left w-[100px]">Contato</th>
+                                {/* Colunas clicáveis para ordenação */}
+                                {([
+                                    { key: 'nome', label: 'Empresa / Cliente', cls: 'text-left w-[150px]' },
+                                    { key: 'contato', label: 'Contato', cls: 'text-left w-[100px]' },
+                                ] as { key: SortKey; label: string; cls: string }[]).map(col => (
+                                    <th
+                                        key={col.key}
+                                        className={`px-2 py-1 border border-slate-300 ${col.cls} cursor-pointer select-none hover:bg-blue-700 transition-colors ${sortKey === col.key ? 'bg-blue-800' : ''}`}
+                                        onClick={() => handleSort(col.key)}
+                                    >
+                                        {col.label}<SortIcon col={col.key} />
+                                    </th>
+                                ))}
                                 <th className="px-2 py-1 border border-slate-300 text-left w-[110px]">Telefone</th>
-                                <th className="px-1 py-1 border border-slate-300 text-center w-[45px]">%</th>
-                                <th className="px-2 py-1 border border-slate-300 text-left w-[110px]">Registro</th>
-                                <th className="px-2 py-1 border border-slate-300 text-left w-[110px]">Retorno</th>
-                                <th className="px-2 py-1 border border-slate-300 text-left min-w-[200px]">Último Contato</th>
+                                <th
+                                    className={`px-1 py-1 border border-slate-300 text-center w-[45px] cursor-pointer select-none hover:bg-blue-700 transition-colors ${sortKey === 'prob' ? 'bg-blue-800' : ''}`}
+                                    onClick={() => handleSort('prob')}
+                                >
+                                    %<SortIcon col="prob" />
+                                </th>
+                                <th
+                                    className={`px-2 py-1 border border-slate-300 text-left w-[110px] cursor-pointer select-none hover:bg-blue-700 transition-colors ${sortKey === 'registro' ? 'bg-blue-800' : ''}`}
+                                    onClick={() => handleSort('registro')}
+                                >
+                                    Registro<SortIcon col="registro" />
+                                </th>
+                                <th
+                                    className={`px-2 py-1 border border-slate-300 text-left w-[110px] cursor-pointer select-none hover:bg-blue-700 transition-colors ${sortKey === 'retorno' ? 'bg-blue-800' : ''}`}
+                                    onClick={() => handleSort('retorno')}
+                                >
+                                    Retorno<SortIcon col="retorno" />
+                                </th>
+                                <th
+                                    className={`px-2 py-1 border border-slate-300 text-left min-w-[200px] cursor-pointer select-none hover:bg-blue-700 transition-colors ${sortKey === 'obs' ? 'bg-blue-800' : ''}`}
+                                    onClick={() => handleSort('obs')}
+                                >
+                                    Último Contato<SortIcon col="obs" />
+                                </th>
                                 <th className="px-1 py-1 border border-slate-300 text-center w-20">Ações</th>
                             </tr>
                         </thead>
