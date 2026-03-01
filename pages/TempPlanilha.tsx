@@ -631,7 +631,7 @@ const PlanilhaVendas: React.FC = () => {
   const tdStyle =
     "border border-slate-300 text-[12px] px-2 py-0 whitespace-nowrap";
 
-  const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const formatPeriodo = (ini: string | null, fim: string | null): string => {
     if (!ini) return '';
     const d1 = new Date(ini);
@@ -734,12 +734,16 @@ const PlanilhaVendas: React.FC = () => {
               <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-white font-bold uppercase bg-slate-800/40">
                 Total Vendas
               </th>
-              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-green-400 font-bold uppercase bg-slate-800/40">
-                Pago
-              </th>
-              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-red-400 font-bold uppercase bg-slate-800/40">
-                Pendente
-              </th>
+              {!isVisitor && (
+                <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-green-400 font-bold uppercase bg-slate-800/40">
+                  Pago
+                </th>
+              )}
+              {!isVisitor && (
+                <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-red-400 font-bold uppercase bg-slate-800/40">
+                  Pendente
+                </th>
+              )}
               <th className="border border-white/10 bg-violet-900/20" />
               <th className="border border-white/10 bg-violet-900/30" />
               <th className="border border-white/10 bg-violet-900/30" />
@@ -785,16 +789,20 @@ const PlanilhaVendas: React.FC = () => {
               >
                 {formatMoney(totals.totalVenda)}
               </th>
-              <th
-                className={`${thStyle} text-right font-mono font-black text-green-400 bg-slate-700/60 text-[12px]`}
-              >
-                {formatMoney(totals.valorPago)}
-              </th>
-              <th
-                className={`${thStyle} text-right font-mono font-black text-red-400 bg-slate-700/60 text-[12px]`}
-              >
-                {formatMoney(totals.pendente)}
-              </th>
+              {!isVisitor && (
+                <th
+                  className={`${thStyle} text-right font-mono font-black text-green-400 bg-slate-700/60 text-[12px]`}
+                >
+                  {formatMoney(totals.valorPago)}
+                </th>
+              )}
+              {!isVisitor && (
+                <th
+                  className={`${thStyle} text-right font-mono font-black text-red-400 bg-slate-700/60 text-[12px]`}
+                >
+                  {formatMoney(totals.pendente)}
+                </th>
+              )}
               <th className="border border-white/10 bg-violet-900/20" />
               <th className="border border-white/10 bg-violet-900/30" />
               <th className="border border-white/10 bg-violet-900/30" />
@@ -834,8 +842,8 @@ const PlanilhaVendas: React.FC = () => {
               <th className={`${thStyle}`}>SubTotal</th>
               <th className={`${thStyle}`}>Desconto</th>
               <th className={`${thStyle}`}>TOTAL</th>
-              <th className={`${thStyle} bg-[#385723]`}>PAGO</th>
-              <th className={`${thStyle} bg-[#C00000]`}>PENDENTE</th>
+              {!isVisitor && <th className={`${thStyle} bg-[#385723]`}>PAGO</th>}
+              {!isVisitor && <th className={`${thStyle} bg-[#C00000]`}>PENDENTE</th>}
               {!isVisitor && (
                 <th
                   className={`${thStyle} w-20 bg-violet-900/60`}
@@ -881,11 +889,11 @@ const PlanilhaVendas: React.FC = () => {
                         {cat?.prefix?.trim()
                           ? row.stand_nr
                           : row.stand_nr
-                              .replace(
-                                new RegExp(`^${cat?.tag ?? ""}\\s*`, "i"),
-                                "",
-                              )
-                              .trim()}
+                            .replace(
+                              new RegExp(`^${cat?.tag ?? ""}\\s*`, "i"),
+                              "",
+                            )
+                            .trim()}
                       </span>
                     </div>
                   </td>
@@ -939,15 +947,14 @@ const PlanilhaVendas: React.FC = () => {
                         key={label}
                         className={`${tdStyle} text-center font-black select-none w-6 h-5 leading-none px-0
                                                 ${!isVisitor ? "cursor-pointer" : ""}
-                                                ${
-                                                  isPending
-                                                    ? "!bg-slate-400 !text-white"
-                                                    : isX
-                                                      ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
-                                                      : isStar
-                                                        ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
-                                                        : "!bg-white hover:bg-blue-100/50 text-transparent"
-                                                }`}
+                                                ${isPending
+                            ? "!bg-slate-400 !text-white"
+                            : isX
+                              ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
+                              : isStar
+                                ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
+                                : "!bg-white hover:bg-blue-100/50 text-transparent"
+                          }`}
                         onClick={() => {
                           if (isVisitor) return;
                           if (isPending) {
@@ -986,15 +993,14 @@ const PlanilhaVendas: React.FC = () => {
                         key={opt.id}
                         className={`${tdStyle} text-center font-black w-6 h-5 leading-none select-none px-0
                                                 ${!isVisitor ? "cursor-pointer" : ""}
-                                                ${
-                                                  isPending
-                                                    ? "!bg-slate-400 !text-white"
-                                                    : status === "x"
-                                                      ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
-                                                      : status === "*"
-                                                        ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
-                                                        : "!bg-white hover:bg-slate-100/50 text-transparent"
-                                                }`}
+                                                ${isPending
+                            ? "!bg-slate-400 !text-white"
+                            : status === "x"
+                              ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
+                              : status === "*"
+                                ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
+                                : "!bg-white hover:bg-slate-100/50 text-transparent"
+                          }`}
                         onClick={() => {
                           if (isVisitor) return;
                           if (isPending) {
@@ -1089,64 +1095,68 @@ const PlanilhaVendas: React.FC = () => {
                   </td>
 
                   {/* Valor Pago */}
-                  <td
-                    className={`${tdStyle} px-2 py-0 text-right font-mono text-[12px] bg-green-50/60 group ${!isVisitor ? "cursor-pointer" : ""}`}
-                    onClick={() => {
-                      if (isVisitor) return;
-                      if (
-                        !(
-                          editing?.id === row.id &&
-                          editing?.field === "valor_pago"
+                  {!isVisitor && (
+                    <td
+                      className={`${tdStyle} px-2 py-0 text-right font-mono text-[12px] bg-green-50/60 group ${!isVisitor ? "cursor-pointer" : ""}`}
+                      onClick={() => {
+                        if (isVisitor) return;
+                        if (
+                          !(
+                            editing?.id === row.id &&
+                            editing?.field === "valor_pago"
+                          )
                         )
-                      )
-                        setEditing({
-                          id: row.id,
-                          field: "valor_pago",
-                          val: String(row.valor_pago || ""),
-                        });
-                    }}
-                    title={isVisitor ? undefined : "Clique para editar"}
-                  >
-                    {editing?.id === row.id &&
-                    editing?.field === "valor_pago" ? (
-                      <input
-                        autoFocus
-                        type="text"
-                        className="w-full bg-slate-100 text-right font-mono outline-none border-b border-green-500 font-bold px-1 min-w-[70px]"
-                        value={editing.val}
-                        onChange={(e) =>
-                          setEditing({ ...editing, val: e.target.value })
-                        }
-                        onBlur={() => {
-                          const num = Number(
-                            editing?.val.replace(",", ".") || 0,
-                          );
-                          setRows(
-                            rows.map((r) =>
-                              r.id === row.id ? { ...r, valor_pago: num } : r,
-                            ),
-                          );
-                          handleUpdateField(row.id, "valor_pago", num);
-                          setEditing(null);
-                        }}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" &&
-                          (e.currentTarget as HTMLInputElement).blur()
-                        }
-                      />
-                    ) : (
-                      <span className="text-green-900 font-bold group-hover:text-blue-500 transition-colors">
-                        {formatMoney(row.valor_pago ?? 0)}
-                      </span>
-                    )}
-                  </td>
+                          setEditing({
+                            id: row.id,
+                            field: "valor_pago",
+                            val: String(row.valor_pago || ""),
+                          });
+                      }}
+                      title="Clique para editar"
+                    >
+                      {editing?.id === row.id &&
+                        editing?.field === "valor_pago" ? (
+                        <input
+                          autoFocus
+                          type="text"
+                          className="w-full bg-slate-100 text-right font-mono outline-none border-b border-green-500 font-bold px-1 min-w-[70px]"
+                          value={editing.val}
+                          onChange={(e) =>
+                            setEditing({ ...editing, val: e.target.value })
+                          }
+                          onBlur={() => {
+                            const num = Number(
+                              editing?.val.replace(",", ".") || 0,
+                            );
+                            setRows(
+                              rows.map((r) =>
+                                r.id === row.id ? { ...r, valor_pago: num } : r,
+                              ),
+                            );
+                            handleUpdateField(row.id, "valor_pago", num);
+                            setEditing(null);
+                          }}
+                          onKeyDown={(e) =>
+                            e.key === "Enter" &&
+                            (e.currentTarget as HTMLInputElement).blur()
+                          }
+                        />
+                      ) : (
+                        <span className="text-green-900 font-bold group-hover:text-blue-500 transition-colors">
+                          {formatMoney(row.valor_pago ?? 0)}
+                        </span>
+                      )}
+                    </td>
+                  )}
 
                   {/* Pendente */}
-                  <td
-                    className={`${tdStyle} text-right font-mono font-black text-[12px] ${calc.pendente > 0 ? "text-red-600 bg-red-50/30" : calc.pendente < 0 ? "text-blue-600" : "text-slate-300"}`}
-                  >
-                    {formatMoney(calc.pendente)}
-                  </td>
+                  {!isVisitor && (
+                    <td
+                      className={`${tdStyle} text-right font-mono font-black text-[12px] ${calc.pendente > 0 ? "text-red-600 bg-red-50/30" : calc.pendente < 0 ? "text-blue-600" : "text-slate-300"}`}
+                    >
+                      {formatMoney(calc.pendente)}
+                    </td>
+                  )}
 
                   {/* Imagens status */}
                   {(() => {
@@ -1276,8 +1286,8 @@ const PlanilhaVendas: React.FC = () => {
           const popupCliente = clientes.find((c: ClienteComContatos) => c.id === popupRow?.cliente_id);
           const popupClienteNome = popupCliente
             ? (popupCliente.tipo_pessoa === 'PJ'
-                ? (popupCliente.razao_social || popupCliente.nome_fantasia)
-                : popupCliente.nome_completo) || null
+              ? (popupCliente.razao_social || popupCliente.nome_fantasia)
+              : popupCliente.nome_completo) || null
             : null;
           const rowHasData = !!popupRow && (
             (!!popupRow.tipo_venda && popupRow.tipo_venda !== 'DISPONÍVEL') ||
@@ -1317,9 +1327,9 @@ const PlanilhaVendas: React.FC = () => {
           const cliente = clientes.find((c) => c.id === row.cliente_id);
           const nomeCliente = cliente
             ? cliente.nome_fantasia ||
-              (cliente.tipo_pessoa === "PJ"
-                ? cliente.razao_social
-                : cliente.nome_completo)
+            (cliente.tipo_pessoa === "PJ"
+              ? cliente.razao_social
+              : cliente.nome_completo)
             : row.cliente_nome_livre || row.stand_nr;
           return (
             <div
@@ -1369,11 +1379,10 @@ const PlanilhaVendas: React.FC = () => {
                               onClick={() => handleToggleRecebimento(cfg.id)}
                               disabled={modalRecebLoading}
                               title={recebido ? "Marcar como não recebido" : "Marcar como recebido"}
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                                recebido
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${recebido
                                   ? "bg-green-500 border-green-500 text-white"
                                   : "bg-white border-slate-300 hover:border-green-400"
-                              }`}
+                                }`}
                             >
                               {recebido && <span className="text-[10px] font-black leading-none">✓</span>}
                             </button>
