@@ -75,6 +75,11 @@ const PlanilhaVendas: React.FC = () => {
   const [modalRecebLoading, setModalRecebLoading] = useState(false);
   const [realtimeToast, setRealtimeToast] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingCompleteConfirm, setPendingCompleteConfirm] = useState<{
+    imgTotal: number;
+    imgRecebidas: number;
+    imgDoStand: ImagemConfig[];
+  } | null>(null);
 
   useEffect(() => {
     if (!statusModal?.rowId) { setModalRecebimentos({}); return; }
@@ -341,13 +346,23 @@ const PlanilhaVendas: React.FC = () => {
   };
 
   // Salva tudo de uma vez: checkboxes + status + obs
-  const handleSaveModal = async (status: StandStatus) => {
+  const handleSaveModal = async (status: StandStatus, forceComplete = false) => {
     if (!statusModal) return;
     const row = rows.find((r) => r.id === statusModal.rowId);
     const imgDoStand = row ? getImagensDoStand(row) : [];
     const existingSt = statusMap[statusModal.rowId];
     const currentLevel = STATUS_ORDER[existingSt?.status as StandStatus ?? 'pendente'] ?? 0;
     const newLevel = STATUS_ORDER[status];
+
+    // Intercepta COMPLETO com imagens pendentes
+    if (status === 'completo' && !forceComplete && imgDoStand.length > 0) {
+      const totalImgs = imgDoStand.length;
+      const recebidas = imgDoStand.filter((cfg) => !!modalRecebimentos[cfg.id]).length;
+      if (recebidas < totalImgs) {
+        setPendingCompleteConfirm({ imgTotal: totalImgs, imgRecebidas: recebidas, imgDoStand });
+        return;
+      }
+    }
 
     // Detecta regressão de status — pede confirmação e limpa timestamps superiores
     let clearTimestamps: Array<'pendente_em' | 'solicitado_em' | 'completo_em'> | undefined;
@@ -356,24 +371,28 @@ const PlanilhaVendas: React.FC = () => {
         `Atenção: você está voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serão apagadas. Confirma?`
       );
       if (!confirmed) return;
-      // Coleta quais timestamps precisam ser zerados (todos acima do novo status)
       clearTimestamps = (Object.keys(STATUS_ORDER) as StandStatus[])
         .filter((s) => STATUS_ORDER[s] > newLevel)
         .map((s) => TS_KEY[s]);
     }
 
     try {
+      // Se forçando completo, marca TODOS como recebidos antes de salvar
+      const recebimentosParaSalvar = forceComplete
+        ? Object.fromEntries(imgDoStand.map((cfg) => [cfg.id, true]))
+        : modalRecebimentos;
+
       if (imgDoStand.length > 0) {
         await Promise.all(
           imgDoStand.map((cfg: ImagemConfig) =>
-            imagensService.setRecebimento(statusModal.rowId, cfg.id, !!modalRecebimentos[cfg.id]),
+            imagensService.setRecebimento(statusModal.rowId, cfg.id, !!recebimentosParaSalvar[cfg.id]),
           ),
         );
       }
       await imagensService.upsertStatus(statusModal.rowId, status, statusModal.obs, existingSt, clearTimestamps);
       // Atualiza recebimentosMap para o contador na badge
       const newRec: Record<string, boolean> = {};
-      imgDoStand.forEach((cfg: ImagemConfig) => { newRec[cfg.id] = !!modalRecebimentos[cfg.id]; });
+      imgDoStand.forEach((cfg: ImagemConfig) => { newRec[cfg.id] = !!recebimentosParaSalvar[cfg.id]; });
       setRecebimentosMap((prev) => ({
         ...prev,
         [statusModal.rowId]: { ...(prev[statusModal.rowId] || {}), ...newRec },
@@ -391,11 +410,11 @@ const PlanilhaVendas: React.FC = () => {
           atualizado_em: now,
           [tsKey]: existing?.[tsKey] ?? now,
         };
-        // Limpa timestamps superiores no estado local também
         if (clearTimestamps) clearTimestamps.forEach((k) => { updated[k] = null; });
         return { ...prev, [statusModal.rowId]: updated as StandImagemStatus };
       });
       setStatusModal(null);
+      setPendingCompleteConfirm(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : (err as any)?.message || JSON.stringify(err);
       alert("Erro ao salvar: " + msg);
@@ -687,6 +706,62 @@ const PlanilhaVendas: React.FC = () => {
         </div>
       }
     >
+      {/* Modal de confirmação: COMPLETO com imagens pendentes */}
+      {pendingCompleteConfirm && statusModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 py-4 bg-amber-50 border-b border-amber-200">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-black text-slate-800 text-sm">Arquivos de imagem pendentes</h2>
+                <p className="text-xs text-amber-700 font-medium mt-0.5">
+                  {pendingCompleteConfirm.imgRecebidas} de {pendingCompleteConfirm.imgTotal} arquivos recebidos
+                </p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-sm text-slate-700 leading-relaxed">
+                Você está marcando este stand como <strong>Completo</strong>, mas ainda há{' '}
+                <strong className="text-amber-600">
+                  {pendingCompleteConfirm.imgTotal - pendingCompleteConfirm.imgRecebidas} arquivo{pendingCompleteConfirm.imgTotal - pendingCompleteConfirm.imgRecebidas > 1 ? 's' : ''} sem confirmação de recebimento.
+                </strong>
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                <p className="text-xs text-blue-800 font-semibold leading-relaxed">
+                  💡 Ao confirmar, <strong>todos os arquivos serão automaticamente marcados como recebidos</strong> — tanto na planilha quanto no Controle de Imagens.
+                </p>
+              </div>
+              <p className="text-xs text-slate-500">
+                Deseja continuar e confirmar que os arquivos estão com você?
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200">
+              <button
+                onClick={() => setPendingCompleteConfirm(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancelar — vou revisar
+              </button>
+              <button
+                onClick={() => handleSaveModal('completo', true)}
+                className="px-4 py-2 text-xs font-black text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+              >
+                Confirmar — arquivos estão comigo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Realtime update toast */}
       {realtimeToast && (
         <div
@@ -1380,8 +1455,8 @@ const PlanilhaVendas: React.FC = () => {
                               disabled={modalRecebLoading}
                               title={recebido ? "Marcar como não recebido" : "Marcar como recebido"}
                               className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${recebido
-                                  ? "bg-green-500 border-green-500 text-white"
-                                  : "bg-white border-slate-300 hover:border-green-400"
+                                ? "bg-green-500 border-green-500 text-white"
+                                : "bg-white border-slate-300 hover:border-green-400"
                                 }`}
                             >
                               {recebido && <span className="text-[10px] font-black leading-none">✓</span>}
