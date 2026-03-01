@@ -787,16 +787,30 @@ const Users: React.FC = () => {
                                             const edicaoNome = edicoesAtivas.find(e => e.id === tempEdicaoId)?.titulo ?? '';
                                             const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${edicaoNome}*:\n\n🔗 *Link:* https://dbarros.vercel.app/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${senha}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
                                             navigator.clipboard.writeText(msg);
-                                            showAlert('Copiado!', 'Texto copiado. Abra o WhatsApp e cole (Ctrl+V ou segurar e Colar).', 'success');
+                                            setWhatsappCopied(true);
+                                            setTimeout(() => setWhatsappCopied(false), 4000);
                                         }}
-                                        className="w-full flex items-center justify-center gap-2 py-3 text-xs font-black text-white bg-slate-800 hover:bg-slate-950 transition-colors"
+                                        className={`w-full flex items-center justify-center gap-2 py-3 text-xs font-black text-white transition-colors ${whatsappCopied ? 'bg-green-500' : 'bg-slate-800 hover:bg-slate-950'}`}
                                     >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                        </svg>
-                                        Copiar texto para WhatsApp
+                                        {whatsappCopied ? (
+                                            <>
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Copiado!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                                Copiar texto para WhatsApp
+                                            </>
+                                        )}
                                     </button>
-                                    <p className="text-[10px] text-slate-500 text-center">Clique para copiar. Depois abra o WhatsApp e cole a mensagem pronta.</p>
+                                    <p className={`text-[10px] text-center font-bold animate-pulse transition-colors ${whatsappCopied ? 'text-green-600' : 'text-slate-500'}`}>
+                                        {whatsappCopied ? '✅ Texto copiado! Abra o WhatsApp e cole no contato que quiser.' : 'Clique para copiar. Depois abra o WhatsApp e cole a mensagem pronta.'}
+                                    </p>
                                 </div>
 
                                 {/* Ações secundárias */}
