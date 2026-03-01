@@ -263,11 +263,12 @@ export const atendimentosService = {
 
     /** Importa atendimentos de outras edições para a edição atual com desduplicação */
     async importFromEditions(targetEdicaoId: string, sourceEdicaoIds: string[]): Promise<void> {
-        // 1. Busca atendimentos das fontes
+        // 1. Busca atendimentos das fontes (ordenado por updated_at DESC para facilitar "mais recente")
         const { data: sourceData, error: sourceError } = await supabase
             .from('atendimentos')
             .select('*')
-            .in('edicao_id', sourceEdicaoIds);
+            .in('edicao_id', sourceEdicaoIds)
+            .order('updated_at', { ascending: false });
 
         if (sourceError) throw sourceError;
         if (!sourceData || sourceData.length === 0) return;
@@ -275,22 +276,48 @@ export const atendimentosService = {
         // 2. Busca atendimentos atuais para evitar duplicatas
         const { data: currentData, error: currentError } = await supabase
             .from('atendimentos')
-            .select('cliente_id, cliente_nome')
+            .select('cliente_id, cliente_nome, telefone')
             .eq('edicao_id', targetEdicaoId);
 
         if (currentError) throw currentError;
 
+        const normalizePhone = (tel: string | null | undefined): string | null => {
+            if (!tel) return null;
+            const digits = tel.replace(/\D/g, '');
+            return digits.length >= 8 ? digits : null;
+        };
+
+        // Conjunto de keys já existentes na edição atual
         const alreadyExists = new Set<string>();
         currentData?.forEach(a => {
-            if (a.cliente_id) alreadyExists.add(`id:${a.cliente_id}`);
-            else if (a.cliente_nome) alreadyExists.add(`nome:${a.cliente_nome.toLowerCase().trim()}`);
+            if (a.cliente_id) {
+                alreadyExists.add(`id:${a.cliente_id}`);
+            } else {
+                const phone = normalizePhone(a.telefone);
+                if (phone) alreadyExists.add(`tel:${phone}`);
+                else if (a.cliente_nome) alreadyExists.add(`nome:${a.cliente_nome.toLowerCase().trim()}`);
+            }
         });
 
-        // 3. Processa e desduplica o sourceData (pode haver o mesmo cliente em edições diferentes)
+        // 3. Deduplicação do sourceData:
+        //    - Clientes cadastrados (cliente_id): chave = id, pega o primeiro (já ordenado por updated_at DESC)
+        //    - Clientes não cadastrados: chave = telefone normalizado (se tiver), senão nome
+        //      Entre duplicados de telefone, fica o mais recente (primeiro da lista ordenada DESC)
         const toAdd = new Map<string, any>();
+
         sourceData.forEach(a => {
-            const key = a.cliente_id ? `id:${a.cliente_id}` : `nome:${(a.cliente_nome || '').toLowerCase().trim()}`;
+            let key: string;
+
+            if (a.cliente_id) {
+                key = `id:${a.cliente_id}`;
+            } else {
+                const phone = normalizePhone(a.telefone);
+                key = phone ? `tel:${phone}` : `nome:${(a.cliente_nome || '').toLowerCase().trim()}`;
+            }
+
             if (!alreadyExists.has(key) && !toAdd.has(key)) {
+                // Como sourceData está ordenado por updated_at DESC, o primeiro encontrado
+                // para cada chave é sempre o mais recente
                 toAdd.set(key, a);
             }
         });
