@@ -194,7 +194,9 @@ function HistoricoPopup({ atendimento, onClose, onSaved, isVisitor = false }: Hi
                             <div key={h.id} className="border-l-[3px] border-slate-200 pl-4 pr-4 py-2.5 bg-white rounded-r-lg hover:border-blue-400 transition-colors">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-2 flex-wrap">
-                                        {h.user_id ? (h.users?.name || 'Usuário') : 'Sistema'}
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 font-black text-[10px] tracking-widest border border-blue-200">
+                                            {h.user_id ? (h.users?.name || 'Usuário') : 'Sistema'}
+                                        </span>
                                         {h.probabilidade !== null && (
                                             <span className="font-black px-2 py-0.5 rounded text-[10px]" style={{ background: probBgColor[h.probabilidade], color: probTextColor[h.probabilidade] }}>
                                                 {h.probabilidade}%
