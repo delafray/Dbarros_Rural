@@ -46,7 +46,7 @@ const Dashboard: React.FC = () => {
                 u.isVisitor && u.isActive !== false &&
                 (!u.expiresAt || new Date(u.expiresAt) >= new Date())
             ));
-        }).catch(() => {});
+        }).catch(() => { });
     }, []);
 
     const fetchActiveEdicoes = async () => {
@@ -127,7 +127,7 @@ const Dashboard: React.FC = () => {
                 <span className="text-[11px] text-slate-400 leading-none">{onlineUsers.length}</span>
             </div>
             {/* Tooltip */}
-            <div className="absolute left-0 top-full mt-2 z-50 hidden group-hover/online:block min-w-[180px] pointer-events-none">
+            <div className="absolute left-0 top-full mt-2 z-50 hidden group-hover/online:block min-w-[200px] pointer-events-none">
                 <div className="bg-slate-900 rounded-xl shadow-2xl p-3">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Online agora</p>
                     {onlineUsers.length === 0 ? (
@@ -139,7 +139,12 @@ const Dashboard: React.FC = () => {
                                     <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[9px] font-black text-white uppercase flex-shrink-0">
                                         {u.name.substring(0, 2)}
                                     </div>
-                                    <span className="text-[11px] font-medium text-white truncate">{u.name}</span>
+                                    <span className="text-[11px] font-medium text-white truncate flex-1">{u.name}</span>
+                                    {u.sessionCount > 1 && (
+                                        <span className="text-[9px] font-black text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full flex-shrink-0 tabular-nums">
+                                            ×{u.sessionCount}
+                                        </span>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -241,11 +246,10 @@ const Dashboard: React.FC = () => {
                                                         }}
                                                     >
                                                         <div className={`hidden lg:block text-[9px] font-bold uppercase tracking-tighter opacity-60 group-hover/prop:opacity-100 transition-opacity ${edicao.proposta_comercial_path ? 'text-violet-500' : 'text-slate-400'}`}>Proposta</div>
-                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm border ${
-                                                            edicao.proposta_comercial_path
+                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm border ${edicao.proposta_comercial_path
                                                                 ? 'bg-violet-50 text-violet-500 group-hover/prop:bg-violet-600 group-hover/prop:text-white border-violet-100'
                                                                 : 'bg-slate-50 text-slate-300 group-hover/prop:bg-slate-200 group-hover/prop:text-slate-500 border-slate-100'
-                                                        }`}>
+                                                            }`}>
                                                             {edicao.proposta_comercial_path ? (
                                                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -266,11 +270,10 @@ const Dashboard: React.FC = () => {
                                                         }}
                                                     >
                                                         <div className={`hidden lg:block text-[9px] font-bold uppercase tracking-tighter opacity-60 group-hover/planta:opacity-100 transition-opacity ${edicao.planta_baixa_path ? 'text-teal-500' : 'text-slate-400'}`}>Planta</div>
-                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm border ${
-                                                            edicao.planta_baixa_path
+                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm border ${edicao.planta_baixa_path
                                                                 ? 'bg-teal-50 text-teal-500 group-hover/planta:bg-teal-600 group-hover/planta:text-white border-teal-100'
                                                                 : 'bg-slate-50 text-slate-300 group-hover/planta:bg-slate-200 group-hover/planta:text-slate-500 border-slate-100'
-                                                        }`}>
+                                                            }`}>
                                                             {edicao.planta_baixa_path ? (
                                                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />

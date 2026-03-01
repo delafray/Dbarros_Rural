@@ -9,6 +9,7 @@ export interface OnlineUser {
     user_id: string;
     name: string;
     active: boolean; // true = usando agora; false = parado/aba minimizada
+    sessionCount: number; // quantas sessões ativas (tabs/dispositivos) tem este usuário
 }
 
 interface PresenceContextType {
@@ -33,18 +34,23 @@ export const PresenceProvider: React.FC<{ children: ReactNode }> = ({ children }
         // ── Atualiza a lista de presença ──────────────────────────────
         const syncUsers = () => {
             const state = channel.presenceState<OnlineUser>();
-            const seen = new Set<string>();
-            const unique: OnlineUser[] = [];
+            // Agrupa por user_id e conta sessões ativas
+            const grouped = new Map<string, { name: string; count: number }>();
             for (const entries of Object.values(state)) {
                 for (const entry of entries as OnlineUser[]) {
-                    if (!seen.has(entry.user_id)) {
-                        seen.add(entry.user_id);
-                        unique.push(entry);
-                    }
+                    if (!entry.active) continue;
+                    const prev = grouped.get(entry.user_id);
+                    grouped.set(entry.user_id, {
+                        name: entry.name,
+                        count: (prev?.count ?? 0) + 1,
+                    });
                 }
             }
-            // Exibe apenas quem está ativo
-            setOnlineUsers(unique.filter(u => u.active));
+            const result: OnlineUser[] = [];
+            grouped.forEach((val, uid) => {
+                result.push({ user_id: uid, name: val.name, active: true, sessionCount: val.count });
+            });
+            setOnlineUsers(result);
         };
 
         channel
