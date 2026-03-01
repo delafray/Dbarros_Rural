@@ -650,18 +650,17 @@ const PlanilhaVendas: React.FC = () => {
   const tdStyle =
     "border border-slate-300 text-[12px] px-2 py-0 whitespace-nowrap";
 
-  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const formatPeriodo = (ini: string | null, fim: string | null): string => {
     if (!ini) return '';
     const d1 = new Date(ini);
-    const dia1 = d1.getUTCDate();
-    const mes1 = d1.getUTCMonth();
-    if (!fim) return `${dia1} de ${MESES[mes1]}`;
+    const dia1 = String(d1.getUTCDate()).padStart(2, '0');
+    const mes1 = String(d1.getUTCMonth() + 1).padStart(2, '0');
+    if (!fim) return `${dia1}/${mes1}`;
     const d2 = new Date(fim);
-    const dia2 = d2.getUTCDate();
-    const mes2 = d2.getUTCMonth();
-    if (mes1 === mes2) return `${dia1} a ${dia2} de ${MESES[mes1]}`;
-    return `${dia1} de ${MESES[mes1]} a ${dia2} de ${MESES[mes2]}`;
+    const dia2 = String(d2.getUTCDate()).padStart(2, '0');
+    const mes2 = String(d2.getUTCMonth() + 1).padStart(2, '0');
+    if (mes1 === mes2) return `${dia1}–${dia2}/${mes1}`;
+    return `${dia1}/${mes1}–${dia2}/${mes2}`;
   };
   const periodo = edicao ? formatPeriodo(edicao.data_inicio, edicao.data_fim) : '';
 

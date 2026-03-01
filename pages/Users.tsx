@@ -17,7 +17,7 @@ const Users: React.FC = () => {
     const [showTempModal, setShowTempModal] = useState(false);
     const [tempExpiresAt, setTempExpiresAt] = useState('');
     const [tempEdicaoId, setTempEdicaoId] = useState('');
-    const [edicoesAtivas, setEdicoesAtivas] = useState<{ id: string; titulo: string }[]>([]);
+    const [edicoesAtivas, setEdicoesAtivas] = useState<{ id: string; titulo: string; data_inicio: string | null; data_fim: string | null }[]>([]);
     const [createdTempUser, setCreatedTempUser] = useState<{ user: User, passwordRaw: string } | null>(null);
     const [existingTempForEdicao, setExistingTempForEdicao] = useState<User | null>(null);
     const [confirmCreateAnother, setConfirmCreateAnother] = useState(false);
@@ -43,9 +43,9 @@ const Users: React.FC = () => {
         fetchUsers();
         supabase
             .from('eventos_edicoes')
-            .select('id, titulo')
+            .select('id, titulo, data_inicio, data_fim')
             .order('titulo')
-            .then(({ data }) => setEdicoesAtivas((data as { id: string; titulo: string }[]) || []));
+            .then(({ data }) => setEdicoesAtivas((data as { id: string; titulo: string; data_inicio: string | null; data_fim: string | null }[]) || []));
     }, []);
 
     const fetchUsers = async () => {
@@ -701,9 +701,21 @@ const Users: React.FC = () => {
                                 className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-600 text-sm font-bold text-slate-800 p-3 rounded-none outline-none transition-all"
                             >
                                 <option value="">Selecione uma edição...</option>
-                                {edicoesAtivas.map(ed => (
-                                    <option key={ed.id} value={ed.id}>{ed.titulo}</option>
-                                ))}
+                                {edicoesAtivas.map(ed => {
+                                    const fmtData = (d: string | null) => {
+                                        if (!d) return '';
+                                        const dt = new Date(d);
+                                        return `${String(dt.getUTCDate()).padStart(2, '0')}/${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+                                    };
+                                    const periodo = ed.data_inicio
+                                        ? ed.data_fim
+                                            ? ` · ${fmtData(ed.data_inicio)}–${fmtData(ed.data_fim)}`
+                                            : ` · ${fmtData(ed.data_inicio)}`
+                                        : '';
+                                    return (
+                                        <option key={ed.id} value={ed.id}>{ed.titulo}{periodo}</option>
+                                    );
+                                })}
                             </select>
                         </div>
 
@@ -787,27 +799,27 @@ const Users: React.FC = () => {
 
                         {/* Formulário de data — só aparece se não há conflito ou usuário confirmou criar outro */}
                         {(!existingTempForEdicao || confirmCreateAnother) && tempEdicaoId && (
-                        <div className="space-y-1.5">
-                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Data Limite de Acesso</label>
-                            <input
-                                type="date"
-                                value={tempExpiresAt}
-                                onChange={e => setTempExpiresAt(e.target.value)}
-                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-600 text-sm font-bold text-slate-800 p-3 rounded-none outline-none transition-all"
-                            />
-                        </div>
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Data Limite de Acesso</label>
+                                <input
+                                    type="date"
+                                    value={tempExpiresAt}
+                                    onChange={e => setTempExpiresAt(e.target.value)}
+                                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-600 text-sm font-bold text-slate-800 p-3 rounded-none outline-none transition-all"
+                                />
+                            </div>
                         )}
 
                         <div className="pt-2 flex justify-end gap-3">
                             <Button variant="outline" onClick={() => setShowTempModal(false)}>Cancelar</Button>
                             {(!existingTempForEdicao || confirmCreateAnother) && (
-                            <Button
-                                onClick={handleCreateTempUser}
-                                disabled={formLoading || !tempExpiresAt || !tempEdicaoId}
-                                className="px-8"
-                            >
-                                {formLoading ? 'Gerando...' : 'Gerar Acesso'}
-                            </Button>
+                                <Button
+                                    onClick={handleCreateTempUser}
+                                    disabled={formLoading || !tempExpiresAt || !tempEdicaoId}
+                                    className="px-8"
+                                >
+                                    {formLoading ? 'Gerando...' : 'Gerar Acesso'}
+                                </Button>
                             )}
                         </div>
                     </div>
