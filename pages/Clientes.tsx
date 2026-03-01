@@ -300,7 +300,7 @@ const Clientes: React.FC = () => {
                                                     <div className="flex items-center justify-end gap-1">
                                                         <button
                                                             onClick={() => navigate(`/clientes/editar/${c.id}`, { state: { tab: 'contratos' } })}
-                                                            className="px-2 py-0.5 text-[10px] font-bold text-violet-600 hover:text-violet-800 hover:bg-white rounded border border-violet-200 shadow-sm transition-all uppercase tracking-tight"
+                                                            className="px-2 py-0.5 text-[10px] font-medium text-rose-300 bg-rose-50/60 hover:bg-rose-50 rounded transition-all"
                                                         >
                                                             Contratos / Atendimentos
                                                         </button>
