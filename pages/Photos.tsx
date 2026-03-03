@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { api } from '../services/api';
+import { deletePhotoStorageFiles } from '../services/api/photoService';
 import { Photo, Tag, TagCategory } from '../types';
 import { Button, Card, Input, LoadingSpinner, Modal } from '../components/UI';
 import { AlertModal, AlertType } from '../components/AlertModal';
@@ -553,11 +554,17 @@ const Photos: React.FC = () => {
       return;
     }
 
+    // Capture old storage URLs before any upload, so we can clean them up after replacement
+    const oldPhotoUrls: (string | undefined)[] = editingPhoto
+      ? [editingPhoto.url, editingPhoto.thumbnailUrl]
+      : [];
+
     setSaving(true);
     try {
       let finalUrl = formData.url;
       let finalThumbUrl = formData.thumbnailUrl;
       let finalVideoUrl = formData.videoUrl;
+      let storageFilesReplaced = false;
 
       if (isVideoMode && formData.videoUrl.trim()) {
         if (!videoPreviewDataUrl) {
@@ -576,6 +583,7 @@ const Photos: React.FC = () => {
             const thumbFile = new File([thumbBlob], `video_thumb_${Date.now()}.jpg`, { type: 'image/jpeg' });
             finalUrl = await api.uploadPhotoFile(user.id, thumbFile);
             finalThumbUrl = finalUrl;
+            storageFilesReplaced = true;
           } catch {
             // Fallback: store the data URL directly (not ideal but functional)
             finalUrl = videoPreviewDataUrl;
@@ -596,6 +604,7 @@ const Photos: React.FC = () => {
         const thumbBlob = dataURLtoBlob(thumbDataUrl);
         const thumbToUpload = new File([thumbBlob], `thumb_${formData.selectedFile.name}`, { type: thumbBlob.type });
         finalThumbUrl = await api.uploadPhotoFile(user.id, thumbToUpload);
+        storageFilesReplaced = true;
       }
 
       if (!user?.id) return;
@@ -604,6 +613,10 @@ const Photos: React.FC = () => {
         await api.updatePhoto(editingPhoto.id, saveData);
         // Invalidate hydration cache for this specific photo
         setHydratedPhotos(prev => prev.filter(p => p.id !== editingPhoto.id));
+        // Fire-and-forget: remove old storage files if they were replaced by new uploads
+        if (storageFilesReplaced && oldPhotoUrls.length > 0) {
+          deletePhotoStorageFiles(oldPhotoUrls);
+        }
       } else {
         await api.createPhoto(user.id, saveData);
       }

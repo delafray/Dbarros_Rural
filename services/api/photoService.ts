@@ -2,6 +2,35 @@ import { supabase } from '../supabaseClient';
 import type { TablesInsert, TablesUpdate } from '../../database.types';
 import type { Photo } from '../../types';
 
+// ── Storage helpers ───────────────────────────────────────────────────────────
+
+/** Extrai o caminho relativo dentro do bucket 'photos' a partir de uma URL pública do Supabase Storage. */
+function extractStoragePath(url: string): string | null {
+    const match = url.match(/\/storage\/v1\/object\/public\/photos\/(.+)$/);
+    return match ? match[1] : null;
+}
+
+/**
+ * Remove arquivos físicos do bucket 'photos' no Supabase Storage.
+ * Loga erros mas NÃO lança exceção — não bloqueia a operação principal.
+ */
+export async function deletePhotoStorageFiles(urls: (string | null | undefined)[]): Promise<void> {
+    const paths = [
+        ...new Set(
+            urls
+                .filter((u): u is string => typeof u === 'string' && u.length > 0)
+                .map(extractStoragePath)
+                .filter((p): p is string => p !== null)
+        )
+    ];
+    if (paths.length === 0) return;
+
+    const { error } = await supabase.storage.from('photos').remove(paths);
+    if (error) {
+        console.warn('[storage] Falha ao remover arquivos físicos:', error.message, paths);
+    }
+}
+
 // Inline types for Supabase join results
 // Supabase can return joined relations as an object or a single-item array depending on schema/version
 type PhotoTagRow = { tag_id: string };
@@ -226,11 +255,23 @@ export const photoService = {
     },
 
     deletePhoto: async (id: string) => {
+        // Fetch URLs before deleting so we can clean up storage files afterwards
+        const { data: photoData } = await supabase
+            .from('photos')
+            .select('url, thumbnail_url')
+            .eq('id', id)
+            .single();
+
         const { error } = await supabase
             .from('photos')
             .delete()
             .eq('id', id);
 
         if (error) throw new Error(`Failed to delete photo: ${error.message}`);
+
+        // Fire-and-forget: remove orphaned files from Storage
+        if (photoData) {
+            deletePhotoStorageFiles([photoData.url, photoData.thumbnail_url]);
+        }
     }
 };
