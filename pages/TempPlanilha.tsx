@@ -838,7 +838,7 @@ const PlanilhaVendas: React.FC = () => {
                 Desconto
               </th>
               <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-white font-bold uppercase bg-slate-800/40">
-                Total Vendas
+                Total
               </th>
               {!isVisitor && (
                 <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-green-400 font-bold uppercase bg-slate-800/40">
@@ -859,10 +859,27 @@ const PlanilhaVendas: React.FC = () => {
             <tr className="bg-slate-800 text-slate-300">
               <th className="border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-tighter text-center">
                 <div className="text-[8px] text-slate-500 font-normal leading-none">stands</div>
-                <div className="text-[13px] font-black text-white leading-none">{rows.length}</div>
+                <div className="text-[13px] font-black text-white leading-none">
+                  {rows.filter((r) => getCategoriaOfRow(r)?.is_stand !== false).length}
+                </div>
               </th>
-              <th className="border border-white/10 px-2 py-0.5 text-[10px] text-left uppercase font-black text-slate-400">
-                Totais:
+              <th className="border border-white/10 px-2 py-0.5 text-center">
+                {(() => {
+                  const standRows = rows.filter((r) => getCategoriaOfRow(r)?.is_stand !== false);
+                  const vendidos = standRows.filter((r) => r.tipo_venda !== 'DISPONÍVEL').length;
+                  const total = standRows.length;
+                  const pct = total > 0 ? Math.round((vendidos / total) * 100) : 0;
+                  return (
+                    <span className="text-[8px] font-black uppercase tracking-tight text-slate-400">
+                      Vendas{' '}
+                      <span className="text-slate-200 text-[10px]">{vendidos}</span>
+                      {' '}de{' '}
+                      <span className="text-slate-200 text-[10px]">{total}</span>
+                      {'   '}
+                      <span className="text-slate-400 text-[9px]">({pct}%)</span>
+                    </span>
+                  );
+                })()}
               </th>
               {comboLabels.map((label) => {
                 const x = summary.comboXCounts[label] || 0;
@@ -921,14 +938,19 @@ const PlanilhaVendas: React.FC = () => {
               {comboLabels.map((label) => (
                 <th
                   key={label}
-                  className={`${thStyle} w-6 align-bottom p-0 font-normal`}
+                  className={`${thStyle} w-6 p-0 font-normal`}
                   title={label}
+                  style={{ verticalAlign: 'bottom' }}
                 >
                   <div
-                    className="vertical-text h-20 flex items-end justify-center uppercase text-[8px] leading-none py-1 px-0.5 text-white font-normal"
                     style={{
-                      fontSize:
-                        comboNamesDisplay[label].length > 10 ? "7px" : "8px",
+                      writingMode: 'vertical-rl',
+                      transform: 'rotate(180deg)',
+                      fontSize: comboNamesDisplay[label].length > 10 ? '7px' : '8px',
+                      lineHeight: 1,
+                      padding: '4px 2px',
+                      textAlign: 'left',
+                      display: 'block',
                     }}
                   >
                     {comboNamesDisplay[label]}
@@ -938,16 +960,27 @@ const PlanilhaVendas: React.FC = () => {
               {opcionaisAtivos.map((opt) => (
                 <th
                   key={opt.id}
-                  className={`${thStyle} w-6 align-bottom p-0 font-normal`}
+                  className={`${thStyle} w-6 p-0 font-normal`}
+                  style={{ verticalAlign: 'bottom' }}
                 >
-                  <div className="vertical-text h-20 flex items-end justify-center uppercase text-[8px] leading-none py-1 px-0.5 font-normal">
+                  <div
+                    style={{
+                      writingMode: 'vertical-rl',
+                      transform: 'rotate(180deg)',
+                      fontSize: opt.nome.length > 10 ? '7px' : '8px',
+                      lineHeight: 1,
+                      padding: '4px 2px',
+                      textAlign: 'left',
+                      display: 'block',
+                    }}
+                  >
                     {opt.nome}
                   </div>
                 </th>
               ))}
               <th className={`${thStyle}`}>SubTotal</th>
               <th className={`${thStyle}`}>Desconto</th>
-              <th className={`${thStyle}`}>TOTAL</th>
+              <th className={`${thStyle}`}>Total</th>
               {!isVisitor && <th className={`${thStyle} bg-[#385723]`}>PAGO</th>}
               {!isVisitor && <th className={`${thStyle} bg-[#C00000]`}>PENDENTE</th>}
               {!isVisitor && (

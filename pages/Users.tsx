@@ -5,6 +5,7 @@ import { AlertModal, AlertType } from '../components/AlertModal';
 import { useAuth } from '../context/AuthContext';
 import { authService, User } from '../services/authService';
 import { exportService } from '../services/api/exportService';
+import { backupService, BackupProgressCallback } from '../services/backupService';
 import { supabase } from '../services/supabaseClient';
 
 const Users: React.FC = () => {
@@ -39,6 +40,13 @@ const Users: React.FC = () => {
     const [isProjetista, setIsProjetista] = useState(false);
     const [formError, setFormError] = useState('');
     const [formLoading, setFormLoading] = useState(false);
+    const [backupLoading, setBackupLoading] = useState(false);
+    const [showBackupModal, setShowBackupModal] = useState(false);
+    const [backupProgress, setBackupProgress] = useState<{
+        phase: 'db' | 'storage' | 'zipping' | 'done' | '';
+        label: string;
+        pct: number;
+    }>({ phase: '', label: '', pct: 0 });
 
     useEffect(() => {
         fetchUsers();
@@ -183,6 +191,27 @@ const Users: React.FC = () => {
         });
     };
 
+    const handleBackup = async () => {
+        setBackupLoading(true);
+        setShowBackupModal(true);
+        setBackupProgress({ phase: 'db', label: 'Iniciando backup completo...', pct: 0 });
+
+        try {
+            await backupService.downloadFull((info) => {
+                setBackupProgress(info);
+            });
+            showAlert('Backup Gerado', 'O arquivo .zip foi baixado com sucesso! Guarde-o em local seguro.', 'success');
+        } catch (err: any) {
+            showAlert('Erro no Backup', err.message || 'Não foi possível gerar o backup.', 'error');
+        } finally {
+            setBackupLoading(false);
+            // Fecha o modal suavemente após 2s se sucesso
+            setTimeout(() => {
+                setShowBackupModal(false);
+            }, 2500);
+        }
+    };
+
     const handleExportTXT = async (userId: string, userName: string) => {
         setFormLoading(true);
         try {
@@ -224,7 +253,7 @@ const Users: React.FC = () => {
                         Voltar ao Início
                     </Button>
                 </div>
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex gap-2 w-full sm:w-auto flex-wrap">
                     <Button variant="outline" className="flex-1 sm:flex-none justify-center px-3 py-2 text-[10px] sm:text-xs" onClick={() => {
                         setShowTempModal(true);
                         setCreatedTempUser(null);
@@ -238,6 +267,25 @@ const Users: React.FC = () => {
                     <Button className="flex-1 sm:flex-none justify-center px-3 py-2 text-[10px] sm:text-xs" onClick={() => handleOpenForm()}>
                         {showForm ? 'Cancelar' : 'Novo Usuário'}
                     </Button>
+                    {currentUser?.canManageTags && (
+                        <button
+                            onClick={handleBackup}
+                            disabled={backupLoading}
+                            title="Backup completo do banco de dados (somente leitura — sem risco de deleção)"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white transition-colors shadow-sm"
+                        >
+                            {backupLoading ? (
+                                <span>Gerando...</span>
+                            ) : (
+                                <>
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Backup DB
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -857,6 +905,52 @@ const Users: React.FC = () => {
                     </div>
                 )}
             </Modal>
+
+            {/* Modal de Progresso do Backup */}
+            <Modal isOpen={showBackupModal} onClose={() => { if (!backupLoading) setShowBackupModal(false); }} title="Backup do Sistema">
+                <div className="space-y-6 pb-4">
+                    <div className="text-center space-y-2">
+                        {backupProgress.phase === 'done' ? (
+                            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                        ) : (
+                            <div className="w-16 h-16 border-4 border-slate-100 border-t-amber-500 rounded-full animate-spin mx-auto mb-4"></div>
+                        )}
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">
+                            {backupProgress.phase === 'db' && 'Exportando Tabelas'}
+                            {backupProgress.phase === 'storage' && 'Baixando Arquivos do Storage'}
+                            {backupProgress.phase === 'zipping' && 'Compactando Arquivos'}
+                            {backupProgress.phase === 'done' && 'Backup Completo'}
+                        </h3>
+                        <p className="text-[11px] font-bold text-slate-500 min-h-[16px]">
+                            {backupProgress.label}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <span>Progresso</span>
+                            <span className="text-amber-600">{backupProgress.pct}%</span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full transition-all duration-300 ease-out ${backupProgress.phase === 'done' ? 'bg-green-500' : 'bg-amber-500'}`}
+                                style={{ width: `${backupProgress.pct}%` }}
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
+                        <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
+                            <strong>Atenção:</strong> O backup completo inclui todos os registros do banco de dados e todos os arquivos físicos (imagens, PDFs). Dependendo da quantidade de dados, esse processo pode levar alguns minutos. <br /> Por favor, <strong>não feche esta janela</strong> até a conclusão.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
+
             <AlertModal
                 {...alertState}
                 onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}

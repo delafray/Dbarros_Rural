@@ -15,6 +15,7 @@ export interface CategoriaSetup {
     combos?: number[];
     comboNames?: string[]; // Nomes customizados pros combos (usualmente salvo só no index 0)
     ordem?: number;
+    is_stand?: boolean; // false = não é stand (ex: merchandising) — ignora na contagem de stands
 }
 
 export const planilhaVendasService = {

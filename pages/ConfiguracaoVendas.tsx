@@ -194,12 +194,22 @@ const ConfiguracaoVendas: React.FC = () => {
         const { data: estandes } = await supabase
           .from("planilha_vendas_estandes")
           .select(
-            "id, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados",
+            "id, stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados",
           )
           .eq("config_id", config.id);
         if (estandes && estandes.length > 0) {
           setPlanilhaExiste(true);
-          setTotalStands(estandes.length);
+          // Conta apenas estandes de categorias que são stands (is_stand !== false)
+          const standPrefixes = new Set(
+            storedCats
+              .filter((c) => c.is_stand !== false)
+              .map((c) => (c.prefix || c.tag || "").trim().toUpperCase()),
+          );
+          const totalStandsCount = estandes.filter((e) => {
+            const prefix = e.stand_nr.split(" ")[0].toUpperCase();
+            return standPrefixes.has(prefix);
+          }).length;
+          setTotalStands(totalStandsCount);
           // Descobrir quais opcionais (por nome) têm marcação em algum estande
           const usados = new Set<string>();
           estandes.forEach((e) => {
@@ -232,12 +242,12 @@ const ConfiguracaoVendas: React.FC = () => {
         i !== idx
           ? c
           : {
-              ...c,
-              [field]:
-                field === "count" || field === "standBase"
-                  ? Number(value) || 0
-                  : value,
-            },
+            ...c,
+            [field]:
+              field === "count" || field === "standBase"
+                ? Number(value) || 0
+                : value,
+          },
       ),
     );
 
@@ -729,7 +739,9 @@ const ConfiguracaoVendas: React.FC = () => {
       </Layout>
     );
 
-  const totalEstandes = categorias.reduce((s, c) => s + c.count, 0);
+  const totalEstandes = categorias
+    .filter((c) => c.is_stand !== false)
+    .reduce((s, c) => s + c.count, 0);
   const itensAtivos = opcionaisDisponiveis.filter((o) =>
     opcionaisSelecionados.includes(o.id),
   );
@@ -833,6 +845,10 @@ const ConfiguracaoVendas: React.FC = () => {
                       />
                     </th>
                   ))}
+                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-16 border border-slate-200"
+                    title="Indica se esta categoria conta como stand na contagem total">
+                    Stand?
+                  </th>
                   <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-violet-600 w-20 border border-slate-200">
                     Imagens
                   </th>
@@ -918,6 +934,23 @@ const ConfiguracaoVendas: React.FC = () => {
                             />
                           </td>
                         ))}
+                        {/* Checkbox is_stand */}
+                        <td className="px-1 py-0.5 text-center border border-slate-200">
+                          <label className="flex items-center justify-center gap-1 cursor-pointer" title="Marque para contar como stand na contagem total">
+                            <input
+                              type="checkbox"
+                              checked={cat.is_stand !== false}
+                              onChange={(e) =>
+                                setCategorias((prev) =>
+                                  prev.map((c, i) =>
+                                    i !== idx ? c : { ...c, is_stand: e.target.checked },
+                                  ),
+                                )
+                              }
+                              className="w-4 h-4 accent-slate-700 cursor-pointer"
+                            />
+                          </label>
+                        </td>
                         <td className="px-1 py-0.5 text-center border border-slate-200">
                           {(() => {
                             const cnt = getImagensForRef(
@@ -1055,11 +1088,10 @@ const ConfiguracaoVendas: React.FC = () => {
                               onClick={() => handleSavePreco(item.id)}
                               title="Confirmar preço"
                               className={`p-1 transition-colors text-sm font-bold
-                                                                ${
-                                                                  salvo
-                                                                    ? "text-green-600 bg-green-50"
-                                                                    : "text-slate-500 hover:text-green-700 hover:bg-green-50"
-                                                                }`}
+                                                                ${salvo
+                                  ? "text-green-600 bg-green-50"
+                                  : "text-slate-500 hover:text-green-700 hover:bg-green-50"
+                                }`}
                             >
                               {salvo ? "✓" : "💾"}
                             </button>
@@ -1375,7 +1407,7 @@ const ConfiguracaoVendas: React.FC = () => {
             {/* Lista existente */}
             <div className="flex-1 overflow-y-auto">
               {getImagensForRef(imagensModal.tipo, imagensModal.ref).length ===
-              0 ? (
+                0 ? (
                 <div className="px-6 py-6 text-center text-slate-400 italic text-sm">
                   Nenhuma imagem configurada ainda.
                 </div>
@@ -1396,10 +1428,10 @@ const ConfiguracaoVendas: React.FC = () => {
                                     setEditingImagem((p) =>
                                       p
                                         ? {
-                                            ...p,
-                                            tipo: e.target.value as "imagem" | "logo",
-                                            dimensoes: "",
-                                          }
+                                          ...p,
+                                          tipo: e.target.value as "imagem" | "logo",
+                                          dimensoes: "",
+                                        }
                                         : null,
                                     )
                                   }
