@@ -1,372 +1,22 @@
 import { supabase } from './supabaseClient';
 import JSZip from 'jszip';
 
-// ── Vite raw imports — migration SQL files embedded at build time ─────────────
-import mig001 from '../supabase/migrations/20240221150000_create_user_biometrics.sql?raw';
-import mig002 from '../supabase/migrations/20260222003052_add_storage_location_to_photos.sql?raw';
-import mig003 from '../supabase/migrations/20260225003600_create_events_system.sql?raw';
-import mig004 from '../supabase/migrations/20260227120000_create_tarefas.sql?raw';
-import mig005 from '../supabase/migrations/20260227130000_fix_tarefas_fk.sql?raw';
-import mig006 from '../supabase/migrations/20260227140000_add_edicao_docs_paths.sql?raw';
-import mig007 from '../supabase/migrations/20260227150000_create_imagens_system.sql?raw';
-import mig008 from '../supabase/migrations/20260227160000_create_imagem_recebimentos.sql?raw';
-import mig009 from '../supabase/migrations/20260227160000_rename_opcional_item_rpc.sql?raw';
-import mig010 from '../supabase/migrations/20260227170000_add_status_timestamps.sql?raw';
-import mig011 from '../supabase/migrations/20260227170000_add_tipo_padrao_itens_opcionais.sql?raw';
-import mig012 from '../supabase/migrations/20260227170000_enable_realtime_planilha.sql?raw';
-import mig013 from '../supabase/migrations/20260228_add_edicao_id_and_admin_policies_to_users.sql?raw';
-import mig014 from '../supabase/migrations/20260228_add_edicao_id_to_users.sql?raw';
-import mig015 from '../supabase/migrations/20260228_add_temp_password_plain.sql?raw';
-import mig016 from '../supabase/migrations/20260228_visitor_read_clientes.sql?raw';
+// ── Auto-discovery de migrations via Vite glob ────────────────────────────────
+// Qualquer novo arquivo .sql em supabase/migrations/ e incluido automaticamente.
+// Nao e necessario atualizar este arquivo ao criar novas migrations.
+const migModules = import.meta.glob('../supabase/migrations/*.sql', { as: 'raw', eager: true });
 
-// ── Migration files registry ─────────────────────────────────────────────────
-const MIGRATION_FILES: { filename: string; content: string }[] = [
-    { filename: '001_create_user_biometrics.sql', content: mig001 },
-    { filename: '002_add_storage_location_to_photos.sql', content: mig002 },
-    { filename: '003_create_events_system.sql', content: mig003 },
-    { filename: '004_create_tarefas.sql', content: mig004 },
-    { filename: '005_fix_tarefas_fk.sql', content: mig005 },
-    { filename: '006_add_edicao_docs_paths.sql', content: mig006 },
-    { filename: '007_create_imagens_system.sql', content: mig007 },
-    { filename: '008_create_imagem_recebimentos.sql', content: mig008 },
-    { filename: '009_rename_opcional_item_rpc.sql', content: mig009 },
-    { filename: '010_add_status_timestamps.sql', content: mig010 },
-    { filename: '011_add_tipo_padrao_itens_opcionais.sql', content: mig011 },
-    { filename: '012_enable_realtime_planilha.sql', content: mig012 },
-    { filename: '013_add_edicao_id_and_admin_policies_to_users.sql', content: mig013 },
-    { filename: '014_add_edicao_id_to_users.sql', content: mig014 },
-    { filename: '015_add_temp_password_plain.sql', content: mig015 },
-    { filename: '016_visitor_read_clientes.sql', content: mig016 },
-];
+const MIGRATION_FILES: { filename: string; content: string }[] = Object.entries(migModules)
+    .map(([path, content]) => ({
+        filename: path.split('/').pop()!,
+        content: content as string,
+    }))
+    .sort((a, b) => a.filename.localeCompare(b.filename));
 
-// ── Schema DDL — tabelas conhecidas sem migration dedicada ───────────────────
-// Inclui TODAS as tabelas (com IF NOT EXISTS) para restauracao completa independente de migrations.
-const SCHEMA_DDL = `-- ====================================================================
--- SCHEMA DDL — Dbarros Rural
--- Gerado automaticamente pelo sistema de backup.
--- Execute este arquivo APOS o 1_auth_users_restore.sql e ANTES do 4_database_backup.sql.
--- ====================================================================
-
-SET client_encoding = 'UTF8';
-
--- Usuarios da aplicacao (espelha auth.users com campos extras)
-CREATE TABLE IF NOT EXISTS public.users (
-    id UUID PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    is_admin BOOLEAN NOT NULL DEFAULT false,
-    is_visitor BOOLEAN NOT NULL DEFAULT false,
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    is_temp BOOLEAN NOT NULL DEFAULT false,
-    is_projetista BOOLEAN NOT NULL DEFAULT false,
-    can_manage_tags BOOLEAN NOT NULL DEFAULT false,
-    expires_at TIMESTAMPTZ,
-    edicao_id UUID,
-    temp_password_plain TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- Biometria / WebAuthn
-CREATE TABLE IF NOT EXISTS public.user_biometrics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    credential_id TEXT NOT NULL UNIQUE,
-    public_key TEXT NOT NULL,
-    counter INTEGER NOT NULL DEFAULT 0,
-    friendly_name TEXT,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    last_used_at TIMESTAMPTZ
-);
-ALTER TABLE public.user_biometrics ENABLE ROW LEVEL SECURITY;
-
--- Configuracao global do sistema
-CREATE TABLE IF NOT EXISTS public.system_config (
-    key TEXT PRIMARY KEY,
-    value TEXT,
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.system_config ENABLE ROW LEVEL SECURITY;
-
--- Eventos (feiras/exposicoes)
-CREATE TABLE IF NOT EXISTS public.eventos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nome TEXT NOT NULL,
-    contato_principal TEXT,
-    promotor_nome TEXT,
-    promotor_email TEXT,
-    promotor_telefone TEXT,
-    promotor_endereco TEXT,
-    promotor_redes_sociais JSONB DEFAULT '[]',
-    user_id UUID,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.eventos ENABLE ROW LEVEL SECURITY;
-
--- Edicoes de eventos (por ano)
-CREATE TABLE IF NOT EXISTS public.eventos_edicoes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    evento_id UUID REFERENCES public.eventos(id) ON DELETE CASCADE,
-    ano INTEGER NOT NULL,
-    titulo TEXT NOT NULL,
-    ativo BOOLEAN NOT NULL DEFAULT true,
-    local_completo TEXT,
-    local_resumido TEXT,
-    data_inicio TIMESTAMPTZ,
-    data_fim TIMESTAMPTZ,
-    montagem_inicio TIMESTAMPTZ,
-    montagem_fim TIMESTAMPTZ,
-    desmontagem_inicio TIMESTAMPTZ,
-    desmontagem_fim TIMESTAMPTZ,
-    proposta_comercial_path TEXT,
-    planta_baixa_path TEXT,
-    user_id UUID,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.eventos_edicoes ENABLE ROW LEVEL SECURITY;
-
--- Clientes
-CREATE TABLE IF NOT EXISTS public.clientes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tipo_pessoa TEXT NOT NULL,
-    nome_completo TEXT,
-    nome_fantasia TEXT,
-    razao_social TEXT,
-    cpf TEXT,
-    cnpj TEXT,
-    rg TEXT,
-    inscricao_estadual TEXT,
-    data_nascimento TEXT,
-    user_id UUID,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.clientes ENABLE ROW LEVEL SECURITY;
-
--- Contatos
-CREATE TABLE IF NOT EXISTS public.contatos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cliente_id UUID REFERENCES public.clientes(id) ON DELETE CASCADE,
-    nome TEXT,
-    cargo TEXT,
-    telefone TEXT,
-    email TEXT,
-    principal BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.contatos ENABLE ROW LEVEL SECURITY;
-
--- Enderecos
-CREATE TABLE IF NOT EXISTS public.enderecos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cliente_id UUID REFERENCES public.clientes(id) ON DELETE CASCADE,
-    cep TEXT,
-    logradouro TEXT,
-    numero TEXT,
-    complemento TEXT,
-    bairro TEXT,
-    cidade TEXT,
-    estado TEXT,
-    tema TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.enderecos ENABLE ROW LEVEL SECURITY;
-
--- Contratos
-CREATE TABLE IF NOT EXISTS public.contratos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cliente_id UUID REFERENCES public.clientes(id) ON DELETE SET NULL,
-    numero TEXT,
-    status TEXT,
-    data_inicio TEXT,
-    data_fim TEXT,
-    valor NUMERIC,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.contratos ENABLE ROW LEVEL SECURITY;
-
--- Itens opcionais de stand
-CREATE TABLE IF NOT EXISTS public.itens_opcionais (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nome TEXT NOT NULL,
-    preco_base NUMERIC NOT NULL DEFAULT 0,
-    tipo_padrao TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.itens_opcionais ENABLE ROW LEVEL SECURITY;
-
--- Planilha: configuracoes por edicao
-CREATE TABLE IF NOT EXISTS public.planilha_configuracoes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    edicao_id UUID REFERENCES public.eventos_edicoes(id) ON DELETE CASCADE,
-    categorias_config JSONB NOT NULL DEFAULT '[]',
-    opcionais_ativos TEXT[] DEFAULT '{}',
-    opcionais_precos JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.planilha_configuracoes ENABLE ROW LEVEL SECURITY;
-
--- Planilha: estandes vendidos
-CREATE TABLE IF NOT EXISTS public.planilha_vendas_estandes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    config_id UUID REFERENCES public.planilha_configuracoes(id) ON DELETE CASCADE,
-    cliente_id UUID REFERENCES public.clientes(id) ON DELETE SET NULL,
-    cliente_nome_livre TEXT,
-    stand_nr TEXT NOT NULL,
-    tipo_venda TEXT NOT NULL DEFAULT 'avista',
-    desconto NUMERIC DEFAULT 0,
-    valor_pago NUMERIC,
-    observacoes TEXT,
-    opcionais_selecionados JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.planilha_vendas_estandes ENABLE ROW LEVEL SECURITY;
-
--- Atendimentos (CRM)
-CREATE TABLE IF NOT EXISTS public.atendimentos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    edicao_id UUID NOT NULL REFERENCES public.eventos_edicoes(id) ON DELETE CASCADE,
-    cliente_id UUID REFERENCES public.clientes(id) ON DELETE SET NULL,
-    cliente_nome TEXT,
-    contato_id UUID REFERENCES public.contatos(id) ON DELETE SET NULL,
-    contato_nome TEXT,
-    telefone TEXT,
-    probabilidade INTEGER NOT NULL DEFAULT 0,
-    ultima_obs TEXT,
-    ultima_obs_at TIMESTAMPTZ,
-    data_retorno TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.atendimentos ENABLE ROW LEVEL SECURITY;
-
--- Historico de atendimentos
-CREATE TABLE IF NOT EXISTS public.atendimentos_historico (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    atendimento_id UUID NOT NULL REFERENCES public.atendimentos(id) ON DELETE CASCADE,
-    descricao TEXT NOT NULL,
-    probabilidade INTEGER,
-    data_retorno TIMESTAMPTZ,
-    user_id UUID,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.atendimentos_historico ENABLE ROW LEVEL SECURITY;
-
--- Tarefas
-CREATE TABLE IF NOT EXISTS public.tarefas (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    edicao_id UUID NOT NULL REFERENCES public.eventos_edicoes(id) ON DELETE CASCADE,
-    titulo TEXT NOT NULL,
-    descricao TEXT,
-    status TEXT NOT NULL DEFAULT 'pendente',
-    prioridade TEXT NOT NULL DEFAULT 'media',
-    data_prazo TIMESTAMPTZ,
-    user_id UUID,
-    responsavel_id UUID,
-    ultima_obs TEXT,
-    ultima_obs_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.tarefas ENABLE ROW LEVEL SECURITY;
-
--- Historico de tarefas
-CREATE TABLE IF NOT EXISTS public.tarefas_historico (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tarefa_id UUID NOT NULL REFERENCES public.tarefas(id) ON DELETE CASCADE,
-    descricao TEXT NOT NULL,
-    status_anterior TEXT,
-    status_novo TEXT,
-    user_id UUID,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.tarefas_historico ENABLE ROW LEVEL SECURITY;
-
--- Categorias de tags (galeria)
-CREATE TABLE IF NOT EXISTS public.tag_categories (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
-    name TEXT NOT NULL,
-    "order" INTEGER NOT NULL DEFAULT 0,
-    is_required BOOLEAN NOT NULL DEFAULT false,
-    peer_category_ids UUID[] DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.tag_categories ENABLE ROW LEVEL SECURITY;
-
--- Tags (galeria)
-CREATE TABLE IF NOT EXISTS public.tags (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
-    category_id UUID NOT NULL REFERENCES public.tag_categories(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    "order" INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
-
--- Fotos e videos (galeria)
-CREATE TABLE IF NOT EXISTS public.photos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
-    name TEXT NOT NULL,
-    url TEXT NOT NULL,
-    thumbnail_url TEXT,
-    video_url TEXT,
-    local_path TEXT,
-    storage_location TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.photos ENABLE ROW LEVEL SECURITY;
-
--- Relacao foto-tag
-CREATE TABLE IF NOT EXISTS public.photo_tags (
-    photo_id UUID NOT NULL REFERENCES public.photos(id) ON DELETE CASCADE,
-    tag_id UUID NOT NULL REFERENCES public.tags(id) ON DELETE CASCADE,
-    PRIMARY KEY (photo_id, tag_id)
-);
-ALTER TABLE public.photo_tags ENABLE ROW LEVEL SECURITY;
-
--- Requisitos de imagens por edicao
-CREATE TABLE IF NOT EXISTS public.edicao_imagens_config (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    edicao_id UUID NOT NULL REFERENCES public.eventos_edicoes(id) ON DELETE CASCADE,
-    origem_tipo TEXT NOT NULL,
-    origem_ref TEXT NOT NULL,
-    tipo TEXT NOT NULL DEFAULT 'imagem',
-    descricao TEXT NOT NULL,
-    dimensoes TEXT,
-    avulso_status TEXT NOT NULL DEFAULT 'pendente',
-    avulso_obs TEXT,
-    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-ALTER TABLE public.edicao_imagens_config ENABLE ROW LEVEL SECURITY;
-
--- Status de imagens por estande
-CREATE TABLE IF NOT EXISTS public.stand_imagens_status (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estande_id UUID NOT NULL UNIQUE REFERENCES public.planilha_vendas_estandes(id) ON DELETE CASCADE,
-    status TEXT NOT NULL DEFAULT 'pendente',
-    observacoes TEXT,
-    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-ALTER TABLE public.stand_imagens_status ENABLE ROW LEVEL SECURITY;
-
--- Controle de recebimento de imagens por item e estande
-CREATE TABLE IF NOT EXISTS public.stand_imagem_recebimentos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estande_id UUID NOT NULL REFERENCES public.planilha_vendas_estandes(id) ON DELETE CASCADE,
-    imagem_config_id UUID NOT NULL REFERENCES public.edicao_imagens_config(id) ON DELETE CASCADE,
-    recebido BOOLEAN NOT NULL DEFAULT FALSE,
-    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(estande_id, imagem_config_id)
-);
-ALTER TABLE public.stand_imagem_recebimentos ENABLE ROW LEVEL SECURITY;
-`;
-
-// ── Database tables — ordem FK-safe ─────────────────────────────────────────
-const BACKUP_TABLES = [
+// ── Fallback: lista de tabelas caso backup_introspect() nao esteja disponivel ─
+// Usada apenas se a funcao RPC ainda nao foi criada no banco.
+// Quando backup_introspect() existir, a lista e descoberta automaticamente.
+const BACKUP_TABLES_FALLBACK = [
     'users',
     'user_biometrics',
     'system_config',
@@ -398,6 +48,221 @@ const STORAGE_BUCKETS_TO_TRY = ['photos', 'avatars', 'assets', 'system', 'edicao
 // ── Extensoes de midia ja comprimidas (usar STORE, nao DEFLATE) ──────────────
 const MEDIA_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi', 'webm', 'pdf']);
 
+// ── Tipos do schema introspectado ─────────────────────────────────────────────
+interface IntrospectedColumn {
+    name: string;
+    udt: string;        // postgres udt_name: uuid, text, bool, int4, timestamptz, jsonb, _text...
+    nullable: boolean;
+    has_default: boolean;
+}
+
+interface IntrospectedTable {
+    name: string;
+    columns: IntrospectedColumn[];
+}
+
+interface IntrospectedSchema {
+    tables: IntrospectedTable[];
+    fk_deps: Array<{ from_table: string; to_table: string }>;
+    functions: Array<{ name: string; def: string }>;
+    policies: Array<{
+        tablename: string;
+        policyname: string;
+        permissive: string;   // 'PERMISSIVE' | 'RESTRICTIVE'
+        cmd: string;           // 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'ALL'
+        roles: string[];
+        qual: string | null;
+        with_check: string | null;
+    }>;
+}
+
+// ── Ordenacao topologica por dependencia de FK ────────────────────────────────
+// Garante que tabelas referenciadas por FK sejam inseridas antes das dependentes.
+function topoSort(tables: IntrospectedTable[], fkDeps: Array<{ from_table: string; to_table: string }>): string[] {
+    const names = tables.map(t => t.name);
+    const deps = new Map<string, Set<string>>();
+    for (const name of names) deps.set(name, new Set());
+
+    for (const dep of (fkDeps ?? [])) {
+        if (dep.from_table !== dep.to_table && deps.has(dep.from_table) && deps.has(dep.to_table)) {
+            deps.get(dep.from_table)!.add(dep.to_table);
+        }
+    }
+
+    const sorted: string[] = [];
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+
+    function visit(name: string) {
+        if (visited.has(name)) return;
+        if (visiting.has(name)) return; // dependencia circular — ignorar
+        visiting.add(name);
+        for (const dep of (deps.get(name) ?? [])) visit(dep);
+        visiting.delete(name);
+        visited.add(name);
+        sorted.push(name);
+    }
+
+    for (const name of names) visit(name);
+    return sorted;
+}
+
+// ── Mapa de tipos Postgres (udt_name) para SQL legivel ───────────────────────
+function udtToSqlType(udt: string): string {
+    const map: Record<string, string> = {
+        uuid: 'UUID', text: 'TEXT', varchar: 'TEXT', bpchar: 'TEXT',
+        bool: 'BOOLEAN', int2: 'SMALLINT', int4: 'INTEGER', int8: 'BIGINT',
+        float4: 'REAL', float8: 'DOUBLE PRECISION', numeric: 'NUMERIC',
+        timestamptz: 'TIMESTAMPTZ', timestamp: 'TIMESTAMP', date: 'DATE',
+        jsonb: 'JSONB', json: 'JSON',
+        _text: 'TEXT[]', _uuid: 'UUID[]', _int4: 'INTEGER[]',
+    };
+    return map[udt] ?? 'TEXT';
+}
+
+// ── Gera DDL basico a partir do schema introspectado ─────────────────────────
+// Alternativa ao arquivo de migrations. Nao inclui FKs nem constraints detalhadas.
+// O restore usa session_replication_role=replica entao FKs nao sao necessarias.
+function generateDDLFromSchema(tables: IntrospectedTable[]): string {
+    const lines = [
+        `-- ====================================================================`,
+        `-- SCHEMA DDL AUTO-GERADO — Dbarros Rural`,
+        `-- Gerado automaticamente a partir do schema atual do banco.`,
+        `-- PREFERENCIA: use database/2_schema_all_migrations.sql para o schema completo`,
+        `-- Este arquivo e uma alternativa simplificada (sem FKs, sem constraints).`,
+        `-- O arquivo 4_database_backup.sql usa session_replication_role=replica`,
+        `-- entao as FKs nao sao validadas durante o restore.`,
+        `-- ====================================================================\n`,
+        `SET client_encoding = 'UTF8';\n`,
+    ];
+
+    for (const table of tables) {
+        lines.push(`-- Tabela: ${table.name}`);
+        lines.push(`CREATE TABLE IF NOT EXISTS public."${table.name}" (`);
+        const colDefs = (table.columns ?? []).map(col => {
+            const type = udtToSqlType(col.udt);
+            const nullable = col.nullable ? '' : ' NOT NULL';
+            return `    "${col.name}" ${type}${nullable}`;
+        });
+        lines.push(colDefs.join(',\n'));
+        lines.push(`);`);
+        lines.push(`ALTER TABLE public."${table.name}" ENABLE ROW LEVEL SECURITY;`);
+        lines.push('');
+    }
+
+    return lines.join('\n');
+}
+
+// ── Migrations combinadas em um unico arquivo ─────────────────────────────────
+// Conveniencia: permite restaurar o schema completo com um unico execute no SQL Editor.
+function generateCombinedMigrations(): string {
+    const lines = [
+        `-- ====================================================================`,
+        `-- MIGRATIONS COMBINADAS — Dbarros Rural`,
+        `-- ${MIGRATION_FILES.length} arquivo(s) de migration combinados em sequencia.`,
+        `-- Execute APOS o 1_auth_users_restore.sql e ANTES do 4_database_backup.sql.`,
+        `-- Cada migration usa IF NOT EXISTS — seguro rodar mais de uma vez.`,
+        `-- ====================================================================\n`,
+        `SET client_encoding = 'UTF8';\n`,
+    ];
+
+    for (const mig of MIGRATION_FILES) {
+        lines.push(`-- ============================================================`);
+        lines.push(`-- MIGRATION: ${mig.filename}`);
+        lines.push(`-- ============================================================`);
+        lines.push(mig.content.trim());
+        lines.push('');
+    }
+
+    lines.push(`-- FIM DAS MIGRATIONS (${MIGRATION_FILES.length} arquivos)`);
+    return lines.join('\n');
+}
+
+// ── DDL das funcoes PostgreSQL extraido ao vivo do banco ──────────────────────
+// pg_get_functiondef() retorna o CREATE OR REPLACE FUNCTION completo.
+// Inclui TODAS as funcoes do schema public (inclusive backup_introspect).
+function generateFunctionsDDL(functions: IntrospectedSchema['functions']): string {
+    const lines = [
+        `-- ====================================================================`,
+        `-- FUNCOES PostgreSQL — Dbarros Rural`,
+        `-- Auto-gerado via backup_introspect() + pg_get_functiondef()`,
+        `-- ${functions.length} funcao(s) no schema public`,
+        `-- Execute APOS o 2_schema_all_migrations.sql se as funcoes nao existirem.`,
+        `-- Este arquivo e extraido ao vivo do banco — sempre atualizado.`,
+        `-- ====================================================================\n`,
+        `SET client_encoding = 'UTF8';\n`,
+    ];
+
+    for (const fn of functions) {
+        lines.push(`-- ── FUNCTION: ${fn.name} ──────────────────────────────────`);
+        // pg_get_functiondef() nao inclui ponto-e-virgula final
+        lines.push(fn.def.trim() + ';');
+        lines.push('');
+    }
+
+    // Re-grant EXECUTE a todos os autenticados (padrao do sistema)
+    lines.push(`-- Re-aplicar permissoes de execucao para role 'authenticated'`);
+    lines.push(`DO $$`);
+    lines.push(`DECLARE`);
+    lines.push(`    fn_name text;`);
+    lines.push(`    fn_args text;`);
+    lines.push(`BEGIN`);
+    lines.push(`    FOR fn_name, fn_args IN`);
+    lines.push(`        SELECT p.proname, pg_get_function_identity_arguments(p.oid)`);
+    lines.push(`        FROM pg_proc p`);
+    lines.push(`        JOIN pg_namespace n ON p.pronamespace = n.oid`);
+    lines.push(`        WHERE n.nspname = 'public'`);
+    lines.push(`    LOOP`);
+    lines.push(`        EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I(%s) TO authenticated', fn_name, fn_args);`);
+    lines.push(`    END LOOP;`);
+    lines.push(`END;$$;`);
+    lines.push('');
+    lines.push(`-- FIM DAS FUNCOES (${functions.length} total)`);
+    return lines.join('\n');
+}
+
+// ── Politicas RLS extraidas ao vivo do banco via pg_policies ─────────────────
+// Reconstroi CREATE POLICY statements a partir dos metadados do PostgreSQL.
+// Inclui todas as politicas do schema public — nao precisa de lista manual.
+function generatePoliciesDDL(policies: IntrospectedSchema['policies']): string {
+    const lines = [
+        `-- ====================================================================`,
+        `-- POLITICAS RLS — Dbarros Rural`,
+        `-- Auto-gerado via backup_introspect() + pg_policies`,
+        `-- ${policies.length} politica(s) no schema public`,
+        `-- Execute APOS o 2_schema_all_migrations.sql`,
+        `-- DROP IF EXISTS + CREATE garante idempotencia — seguro rodar mais de uma vez`,
+        `-- ====================================================================\n`,
+        `SET client_encoding = 'UTF8';\n`,
+    ];
+
+    // Agrupar por tabela para melhor legibilidade
+    const byTable = new Map<string, typeof policies>();
+    for (const pol of policies) {
+        if (!byTable.has(pol.tablename)) byTable.set(pol.tablename, []);
+        byTable.get(pol.tablename)!.push(pol);
+    }
+
+    for (const [table, pols] of byTable) {
+        lines.push(`-- ── TABLE: ${table} ──────────────────────────────────`);
+        lines.push(`ALTER TABLE public."${table}" ENABLE ROW LEVEL SECURITY;`);
+        for (const pol of pols) {
+            const roles = Array.isArray(pol.roles) ? pol.roles.join(', ') : String(pol.roles || 'PUBLIC');
+            lines.push(`DROP POLICY IF EXISTS "${pol.policyname}" ON public."${table}";`);
+            const parts: string[] = [`CREATE POLICY "${pol.policyname}" ON public."${table}"`];
+            parts.push(`  FOR ${pol.cmd}`);
+            parts.push(`  TO ${roles}`);
+            if (pol.qual) parts.push(`  USING (${pol.qual})`);
+            if (pol.with_check) parts.push(`  WITH CHECK (${pol.with_check})`);
+            lines.push(parts.join('\n') + ';');
+            lines.push('');
+        }
+    }
+
+    lines.push(`-- FIM DAS POLITICAS (${policies.length} total)`);
+    return lines.join('\n');
+}
+
 // ── SQL helpers ──────────────────────────────────────────────────────────────
 function toSqlLiteral(value: unknown): string {
     if (value === null || value === undefined) return 'NULL';
@@ -410,7 +275,8 @@ function toSqlLiteral(value: unknown): string {
 function rowToInsert(table: string, row: Record<string, unknown>): string {
     const cols = Object.keys(row).map((c) => `"${c}"`).join(', ');
     const vals = Object.values(row).map(toSqlLiteral).join(', ');
-    return `INSERT INTO public."${table}" (${cols}) VALUES (${vals}) ON CONFLICT (id) DO NOTHING;`;
+    // ON CONFLICT DO NOTHING: funciona com PKs simples e compostas (ex: photo_tags)
+    return `INSERT INTO public."${table}" (${cols}) VALUES (${vals}) ON CONFLICT DO NOTHING;`;
 }
 
 async function fetchTable(table: string): Promise<{ rows: Record<string, unknown>[]; errorStr?: string }> {
@@ -423,30 +289,9 @@ async function fetchTable(table: string): Promise<{ rows: Record<string, unknown
     return { rows: (data ?? []) as Record<string, unknown>[] };
 }
 
-// ── Geracao de DDL inferida a partir dos dados ───────────────────────────────
-function generateInferredDDL(tableName: string, rows: Record<string, unknown>[]): string {
-    if (rows.length === 0) return `-- Tabela: ${tableName} (vazia, schema desconhecido)\n`;
-    const sample = rows[0];
-    const columns = Object.entries(sample).map(([col, val]) => {
-        let type = 'TEXT';
-        if (val === null) {
-            if (col === 'id' || col.endsWith('_id')) type = 'UUID';
-            else if (col.endsWith('_at') || col.endsWith('_date')) type = 'TIMESTAMPTZ';
-        } else if (typeof val === 'boolean') type = 'BOOLEAN';
-        else if (typeof val === 'number') type = Number.isInteger(val) ? 'INTEGER' : 'NUMERIC';
-        else if (typeof val === 'object') type = 'JSONB';
-        else if (typeof val === 'string') {
-            if (col === 'id' || col.endsWith('_id')) type = 'UUID';
-            else if (col.endsWith('_at') || col.endsWith('_date')) type = 'TIMESTAMPTZ';
-        }
-        return `    ${col} ${type}`;
-    }).join(',\n');
-    return `CREATE TABLE IF NOT EXISTS public."${tableName}" (\n${columns}\n);\n`;
-}
-
 // ── SQL para restaurar auth.users com UUIDs originais ────────────────────────
-// CRITICO: auth.users.id = public.users.id — se mudar, todos os vinculos quebram.
-// A senha temporaria para todos os usuarios restaurados eh: GaleriaRestore2024!
+// CRITICO: auth.users.id = public.users.id. Se mudar, todos os vinculos quebram.
+// Senha temporaria para todos os usuarios restaurados: GaleriaRestore2024!
 const TEMP_PASSWORD_HASH = `\$2a\$10\$PnSCvLdEJmBFDkdFr.johuDQSRBCdQBi8NTRVB7q3CkMjMCXaELnC`;
 
 function generateAuthRestoreSQL(users: Record<string, unknown>[]): string {
@@ -455,11 +300,11 @@ function generateAuthRestoreSQL(users: Record<string, unknown>[]): string {
         `-- ====================================================================`,
         `-- RESTAURACAO DO auth.users — Dbarros Rural`,
         `-- Gerado em: ${now}`,
-        `-- `,
+        `--`,
         `-- CRITICO: Execute este arquivo PRIMEIRO, antes de qualquer outro.`,
         `-- Ele recria os usuarios no Supabase Auth com os mesmos UUIDs originais.`,
         `-- Sem isso, todos os vinculos (fotos, tarefas, atendimentos) ficam quebrados.`,
-        `-- `,
+        `--`,
         `-- Senha temporaria de todos os usuarios restaurados: GaleriaRestore2024!`,
         `-- Solicite que cada usuario redefina sua senha apos o primeiro login.`,
         `-- ====================================================================`,
@@ -552,101 +397,417 @@ function getZipCompression(filename: string): { compression: 'STORE' | 'DEFLATE'
     return { compression: 'DEFLATE', compressionOptions: { level: 3 } };
 }
 
-// ── RESTORE_GUIDE.md ─────────────────────────────────────────────────────────
-function generateRestoreGuide(dateStr: string, buckets: string[]): string {
+// ── Guia de restauracao dinamico ──────────────────────────────────────────────
+// Gerado automaticamente: tabelas, contagens e instrucoes refletem o estado atual.
+// Nao requer nenhuma atualizacao manual ao adicionar novas tabelas.
+function generateRestoreGuide(dateStr: string, tables: string[], buckets: string[], functionsCount = 0, policiesCount = 0): string {
+    const storageLines = buckets.length > 0
+        ? buckets.map(b => `│   └── ${b}/`).join('\n')
+        : '│   (sem buckets disponiveis)';
+
+    const checklistUnion = tables
+        .filter(t => !['user_biometrics', 'system_config', 'photo_tags',
+            'tarefas_historico', 'atendimentos_historico', 'stand_imagem_recebimentos'].includes(t))
+        .map((t, i) => i === 0
+            ? `SELECT '${t}' AS tabela, COUNT(*) FROM public.${t}`
+            : `UNION ALL SELECT '${t}', COUNT(*) FROM public.${t}`)
+        .join('\n');
+
     return `# Guia de Restauracao — Dbarros Rural
 ## Backup gerado em: ${dateStr}
+## Tabelas incluidas: ${tables.length} | Migrations: ${MIGRATION_FILES.length} | Buckets: ${buckets.join(', ') || 'nenhum'}
+
+---
+
+## LEIA ANTES DE COMECAR
+
+### Por que a ordem importa
+
+O sistema usa auth.users.id como chave primaria de public.users.
+Todos os vinculos (fotos, tarefas, atendimentos, planilhas) dependem desse UUID.
+Se os UUIDs mudarem, tudo quebra. Execute SEMPRE na ordem indicada.
+
+### O que este backup contem
+
+- Todos os usuarios (auth.users + public.users) com UUIDs originais preservados
+- Todas as ${tables.length} tabelas do banco com dados completos
+- ${MIGRATION_FILES.length} migrations historicas combinadas em um arquivo unico
+- DDL auto-gerado como alternativa
+- ${functionsCount} funcoes PostgreSQL (DDL completo extraido ao vivo do banco)
+- ${policiesCount} politicas RLS (extraidas ao vivo — arquivo idempotente)
+- Todos os arquivos do Storage (fotos, documentos)
+- Este guia de restauracao
+
+### Senhas apos restauracao
+
+Todos os usuarios restaurados recebem a senha temporaria: GaleriaRestore2024!
+Instrua cada usuario a redefinir sua senha apos o primeiro login.
+
+---
 
 ## Estrutura do ZIP
 
 \`\`\`
 backup_dbarros_full_${dateStr}.zip
-├── RESTORE_GUIDE.md              ← Este arquivo
+├── RESTORE_GUIDE.md                       <- Este arquivo
 ├── database/
-│   ├── 1_auth_users_restore.sql  ← PRIMEIRO: recria usuarios no Supabase Auth
-│   ├── 2_schema_ddl.sql          ← SEGUNDO: cria as tabelas (CREATE TABLE IF NOT EXISTS)
-│   ├── 3_schema_inferred_extras.sql ← TERCEIRO: tabelas extras inferidas dos dados
-│   └── 4_database_backup.sql     ← QUARTO: insere todos os dados (INSERT ... ON CONFLICT DO NOTHING)
+│   ├── 1_auth_users_restore.sql           <- PRIMEIRO: usuarios no Auth com UUIDs originais
+│   ├── 2_schema_all_migrations.sql        <- SEGUNDO: schema completo (FKs + RLS + funcoes)
+│   ├── 3_schema_ddl_auto.sql             <- ALTERNATIVA ao 2: DDL simplificado auto-gerado
+│   ├── 4_database_backup.sql              <- QUARTO: dados de todas as ${tables.length} tabelas
+│   ├── 5_functions_ddl.sql               <- QUINTO: ${functionsCount} funcao(s) PostgreSQL (auto-gerado)
+│   └── 6_rls_policies.sql               <- SEXTO: ${policiesCount} politica(s) RLS (auto-gerado)
 ├── schema_migrations/
-│   └── 001_*.sql, 002_*.sql ...  ← Migrations historicas (referencia)
+│   └── *.sql (${MIGRATION_FILES.length} arquivos — referencia individual)
 └── storage_backup/
-${buckets.map(b => `    └── ${b}/                     ← Arquivos do bucket "${b}"`).join('\n')}
+${storageLines}
 \`\`\`
 
 ---
 
-## Passo a passo de restauracao
+## PASSO 1 — Criar novo projeto no Supabase
 
-### 1. Criar novo projeto no Supabase
-- Acesse https://supabase.com e crie um novo projeto
-- Copie a URL e a ANON_KEY do novo projeto
-- Atualize o arquivo \`.env\` da aplicacao com os novos valores
+1. Acesse https://supabase.com e crie um novo projeto
+2. Anote: URL, ANON_KEY, SERVICE_ROLE_KEY
 
-### 2. Restaurar usuarios (auth.users) — CRITICO
-No **SQL Editor** do Supabase Studio, execute:
-\`database/1_auth_users_restore.sql\`
+---
 
-> **Por que e critico?** O sistema usa \`auth.users.id\` como chave primaria de \`public.users\`.
-> Se os UUIDs mudarem, TODOS os vinculos (fotos, tarefas, atendimentos) ficam quebrados.
+## PASSO 2 — Restaurar usuarios no Auth (CRITICO — execute PRIMEIRO)
 
-**Senha temporaria de todos os usuarios restaurados:** \`GaleriaRestore2024!\`
-Solicite que cada usuario redefina sua senha apos o primeiro login.
+No SQL Editor do novo projeto, execute o arquivo completo:
 
-### 3. Criar as tabelas (schema)
+    database/1_auth_users_restore.sql
+
+Este arquivo recria todos os usuarios no auth.users com seus UUIDs originais.
+Sem este passo, TODOS os vinculos do banco ficam corrompidos.
+
+---
+
+## PASSO 3 — Recriar o schema completo
+
 No SQL Editor, execute:
-\`database/2_schema_ddl.sql\`
 
-Se houver tabelas extras nao reconhecidas:
-\`database/3_schema_inferred_extras.sql\`
+    database/2_schema_all_migrations.sql
 
-### 4. Restaurar os dados
+Este arquivo combina todas as ${MIGRATION_FILES.length} migrations em sequencia unica.
+Cria todas as tabelas, chaves estrangeiras, politicas RLS e funcoes PostgreSQL.
+
+Se o arquivo 2 falhar por algum motivo, use como alternativa:
+
+    database/3_schema_ddl_auto.sql
+
+(DDL simplificado sem FKs. O arquivo 4 usa session_replication_role=replica,
+entao as FKs nao sao validadas durante o restore de qualquer forma.)
+
+---
+
+## PASSO 4 — Restaurar os dados
+
 No SQL Editor, execute:
-\`database/4_database_backup.sql\`
 
-> Todos os INSERTs usam \`ON CONFLICT DO NOTHING\` — seguro para rodar multiplas vezes.
+    database/4_database_backup.sql
 
-### 5. Restaurar arquivos do Storage
-Para cada bucket em \`storage_backup/\`:
-- Crie o bucket no Supabase Storage (mesmo nome, mesmas configuracoes de acesso publico)
-- Faca upload manual ou via CLI dos arquivos mantendo a estrutura de pastas
+O arquivo ja inclui:
+- SET session_replication_role = 'replica' (ignora FKs durante insert)
+- ON CONFLICT DO NOTHING em todos os INSERTs (seguro rodar mais de uma vez)
+- SET session_replication_role = DEFAULT no final (reativa validacoes)
+
+---
+
+## PASSO 5 — Recriar funcoes PostgreSQL
+
+PRIMARIO — execute o arquivo auto-gerado (definicoes extraidas ao vivo do banco):
+
+    database/5_functions_ddl.sql
+
+Inclui todas as ${functionsCount} funcao(s) do schema public + re-grant automatico para 'authenticated'.
+
+FALLBACK — se o arquivo 5 nao estiver no ZIP (ex: backup_introspect() indisponivel),
+execute os blocos abaixo manualmente no SQL Editor:
+
+### 5A — is_admin() — SECURITY DEFINER (evita recursao infinita)
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT COALESCE((SELECT is_admin FROM public.users WHERE id = auth.uid()), false);
+$$;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+\`\`\`
+
+### 5B — create_user_admin(...)
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION public.create_user_admin(
+    user_name TEXT, user_email TEXT, user_password TEXT,
+    is_admin_flag BOOLEAN DEFAULT false, is_visitor_flag BOOLEAN DEFAULT false,
+    can_manage_tags_flag BOOLEAN DEFAULT false, is_projetista_flag BOOLEAN DEFAULT false
+) RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE new_user_id UUID;
+BEGIN
+    INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, created_at, updated_at,
+        raw_app_meta_data, raw_user_meta_data,
+        is_super_admin, confirmation_token, recovery_token, email_change_token_new, email_change
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000000', gen_random_uuid(),
+        'authenticated', 'authenticated', user_email, crypt(user_password, gen_salt('bf')),
+        NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}',
+        '{}', false, '', '', '', ''
+    ) RETURNING id INTO new_user_id;
+    INSERT INTO auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at, provider_id)
+    VALUES (new_user_id, new_user_id, json_build_object('sub', new_user_id::text, 'email', user_email),
+            'email', NOW(), NOW(), NOW(), user_email);
+    INSERT INTO public.users (id, name, email, is_admin, is_visitor, can_manage_tags, is_projetista, is_active, is_temp)
+    VALUES (new_user_id, user_name, user_email, is_admin_flag, is_visitor_flag, can_manage_tags_flag, is_projetista_flag, true, false);
+    RETURN new_user_id;
+END;$$;
+GRANT EXECUTE ON FUNCTION public.create_user_admin(TEXT,TEXT,TEXT,BOOLEAN,BOOLEAN,BOOLEAN,BOOLEAN) TO authenticated;
+\`\`\`
+
+### 5C — update_user_password_admin(...)
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION public.update_user_password_admin(target_user_id UUID, new_password TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    UPDATE auth.users SET encrypted_password = crypt(new_password, gen_salt('bf')), updated_at = NOW()
+    WHERE id = target_user_id;
+END;$$;
+GRANT EXECUTE ON FUNCTION public.update_user_password_admin(UUID,TEXT) TO authenticated;
+\`\`\`
+
+### 5D — delete_user_admin(...)
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION public.delete_user_admin(target_user_id UUID)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    DELETE FROM public.users WHERE id = target_user_id;
+    DELETE FROM auth.identities WHERE user_id = target_user_id;
+    DELETE FROM auth.users WHERE id = target_user_id;
+END;$$;
+GRANT EXECUTE ON FUNCTION public.delete_user_admin(UUID) TO authenticated;
+\`\`\`
+
+### 5E — rename_opcional_item(...)
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION public.rename_opcional_item(old_nome TEXT, new_nome TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    UPDATE planilha_vendas_estandes
+    SET opcionais_selecionados = (opcionais_selecionados - old_nome) || jsonb_build_object(new_nome, opcionais_selecionados->old_nome)
+    WHERE opcionais_selecionados ? old_nome;
+    UPDATE edicao_imagens_config SET origem_ref = new_nome WHERE origem_tipo = 'item_opcional' AND origem_ref = old_nome;
+END;$$;
+GRANT EXECUTE ON FUNCTION public.rename_opcional_item(TEXT,TEXT) TO authenticated;
+\`\`\`
+
+### 5F — backup_introspect() (necessario para backups futuros serem automaticos)
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION public.backup_introspect()
+RETURNS JSON LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT json_build_object(
+    'tables', (
+      SELECT json_agg(json_build_object('name', t.table_name, 'columns', (
+        SELECT json_agg(json_build_object('name', c.column_name, 'udt', c.udt_name,
+          'nullable', (c.is_nullable = 'YES'), 'has_default', (c.column_default IS NOT NULL))
+          ORDER BY c.ordinal_position)
+        FROM information_schema.columns c
+        WHERE c.table_schema = 'public' AND c.table_name = t.table_name
+      )) ORDER BY t.table_name)
+      FROM information_schema.tables t
+      WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+    ),
+    'fk_deps', (
+      SELECT COALESCE(json_agg(json_build_object(
+        'from_table', fd.from_table, 'to_table', fd.to_table)), '[]'::json)
+      FROM (
+        SELECT DISTINCT kcu.table_name AS from_table, ccu.table_name AS to_table
+        FROM information_schema.key_column_usage kcu
+        JOIN information_schema.referential_constraints rc
+          ON kcu.constraint_name = rc.constraint_name AND kcu.constraint_schema = rc.constraint_schema
+        JOIN information_schema.constraint_column_usage ccu
+          ON rc.unique_constraint_name = ccu.constraint_name AND rc.unique_constraint_schema = ccu.constraint_schema
+        WHERE kcu.table_schema = 'public' AND ccu.table_schema = 'public' AND kcu.table_name != ccu.table_name
+      ) fd
+    )
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.backup_introspect() TO authenticated;
+\`\`\`
+
+---
+
+## PASSO 6 — Restaurar politicas RLS
+
+PRIMARIO — execute o arquivo auto-gerado (extrai ${policiesCount} politica(s) ao vivo do banco):
+
+    database/6_rls_policies.sql
+
+DROP IF EXISTS + CREATE garante idempotencia — seguro rodar mais de uma vez.
+
+SUPLEMENTO — aplica politica admin generica em TODAS as tabelas (cobre eventuais tabelas
+criadas apos o ultimo backup que ainda nao tem politica propria no arquivo 6):
+
+\`\`\`sql
+DO $$
+DECLARE
+    tbl_name text;
+BEGIN
+    FOR tbl_name IN
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "Admins bypass RLS for SELECT in %s" ON public.%I', tbl_name, tbl_name);
+        EXECUTE format(
+            'CREATE POLICY "Admins bypass RLS for SELECT in %s" '
+            'ON public.%I FOR SELECT TO authenticated '
+            'USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true));',
+            tbl_name, tbl_name
+        );
+    END LOOP;
+END;$$;
+
+DROP POLICY IF EXISTS "Admins bypass RLS for SELECT in storage.objects" ON storage.objects;
+CREATE POLICY "Admins bypass RLS for SELECT in storage.objects"
+ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id='photos' AND EXISTS (SELECT 1 FROM public.users WHERE id=auth.uid() AND is_admin=true));
+\`\`\`
+
+---
+
+## PASSO 7 — Corrigir RLS da tabela users + politica de login anon
+
+\`\`\`sql
+DROP POLICY IF EXISTS "Admin pode ler qualquer usuario" ON public.users;
+CREATE POLICY "Admin pode ler qualquer usuario"
+ON public.users FOR SELECT TO authenticated
+USING (auth.uid() = id OR public.is_admin());
+
+DROP POLICY IF EXISTS "Allow anon to lookup active users for login" ON public.users;
+CREATE POLICY "Allow anon to lookup active users for login"
+ON public.users FOR SELECT TO anon
+USING (is_active = true);
+\`\`\`
+
+---
+
+## PASSO 8 — Restaurar arquivos do Storage
+
+Para cada bucket, crie no novo projeto (mesmos nomes, mesma configuracao publica/privada):
 
 Via Supabase CLI:
+
 \`\`\`bash
-supabase storage cp --recursive storage_backup/photos/ supabase://photos/
+supabase storage cp --recursive ./storage_backup/photos/ supabase://photos/
+supabase storage cp --recursive ./storage_backup/edicao-docs/ supabase://edicao-docs/
 \`\`\`
 
-### 6. Atualizar variaveis de ambiente
-Atualize o \`.env\` com a nova URL do projeto:
+Ou faca upload manual pelo Supabase Studio (Storage > Upload files).
+
+---
+
+## PASSO 9 — Atualizar variaveis de ambiente
+
+Edite .env.local na raiz do projeto:
+
 \`\`\`
-VITE_SUPABASE_URL=https://novo-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=nova-anon-key
+VITE_SUPABASE_URL=https://SEU-NOVO-PROJETO.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-nova-anon-key
 \`\`\`
 
-### 7. Atualizar URLs de fotos no banco (se necessario)
-Se a URL do projeto mudou, as URLs das fotos no campo \`photos.url\` precisam ser atualizadas:
+---
+
+## PASSO 10 — Atualizar URLs das fotos no banco
+
+Execute no SQL Editor (substitua os dominios):
+
 \`\`\`sql
-UPDATE public.photos
-SET url = REPLACE(url, 'https://projeto-antigo.supabase.co', 'https://projeto-novo.supabase.co'),
-    thumbnail_url = REPLACE(thumbnail_url, 'https://projeto-antigo.supabase.co', 'https://projeto-novo.supabase.co');
+-- Primeiro, descubra o dominio antigo:
+SELECT url FROM public.photos LIMIT 1;
+
+-- Depois substitua:
+UPDATE public.photos SET
+    url = REPLACE(url,
+        'https://PROJETO-ANTIGO.supabase.co',
+        'https://SEU-NOVO-PROJETO.supabase.co'),
+    thumbnail_url = REPLACE(thumbnail_url,
+        'https://PROJETO-ANTIGO.supabase.co',
+        'https://SEU-NOVO-PROJETO.supabase.co')
+WHERE url LIKE '%PROJETO-ANTIGO.supabase.co%'
+   OR thumbnail_url LIKE '%PROJETO-ANTIGO.supabase.co%';
 \`\`\`
 
-### 8. Funcoes PostgreSQL personalizadas
-As funcoes SQL customizadas (RPCs) nao estao incluidas no backup de dados.
-Consulte as migrations em \`schema_migrations/\` e recrie-as manualmente se necessario.
+---
 
-### 9. Passkeys / WebAuthn
-Passkeys ficam vinculadas ao dominio original e **nao podem ser migradas**.
-Os usuarios precisarao re-registrar suas passkeys apos a restauracao.
-Os dados em \`public.user_biometrics\` sao restaurados, mas as credenciais do browser
-sao invalidas no novo dominio — isso e esperado e nao representa perda de dados.
+## PASSO 11 — Reimplantar Edge Function passkey-auth
+
+\`\`\`bash
+supabase link --project-ref SEU-NOVO-PROJECT-REF
+supabase secrets set SUPABASE_URL=https://SEU-NOVO-PROJETO.supabase.co
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
+supabase functions deploy passkey-auth
+\`\`\`
+
+Passkeys ficam vinculadas ao dominio original e nao podem ser migradas.
+Os registros em public.user_biometrics sao restaurados, mas as credenciais
+salvas no dispositivo do usuario sao invalidas no novo dominio.
+Cada usuario precisara re-registrar sua passkey apos a migracao.
+
+---
+
+## PASSO 12 — Solicitar redefincao de senhas
+
+Todos os usuarios restaurados tem a senha temporaria: GaleriaRestore2024!
+Instrua cada usuario a alterar a senha apos o primeiro login.
+
+---
+
+## Checklist de verificacao pos-restauracao
+
+\`\`\`sql
+-- Contagens esperadas (compare com o backup anterior):
+${checklistUnion}
+ORDER BY tabela;
+
+-- Verificar funcoes criticas:
+SELECT routine_name, security_type FROM information_schema.routines
+WHERE routine_schema = 'public'
+  AND routine_name IN ('is_admin', 'create_user_admin', 'update_user_password_admin',
+                       'delete_user_admin', 'rename_opcional_item', 'backup_introspect')
+ORDER BY routine_name;
+
+-- Sincronizacao auth x public (devem ser iguais):
+SELECT COUNT(*) AS auth_count FROM auth.users;
+SELECT COUNT(*) AS public_count FROM public.users;
+
+-- Verificar policies ativas na tabela users:
+SELECT policyname, cmd, roles FROM pg_policies
+WHERE schemaname = 'public' AND tablename = 'users'
+ORDER BY policyname;
+\`\`\`
 
 ---
 
 ## Notas importantes
 
-- Este backup foi gerado com \`ON CONFLICT DO NOTHING\` em todos os INSERTs — nenhum dado existente e sobrescrito
-- As migrations em \`schema_migrations/\` sao fornecidas como referencia historica
-- Para migracao para PostgreSQL externo: \`psql -h HOST -U USER -d DATABASE -f 4_database_backup.sql\`
+| Topico | Detalhe |
+|---|---|
+| UUIDs | auth.users.id = public.users.id — nunca deixe mudar na restauracao |
+| Passkeys | Vinculadas ao dominio original — precisam ser re-registradas |
+| Senhas | Todos os usuarios restaurados recebem GaleriaRestore2024! |
+| Ordem | 1→auth → 2→schema → 3→dados → 4→funcoes(5) → 5→RLS(6) → 6→storage |
+| ON CONFLICT DO NOTHING | Todos os INSERTs sao idempotentes — seguro rodar multiplas vezes |
+| session_replication_role | Arquivo 4 desativa FKs durante restore — reativado no final |
+| Edge Function | passkey-auth precisa ser reimplantada via CLI |
+| Funcoes SQL | Auto-exportadas em 5_functions_ddl.sql (DDL extraido ao vivo do banco) |
+| Politicas RLS | Auto-exportadas em 6_rls_policies.sql (pg_policies extraido ao vivo) |
+| Storage URLs | Apos migrar o projeto execute o UPDATE do Passo 10 |
+| psql externo | psql -h HOST -U USER -d DB -f 4_database_backup.sql |
 `;
 }
 
@@ -659,28 +820,39 @@ export type BackupProgressCallback = (info: {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export const backupService = {
+
     /** SQL-only backup (sem arquivos do Storage) */
     async download(): Promise<void> {
+        // Descobre tabelas via RPC backup_introspect() com fallback para lista estatica
+        let tables: string[] = BACKUP_TABLES_FALLBACK;
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data } = await (supabase as any).rpc('backup_introspect');
+            if (data?.tables?.length) {
+                const schema = data as IntrospectedSchema;
+                tables = topoSort(schema.tables, schema.fk_deps);
+            }
+        } catch { /* fallback para lista estatica */ }
+
         const lines: string[] = [
-            `-- Backup SQL — Dbarros Rural — ${new Date().toLocaleString('pt-BR')}\n`,
-            `SET client_encoding = 'UTF8';\n`,
+            `-- Backup SQL — Dbarros Rural — ${new Date().toLocaleString('pt-BR')}`,
+            `-- Tabelas: ${tables.length}`,
+            ``,
+            `SET client_encoding = 'UTF8';`,
+            `SET session_replication_role = 'replica';`,
+            ``,
         ];
 
-        for (const table of BACKUP_TABLES) {
+        for (const table of tables) {
             lines.push(`-- ── TABLE: ${table} ──────────────────────────────────`);
             const res = await fetchTable(table);
-            if (res.errorStr) {
-                lines.push(`-- [ERROR] ${res.errorStr}`);
-            }
-            if (res.rows.length === 0) {
-                lines.push('-- (vazia)\n');
-                continue;
-            }
-            for (const row of res.rows) {
-                lines.push(rowToInsert(table, row));
-            }
+            if (res.errorStr) { lines.push(`-- [ERROR] ${res.errorStr}`); }
+            if (res.rows.length === 0) { lines.push('-- (vazia)\n'); continue; }
+            for (const row of res.rows) lines.push(rowToInsert(table, row));
             lines.push(`-- ${res.rows.length} linha(s)\n`);
         }
+
+        lines.push(`SET session_replication_role = DEFAULT;`);
         lines.push('-- FIM DO BACKUP');
 
         const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
@@ -700,27 +872,52 @@ export const backupService = {
         const zip = new JSZip();
         const dateStr = new Date().toISOString().slice(0, 10);
 
-        // ── Fase 1: Banco de dados (0–30%) ────────────────────────────────────
-        onProgress?.({ phase: 'db', label: 'Exportando tabelas do banco...', pct: 0 });
+        // ── Descobrir schema e tabelas via RPC ────────────────────────────────
+        onProgress?.({ phase: 'db', label: 'Descobrindo schema do banco...', pct: 0 });
+
+        let tables: string[] = BACKUP_TABLES_FALLBACK;
+        let schema: IntrospectedSchema | null = null;
+
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data } = await (supabase as any).rpc('backup_introspect');
+            if (data?.tables?.length) {
+                schema = data as IntrospectedSchema;
+                tables = topoSort(schema.tables, schema.fk_deps);
+                console.log(`[backup] Schema descoberto via RPC: ${tables.length} tabelas`);
+            } else {
+                console.log('[backup] backup_introspect() sem dados — usando lista de fallback');
+            }
+        } catch {
+            console.log('[backup] backup_introspect() nao disponivel — usando lista de fallback');
+        }
+
+        // ── Banco de dados (0–30%) ─────────────────────────────────────────────
+        onProgress?.({ phase: 'db', label: `Exportando ${tables.length} tabelas...`, pct: 5 });
 
         const sqlLines: string[] = [
             `-- ====================================================================`,
             `-- BACKUP DE DADOS — Dbarros Rural`,
             `-- Gerado em: ${new Date().toLocaleString('pt-BR')}`,
-            `-- Execute APOS o 2_schema_ddl.sql`,
-            `-- ====================================================================\n`,
-            `SET client_encoding = 'UTF8';\n`,
+            `-- Tabelas: ${tables.length} | Migrations: ${MIGRATION_FILES.length}`,
+            `-- Execute APOS o 2_schema_all_migrations.sql`,
+            `-- ====================================================================`,
+            ``,
+            `SET client_encoding = 'UTF8';`,
+            `-- Desativa validacao de FK durante o restore (reativado no final do arquivo)`,
+            `SET session_replication_role = 'replica';`,
+            ``,
         ];
 
-        // Buscar dados de todos os usuarios (necessario para auth.users restore)
+        // Buscar users primeiro (necessario para auth.users restore)
         const usersRes = await fetchTable('users');
 
-        for (let i = 0; i < BACKUP_TABLES.length; i++) {
-            const table = BACKUP_TABLES[i];
+        for (let i = 0; i < tables.length; i++) {
+            const table = tables[i];
             onProgress?.({
                 phase: 'db',
-                label: `Tabela: ${table}`,
-                pct: Math.round((i / BACKUP_TABLES.length) * 30),
+                label: `Tabela: ${table} (${i + 1}/${tables.length})`,
+                pct: Math.round(5 + (i / tables.length) * 25),
             });
 
             const res = table === 'users' ? usersRes : await fetchTable(table);
@@ -735,43 +932,41 @@ export const backupService = {
                 continue;
             }
 
-            for (const row of res.rows) {
-                sqlLines.push(rowToInsert(table, row));
-            }
+            for (const row of res.rows) sqlLines.push(rowToInsert(table, row));
             sqlLines.push(`-- ${res.rows.length} linha(s)\n`);
         }
+
+        sqlLines.push(`SET session_replication_role = DEFAULT;`);
         sqlLines.push('-- FIM DO BACKUP');
 
-        // Arquivos numerados na pasta database/
+        // Arquivos na pasta database/
         zip.file('database/1_auth_users_restore.sql', generateAuthRestoreSQL(usersRes.rows));
-        zip.file('database/2_schema_ddl.sql', SCHEMA_DDL);
+        zip.file('database/2_schema_all_migrations.sql', generateCombinedMigrations());
 
-        // Schema inferido para tabelas nao conhecidas (usando dados reais)
-        const inferredLines: string[] = [
-            `-- Schema inferido a partir dos dados — tabelas nao cobertas pelo SCHEMA_DDL principal\n`,
-        ];
-        let inferredCount = 0;
-        for (const table of BACKUP_TABLES) {
-            const knownTables = SCHEMA_DDL.match(/CREATE TABLE IF NOT EXISTS public\."?(\w+)"?/g)
-                ?.map(s => s.replace(/CREATE TABLE IF NOT EXISTS public\."?(\w+)"?/, '$1')) ?? [];
-            if (!knownTables.includes(table)) {
-                const res = await fetchTable(table);
-                inferredLines.push(generateInferredDDL(table, res.rows));
-                inferredCount++;
+        if (schema?.tables?.length) {
+            // DDL auto-gerado so incluido quando introspeccao funcionou
+            const relevantTables = schema.tables.filter(t => tables.includes(t.name));
+            zip.file('database/3_schema_ddl_auto.sql', generateDDLFromSchema(relevantTables));
+
+            // Funcoes PostgreSQL (pg_get_functiondef ao vivo)
+            if (schema.functions?.length) {
+                zip.file('database/5_functions_ddl.sql', generateFunctionsDDL(schema.functions));
             }
-        }
-        if (inferredCount > 0) {
-            zip.file('database/3_schema_inferred_extras.sql', inferredLines.join('\n'));
+
+            // Politicas RLS (pg_policies ao vivo — reconstruidas como CREATE POLICY)
+            if (schema.policies?.length) {
+                zip.file('database/6_rls_policies.sql', generatePoliciesDDL(schema.policies));
+            }
         }
 
         zip.file('database/4_database_backup.sql', sqlLines.join('\n'));
 
-        // Migrations como referencia
+        // Migrations individuais como referencia
         for (const mig of MIGRATION_FILES) {
             zip.file(`schema_migrations/${mig.filename}`, mig.content);
         }
 
-        // ── Fase 2: Storage (30–90%) ───────────────────────────────────────────
+        // ── Storage (30–90%) ──────────────────────────────────────────────────
         onProgress?.({ phase: 'storage', label: 'Descobrindo buckets do Storage...', pct: 30 });
 
         const availableBuckets = await discoverBuckets();
@@ -799,7 +994,7 @@ export const backupService = {
                         return;
                     }
 
-                    const pct = 30 + Math.round((downloadedCount / Math.max(allFiles.length, 1)) * 60);
+                    const pct = 30 + Math.round((downloadedCount / Math.max(allFiles.length, 1)) * 58);
                     onProgress?.({
                         phase: 'storage',
                         label: `Arquivo ${downloadedCount}/${allFiles.length}: ${file.path}`,
@@ -813,10 +1008,14 @@ export const backupService = {
             );
         }
 
-        // ── RESTORE_GUIDE.md ──────────────────────────────────────────────────
-        zip.file('RESTORE_GUIDE.md', generateRestoreGuide(dateStr, availableBuckets));
+        // ── RESTORE_GUIDE.md dentro do ZIP ────────────────────────────────────
+        zip.file('RESTORE_GUIDE.md', generateRestoreGuide(
+            dateStr, tables, availableBuckets,
+            schema?.functions?.length ?? 0,
+            schema?.policies?.length ?? 0,
+        ));
 
-        // ── Fase 3: Compressao (90–100%) ──────────────────────────────────────
+        // ── Compressao (90–100%) ───────────────────────────────────────────────
         onProgress?.({ phase: 'zipping', label: 'Compactando...', pct: 90 });
 
         const blob = await zip.generateAsync(
@@ -839,6 +1038,10 @@ export const backupService = {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        onProgress?.({ phase: 'done', label: 'Backup concluido com sucesso!', pct: 100 });
+        onProgress?.({
+            phase: 'done',
+            label: `Backup concluido! ${tables.length} tabelas, ${allFiles.length} arquivo(s) de storage.`,
+            pct: 100,
+        });
     },
 };
