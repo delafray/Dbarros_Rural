@@ -204,7 +204,7 @@ const Clientes: React.FC = () => {
                             </svg>
                             <input
                                 type="text"
-                                placeholder="Buscar por Razão Social, CNPJ ou Nome..."
+                                placeholder="Buscar por Nome Fantasia, Razão Social, CNPJ ou Nome..."
                                 className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
