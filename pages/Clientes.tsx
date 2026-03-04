@@ -232,6 +232,7 @@ const Clientes: React.FC = () => {
                     <table className="w-full text-left border-collapse">
                         <thead className="sticky top-0 z-10">
                             <tr className="bg-slate-200 text-slate-700 text-[11px] font-bold uppercase tracking-tight">
+                                <th className="px-3 py-0.5 border-b border-r border-slate-300">Nome Fantasia</th>
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300">Nome / Razão Social</th>
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300">Contato</th>
                                 <th className="px-3 py-0.5 border-b border-r border-slate-300">Cargo</th>
@@ -243,7 +244,7 @@ const Clientes: React.FC = () => {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400 text-sm">
                                         <div className="flex flex-col items-center gap-2">
                                             <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -255,7 +256,7 @@ const Clientes: React.FC = () => {
                                 </tr>
                             ) : displayed.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                    <td colSpan={7} className="px-6 py-12 text-center">
                                         <div className="max-w-xs mx-auto flex flex-col items-center gap-3">
                                             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-300">
                                                 <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -276,12 +277,15 @@ const Clientes: React.FC = () => {
                                                 ref={isLast && hasMore ? setSentinel : null}
                                                 className="hover:bg-blue-100/40 even:bg-slate-200/40 transition-colors group"
                                             >
+                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 text-[12px] text-slate-700 whitespace-nowrap max-w-[200px] truncate font-medium">
+                                                    {c.nome_fantasia || '-'}
+                                                </td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[250px] truncate">
                                                     <button
                                                         onClick={() => navigate(`/clientes/editar/${c.id}`)}
                                                         className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 hover:underline text-left"
                                                     >
-                                                        {c.tipo_pessoa === 'PJ' ? (c.nome_fantasia ? `${c.nome_fantasia} - ${c.razao_social}` : c.razao_social) : c.nome_completo}
+                                                        {c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}
                                                     </button>
                                                 </td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 text-[12px] text-slate-700 whitespace-nowrap max-w-[150px] truncate">
@@ -314,7 +318,7 @@ const Clientes: React.FC = () => {
                                                             </svg>
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDelete(c.id, (c.tipo_pessoa === 'PF' ? c.nome_completo : (c.nome_fantasia ? `${c.nome_fantasia} - ${c.razao_social}` : c.razao_social)) || '')}
+                                                            onClick={() => handleDelete(c.id, (c.nome_fantasia ? `${c.nome_fantasia} - ${c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}` : (c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo)) || '')}
                                                             className="p-1 text-slate-500 hover:text-red-600 hover:bg-white rounded border border-slate-200 shadow-sm transition-all"
                                                             title="Excluir"
                                                         >
@@ -329,7 +333,7 @@ const Clientes: React.FC = () => {
                                     })}
                                     {loadingMore && (
                                         <tr>
-                                            <td colSpan={6} className="py-3 text-center text-slate-400 text-xs">
+                                            <td colSpan={7} className="py-3 text-center text-slate-400 text-xs">
                                                 Carregando mais...
                                             </td>
                                         </tr>
