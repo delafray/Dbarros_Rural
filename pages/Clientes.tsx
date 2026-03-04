@@ -127,6 +127,25 @@ const Clientes: React.FC = () => {
                 orFilters.push(`cpf.ilike.%${numericTerm}%`);
             }
 
+            // Pesquisar também em contatos (telefone, email, nome)
+            const contatosOr = [
+                `nome.ilike.%${term}%`,
+                `email.ilike.%${term}%`
+            ];
+            if (numericTerm) contatosOr.push(`telefone.ilike.%${numericTerm}%`);
+
+            const { data: contatosData } = await supabase
+                .from('contatos')
+                .select('cliente_id')
+                .or(contatosOr.join(','));
+
+            if (contatosData && contatosData.length > 0) {
+                const uniqueIds = [...new Set(contatosData.map(c => c.cliente_id).filter(Boolean))].slice(0, 50);
+                if (uniqueIds.length > 0) {
+                    orFilters.push(`id.in.(${uniqueIds.join(',')})`);
+                }
+            }
+
             const { data, error } = await supabase
                 .from('clientes')
                 .select('*, contatos(nome, telefone, email, cargo, principal)')
@@ -204,7 +223,7 @@ const Clientes: React.FC = () => {
                             </svg>
                             <input
                                 type="text"
-                                placeholder="Buscar por Nome Fantasia, Razão Social, CNPJ ou Nome..."
+                                placeholder="Buscar por Nome, Nome Fantasia, Razão Social, CNPJ ou Telefone..."
                                 className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
