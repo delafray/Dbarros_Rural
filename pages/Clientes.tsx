@@ -281,7 +281,7 @@ const Clientes: React.FC = () => {
                                                         onClick={() => navigate(`/clientes/editar/${c.id}`)}
                                                         className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 hover:underline text-left"
                                                     >
-                                                        {c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}
+                                                        {c.tipo_pessoa === 'PJ' ? (c.nome_fantasia ? `${c.nome_fantasia} - ${c.razao_social}` : c.razao_social) : c.nome_completo}
                                                     </button>
                                                 </td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 text-[12px] text-slate-700 whitespace-nowrap max-w-[150px] truncate">
@@ -314,7 +314,7 @@ const Clientes: React.FC = () => {
                                                             </svg>
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDelete(c.id, (c.tipo_pessoa === 'PF' ? c.nome_completo : c.razao_social) || '')}
+                                                            onClick={() => handleDelete(c.id, (c.tipo_pessoa === 'PF' ? c.nome_completo : (c.nome_fantasia ? `${c.nome_fantasia} - ${c.razao_social}` : c.razao_social)) || '')}
                                                             className="p-1 text-slate-500 hover:text-red-600 hover:bg-white rounded border border-slate-200 shadow-sm transition-all"
                                                             title="Excluir"
                                                         >
