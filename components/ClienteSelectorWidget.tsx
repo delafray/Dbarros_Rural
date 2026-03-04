@@ -431,99 +431,101 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
 
                     {/* Tabela de Resultados Estendida */}
                     <div ref={listRef} className="flex-1 overflow-auto bg-slate-50 p-4">
-                        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-                            <table className="w-full text-left border-collapse table-fixed">
-                                <thead className="sticky top-0 z-10 bg-slate-200 shadow-sm">
-                                    <tr className="text-slate-700 text-[11px] font-bold uppercase tracking-tight">
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[20%]">Nome Fantasia</th>
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[25%]">Nome / Razão Social</th>
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[15%]">Contato</th>
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[12%]">Cargo</th>
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[13%]">Telefone</th>
-                                        <th className="px-3 py-2 border-b border-slate-300 w-[15%]">Email</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {loading ? (
-                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">Carregando clientes...</td></tr>
-                                    ) : displayed.length === 0 ? (
-                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
-                                            {searchTerm ? `Nenhum resultado para "${searchTerm}"` : 'Nenhum cliente cadastrado.'}
-                                        </td></tr>
-                                    ) : (
-                                        <>
-                                            {displayed.map((c, idx) => {
-                                                const isLast = idx === displayed.length - 1;
-                                                const isActive = c.id === currentClienteId;
-                                                return (
-                                                    <tr
-                                                        key={c.id}
-                                                        ref={isLast && hasMore ? setSentinel : null}
-                                                        onClick={() => handleSelect(c)}
-                                                        className={`cursor-pointer transition-colors group ${isActive
-                                                            ? 'bg-blue-50/80 border-l-4 border-l-blue-500'
-                                                            : 'hover:bg-blue-50/50 even:bg-slate-50/50 border-l-4 border-l-transparent'
-                                                            }`}
-                                                    >
-                                                        {/* Colunas preenchidas com estilo dinâmico estilo Clientes.tsx */}
-                                                        <td className="px-3 py-1.5 border-r border-slate-100">
-                                                            <div className="flex items-center gap-1.5">
-                                                                {isActive && <span className="text-blue-500 font-bold shrink-0 animate-pulse">✓</span>}
-                                                                <p className="text-[12px] font-medium text-slate-700 leading-tight truncate" title={c.nome_fantasia || ''}>
-                                                                    {c.nome_fantasia || '—'}
+                        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm h-full flex flex-col min-h-[300px]">
+                            <div className="flex-1 overflow-auto">
+                                <table className="w-full text-left border-collapse table-fixed">
+                                    <thead className="sticky top-0 z-10 bg-slate-200 shadow-sm">
+                                        <tr className="text-slate-700 text-[11px] font-bold uppercase tracking-tight">
+                                            <th className="px-3 py-2 border-b border-r border-slate-300 w-[20%]">Nome Fantasia</th>
+                                            <th className="px-3 py-2 border-b border-r border-slate-300 w-[25%]">Nome / Razão Social</th>
+                                            <th className="px-3 py-2 border-b border-r border-slate-300 w-[15%]">Contato</th>
+                                            <th className="px-3 py-2 border-b border-r border-slate-300 w-[12%]">Cargo</th>
+                                            <th className="px-3 py-2 border-b border-r border-slate-300 w-[13%]">Telefone</th>
+                                            <th className="px-3 py-2 border-b border-slate-300 w-[15%]">Email</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {loading ? (
+                                            <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">Carregando clientes...</td></tr>
+                                        ) : displayed.length === 0 ? (
+                                            <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
+                                                {searchTerm ? `Nenhum resultado para "${searchTerm}"` : 'Nenhum cliente cadastrado.'}
+                                            </td></tr>
+                                        ) : (
+                                            <>
+                                                {displayed.map((c, idx) => {
+                                                    const isLast = idx === displayed.length - 1;
+                                                    const isActive = c.id === currentClienteId;
+                                                    return (
+                                                        <tr
+                                                            key={c.id}
+                                                            ref={isLast && hasMore ? setSentinel : null}
+                                                            onClick={() => handleSelect(c)}
+                                                            className={`cursor-pointer transition-colors group ${isActive
+                                                                ? 'bg-blue-50/80 border-l-4 border-l-blue-500'
+                                                                : 'hover:bg-blue-50/50 even:bg-slate-50/50 border-l-4 border-l-transparent'
+                                                                }`}
+                                                        >
+                                                            {/* Colunas preenchidas com estilo dinâmico estilo Clientes.tsx */}
+                                                            <td className="px-3 py-1.5 border-r border-slate-100">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {isActive && <span className="text-blue-500 font-bold shrink-0 animate-pulse">✓</span>}
+                                                                    <p className="text-[12px] font-medium text-slate-700 leading-tight truncate" title={c.nome_fantasia || ''}>
+                                                                        {c.nome_fantasia || '—'}
+                                                                    </p>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-1.5 border-r border-slate-100">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <p className="text-[12px] font-semibold text-slate-800 leading-tight truncate" title={c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}>
+                                                                        {c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}
+                                                                    </p>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-1.5 border-r border-slate-100">
+                                                                <p className="text-[12px] text-slate-700 leading-tight truncate" title={c.contato_nome !== 'N/A' ? c.contato_nome : ''}>
+                                                                    {c.contato_nome !== 'N/A' ? c.contato_nome : '—'}
                                                                 </p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-3 py-1.5 border-r border-slate-100">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <p className="text-[12px] font-semibold text-slate-800 leading-tight truncate" title={c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}>
-                                                                    {c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}
+                                                            </td>
+                                                            <td className="px-3 py-1.5 border-r border-slate-100">
+                                                                <p className="text-[11px] text-slate-500 leading-tight truncate">
+                                                                    {c.contato_cargo !== 'N/A' ? c.contato_cargo : '—'}
                                                                 </p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-3 py-1.5 border-r border-slate-100">
-                                                            <p className="text-[12px] text-slate-700 leading-tight truncate" title={c.contato_nome !== 'N/A' ? c.contato_nome : ''}>
-                                                                {c.contato_nome !== 'N/A' ? c.contato_nome : '—'}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-3 py-1.5 border-r border-slate-100">
-                                                            <p className="text-[11px] text-slate-500 leading-tight truncate">
-                                                                {c.contato_cargo !== 'N/A' ? c.contato_cargo : '—'}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-3 py-1.5 border-r border-slate-100">
-                                                            <p className="text-[11px] text-slate-600 font-mono leading-tight truncate">
-                                                                {c.contato_principal !== 'N/A' ? c.contato_principal : '—'}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-3 py-1.5">
-                                                            <p className="text-[11px] text-slate-500 truncate" title={c.contato_email !== 'N/A' ? c.contato_email : ''}>
-                                                                {c.contato_email !== 'N/A' ? c.contato_email : '—'}
-                                                            </p>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                            {loadingMore && (
-                                                <tr><td colSpan={6} className="py-4 text-center text-slate-400 text-xs">Carregando mais dados...</td></tr>
-                                            )}
-                                        </>
-                                    )}
-                                </tbody>
-                            </table>
+                                                            </td>
+                                                            <td className="px-3 py-1.5 border-r border-slate-100">
+                                                                <p className="text-[11px] text-slate-600 font-mono leading-tight truncate">
+                                                                    {c.contato_principal !== 'N/A' ? c.contato_principal : '—'}
+                                                                </p>
+                                                            </td>
+                                                            <td className="px-3 py-1.5">
+                                                                <p className="text-[11px] text-slate-500 truncate" title={c.contato_email !== 'N/A' ? c.contato_email : ''}>
+                                                                    {c.contato_email !== 'N/A' ? c.contato_email : '—'}
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {loadingMore && (
+                                                    <tr><td colSpan={6} className="py-4 text-center text-slate-400 text-xs">Carregando mais dados...</td></tr>
+                                                )}
+                                            </>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Footer Exibição */}
-                    <div className="px-5 py-2.5 bg-slate-100 border-t border-slate-200 shrink-0 flex items-center justify-between shadow-inner">
-                        <span className="text-xs font-medium text-slate-500">
-                            Exibindo: <strong className="text-slate-700">{displayed.length}</strong> de {totalCount !== null ? totalCount.toLocaleString('pt-BR') : '...'}
-                        </span>
-                        <span className="text-xs text-slate-400 flex items-center gap-1.5">
-                            {hasMore && !searchTerm
-                                ? <><svg className="w-3.5 h-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg> Desça para carregar mais</>
-                                : '👆 Clique em uma linha na tabela acima para selecioná-la e associá-la.'}
-                        </span>
+                        {/* Footer Exibição */}
+                        <div className="px-5 py-2.5 bg-slate-100 border-t border-slate-200 shrink-0 flex items-center justify-between shadow-inner">
+                            <span className="text-xs font-medium text-slate-500">
+                                Exibindo: <strong className="text-slate-700">{displayed.length}</strong> de {totalCount !== null ? totalCount.toLocaleString('pt-BR') : '...'}
+                            </span>
+                            <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                                {hasMore && !searchTerm
+                                    ? <><svg className="w-3.5 h-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg> Desça para carregar mais</>
+                                    : '👆 Clique em uma linha na tabela acima para selecioná-la e associá-la.'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             )}
