@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } catch (err: any) {
                 console.error("Auth sync error:", err);
             } finally {
-                if (mounted && isInitial) setIsLoading(false);
+                if (isInitial) setIsLoading(false);
             }
         };
 
