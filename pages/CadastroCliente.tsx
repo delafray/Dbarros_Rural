@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAppDialog } from '../context/DialogContext';
 import { supabase } from '../services/supabaseClient';
+import { maskCNPJ, maskCPF, maskTelefone, maskCEP, validarCNPJ, validarCPF, onlyDigits } from '../utils/masks';
 
 type TabType = 'dados' | 'enderecos' | 'contatos' | 'contratos';
 type TipoPessoa = 'PF' | 'PJ';
@@ -64,6 +65,12 @@ const CadastroCliente: React.FC = () => {
     const [clienteId, setClienteId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Erros de validação dos dados básicos
+    const [erros, setErros] = useState<{ cnpj?: string; cpf?: string }>({});
+
+    // Estado de loading por CEP (id do endereço)
+    const [cepLoading, setCepLoading] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (id) {
@@ -248,7 +255,61 @@ const CadastroCliente: React.FC = () => {
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setDados({ ...dados, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        let masked = value;
+
+        if (name === 'cnpj') masked = maskCNPJ(value);
+        else if (name === 'cpf') masked = maskCPF(value);
+
+        setDados({ ...dados, [name]: masked });
+    };
+
+    const handleBlurCNPJ = () => {
+        const raw = onlyDigits(dados.cnpj);
+        if (raw.length > 0 && !validarCNPJ(raw)) {
+            setErros(e => ({ ...e, cnpj: 'CNPJ inválido' }));
+        } else {
+            setErros(e => ({ ...e, cnpj: undefined }));
+        }
+    };
+
+    const handleBlurCPF = () => {
+        const raw = onlyDigits(dados.cpf);
+        if (raw.length > 0 && !validarCPF(raw)) {
+            setErros(e => ({ ...e, cpf: 'CPF inválido' }));
+        } else {
+            setErros(e => ({ ...e, cpf: undefined }));
+        }
+    };
+
+    const handleCepChange = async (endId: string, rawValue: string) => {
+        const masked = maskCEP(rawValue);
+        handleUpdateEndereco(endId, 'cep', masked);
+
+        const digits = onlyDigits(rawValue);
+        if (digits.length !== 8) return;
+
+        setCepLoading(prev => ({ ...prev, [endId]: true }));
+        try {
+            const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+            const data = await res.json();
+            if (data.erro) {
+                handleUpdateEndereco(endId, 'logradouro', '');
+                handleUpdateEndereco(endId, 'bairro', '');
+                handleUpdateEndereco(endId, 'cidade', '');
+                handleUpdateEndereco(endId, 'estado', '');
+            } else {
+                setEnderecos(prev => prev.map(e =>
+                    e.id === endId
+                        ? { ...e, logradouro: data.logradouro || '', bairro: data.bairro || '', cidade: data.localidade || '', estado: data.uf || '' }
+                        : e
+                ));
+            }
+        } catch {
+            // silencia erro de rede
+        } finally {
+            setCepLoading(prev => ({ ...prev, [endId]: false }));
+        }
     };
 
     const handleSaveCliente = async () => {
@@ -263,14 +324,14 @@ const CadastroCliente: React.FC = () => {
                 id: clienteId || undefined,
                 tipo_pessoa: tipoPessoa,
                 nome_completo: tipoPessoa === 'PF' ? dados.nome : null,
-                cpf: tipoPessoa === 'PF' ? dados.cpf : null,
+                cpf: tipoPessoa === 'PF' ? onlyDigits(dados.cpf) : null,
                 rg: tipoPessoa === 'PF' ? dados.rg : null,
                 data_nascimento: tipoPessoa === 'PF' ? (dados.dataNascimento || null) : null,
                 razao_social: tipoPessoa === 'PJ' ? dados.razaoSocial : null,
                 nome_fantasia: dados.nomeFantasia || null,
-                cnpj: tipoPessoa === 'PJ' ? dados.cnpj : null,
+                cnpj: tipoPessoa === 'PJ' ? onlyDigits(dados.cnpj) : null,
                 inscricao_estadual: tipoPessoa === 'PJ' ? dados.inscricaoEstadual : null,
-                user_id: user?.id || null // Associa ao usuário logado
+                user_id: user?.id || null
             };
 
             const { data: clientData, error: clientError } = await supabase
@@ -314,7 +375,7 @@ const CadastroCliente: React.FC = () => {
                         const obj: any = {
                             cliente_id: currentClientId,
                             tema: end.tema || '',
-                            cep: end.cep || '',
+                            cep: onlyDigits(end.cep) || '',
                             logradouro: end.logradouro || '',
                             numero: end.numero || '',
                             complemento: end.complemento || '',
@@ -488,7 +549,18 @@ const CadastroCliente: React.FC = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">CPF</label>
-                                            <input name="cpf" value={dados.cpf} onChange={handleInputChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="000.000.000-00" />
+                                            <input
+                                                 name="cpf"
+                                                 value={dados.cpf}
+                                                 onChange={handleInputChange}
+                                                 onBlur={handleBlurCPF}
+                                                 maxLength={14}
+                                                 type="text"
+                                                 inputMode="numeric"
+                                                 className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 outline-none ${erros.cpf ? 'border-red-400 focus:ring-red-300 bg-red-50' : 'border-slate-300 focus:ring-blue-500'}`}
+                                                 placeholder="000.000.000-00"
+                                             />
+                                             {erros.cpf && <p className="text-red-500 text-[11px] mt-1 font-medium">{erros.cpf}</p>}
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">RG</label>
@@ -515,7 +587,18 @@ const CadastroCliente: React.FC = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">CNPJ</label>
-                                            <input name="cnpj" value={dados.cnpj} onChange={handleInputChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="00.000.000/0001-00" />
+                                            <input
+                                                 name="cnpj"
+                                                 value={dados.cnpj}
+                                                 onChange={handleInputChange}
+                                                 onBlur={handleBlurCNPJ}
+                                                 maxLength={18}
+                                                 type="text"
+                                                 inputMode="numeric"
+                                                 className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 outline-none ${erros.cnpj ? 'border-red-400 focus:ring-red-300 bg-red-50' : 'border-slate-300 focus:ring-blue-500'}`}
+                                                 placeholder="00.000.000/0001-00"
+                                             />
+                                             {erros.cnpj && <p className="text-red-500 text-[11px] mt-1 font-medium">{erros.cnpj}</p>}
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Inscrição Estadual</label>
@@ -573,9 +656,23 @@ const CadastroCliente: React.FC = () => {
                                                     />
                                                 </div>
 
-                                                <div>
+                                                <div className="relative">
                                                     <label className="block text-xs font-bold text-slate-500 mb-1">CEP</label>
-                                                    <input value={end.cep} onChange={(e) => handleUpdateEndereco(end.id, 'cep', e.target.value)} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 outline-none" placeholder="00000-000" />
+                                                    <input
+                                                         value={end.cep}
+                                                         onChange={(e) => handleCepChange(end.id, e.target.value)}
+                                                         maxLength={9}
+                                                         type="text"
+                                                         inputMode="numeric"
+                                                         className="w-full border border-slate-300 rounded-lg px-3 py-2 pr-8 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                         placeholder="00000-000"
+                                                     />
+                                                     {cepLoading[end.id] && (
+                                                         <svg className="animate-spin absolute right-2 top-[34px] w-4 h-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                         </svg>
+                                                     )}
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-xs font-bold text-slate-500 mb-1">Endereço (Logradouro)</label>
@@ -691,7 +788,9 @@ const CadastroCliente: React.FC = () => {
                                                     <label className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Telefone</label>
                                                     <input
                                                         value={contato.telefone}
-                                                        onChange={(e) => handleUpdateContato(contato.id, 'telefone', e.target.value)}
+                                                        onChange={(e) => handleUpdateContato(contato.id, 'telefone', maskTelefone(e.target.value))}
+                                                         maxLength={15}
+                                                         inputMode="tel"
                                                         type="text"
                                                         className="w-full border border-slate-300 rounded px-2 py-1 text-[12px] focus:ring-1 focus:ring-blue-400 outline-none bg-white"
                                                         placeholder="(00) 00000-0000"
