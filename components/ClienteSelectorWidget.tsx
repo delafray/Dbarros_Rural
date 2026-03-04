@@ -435,18 +435,19 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
                             <table className="w-full text-left border-collapse table-fixed">
                                 <thead className="sticky top-0 z-10 bg-slate-200 shadow-sm">
                                     <tr className="text-slate-700 text-[11px] font-bold uppercase tracking-tight">
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[30%]">Nome / Razão Social</th>
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[20%]">Contato</th>
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[15%]">Cargo</th>
-                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[15%]">Telefone</th>
-                                        <th className="px-3 py-2 border-b border-slate-300 w-[20%]">Email</th>
+                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[20%]">Nome Fantasia</th>
+                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[25%]">Nome / Razão Social</th>
+                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[15%]">Contato</th>
+                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[12%]">Cargo</th>
+                                        <th className="px-3 py-2 border-b border-r border-slate-300 w-[13%]">Telefone</th>
+                                        <th className="px-3 py-2 border-b border-slate-300 w-[15%]">Email</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {loading ? (
-                                        <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm">Carregando clientes...</td></tr>
+                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">Carregando clientes...</td></tr>
                                     ) : displayed.length === 0 ? (
-                                        <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm">
+                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
                                             {searchTerm ? `Nenhum resultado para "${searchTerm}"` : 'Nenhum cliente cadastrado.'}
                                         </td></tr>
                                     ) : (
@@ -468,8 +469,15 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
                                                         <td className="px-3 py-1.5 border-r border-slate-100">
                                                             <div className="flex items-center gap-1.5">
                                                                 {isActive && <span className="text-blue-500 font-bold shrink-0 animate-pulse">✓</span>}
-                                                                <p className="text-[12px] font-semibold text-slate-800 leading-tight truncate" title={getNome(c)}>
-                                                                    {getNome(c)}
+                                                                <p className="text-[12px] font-medium text-slate-700 leading-tight truncate" title={c.nome_fantasia || ''}>
+                                                                    {c.nome_fantasia || '—'}
+                                                                </p>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-3 py-1.5 border-r border-slate-100">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <p className="text-[12px] font-semibold text-slate-800 leading-tight truncate" title={c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}>
+                                                                    {c.tipo_pessoa === 'PJ' ? c.razao_social : c.nome_completo}
                                                                 </p>
                                                             </div>
                                                         </td>
@@ -497,7 +505,7 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
                                                 );
                                             })}
                                             {loadingMore && (
-                                                <tr><td colSpan={5} className="py-4 text-center text-slate-400 text-xs">Carregando mais dados...</td></tr>
+                                                <tr><td colSpan={6} className="py-4 text-center text-slate-400 text-xs">Carregando mais dados...</td></tr>
                                             )}
                                         </>
                                     )}
