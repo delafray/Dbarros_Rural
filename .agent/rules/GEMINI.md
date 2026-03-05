@@ -101,7 +101,7 @@ When user's prompt is NOT in English:
 
 1. **Internally translate** for better comprehension
 2. **Respond in user's language** - match their communication.
-   - **MANDATORY**: For Portuguese, all responses and `.md` files must follow the standard **Português (Brasil)** style. Refer to `@[agents/brazilian-dev]` for style guidelines.
+   - **CRITICAL PROTOCOL**: Sempre que a IA for gerar um artefato em Markdown (como `implementation_plan.md`, `task.md`, `walkthrough.md`, `README.md`, etc.), ela DEVE, obrigatoriamente, evocar o agente especialista `brazilian-dev` (ou similar de padronização) para garantir que todo o texto interno do documento seja gerado em **Português do Brasil (PT-BR)**, e não apenas o texto do chat.
 3. **Code comments/variables** remain in English
 
 ### 🧹 Clean Code (Global Mandatory)
@@ -137,6 +137,14 @@ When user's prompt is NOT in English:
 > 
 > 1. You MUST ALWAYS create that `.md` file inside the `prompts/` directory (e.g., `prompts/PROMPT_NAME.md`).
 > 2. You MUST ALWAYS instantly update the `prompts/__manual__.md` file. You must append a simple, non-technical explanation (for a layperson) describing exactly what your new prompt does and why it is useful. Never skip updating the manual.
+
+### 💻 PowerShell / Windows Enforcement
+
+> **CRITICAL PROTOCOL:** The USER's environment is Windows and the default terminal is **PowerShell**.
+> 
+> 1. **NEVER use `&&` to chain terminal commands.** PowerShell does not support `&&` (in older or default versions). 
+> 2. **ALWAYS use `;` (semicolon) or run commands on separate lines** when suggesting commands like git operations (e.g., `git add . ; git commit -m "update" ; git push`). 
+> 3. Avoid Linux-only bash syntax.
 
 ### 🧠 Read → Understand → Apply
 
@@ -188,42 +196,7 @@ When user's prompt is NOT in English:
 3. **Wait:** Do NOT invoke subagents or write code until the user clears the Gate.
 4. **Reference:** Full protocol in `@[skills/brainstorming]`.
 
-### 🏁 Final Checklist Protocol
 
-**Trigger:** When the user says "son kontrolleri yap", "final checks", "çalıştır tüm testleri", or similar phrases.
-
-| Task Stage       | Command                                            | Purpose                        |
-| ---------------- | -------------------------------------------------- | ------------------------------ |
-| **Manual Audit** | `python .agent/scripts/checklist.py .`             | Priority-based project audit   |
-| **Pre-Deploy**   | `python .agent/scripts/checklist.py . --url <URL>` | Full Suite + Performance + E2E |
-
-**Priority Execution Order:**
-
-1. **Security** → 2. **Lint** → 3. **Schema** → 4. **Tests** → 5. **UX** → 6. **Seo** → 7. **Lighthouse/E2E**
-
-**Rules:**
-
-- **Completion:** A task is NOT finished until `checklist.py` returns success.
-- **Reporting:** If it fails, fix the **Critical** blockers first (Security/Lint).
-
-**Available Scripts (12 total):**
-
-| Script                     | Skill                 | When to Use         |
-| -------------------------- | --------------------- | ------------------- |
-| `security_scan.py`         | vulnerability-scanner | Always on deploy    |
-| `dependency_analyzer.py`   | vulnerability-scanner | Weekly / Deploy     |
-| `lint_runner.py`           | lint-and-validate     | Every code change   |
-| `test_runner.py`           | testing-patterns      | After logic change  |
-| `schema_validator.py`      | database-design       | After DB change     |
-| `ux_audit.py`              | frontend-design       | After UI change     |
-| `accessibility_checker.py` | frontend-design       | After UI change     |
-| `seo_checker.py`           | seo-fundamentals      | After page change   |
-| `bundle_analyzer.py`       | performance-profiling | Before deploy       |
-| `mobile_audit.py`          | mobile-design         | After mobile change |
-| `lighthouse_audit.py`      | performance-profiling | Before deploy       |
-| `playwright_runner.py`     | webapp-testing        | Before deploy       |
-
-> 🔴 **Agents & Skills can invoke ANY script** via `python .agent/skills/<skill>/scripts/<script>.py`
 
 ### 🎭 Gemini Mode Mapping
 
@@ -271,11 +244,6 @@ When user's prompt is NOT in English:
 - **Masters**: `orchestrator`, `project-planner`, `security-auditor` (Cyber/Audit), `backend-specialist` (API/DB), `frontend-specialist` (UI/UX), `mobile-developer`, `debugger`, `game-developer`
 - **Key Skills**: `clean-code`, `brainstorming`, `app-builder`, `frontend-design`, `mobile-design`, `plan-writing`, `behavioral-modes`
 
-### Key Scripts
 
-- **Verify**: `.agent/scripts/verify_all.py`, `.agent/scripts/checklist.py`
-- **Scanners**: `security_scan.py`, `dependency_analyzer.py`
-- **Audits**: `ux_audit.py`, `mobile_audit.py`, `lighthouse_audit.py`, `seo_checker.py`
-- **Test**: `playwright_runner.py`, `test_runner.py`
 
 ---
