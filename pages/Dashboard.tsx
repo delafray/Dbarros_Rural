@@ -457,9 +457,10 @@ const Dashboard: React.FC = () => {
                             const pad = 1.2;
                             doc.roundedRect(x + pad, y + pad, col.w - pad * 2, ROW_H - pad * 2, 1, 1, 'F');
                             doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-                            // centro do quadrado interno + ajuste baseline 8pt
+                            // centro do quadrado interno + ajuste baseline 8pt (* sobe mais, precisa +1mm extra)
                             const boxCenterY = y + pad + (ROW_H - pad * 2) / 2 + 1.0;
-                            doc.text(isStar ? '*' : 'x', x + col.w / 2, boxCenterY, { align: 'center' });
+                            const charY = isStar ? boxCenterY + 1.0 : boxCenterY;
+                            doc.text(isStar ? '*' : 'x', x + col.w / 2, charY, { align: 'center' });
                         }
                     } else if (col.key.startsWith('opt_')) {
                         // key = 'opt_' + o.nome — find exact by nome
@@ -472,7 +473,8 @@ const Dashboard: React.FC = () => {
                             doc.roundedRect(x + pad, y + pad, col.w - pad * 2, ROW_H - pad * 2, 1, 1, 'F');
                             doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
                             const boxCenterY2 = y + pad + (ROW_H - pad * 2) / 2 + 1.0;
-                            doc.text(val, x + col.w / 2, boxCenterY2, { align: 'center' });
+                            const charY2 = val === '*' ? boxCenterY2 + 1.0 : boxCenterY2;
+                            doc.text(val, x + col.w / 2, charY2, { align: 'center' });
                         }
                     } else if (col.key === 'subTotal') {
                         doc.setFontSize(7);
