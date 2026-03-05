@@ -326,7 +326,7 @@ const Dashboard: React.FC = () => {
                 const LOGO_H = TITLE_H - 2; // 8mm de altura
                 const LOGO_W = LOGO_H * 1.176; // proporção real 1023/870 da dbarros.png
                 const brandText = 'Dbarros Eventos Agro';
-                doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16); doc.setFont('helvetica', 'bold');
                 const brandW = doc.getTextDimensions(brandText).w;
                 const totalBrandW = LOGO_W + 1.5 + brandW;
                 const brandX = PW / 2 - totalBrandW / 2;
