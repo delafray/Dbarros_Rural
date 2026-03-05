@@ -841,25 +841,28 @@ const Dashboard: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-2 group/planilha cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/planilha-vendas/${edicao.id}`); }}>
-                                                    <div className="hidden sm:block text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-70 group-hover/planilha:opacity-100 transition-opacity">
-                                                        Abrir Planilha
+                                                {/* Grupo Botões Finais: Planilha e PDF com gap-1 */}
+                                                <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-2 group/planilha cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/planilha-vendas/${edicao.id}`); }}>
+                                                        <div className="hidden sm:block text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-70 group-hover/planilha:opacity-100 transition-opacity">
+                                                            Abrir Planilha
+                                                        </div>
+                                                        <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover/planilha:bg-blue-600 group-hover/planilha:text-white transition-all shadow-sm border border-blue-100">
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                            </svg>
+                                                        </div>
                                                     </div>
-                                                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover/planilha:bg-blue-600 group-hover/planilha:text-white transition-all shadow-sm border border-blue-100">
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                        </svg>
-                                                    </div>
-                                                </div>
 
-                                                {/* Exportar PDF */}
-                                                <div
-                                                    className="flex items-center justify-center group/pdf cursor-pointer"
-                                                    onClick={(e) => handleExportPdf(e, edicao)}
-                                                    title="Exportar como PDF"
-                                                >
-                                                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover/pdf:bg-blue-600 group-hover/pdf:text-white transition-all shadow-sm border border-blue-100">
-                                                        <span className="text-[8px] font-bold tracking-tighter">PDF</span>
+                                                    {/* Exportar PDF */}
+                                                    <div
+                                                        className="flex items-center justify-center group/pdf cursor-pointer"
+                                                        onClick={(e) => handleExportPdf(e, edicao)}
+                                                        title="Exportar como PDF"
+                                                    >
+                                                        <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover/pdf:bg-blue-600 group-hover/pdf:text-white transition-all shadow-sm border border-blue-100">
+                                                            <span className="text-[8px] font-bold tracking-tighter">PDF</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
