@@ -291,7 +291,7 @@ const Dashboard: React.FC = () => {
             const RES_H1 = 7;
             const RES_H2 = 7;
             const HDR_H = 20;
-            const ROW_H = 7;
+            const ROW_H = 5.5;
 
             setPdfProgress(60);
 
