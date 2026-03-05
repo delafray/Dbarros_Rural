@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Card, Button, Badge, LoadingSpinner } from '../components/UI';
@@ -125,7 +125,7 @@ const Dashboard: React.FC = () => {
             const config = await planilhaVendasService.getConfig(edicao.id);
             if (!config) {
                 setPdfProgress(null);
-                await appDialog.alert({ title: 'Aviso', message: 'Esta edição não possui configuração de planilha.', type: 'warning' });
+                await appDialog.alert({ title: 'Aviso', message: 'Esta edi\u00e7\u00e3o n\u00e3o possui configura\u00e7\u00e3o de planilha.', type: 'warning' });
                 return;
             }
             setPdfProgress(10);
@@ -143,35 +143,35 @@ const Dashboard: React.FC = () => {
 
             const getCategoria = (nr: string) => {
                 const nrLow = nr.toLowerCase();
-                const sorted = [...categorias].sort((a, b) =>
+                const sorted2 = [...categorias].sort((a, b) =>
                     (b.prefix || b.tag || '').length - (a.prefix || a.tag || '').length
                 );
-                return sorted.find(c => {
+                return sorted2.find(c => {
                     const id = (c.prefix || c.tag || '').toLowerCase().trim();
-                    return id && (nrLow === id || nrLow.startsWith(`${id} `));
+                    return id && (nrLow === id || nrLow.startsWith(id + ' '));
                 });
             };
 
-            const calcRow = (row: { tipo_venda: string; opcionais_selecionados: unknown; desconto: number | null }) => {
-                const cat = getCategoria((row as any).stand_nr || '');
+            const calcRow = (row: { stand_nr: string; tipo_venda: string; opcionais_selecionados: unknown; desconto: number | null }) => {
+                const cat = getCategoria(row.stand_nr);
                 const tipo = row.tipo_venda;
                 let precoBase = 0;
                 if (cat && !tipo.includes('*')) {
-                    if (tipo === 'STAND PADRÃO') precoBase = cat.standBase || 0;
+                    if (tipo === 'STAND PADR\u00c3O') precoBase = cat.standBase || 0;
                     else {
-                        const match = tipo.match(/COMBO (\d+)/);
-                        if (match) precoBase = (cat.combos as number[])?.[parseInt(match[1], 10) - 1] || 0;
+                        const m = tipo.match(/COMBO (\d+)/);
+                        if (m) precoBase = (cat.combos as number[])?.[parseInt(m[1], 10) - 1] || 0;
                     }
                 }
                 const sel = (row.opcionais_selecionados as Record<string, string>) || {};
-                let totalOpcionais = 0;
+                let totalOpts = 0;
                 opcionaisAtivos.forEach(opt => {
                     if (sel[opt.nome] === 'x') {
-                        const preco = precosEdicao[opt.id] !== undefined ? Number(precosEdicao[opt.id]) : Number(opt.preco_base);
-                        totalOpcionais += preco;
+                        const p = precosEdicao[opt.id] !== undefined ? Number(precosEdicao[opt.id]) : Number(opt.preco_base);
+                        totalOpts += p;
                     }
                 });
-                const subTotal = precoBase + totalOpcionais;
+                const subTotal = precoBase + totalOpts;
                 const desconto = Number(row.desconto) || 0;
                 return { subTotal, desconto, totalVenda: subTotal - desconto };
             };
@@ -181,197 +181,372 @@ const Dashboard: React.FC = () => {
             const sorted = [...estandes].sort((a, b) => {
                 const catA = getCategoria(a.stand_nr);
                 const catB = getCategoria(b.stand_nr);
-                const ordA = catA?.ordem ?? 0;
-                const ordB = catB?.ordem ?? 0;
+                const ordA = catA?.ordem ?? 0, ordB = catB?.ordem ?? 0;
                 if (ordA !== ordB) return ordA - ordB;
                 if (catA && catB) {
-                    const idxA = categorias.findIndex(c => c === catA);
-                    const idxB = categorias.findIndex(c => c === catB);
-                    if (idxA !== idxB) return idxA - idxB;
+                    const iA = categorias.findIndex(c => c === catA);
+                    const iB = categorias.findIndex(c => c === catB);
+                    if (iA !== iB) return iA - iB;
                 }
                 return a.stand_nr.localeCompare(b.stand_nr, undefined, { numeric: true, sensitivity: 'base' });
             });
 
-            // Combo labels
+            // combo labels & display names
             let maxCombos = 0;
-            categorias.forEach(c => { const len = Array.isArray(c.combos) ? c.combos.length : 0; if (len > maxCombos) maxCombos = len; });
-            const comboLabels = ['STAND PADRÃO'];
-            for (let i = 1; i <= maxCombos; i++) comboLabels.push(`COMBO ${String(i).padStart(2, '0')}`);
+            categorias.forEach(c => { const l = Array.isArray(c.combos) ? c.combos.length : 0; if (l > maxCombos) maxCombos = l; });
+            const comboLabels: string[] = ['STAND PADR\u00c3O'];
+            for (let i = 1; i <= maxCombos; i++) comboLabels.push('COMBO ' + String(i).padStart(2, '0'));
             const customNames = categorias[0]?.comboNames || [];
-            const comboDisplay: Record<string, string> = { 'STAND PADRÃO': 'STAND\nPADRÃO' };
+            const comboDisplay: Record<string, string> = {};
+            comboDisplay['STAND PADR\u00c3O'] = 'STAND PADR\u00c3O';
             for (let i = 1; i <= maxCombos; i++) {
-                const key = `COMBO ${String(i).padStart(2, '0')}`;
+                const key = 'COMBO ' + String(i).padStart(2, '0');
                 comboDisplay[key] = customNames[i - 1] || key;
             }
 
+            // Only count real stands (is_stand !== false) for the RESUMO
+            const standsOnly = sorted.filter(row => {
+                const cat = getCategoria(row.stand_nr);
+                return cat ? (cat as any).is_stand !== false : true;
+            });
+            const totalStands = standsOnly.length;
+
+            // Totals & per-column counts
+            const totals = { subTotal: 0, desconto: 0, totalVenda: 0 };
+            const comboXCounts: Record<string, number> = {};
+            const optCounts: Record<string, number> = {};
+            comboLabels.forEach(l => { comboXCounts[l] = 0; });
+            opcionaisAtivos.forEach(o => { optCounts[o.nome] = 0; });
+            // vendas count from standsOnly only
+            let vendasCount = 0;
+            sorted.forEach(row => {
+                const c = calcRow(row);
+                totals.subTotal += c.subTotal;
+                totals.desconto += c.desconto;
+                totals.totalVenda += c.totalVenda;
+                const isSt = (getCategoria(row.stand_nr) as any)?.is_stand !== false;
+                if (row.tipo_venda !== 'DISPON\u00cdVEL' && isSt) vendasCount++;
+                const base = row.tipo_venda.replace('*', '').trim();
+                if (!row.tipo_venda.endsWith('*') && row.tipo_venda !== 'DISPON\u00cdVEL')
+                    comboXCounts[base] = (comboXCounts[base] || 0) + 1;
+                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
+                opcionaisAtivos.forEach(o => {
+                    if (sel[o.nome] === 'x' || sel[o.nome] === '*') optCounts[o.nome] = (optCounts[o.nome] || 0) + 1;
+                });
+            });
+
             setPdfProgress(50);
+
+            // Category color palette
+            const CAT_PALETTES: [number, number, number][] = [
+                [226, 223, 248], // lavanda
+                [255, 255, 210], // amarelo
+                [210, 240, 210], // verde
+                [255, 228, 210], // pessego
+                [210, 235, 255], // azul claro
+                [240, 210, 240], // lilas
+            ];
+            const catColors: Record<string, [number, number, number]> = {};
+            categorias.forEach((c, i) => { catColors[c.tag] = CAT_PALETTES[i % CAT_PALETTES.length]; });
 
             const { jsPDF } = await import('jspdf');
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-            const pageW = 297, pageH = 210, mX = 8, mY = 8;
-            const availW = pageW - mX * 2;
-            const headerH = 10, rowH = 6, titleH = 11;
+            const PW = 297, PH = 210, MX = 7, MY = 7;
+            const AW = PW - MX * 2;
 
-            // Column widths
-            const comboColW = Math.min(20, Math.max(12, 80 / Math.max(comboLabels.length, 1)));
-            const optColW = Math.min(15, Math.max(10, 40 / Math.max(opcionaisAtivos.length, 1)));
-            const finW = 24;
-            const fixedW = 18 + 14; // stand + cat
-            const combosW = comboLabels.length * comboColW;
-            const optsW = opcionaisAtivos.length * optColW;
-            const clienteW = Math.max(28, availW - fixedW - combosW - optsW - finW * 3);
+            const nCombos = comboLabels.length;
+            const nOpts = opcionaisAtivos.length;
+            const FIN_W = 28;
+            const CAT_W = 16;
+            const STAND_W = 18;
+            const THIN = Math.max(10, Math.min(18, 90 / Math.max(nCombos + nOpts, 1)));
+            const CLIENTE_W = Math.max(25, AW - CAT_W - STAND_W - nCombos * THIN - nOpts * THIN - FIN_W * 3);
 
-            const allCols: { key: string; label: string; w: number }[] = [
-                { key: 'stand_nr', label: 'STAND', w: 18 },
-                { key: 'categoria', label: 'CAT.', w: 14 },
-                { key: 'cliente', label: 'CLIENTE', w: clienteW },
-                ...comboLabels.map(l => ({ key: `combo_${l}`, label: comboDisplay[l] || l, w: comboColW })),
-                ...opcionaisAtivos.map(o => ({ key: `opt_${o.nome}`, label: o.nome.substring(0, 10).toUpperCase(), w: optColW })),
-                { key: 'subTotal', label: 'SUBTOTAL', w: finW },
-                { key: 'desconto', label: 'DESCONTO', w: finW },
-                { key: 'total', label: 'TOTAL', w: finW },
+            type Col = { key: string; label: string; w: number; rotate?: boolean };
+            const allCols: Col[] = [
+                { key: 'categoria', label: 'CAT.', w: CAT_W },
+                { key: 'stand_nr', label: 'STAND', w: STAND_W },
+                { key: 'cliente', label: 'CLIENTE', w: CLIENTE_W },
+                ...comboLabels.map(l => ({ key: 'combo_' + l, label: comboDisplay[l] || l, w: THIN, rotate: true })),
+                ...opcionaisAtivos.map(o => ({ key: 'opt_' + o.nome, label: o.nome.toUpperCase(), w: THIN, rotate: true })),
+                { key: 'subTotal', label: 'SUBTOTAL', w: FIN_W },
+                { key: 'desconto', label: 'DESCONTO', w: FIN_W },
+                { key: 'total', label: 'TOTAL', w: FIN_W },
             ];
 
-            const hBg: [number, number, number] = [31, 73, 125];
-            const altBg: [number, number, number] = [240, 245, 252];
-            const totBg: [number, number, number] = [15, 40, 80];
-            const border: [number, number, number] = [190, 205, 220];
-            const fmtMoney = (v: number) => v === 0 ? '-' : `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+            const DARK: [number, number, number] = [31, 73, 125];
+            const MED: [number, number, number] = [52, 102, 163];
+            const GOLD: [number, number, number] = [212, 160, 0];
+            const WHITE: [number, number, number] = [255, 255, 255];
+            const BORDER: [number, number, number] = [180, 196, 214];
+            const TOT_BG: [number, number, number] = [15, 42, 85];
+            const GREEN_X: [number, number, number] = [22, 163, 74];
+            const CYAN_S: [number, number, number] = [6, 148, 162];
 
-            const drawHeader = (pNum: number) => {
-                doc.setFillColor(...hBg);
-                doc.rect(mX, mY, availW, titleH, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-                const title = `${edicao.eventos?.nome || ''} — ${edicao.titulo}`.toUpperCase();
-                doc.text(title, mX + 3, mY + 7);
-                doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-                doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}  |  Pág. ${pNum}`, pageW - mX, mY + 7, { align: 'right' });
-            };
+            const fmtMoney = (v: number) =>
+                'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-            const drawTableHeader = (y: number) => {
-                let x = mX;
-                allCols.forEach(col => {
-                    doc.setFillColor(...hBg);
-                    doc.rect(x, y, col.w, headerH, 'F');
-                    doc.setDrawColor(...border);
-                    doc.rect(x, y, col.w, headerH, 'S');
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
-                    const lines = doc.splitTextToSize(col.label, col.w - 1.5);
-                    if (lines.length > 1) {
-                        doc.text(lines[0], x + col.w / 2, y + 3.5, { align: 'center' });
-                        doc.text(lines[1], x + col.w / 2, y + 7.5, { align: 'center' });
-                    } else {
-                        doc.text(lines[0] || '', x + col.w / 2, y + headerH / 2 + 1.5, { align: 'center' });
-                    }
-                    x += col.w;
-                });
-            };
-
-            const drawRow = (row: typeof sorted[0], y: number, isAlt: boolean) => {
-                const cat = getCategoria(row.stand_nr);
-                const { subTotal, desconto, totalVenda } = calcRow(row as any);
-                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
-                const clienteNome = row.cliente_nome_livre ||
-                    listaClientes.find(c => c.id === row.cliente_id)?.nome_fantasia ||
-                    listaClientes.find(c => c.id === row.cliente_id)?.razao_social || '';
-                let x = mX;
-                allCols.forEach(col => {
-                    doc.setFillColor(...(isAlt ? altBg : [255, 255, 255] as [number, number, number]));
-                    doc.rect(x, y, col.w, rowH, 'F');
-                    doc.setDrawColor(...border);
-                    doc.rect(x, y, col.w, rowH, 'S');
-                    doc.setTextColor(30, 30, 40);
-                    doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-                    let text = ''; let align: 'left' | 'center' | 'right' = 'left'; let txtX = x + 1.5;
-                    const txtY = y + rowH / 2 + 1.5;
-                    if (col.key === 'stand_nr') {
-                        text = row.stand_nr; doc.setFont('helvetica', 'bold');
-                    } else if (col.key === 'categoria') {
-                        text = cat?.tag || ''; align = 'center'; txtX = x + col.w / 2;
-                    } else if (col.key === 'cliente') {
-                        text = doc.splitTextToSize(clienteNome, col.w - 2)[0] || '';
-                    } else if (col.key.startsWith('combo_')) {
-                        const lbl = col.key.replace('combo_', '');
-                        const base = row.tipo_venda.replace('*', '').trim();
-                        if (base === lbl && row.tipo_venda !== 'DISPONÍVEL') {
-                            doc.setTextColor(0, 140, 70); doc.setFont('helvetica', 'bold');
-                            text = row.tipo_venda.endsWith('*') ? '*' : 'x';
-                        }
-                        align = 'center'; txtX = x + col.w / 2;
-                    } else if (col.key.startsWith('opt_')) {
-                        const optNome = col.key.replace('opt_', '');
-                        const full = opcionaisAtivos.find(o => o.nome.substring(0, 10).toUpperCase() === optNome)?.nome || optNome;
-                        const val = sel[full] || sel[optNome] || '';
-                        if (val === 'x' || val === '*') {
-                            doc.setTextColor(0, 140, 70); doc.setFont('helvetica', 'bold');
-                            text = val === '*' ? '*' : 'x';
-                        }
-                        align = 'center'; txtX = x + col.w / 2;
-                    } else if (col.key === 'subTotal') {
-                        text = fmtMoney(subTotal); align = 'right'; txtX = x + col.w - 1.5;
-                    } else if (col.key === 'desconto') {
-                        if (desconto > 0) { doc.setTextColor(200, 80, 0); text = fmtMoney(desconto); }
-                        align = 'right'; txtX = x + col.w - 1.5;
-                    } else if (col.key === 'total') {
-                        text = fmtMoney(totalVenda); align = 'right'; txtX = x + col.w - 1.5;
-                        doc.setFont('helvetica', 'bold');
-                    }
-                    if (text) doc.text(text, txtX, txtY, { align });
-                    x += col.w;
-                });
-            };
-
-            const drawTotals = (y: number, tots: { subTotal: number; desconto: number; totalVenda: number }) => {
-                let x = mX;
-                allCols.forEach(col => {
-                    doc.setFillColor(...totBg);
-                    doc.rect(x, y, col.w, rowH, 'F');
-                    doc.setDrawColor(...border);
-                    doc.rect(x, y, col.w, rowH, 'S');
-                    doc.setTextColor(255, 255, 255); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
-                    let text = ''; let align: 'left' | 'center' | 'right' = 'center'; let txtX = x + col.w / 2;
-                    if (col.key === 'stand_nr') { text = 'TOTAL GERAL'; align = 'left'; txtX = x + 1.5; }
-                    else if (col.key === 'subTotal') { text = fmtMoney(tots.subTotal); align = 'right'; txtX = x + col.w - 1.5; }
-                    else if (col.key === 'desconto') { if (tots.desconto > 0) { text = fmtMoney(tots.desconto); } align = 'right'; txtX = x + col.w - 1.5; }
-                    else if (col.key === 'total') { text = fmtMoney(tots.totalVenda); align = 'right'; txtX = x + col.w - 1.5; }
-                    if (text) doc.text(text, txtX, y + rowH / 2 + 1.5, { align });
-                    x += col.w;
-                });
-            };
+            const TITLE_H = 10;
+            const RES_H1 = 7;
+            const RES_H2 = 7;
+            const HDR_H = 20;
+            const ROW_H = 7;
 
             setPdfProgress(60);
 
             let page = 1;
-            let curY = mY + titleH;
-            drawHeader(page);
-            drawTableHeader(curY);
-            curY += headerH;
 
-            const tots = { subTotal: 0, desconto: 0, totalVenda: 0 };
+            const drawPageBanner = (pg: number) => {
+                doc.setFillColor(...DARK);
+                doc.rect(MX, MY, AW, TITLE_H, 'F');
+                doc.setTextColor(...WHITE);
+                doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+                const ttl = ((edicao.eventos?.nome || '') + '  \u2014  ' + edicao.titulo).toUpperCase();
+                doc.text(ttl, MX + 4, MY + 6.5);
+                doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+                // 3mm afastado da borda direita
+                doc.text('Gerado em ' + new Date().toLocaleDateString('pt-BR') + '  |  P\u00e1g. ' + pg, PW - MX - 3, MY + 6.5, { align: 'right' });
+            };
+
+            const drawResumoGeral = (y: number): number => {
+                const finStart = allCols.length - 3;
+                const mainW = allCols.slice(0, finStart).reduce((s, c) => s + c.w, 0);
+
+                // row1: banner
+                doc.setFillColor(...DARK);
+                doc.rect(MX, y, mainW, RES_H1, 'F');
+                doc.setTextColor(...WHITE); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+                doc.text('RESUMO GERAL', MX + 4, y + RES_H1 / 2 + 1.5);
+
+                let fx = MX + mainW;
+                const finLabels = ['SUBTOTAL', 'DESCONTO', 'TOTAL'];
+                const finColors: [number, number, number][] = [WHITE, GOLD, WHITE];
+                allCols.slice(finStart).forEach((col, i) => {
+                    doc.setFillColor(...DARK);
+                    doc.rect(fx, y, col.w, RES_H1, 'F');
+                    doc.setDrawColor(...BORDER); doc.rect(fx, y, col.w, RES_H1, 'S');
+                    doc.setTextColor(...finColors[i]);
+                    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+                    doc.text(finLabels[i], fx + col.w / 2, y + RES_H1 / 2 + 1.5, { align: 'center' });
+                    fx += col.w;
+                });
+
+                // row2: counts — without large number, just label and count side by side
+                const y2 = y + RES_H1;
+                const standsW = CAT_W + STAND_W;
+                doc.setFillColor(...MED);
+                doc.rect(MX, y2, standsW, RES_H2, 'F');
+                doc.setDrawColor(...BORDER); doc.rect(MX, y2, standsW, RES_H2, 'S');
+                doc.setTextColor(...WHITE); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+                // Centered: "STANDS  39"
+                doc.text('STANDS  ' + totalStands, MX + standsW / 2, y2 + RES_H2 / 2 + 1.5, { align: 'center' });
+
+                let rx = MX + standsW;
+                const pct = totalStands > 0 ? Math.round((vendasCount / totalStands) * 100) : 0;
+                doc.setFillColor(...MED);
+                doc.rect(rx, y2, CLIENTE_W, RES_H2, 'F');
+                doc.setDrawColor(...BORDER); doc.rect(rx, y2, CLIENTE_W, RES_H2, 'S');
+                doc.setTextColor(...WHITE); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+                doc.text('VENDAS  ' + vendasCount + ' DE ' + totalStands + '  (' + pct + '%)', rx + CLIENTE_W / 2, y2 + RES_H2 / 2 + 1.5, { align: 'center' });
+                rx += CLIENTE_W;
+
+                comboLabels.forEach(lbl => {
+                    const cnt = comboXCounts[lbl] || 0;
+                    doc.setFillColor(...(cnt > 0 ? GREEN_X : MED));
+                    doc.rect(rx, y2, THIN, RES_H2, 'F');
+                    doc.setDrawColor(...BORDER); doc.rect(rx, y2, THIN, RES_H2, 'S');
+                    doc.setTextColor(...WHITE); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+                    doc.text(String(cnt), rx + THIN / 2, y2 + RES_H2 / 2 + 1.5, { align: 'center' });
+                    rx += THIN;
+                });
+
+                opcionaisAtivos.forEach(o => {
+                    const cnt = optCounts[o.nome] || 0;
+                    doc.setFillColor(...(cnt > 0 ? CYAN_S : MED));
+                    doc.rect(rx, y2, THIN, RES_H2, 'F');
+                    doc.setDrawColor(...BORDER); doc.rect(rx, y2, THIN, RES_H2, 'S');
+                    doc.setTextColor(...WHITE); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+                    doc.text(String(cnt), rx + THIN / 2, y2 + RES_H2 / 2 + 1.5, { align: 'center' });
+                    rx += THIN;
+                });
+
+                // financial totals — centered
+                allCols.slice(finStart).forEach((col, i) => {
+                    doc.setFillColor(...DARK);
+                    doc.rect(rx, y2, col.w, RES_H2, 'F');
+                    doc.setDrawColor(...BORDER); doc.rect(rx, y2, col.w, RES_H2, 'S');
+                    doc.setTextColor(...finColors[i]); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+                    const val = [totals.subTotal, totals.desconto, totals.totalVenda][i];
+                    doc.text(fmtMoney(val), rx + col.w / 2, y2 + RES_H2 / 2 + 1.5, { align: 'center' });
+                    rx += col.w;
+                });
+
+                return y2 + RES_H2;
+            };
+
+            const drawColHeaders = (y: number): number => {
+                let x = MX;
+                allCols.forEach(col => {
+                    doc.setFillColor(...DARK);
+                    doc.rect(x, y, col.w, HDR_H, 'F');
+                    doc.setDrawColor(...BORDER); doc.rect(x, y, col.w, HDR_H, 'S');
+                    doc.setTextColor(...WHITE);
+                    if (col.rotate) {
+                        doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+                        // text rotated 90 degrees, starts at bottom of cell going up, centered horizontally
+                        doc.text(col.label, x + col.w / 2 + 1.5, y + HDR_H - 2, { angle: 90, align: 'left' });
+                    } else {
+                        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+                        const lines = doc.splitTextToSize(col.label, col.w - 2);
+                        const baseY = y + HDR_H / 2 - ((lines.length - 1) * 3.5) / 2 + 1.5;
+                        lines.forEach((ln: string, li: number) =>
+                            doc.text(ln, x + col.w / 2, baseY + li * 3.5, { align: 'center' })
+                        );
+                    }
+                    x += col.w;
+                });
+                return y + HDR_H;
+            };
+
+            const drawDataRow = (row: (typeof sorted)[0], y: number) => {
+                const cat = getCategoria(row.stand_nr);
+                const { subTotal, desconto, totalVenda } = calcRow(row);
+                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
+                const isAvail = row.tipo_venda === 'DISPON\u00cdVEL';
+                const catBg: [number, number, number] = cat ? (catColors[cat.tag] ?? WHITE) : WHITE;
+                const rowBg: [number, number, number] = isAvail
+                    ? [Math.min(255, catBg[0] + 12), Math.min(255, catBg[1] + 12), Math.min(255, catBg[2] + 12)]
+                    : catBg;
+                const clienteNome = row.cliente_nome_livre
+                    || listaClientes.find(c => c.id === row.cliente_id)?.nome_fantasia
+                    || listaClientes.find(c => c.id === row.cliente_id)?.razao_social || '';
+
+                let x = MX;
+                allCols.forEach(col => {
+                    const isFin = col.key === 'subTotal' || col.key === 'desconto' || col.key === 'total';
+                    doc.setFillColor(...(isFin ? ([248, 250, 253] as [number, number, number]) : rowBg));
+                    doc.rect(x, y, col.w, ROW_H, 'F');
+                    doc.setDrawColor(...BORDER); doc.rect(x, y, col.w, ROW_H, 'S');
+                    // vertical center Y
+                    const midY = y + ROW_H / 2 + 2;
+                    doc.setTextColor(30, 30, 40); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+
+                    if (col.key === 'categoria') {
+                        doc.setFontSize(6); doc.setTextColor(80, 80, 100); doc.setFont('helvetica', 'normal');
+                        doc.text(cat?.tag || '', x + col.w / 2, midY, { align: 'center' });
+                    } else if (col.key === 'stand_nr') {
+                        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+                        doc.text(row.stand_nr, x + col.w / 2, midY, { align: 'center' });
+                    } else if (col.key === 'cliente') {
+                        if (isAvail) {
+                            doc.setTextColor(140, 140, 160); doc.setFont('helvetica', 'italic'); doc.setFontSize(7);
+                            doc.text('DISPON\u00cdVEL', x + 2, midY);
+                        } else {
+                            doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+                            const t = doc.splitTextToSize(clienteNome.toUpperCase(), col.w - 3)[0] || '';
+                            doc.text(t, x + 2, midY);
+                        }
+                    } else if (col.key.startsWith('combo_')) {
+                        const lbl = col.key.replace('combo_', '');
+                        const base = row.tipo_venda.replace('*', '').trim();
+                        const isStar = row.tipo_venda.endsWith('*');
+                        if (base === lbl && !isAvail) {
+                            doc.setFillColor(...(isStar ? CYAN_S : GREEN_X));
+                            // filled square inside cell, centered
+                            const pad = 1.2;
+                            doc.roundedRect(x + pad, y + pad, col.w - pad * 2, ROW_H - pad * 2, 1, 1, 'F');
+                            doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+                            // perfectly centered
+                            doc.text(isStar ? '*' : 'x', x + col.w / 2, midY, { align: 'center' });
+                        }
+                    } else if (col.key.startsWith('opt_')) {
+                        // key = 'opt_' + o.nome — find exact by nome
+                        const optNome = col.key.replace('opt_', '');
+                        const opt = opcionaisAtivos.find(o => o.nome === optNome);
+                        const val = opt ? (sel[opt.nome] || '') : '';
+                        if (val === 'x' || val === '*') {
+                            doc.setFillColor(...CYAN_S);
+                            const pad = 1.2;
+                            doc.roundedRect(x + pad, y + pad, col.w - pad * 2, ROW_H - pad * 2, 1, 1, 'F');
+                            doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+                            doc.text(val, x + col.w / 2, midY, { align: 'center' });
+                        }
+                    } else if (col.key === 'subTotal') {
+                        doc.setFontSize(7);
+                        doc.setTextColor(...(subTotal > 0 ? ([30, 30, 40] as [number, number, number]) : ([160, 160, 180] as [number, number, number])));
+                        // centered in column
+                        doc.text(fmtMoney(subTotal), x + col.w / 2, midY, { align: 'center' });
+                    } else if (col.key === 'desconto') {
+                        // always white text, no amber
+                        doc.setFontSize(7); doc.setTextColor(...WHITE);
+                        if (desconto > 0) {
+                            // highlight background for discount
+                            doc.setFillColor(200, 90, 0);
+                            doc.rect(x, y, col.w, ROW_H, 'F');
+                            doc.setFont('helvetica', 'bold');
+                            doc.text(fmtMoney(desconto), x + col.w / 2, midY, { align: 'center' });
+                        } else {
+                            doc.setTextColor(160, 160, 180);
+                            doc.text('R$ 0,00', x + col.w / 2, midY, { align: 'center' });
+                        }
+                    } else if (col.key === 'total') {
+                        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+                        doc.setTextColor(...(totalVenda > 0 ? DARK : ([160, 160, 180] as [number, number, number])));
+                        doc.text(fmtMoney(totalVenda), x + col.w / 2, midY, { align: 'center' });
+                    }
+                    x += col.w;
+                });
+            };
+
+            const drawTotalsRow = (y: number) => {
+                let x = MX;
+                allCols.forEach(col => {
+                    doc.setFillColor(...TOT_BG);
+                    doc.rect(x, y, col.w, ROW_H, 'F');
+                    doc.setDrawColor(...BORDER); doc.rect(x, y, col.w, ROW_H, 'S');
+                    const midY = y + ROW_H / 2 + 2;
+                    doc.setTextColor(...WHITE); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+                    if (col.key === 'categoria') {
+                        doc.text('TOTAL', x + col.w / 2, midY, { align: 'center' });
+                    } else if (col.key === 'subTotal') {
+                        doc.text(fmtMoney(totals.subTotal), x + col.w / 2, midY, { align: 'center' });
+                    } else if (col.key === 'desconto') {
+                        doc.setTextColor(...GOLD);
+                        if (totals.desconto > 0) doc.text(fmtMoney(totals.desconto), x + col.w / 2, midY, { align: 'center' });
+                    } else if (col.key === 'total') {
+                        doc.text(fmtMoney(totals.totalVenda), x + col.w / 2, midY, { align: 'center' });
+                    }
+                    x += col.w;
+                });
+            };
+
+            // render
+            setPdfProgress(65);
+            drawPageBanner(page);
+            let curY = MY + TITLE_H + 1;
+            curY = drawResumoGeral(curY);
+            curY = drawColHeaders(curY);
+
             for (let i = 0; i < sorted.length; i++) {
-                const row = sorted[i];
-                const c = calcRow(row as any);
-                tots.subTotal += c.subTotal; tots.desconto += c.desconto; tots.totalVenda += c.totalVenda;
-                if (curY + rowH > pageH - mY - rowH) {
-                    doc.addPage(); page++; curY = mY + titleH;
-                    drawHeader(page); drawTableHeader(curY); curY += headerH;
+                if (curY + ROW_H > PH - MY - ROW_H) {
+                    doc.addPage(); page++;
+                    drawPageBanner(page);
+                    curY = MY + TITLE_H + 1;
+                    curY = drawColHeaders(curY);
                 }
-                drawRow(row, curY, i % 2 === 1);
-                curY += rowH;
-                if (i % 5 === 0) setPdfProgress(60 + Math.round((i / sorted.length) * 28));
+                drawDataRow(sorted[i], curY);
+                curY += ROW_H;
+                if (i % 5 === 0) setPdfProgress(65 + Math.round((i / sorted.length) * 22));
             }
-
-            if (curY + rowH > pageH - mY) { doc.addPage(); curY = mY + titleH; }
-            drawTotals(curY, tots);
+            if (curY + ROW_H > PH - MY) { doc.addPage(); curY = MY + TITLE_H + 1; }
+            drawTotalsRow(curY);
 
             setPdfProgress(90);
             const blob = doc.output('blob');
             const url = URL.createObjectURL(blob);
             setPdfProgress(100);
-            await new Promise(r => setTimeout(r, 600));
+            await new Promise(r => setTimeout(r, 500));
             setPdfProgress(null);
             setDocModal({ tipo: 'relatorio_pdf', url, edicaoTitulo: edicao.titulo, isPdfBlob: true });
         } catch (err: any) {
