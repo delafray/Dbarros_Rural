@@ -854,17 +854,12 @@ const Dashboard: React.FC = () => {
 
                                                 {/* Exportar PDF */}
                                                 <div
-                                                    className="flex items-center gap-2 group/pdf cursor-pointer"
+                                                    className="flex items-center justify-center group/pdf cursor-pointer"
                                                     onClick={(e) => handleExportPdf(e, edicao)}
+                                                    title="Exportar como PDF"
                                                 >
-                                                    <div className="hidden sm:block text-[9px] font-bold text-emerald-600 uppercase tracking-tighter opacity-70 group-hover/pdf:opacity-100 transition-opacity">
-                                                        Exportar PDF
-                                                    </div>
-                                                    <div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover/pdf:bg-emerald-600 group-hover/pdf:text-white transition-all shadow-sm border border-emerald-100">
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6" />
-                                                        </svg>
+                                                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover/pdf:bg-blue-600 group-hover/pdf:text-white transition-all shadow-sm border border-blue-100">
+                                                        <span className="text-[8px] font-bold tracking-tighter">PDF</span>
                                                     </div>
                                                 </div>
                                             </div>
