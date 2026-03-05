@@ -333,7 +333,7 @@ const Dashboard: React.FC = () => {
                 if (logoDataUrl) {
                     doc.addImage(logoDataUrl, 'PNG', brandX, MY + 1, LOGO_W, LOGO_H);
                 }
-                doc.setTextColor(...WHITE); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+                doc.setTextColor(...WHITE); // fonte 16pt já está setada acima
                 doc.text(brandText, brandX + LOGO_W + 1.5, MY + 6.5);
             };
 
