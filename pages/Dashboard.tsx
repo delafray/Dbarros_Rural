@@ -316,7 +316,7 @@ const Dashboard: React.FC = () => {
                 doc.rect(MX, MY, AW, TITLE_H, 'F');
                 doc.setTextColor(...WHITE);
                 // Esquerda: título da edição
-                doc.setFontSize(15); doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold');
                 const ttl = edicao.titulo.toUpperCase();
                 doc.text(ttl, MX + 4, MY + 6.5);
                 // Direita: gerado em
@@ -326,7 +326,7 @@ const Dashboard: React.FC = () => {
                 const LOGO_H = TITLE_H - 2; // 8mm de altura
                 const LOGO_W = LOGO_H * 1.176; // proporção real 1023/870 da dbarros.png
                 const brandText = 'Dbarros Eventos Agro';
-                doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold');
                 const brandW = doc.getTextDimensions(brandText).w;
                 const totalBrandW = LOGO_W + 1.5 + brandW;
                 const brandX = PW / 2 - totalBrandW / 2;
