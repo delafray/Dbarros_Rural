@@ -488,7 +488,7 @@ const Dashboard: React.FC = () => {
                             doc.roundedRect(x + pad, y + pad, col.w - pad * 2, ROW_H - pad * 2, 1, 1, 'F');
                             doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
                             // centro do quadrado interno + ajuste baseline 8pt (* sobe mais, precisa +1mm extra)
-                            const boxCenterY = y + pad + (ROW_H - pad * 2) / 2 + 1.0;
+                            const boxCenterY = y + pad + (ROW_H - pad * 2) / 2 + 0.8;
                             const charY = isStar ? boxCenterY + 0.5 : boxCenterY;
                             doc.text(isStar ? '*' : 'x', x + col.w / 2, charY, { align: 'center' });
                         }
@@ -502,7 +502,7 @@ const Dashboard: React.FC = () => {
                             const pad = 1.2;
                             doc.roundedRect(x + pad, y + pad, col.w - pad * 2, ROW_H - pad * 2, 1, 1, 'F');
                             doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-                            const boxCenterY2 = y + pad + (ROW_H - pad * 2) / 2 + 1.0;
+                            const boxCenterY2 = y + pad + (ROW_H - pad * 2) / 2 + 0.8;
                             const charY2 = val === '*' ? boxCenterY2 + 0.5 : boxCenterY2;
                             doc.text(val, x + col.w / 2, charY2, { align: 'center' });
                         }
