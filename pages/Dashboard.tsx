@@ -321,7 +321,7 @@ const Dashboard: React.FC = () => {
 
                 let fx = MX + mainW;
                 const finLabels = ['SUBTOTAL', 'DESCONTO', 'TOTAL'];
-                const finColors: [number, number, number][] = [WHITE, GOLD, WHITE];
+                const finColors: [number, number, number][] = [WHITE, WHITE, WHITE];
                 allCols.slice(finStart).forEach((col, i) => {
                     doc.setFillColor(...DARK);
                     doc.rect(fx, y, col.w, RES_H1, 'F');
@@ -514,7 +514,6 @@ const Dashboard: React.FC = () => {
                     } else if (col.key === 'subTotal') {
                         doc.text(fmtMoney(totals.subTotal), x + col.w / 2, midY, { align: 'center' });
                     } else if (col.key === 'desconto') {
-                        doc.setTextColor(...GOLD);
                         if (totals.desconto > 0) doc.text(fmtMoney(totals.desconto), x + col.w / 2, midY, { align: 'center' });
                     } else if (col.key === 'total') {
                         doc.text(fmtMoney(totals.totalVenda), x + col.w / 2, midY, { align: 'center' });
