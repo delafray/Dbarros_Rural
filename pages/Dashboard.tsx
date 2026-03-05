@@ -295,19 +295,48 @@ const Dashboard: React.FC = () => {
 
             setPdfProgress(60);
 
+            // Carrega logo para o banner (transparente)
+            let logoDataUrl: string | null = null;
+            try {
+                const resp = await fetch('/dbarros.png');
+                if (resp.ok) {
+                    const blob = await resp.blob();
+                    logoDataUrl = await new Promise<string>(resolve => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            } catch { /* sem logo, sem problema */ }
+
             let page = 1;
 
             const drawPageBanner = (pg: number) => {
                 doc.setFillColor(...DARK);
                 doc.rect(MX, MY, AW, TITLE_H, 'F');
                 doc.setTextColor(...WHITE);
+                // Esquerda: título da edição
                 doc.setFontSize(10); doc.setFont('helvetica', 'bold');
                 const ttl = edicao.titulo.toUpperCase();
                 doc.text(ttl, MX + 4, MY + 6.5);
+                // Direita: gerado em
                 doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-                // 3mm afastado da borda direita
-                doc.text('Gerado em ' + new Date().toLocaleDateString('pt-BR') + '  |  P\u00e1g. ' + pg, PW - MX - 3, MY + 6.5, { align: 'right' });
+                doc.text('Gerado em ' + new Date().toLocaleDateString('pt-BR') + '  |  Pág. ' + pg, PW - MX - 3, MY + 6.5, { align: 'right' });
+                // Centro: logo + nome empresa
+                const LOGO_H = TITLE_H - 2; // 8mm: ocupa quase toda a altura do banner
+                const LOGO_W = LOGO_H;       // quadrado
+                const brandText = 'Dbarros Eventos Agro';
+                doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+                const brandW = doc.getTextDimensions(brandText).w;
+                const totalBrandW = LOGO_W + 1.5 + brandW;
+                const brandX = PW / 2 - totalBrandW / 2;
+                if (logoDataUrl) {
+                    doc.addImage(logoDataUrl, 'PNG', brandX, MY + 1, LOGO_W, LOGO_H);
+                }
+                doc.setTextColor(...WHITE); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+                doc.text(brandText, brandX + LOGO_W + 1.5, MY + 6.5);
             };
+
 
             const drawResumoGeral = (y: number): number => {
                 const finStart = allCols.length - 3;
