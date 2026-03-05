@@ -563,8 +563,9 @@ const Dashboard: React.FC = () => {
                 const cat = getCategoria(row.stand_nr);
                 const isStand = cat ? (cat as any).is_stand !== false : true;
                 if (isStand) return true;
-                // tem cliente vinculado
+                // tem cliente vinculado (FK) ou nome livre digitado
                 if (row.cliente_id) return true;
+                if (row.cliente_nome_livre && String(row.cliente_nome_livre).trim() !== '') return true;
                 // tem tipo preenchido (não DISPONÍVEL)
                 if (row.tipo_venda && row.tipo_venda !== 'DISPONÍVEL') return true;
                 // tem QUALQUER opcional com algum valor não vazio
