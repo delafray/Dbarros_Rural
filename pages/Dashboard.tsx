@@ -302,7 +302,7 @@ const Dashboard: React.FC = () => {
                 doc.rect(MX, MY, AW, TITLE_H, 'F');
                 doc.setTextColor(...WHITE);
                 doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-                const ttl = ((edicao.eventos?.nome || '') + '  \u2014  ' + edicao.titulo).toUpperCase();
+                const ttl = edicao.titulo.toUpperCase();
                 doc.text(ttl, MX + 4, MY + 6.5);
                 doc.setFontSize(7); doc.setFont('helvetica', 'normal');
                 // 3mm afastado da borda direita
