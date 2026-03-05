@@ -469,12 +469,12 @@ const Dashboard: React.FC = () => {
                         doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
                         doc.text(row.stand_nr, x + col.w / 2, midY, { align: 'center' });
                     } else if (col.key === 'cliente') {
-                        if (isAvail) {
+                        if (isAvail && !clienteNome) {
                             doc.setTextColor(140, 140, 160); doc.setFont('helvetica', 'italic'); doc.setFontSize(7);
                             doc.text('DISPON\u00cdVEL', x + 2, midY);
                         } else {
                             doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-                            const t = doc.splitTextToSize(clienteNome.toUpperCase(), col.w - 3)[0] || '';
+                            const t = doc.splitTextToSize((clienteNome || '').toUpperCase(), col.w - 3)[0] || '';
                             doc.text(t, x + 2, midY);
                         }
                     } else if (col.key.startsWith('combo_')) {
