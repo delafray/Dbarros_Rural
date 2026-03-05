@@ -11,6 +11,9 @@ import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { useAppDialog } from '../context/DialogContext';
 import { authService, User } from '../services/authService';
+import { planilhaVendasService, CategoriaSetup } from '../services/planilhaVendasService';
+import { itensOpcionaisService } from '../services/itensOpcionaisService';
+import { clientesService } from '../services/clientesService';
 
 type EdicaoComDocs = EventoEdicao & {
     eventos: { nome: string } | null;
@@ -18,7 +21,7 @@ type EdicaoComDocs = EventoEdicao & {
     planta_baixa_path?: string | null;
 };
 
-type DocModalState = { tipo: 'proposta_comercial' | 'planta_baixa'; url: string; edicaoTitulo: string } | null;
+type DocModalState = { tipo: 'proposta_comercial' | 'planta_baixa' | 'relatorio_pdf'; url: string; edicaoTitulo: string; isPdfBlob?: boolean } | null;
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
@@ -33,6 +36,8 @@ const Dashboard: React.FC = () => {
     const [selectedAtendimento, setSelectedAtendimento] = useState<Atendimento | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [docModal, setDocModal] = useState<DocModalState>(null);
+    const [pdfProgress, setPdfProgress] = useState<number | null>(null);
+    const [pdfTitle, setPdfTitle] = useState('');
 
     // State for "Criar acesso ao promotor" modal
     type PromoStep = 'confirm' | 'existing' | 'create' | 'created';
@@ -110,6 +115,269 @@ const Dashboard: React.FC = () => {
         setPromoModal(null);
         setPromoExpiresAt('');
         setPromoCreated(null);
+    };
+
+    const handleExportPdf = async (e: React.MouseEvent, edicao: EdicaoComDocs) => {
+        e.stopPropagation();
+        setPdfProgress(0);
+        setPdfTitle(edicao.titulo);
+        try {
+            const config = await planilhaVendasService.getConfig(edicao.id);
+            if (!config) {
+                setPdfProgress(null);
+                await appDialog.alert({ title: 'Aviso', message: 'Esta edição não possui configuração de planilha.', type: 'warning' });
+                return;
+            }
+            setPdfProgress(10);
+
+            const [estandes, allOpcionais, listaClientes] = await Promise.all([
+                planilhaVendasService.getEstandes(config.id),
+                itensOpcionaisService.getItens(),
+                clientesService.getClientesComContatos(),
+            ]);
+            setPdfProgress(30);
+
+            const categorias = (config.categorias_config as unknown as CategoriaSetup[]) || [];
+            const opcionaisAtivos = allOpcionais.filter(item => config.opcionais_ativos?.includes(item.id));
+            const precosEdicao = (config.opcionais_precos as Record<string, number>) || {};
+
+            const getCategoria = (nr: string) => {
+                const nrLow = nr.toLowerCase();
+                const sorted = [...categorias].sort((a, b) =>
+                    (b.prefix || b.tag || '').length - (a.prefix || a.tag || '').length
+                );
+                return sorted.find(c => {
+                    const id = (c.prefix || c.tag || '').toLowerCase().trim();
+                    return id && (nrLow === id || nrLow.startsWith(`${id} `));
+                });
+            };
+
+            const calcRow = (row: { tipo_venda: string; opcionais_selecionados: unknown; desconto: number | null }) => {
+                const cat = getCategoria((row as any).stand_nr || '');
+                const tipo = row.tipo_venda;
+                let precoBase = 0;
+                if (cat && !tipo.includes('*')) {
+                    if (tipo === 'STAND PADRÃO') precoBase = cat.standBase || 0;
+                    else {
+                        const match = tipo.match(/COMBO (\d+)/);
+                        if (match) precoBase = (cat.combos as number[])?.[parseInt(match[1], 10) - 1] || 0;
+                    }
+                }
+                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
+                let totalOpcionais = 0;
+                opcionaisAtivos.forEach(opt => {
+                    if (sel[opt.nome] === 'x') {
+                        const preco = precosEdicao[opt.id] !== undefined ? Number(precosEdicao[opt.id]) : Number(opt.preco_base);
+                        totalOpcionais += preco;
+                    }
+                });
+                const subTotal = precoBase + totalOpcionais;
+                const desconto = Number(row.desconto) || 0;
+                return { subTotal, desconto, totalVenda: subTotal - desconto };
+            };
+
+            setPdfProgress(40);
+
+            const sorted = [...estandes].sort((a, b) => {
+                const catA = getCategoria(a.stand_nr);
+                const catB = getCategoria(b.stand_nr);
+                const ordA = catA?.ordem ?? 0;
+                const ordB = catB?.ordem ?? 0;
+                if (ordA !== ordB) return ordA - ordB;
+                if (catA && catB) {
+                    const idxA = categorias.findIndex(c => c === catA);
+                    const idxB = categorias.findIndex(c => c === catB);
+                    if (idxA !== idxB) return idxA - idxB;
+                }
+                return a.stand_nr.localeCompare(b.stand_nr, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            // Combo labels
+            let maxCombos = 0;
+            categorias.forEach(c => { const len = Array.isArray(c.combos) ? c.combos.length : 0; if (len > maxCombos) maxCombos = len; });
+            const comboLabels = ['STAND PADRÃO'];
+            for (let i = 1; i <= maxCombos; i++) comboLabels.push(`COMBO ${String(i).padStart(2, '0')}`);
+            const customNames = categorias[0]?.comboNames || [];
+            const comboDisplay: Record<string, string> = { 'STAND PADRÃO': 'STAND\nPADRÃO' };
+            for (let i = 1; i <= maxCombos; i++) {
+                const key = `COMBO ${String(i).padStart(2, '0')}`;
+                comboDisplay[key] = customNames[i - 1] || key;
+            }
+
+            setPdfProgress(50);
+
+            const { jsPDF } = await import('jspdf');
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+            const pageW = 297, pageH = 210, mX = 8, mY = 8;
+            const availW = pageW - mX * 2;
+            const headerH = 10, rowH = 6, titleH = 11;
+
+            // Column widths
+            const comboColW = Math.min(20, Math.max(12, 80 / Math.max(comboLabels.length, 1)));
+            const optColW = Math.min(15, Math.max(10, 40 / Math.max(opcionaisAtivos.length, 1)));
+            const finW = 24;
+            const fixedW = 18 + 14; // stand + cat
+            const combosW = comboLabels.length * comboColW;
+            const optsW = opcionaisAtivos.length * optColW;
+            const clienteW = Math.max(28, availW - fixedW - combosW - optsW - finW * 3);
+
+            const allCols: { key: string; label: string; w: number }[] = [
+                { key: 'stand_nr', label: 'STAND', w: 18 },
+                { key: 'categoria', label: 'CAT.', w: 14 },
+                { key: 'cliente', label: 'CLIENTE', w: clienteW },
+                ...comboLabels.map(l => ({ key: `combo_${l}`, label: comboDisplay[l] || l, w: comboColW })),
+                ...opcionaisAtivos.map(o => ({ key: `opt_${o.nome}`, label: o.nome.substring(0, 10).toUpperCase(), w: optColW })),
+                { key: 'subTotal', label: 'SUBTOTAL', w: finW },
+                { key: 'desconto', label: 'DESCONTO', w: finW },
+                { key: 'total', label: 'TOTAL', w: finW },
+            ];
+
+            const hBg: [number, number, number] = [31, 73, 125];
+            const altBg: [number, number, number] = [240, 245, 252];
+            const totBg: [number, number, number] = [15, 40, 80];
+            const border: [number, number, number] = [190, 205, 220];
+            const fmtMoney = (v: number) => v === 0 ? '-' : `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+            const drawHeader = (pNum: number) => {
+                doc.setFillColor(...hBg);
+                doc.rect(mX, mY, availW, titleH, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+                const title = `${edicao.eventos?.nome || ''} — ${edicao.titulo}`.toUpperCase();
+                doc.text(title, mX + 3, mY + 7);
+                doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+                doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}  |  Pág. ${pNum}`, pageW - mX, mY + 7, { align: 'right' });
+            };
+
+            const drawTableHeader = (y: number) => {
+                let x = mX;
+                allCols.forEach(col => {
+                    doc.setFillColor(...hBg);
+                    doc.rect(x, y, col.w, headerH, 'F');
+                    doc.setDrawColor(...border);
+                    doc.rect(x, y, col.w, headerH, 'S');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+                    const lines = doc.splitTextToSize(col.label, col.w - 1.5);
+                    if (lines.length > 1) {
+                        doc.text(lines[0], x + col.w / 2, y + 3.5, { align: 'center' });
+                        doc.text(lines[1], x + col.w / 2, y + 7.5, { align: 'center' });
+                    } else {
+                        doc.text(lines[0] || '', x + col.w / 2, y + headerH / 2 + 1.5, { align: 'center' });
+                    }
+                    x += col.w;
+                });
+            };
+
+            const drawRow = (row: typeof sorted[0], y: number, isAlt: boolean) => {
+                const cat = getCategoria(row.stand_nr);
+                const { subTotal, desconto, totalVenda } = calcRow(row as any);
+                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
+                const clienteNome = row.cliente_nome_livre ||
+                    listaClientes.find(c => c.id === row.cliente_id)?.nome_fantasia ||
+                    listaClientes.find(c => c.id === row.cliente_id)?.razao_social || '';
+                let x = mX;
+                allCols.forEach(col => {
+                    doc.setFillColor(...(isAlt ? altBg : [255, 255, 255] as [number, number, number]));
+                    doc.rect(x, y, col.w, rowH, 'F');
+                    doc.setDrawColor(...border);
+                    doc.rect(x, y, col.w, rowH, 'S');
+                    doc.setTextColor(30, 30, 40);
+                    doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+                    let text = ''; let align: 'left' | 'center' | 'right' = 'left'; let txtX = x + 1.5;
+                    const txtY = y + rowH / 2 + 1.5;
+                    if (col.key === 'stand_nr') {
+                        text = row.stand_nr; doc.setFont('helvetica', 'bold');
+                    } else if (col.key === 'categoria') {
+                        text = cat?.tag || ''; align = 'center'; txtX = x + col.w / 2;
+                    } else if (col.key === 'cliente') {
+                        text = doc.splitTextToSize(clienteNome, col.w - 2)[0] || '';
+                    } else if (col.key.startsWith('combo_')) {
+                        const lbl = col.key.replace('combo_', '');
+                        const base = row.tipo_venda.replace('*', '').trim();
+                        if (base === lbl && row.tipo_venda !== 'DISPONÍVEL') {
+                            doc.setTextColor(0, 140, 70); doc.setFont('helvetica', 'bold');
+                            text = row.tipo_venda.endsWith('*') ? '*' : 'x';
+                        }
+                        align = 'center'; txtX = x + col.w / 2;
+                    } else if (col.key.startsWith('opt_')) {
+                        const optNome = col.key.replace('opt_', '');
+                        const full = opcionaisAtivos.find(o => o.nome.substring(0, 10).toUpperCase() === optNome)?.nome || optNome;
+                        const val = sel[full] || sel[optNome] || '';
+                        if (val === 'x' || val === '*') {
+                            doc.setTextColor(0, 140, 70); doc.setFont('helvetica', 'bold');
+                            text = val === '*' ? '*' : 'x';
+                        }
+                        align = 'center'; txtX = x + col.w / 2;
+                    } else if (col.key === 'subTotal') {
+                        text = fmtMoney(subTotal); align = 'right'; txtX = x + col.w - 1.5;
+                    } else if (col.key === 'desconto') {
+                        if (desconto > 0) { doc.setTextColor(200, 80, 0); text = fmtMoney(desconto); }
+                        align = 'right'; txtX = x + col.w - 1.5;
+                    } else if (col.key === 'total') {
+                        text = fmtMoney(totalVenda); align = 'right'; txtX = x + col.w - 1.5;
+                        doc.setFont('helvetica', 'bold');
+                    }
+                    if (text) doc.text(text, txtX, txtY, { align });
+                    x += col.w;
+                });
+            };
+
+            const drawTotals = (y: number, tots: { subTotal: number; desconto: number; totalVenda: number }) => {
+                let x = mX;
+                allCols.forEach(col => {
+                    doc.setFillColor(...totBg);
+                    doc.rect(x, y, col.w, rowH, 'F');
+                    doc.setDrawColor(...border);
+                    doc.rect(x, y, col.w, rowH, 'S');
+                    doc.setTextColor(255, 255, 255); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+                    let text = ''; let align: 'left' | 'center' | 'right' = 'center'; let txtX = x + col.w / 2;
+                    if (col.key === 'stand_nr') { text = 'TOTAL GERAL'; align = 'left'; txtX = x + 1.5; }
+                    else if (col.key === 'subTotal') { text = fmtMoney(tots.subTotal); align = 'right'; txtX = x + col.w - 1.5; }
+                    else if (col.key === 'desconto') { if (tots.desconto > 0) { text = fmtMoney(tots.desconto); } align = 'right'; txtX = x + col.w - 1.5; }
+                    else if (col.key === 'total') { text = fmtMoney(tots.totalVenda); align = 'right'; txtX = x + col.w - 1.5; }
+                    if (text) doc.text(text, txtX, y + rowH / 2 + 1.5, { align });
+                    x += col.w;
+                });
+            };
+
+            setPdfProgress(60);
+
+            let page = 1;
+            let curY = mY + titleH;
+            drawHeader(page);
+            drawTableHeader(curY);
+            curY += headerH;
+
+            const tots = { subTotal: 0, desconto: 0, totalVenda: 0 };
+            for (let i = 0; i < sorted.length; i++) {
+                const row = sorted[i];
+                const c = calcRow(row as any);
+                tots.subTotal += c.subTotal; tots.desconto += c.desconto; tots.totalVenda += c.totalVenda;
+                if (curY + rowH > pageH - mY - rowH) {
+                    doc.addPage(); page++; curY = mY + titleH;
+                    drawHeader(page); drawTableHeader(curY); curY += headerH;
+                }
+                drawRow(row, curY, i % 2 === 1);
+                curY += rowH;
+                if (i % 5 === 0) setPdfProgress(60 + Math.round((i / sorted.length) * 28));
+            }
+
+            if (curY + rowH > pageH - mY) { doc.addPage(); curY = mY + titleH; }
+            drawTotals(curY, tots);
+
+            setPdfProgress(90);
+            const blob = doc.output('blob');
+            const url = URL.createObjectURL(blob);
+            setPdfProgress(100);
+            await new Promise(r => setTimeout(r, 600));
+            setPdfProgress(null);
+            setDocModal({ tipo: 'relatorio_pdf', url, edicaoTitulo: edicao.titulo, isPdfBlob: true });
+        } catch (err: any) {
+            setPdfProgress(null);
+            await appDialog.alert({ title: 'Erro ao gerar PDF', message: err?.message || 'Erro desconhecido.', type: 'danger' });
+        }
     };
 
     const allPanelButton = (
@@ -360,6 +628,22 @@ const Dashboard: React.FC = () => {
                                                         </svg>
                                                     </div>
                                                 </div>
+
+                                                {/* Exportar PDF */}
+                                                <div
+                                                    className="flex items-center gap-2 group/pdf cursor-pointer"
+                                                    onClick={(e) => handleExportPdf(e, edicao)}
+                                                >
+                                                    <div className="hidden sm:block text-[9px] font-bold text-emerald-600 uppercase tracking-tighter opacity-70 group-hover/pdf:opacity-100 transition-opacity">
+                                                        Exportar PDF
+                                                    </div>
+                                                    <div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover/pdf:bg-emerald-600 group-hover/pdf:text-white transition-all shadow-sm border border-emerald-100">
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -384,13 +668,49 @@ const Dashboard: React.FC = () => {
                 </div>
 
 
-                {/* Modal: Ações de Documento (Proposta / Planta Baixa) */}
+                {/* Modal: Progresso de Geração de PDF */}
+                {pdfProgress !== null && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-2xl w-[340px] p-7 flex flex-col items-center gap-5">
+                            <div className="w-14 h-14 rounded-full bg-emerald-50 border-4 border-emerald-100 flex items-center justify-center">
+                                <svg className="w-7 h-7 text-emerald-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6" />
+                                </svg>
+                            </div>
+                            <div className="text-center w-full">
+                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1">Gerando PDF</p>
+                                <p className="text-[13px] font-black text-slate-800 truncate max-w-[280px] text-center">{pdfTitle}</p>
+                            </div>
+                            <div className="w-full">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1.5">
+                                    <span>Processando...</span>
+                                    <span className="text-emerald-600 font-black">{pdfProgress}%</span>
+                                </div>
+                                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-300 ease-out"
+                                        style={{ width: `${pdfProgress}%` }}
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 text-center">
+                                {pdfProgress < 30 ? 'Carregando dados da planilha...' :
+                                    pdfProgress < 60 ? 'Organizando estandes...' :
+                                        pdfProgress < 90 ? 'Montando tabela PDF...' :
+                                            'Finalizando documento...'}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal: Ações de Documento (Proposta / Planta Baixa / PDF) */}
                 {docModal && (() => {
-                    const label = docModal.tipo === 'proposta_comercial' ? 'Proposta Comercial' : 'Planta Baixa';
+                    const label = docModal.tipo === 'proposta_comercial' ? 'Proposta Comercial' : docModal.tipo === 'planta_baixa' ? 'Planta Baixa' : 'Relatório PDF';
                     const url = docModal.url;
                     const nomeEdicao = docModal.edicaoTitulo.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
-                    const prefix = docModal.tipo === 'proposta_comercial' ? 'PROPOSTA_COMERCIAL' : 'PLANTA_BAIXA';
-                    const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
+                    const prefix = docModal.tipo === 'proposta_comercial' ? 'PROPOSTA_COMERCIAL' : docModal.tipo === 'planta_baixa' ? 'PLANTA_BAIXA' : 'RELATORIO_PDF';
+                    const ext = docModal.isPdfBlob ? 'pdf' : (url.split('.').pop()?.split('?')[0] || 'pdf');
                     const fileName = `${prefix}_${nomeEdicao}.${ext}`;
                     const handleDownload = async () => {
                         try {
