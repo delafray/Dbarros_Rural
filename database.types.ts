@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -24,11 +24,13 @@ export type Database = {
           data_retorno: string | null
           edicao_id: string
           id: string
-          probabilidade: number
+          probabilidade: number | null
+          resolvido: boolean | null
           telefone: string | null
           ultima_obs: string | null
           ultima_obs_at: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           cliente_id?: string | null
@@ -39,11 +41,13 @@ export type Database = {
           data_retorno?: string | null
           edicao_id: string
           id?: string
-          probabilidade?: number
+          probabilidade?: number | null
+          resolvido?: boolean | null
           telefone?: string | null
           ultima_obs?: string | null
           ultima_obs_at?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           cliente_id?: string | null
@@ -54,11 +58,13 @@ export type Database = {
           data_retorno?: string | null
           edicao_id?: string
           id?: string
-          probabilidade?: number
+          probabilidade?: number | null
+          resolvido?: boolean | null
           telefone?: string | null
           ultima_obs?: string | null
           ultima_obs_at?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -82,6 +88,13 @@ export type Database = {
             referencedRelation: "eventos_edicoes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "atendimentos_user_id_public_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       atendimentos_historico: {
@@ -92,6 +105,7 @@ export type Database = {
           descricao: string
           id: string
           probabilidade: number | null
+          resolvido: boolean | null
           user_id: string | null
         }
         Insert: {
@@ -101,6 +115,7 @@ export type Database = {
           descricao: string
           id?: string
           probabilidade?: number | null
+          resolvido?: boolean | null
           user_id?: string | null
         }
         Update: {
@@ -110,6 +125,7 @@ export type Database = {
           descricao?: string
           id?: string
           probabilidade?: number | null
+          resolvido?: boolean | null
           user_id?: string | null
         }
         Relationships: [
@@ -118,6 +134,13 @@ export type Database = {
             columns: ["atendimento_id"]
             isOneToOne: false
             referencedRelation: "atendimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atendimentos_historico_user_id_public_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -249,6 +272,53 @@ export type Database = {
           },
         ]
       }
+      edicao_imagens_config: {
+        Row: {
+          avulso_obs: string | null
+          avulso_status: string
+          criado_em: string
+          descricao: string
+          dimensoes: string | null
+          edicao_id: string
+          id: string
+          origem_ref: string
+          origem_tipo: string
+          tipo: string
+        }
+        Insert: {
+          avulso_obs?: string | null
+          avulso_status?: string
+          criado_em?: string
+          descricao: string
+          dimensoes?: string | null
+          edicao_id: string
+          id?: string
+          origem_ref: string
+          origem_tipo: string
+          tipo?: string
+        }
+        Update: {
+          avulso_obs?: string | null
+          avulso_status?: string
+          criado_em?: string
+          descricao?: string
+          dimensoes?: string | null
+          edicao_id?: string
+          id?: string
+          origem_ref?: string
+          origem_tipo?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edicao_imagens_config_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "eventos_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enderecos: {
         Row: {
           bairro: string | null
@@ -347,12 +417,15 @@ export type Database = {
           data_inicio: string | null
           desmontagem_fim: string | null
           desmontagem_inicio: string | null
+          email_oficial: string | null
           evento_id: string | null
           id: string
           local_completo: string | null
           local_resumido: string | null
           montagem_fim: string | null
           montagem_inicio: string | null
+          planta_baixa_path: string | null
+          proposta_comercial_path: string | null
           titulo: string
           user_id: string | null
         }
@@ -364,12 +437,15 @@ export type Database = {
           data_inicio?: string | null
           desmontagem_fim?: string | null
           desmontagem_inicio?: string | null
+          email_oficial?: string | null
           evento_id?: string | null
           id?: string
           local_completo?: string | null
           local_resumido?: string | null
           montagem_fim?: string | null
           montagem_inicio?: string | null
+          planta_baixa_path?: string | null
+          proposta_comercial_path?: string | null
           titulo: string
           user_id?: string | null
         }
@@ -381,12 +457,15 @@ export type Database = {
           data_inicio?: string | null
           desmontagem_fim?: string | null
           desmontagem_inicio?: string | null
+          email_oficial?: string | null
           evento_id?: string | null
           id?: string
           local_completo?: string | null
           local_resumido?: string | null
           montagem_fim?: string | null
           montagem_inicio?: string | null
+          planta_baixa_path?: string | null
+          proposta_comercial_path?: string | null
           titulo?: string
           user_id?: string | null
         }
@@ -522,11 +601,287 @@ export type Database = {
           },
         ]
       }
+      stand_imagem_recebimentos: {
+        Row: {
+          atualizado_em: string
+          estande_id: string
+          id: string
+          imagem_config_id: string
+          recebido: boolean
+        }
+        Insert: {
+          atualizado_em?: string
+          estande_id: string
+          id?: string
+          imagem_config_id: string
+          recebido?: boolean
+        }
+        Update: {
+          atualizado_em?: string
+          estande_id?: string
+          id?: string
+          imagem_config_id?: string
+          recebido?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stand_imagem_recebimentos_estande_id_fkey"
+            columns: ["estande_id"]
+            isOneToOne: false
+            referencedRelation: "planilha_vendas_estandes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stand_imagem_recebimentos_imagem_config_id_fkey"
+            columns: ["imagem_config_id"]
+            isOneToOne: false
+            referencedRelation: "edicao_imagens_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stand_imagens_status: {
+        Row: {
+          atualizado_em: string
+          completo_em: string | null
+          estande_id: string
+          id: string
+          observacoes: string | null
+          pendente_em: string | null
+          solicitado_em: string | null
+          status: string
+        }
+        Insert: {
+          atualizado_em?: string
+          completo_em?: string | null
+          estande_id: string
+          id?: string
+          observacoes?: string | null
+          pendente_em?: string | null
+          solicitado_em?: string | null
+          status?: string
+        }
+        Update: {
+          atualizado_em?: string
+          completo_em?: string | null
+          estande_id?: string
+          id?: string
+          observacoes?: string | null
+          pendente_em?: string | null
+          solicitado_em?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stand_imagens_status_estande_id_fkey"
+            columns: ["estande_id"]
+            isOneToOne: true
+            referencedRelation: "planilha_vendas_estandes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefas: {
+        Row: {
+          created_at: string | null
+          data_prazo: string | null
+          descricao: string | null
+          edicao_id: string
+          id: string
+          prioridade: string
+          responsavel_id: string | null
+          status: string
+          titulo: string
+          ultima_obs: string | null
+          ultima_obs_at: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_prazo?: string | null
+          descricao?: string | null
+          edicao_id: string
+          id?: string
+          prioridade?: string
+          responsavel_id?: string | null
+          status?: string
+          titulo: string
+          ultima_obs?: string | null
+          ultima_obs_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data_prazo?: string | null
+          descricao?: string | null
+          edicao_id?: string
+          id?: string
+          prioridade?: string
+          responsavel_id?: string | null
+          status?: string
+          titulo?: string
+          ultima_obs?: string | null
+          ultima_obs_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "eventos_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefas_historico: {
+        Row: {
+          created_at: string | null
+          descricao: string
+          id: string
+          status_anterior: string | null
+          status_novo: string | null
+          tarefa_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          descricao: string
+          id?: string
+          status_anterior?: string | null
+          status_novo?: string | null
+          tarefa_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          status_anterior?: string | null
+          status_novo?: string | null
+          tarefa_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_historico_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_historico_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          can_manage_tags: boolean | null
+          created_at: string | null
+          edicao_id: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          is_admin: boolean | null
+          is_projetista: boolean | null
+          is_temp: boolean | null
+          is_visitor: boolean | null
+          name: string
+          password_hash: string | null
+          temp_password_plain: string | null
+        }
+        Insert: {
+          can_manage_tags?: boolean | null
+          created_at?: string | null
+          edicao_id?: string | null
+          email: string
+          expires_at?: string | null
+          id: string
+          is_active?: boolean | null
+          is_admin?: boolean | null
+          is_projetista?: boolean | null
+          is_temp?: boolean | null
+          is_visitor?: boolean | null
+          name: string
+          password_hash?: string | null
+          temp_password_plain?: string | null
+        }
+        Update: {
+          can_manage_tags?: boolean | null
+          created_at?: string | null
+          edicao_id?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_admin?: boolean | null
+          is_projetista?: boolean | null
+          is_temp?: boolean | null
+          is_visitor?: boolean | null
+          name?: string
+          password_hash?: string | null
+          temp_password_plain?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "eventos_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      backup_introspect: { Args: never; Returns: Json }
+      create_user_admin: {
+        Args: {
+          can_manage_tags_flag?: boolean
+          is_admin_flag?: boolean
+          is_projetista_flag?: boolean
+          is_visitor_flag?: boolean
+          user_email: string
+          user_name: string
+          user_password: string
+        }
+        Returns: string
+      }
+      delete_user_admin: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
+      is_admin: { Args: never; Returns: boolean }
+      rename_opcional_item: {
+        Args: { new_nome: string; old_nome: string }
+        Returns: undefined
+      }
       search_clientes: {
         Args: { search_term: string }
         Returns: {
@@ -540,6 +895,10 @@ export type Database = {
           razao_social: string
           tipo_pessoa: string
         }[]
+      }
+      update_user_password_admin: {
+        Args: { new_password: string; target_user_id: string }
+        Returns: undefined
       }
     }
     Enums: {
@@ -557,116 +916,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   public: {

@@ -5,8 +5,8 @@ import type { TagCategory, Tag } from '../../types';
 export const tagService = {
     // Tag categories are global to the system – userId param kept for API compatibility
     getTagCategories: async (_userId: string) => {
-        const { data, error } = await supabase
-            .from('tag_categories')
+        const { data, error } = await (supabase
+            .from('tag_categories' as any) as any)
             .select('*')
             .order('created_at', { ascending: true });
 
@@ -24,7 +24,7 @@ export const tagService = {
     },
 
     createTagCategory: async (userId: string, name: string, order: number, isRequired = false, peerCategoryIds: string[] = []) => {
-        const insertData: TablesInsert<'tag_categories'> = {
+        const insertData: any = {
             user_id: userId,
             name: name,
             order: order,
@@ -32,8 +32,8 @@ export const tagService = {
             peer_category_ids: peerCategoryIds
         };
 
-        const { data: newCategory, error } = await supabase
-            .from('tag_categories')
+        const { data: newCategory, error } = await (supabase
+            .from('tag_categories' as any) as any)
             .insert(insertData)
             .select()
             .single();
@@ -52,14 +52,14 @@ export const tagService = {
     },
 
     updateTagCategory: async (id: string, data: Partial<TagCategory>) => {
-        const updateData: TablesUpdate<'tag_categories'> = {};
+        const updateData: any = {};
         if (data.name !== undefined) updateData.name = data.name;
         if (data.order !== undefined) updateData.order = data.order;
         if (data.isRequired !== undefined) updateData.is_required = data.isRequired;
         if (data.peerCategoryIds !== undefined) updateData.peer_category_ids = data.peerCategoryIds;
 
-        const { data: updatedCategory, error } = await supabase
-            .from('tag_categories')
+        const { data: updatedCategory, error } = await (supabase
+            .from('tag_categories' as any) as any)
             .update(updateData)
             .eq('id', id)
             .select()
@@ -79,8 +79,8 @@ export const tagService = {
     },
 
     deleteTagCategory: async (id: string) => {
-        const { error } = await supabase
-            .from('tag_categories')
+        const { error } = await (supabase
+            .from('tag_categories' as any) as any)
             .delete()
             .eq('id', id);
 
@@ -89,8 +89,8 @@ export const tagService = {
 
     // Tags are global to the system – userId param kept for API compatibility
     getTags: async (_userId: string) => {
-        const { data, error } = await supabase
-            .from('tags')
+        const { data, error } = await (supabase
+            .from('tags' as any) as any)
             .select('*')
             .order('order', { ascending: true })
             .order('created_at', { ascending: true });
@@ -108,15 +108,15 @@ export const tagService = {
     },
 
     createTag: async (userId: string, name: string, categoryId: string, order?: number) => {
-        const insertData: TablesInsert<'tags'> = {
+        const insertData: any = {
             user_id: userId,
             name: name,
             category_id: categoryId,
             order: order ?? 0
         };
 
-        const { data: newTag, error } = await supabase
-            .from('tags')
+        const { data: newTag, error } = await (supabase
+            .from('tags' as any) as any)
             .insert(insertData)
             .select()
             .single();
@@ -134,13 +134,13 @@ export const tagService = {
     },
 
     updateTag: async (id: string, data: Partial<Tag>) => {
-        const updateData: TablesUpdate<'tags'> = {};
+        const updateData: any = {};
         if (data.name !== undefined) updateData.name = data.name;
         if (data.order !== undefined) updateData.order = data.order;
         if (data.categoryId !== undefined) updateData.category_id = data.categoryId;
 
-        const { data: updatedTag, error } = await supabase
-            .from('tags')
+        const { data: updatedTag, error } = await (supabase
+            .from('tags' as any) as any)
             .update(updateData)
             .eq('id', id)
             .select()
@@ -159,8 +159,8 @@ export const tagService = {
     },
 
     deleteTag: async (id: string) => {
-        const { error } = await supabase
-            .from('tags')
+        const { error } = await (supabase
+            .from('tags' as any) as any)
             .delete()
             .eq('id', id);
 

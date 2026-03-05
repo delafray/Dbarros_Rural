@@ -64,8 +64,8 @@ const extractUserName = (users: UserRow): string | undefined => {
 
 export const photoService = {
     getPhotoIndex: async (userId: string, onlyMine?: boolean) => {
-        let query = supabase
-            .from('photos')
+        let query = (supabase
+            .from('photos' as any) as any)
             .select('id,name,user_id,created_at,video_url,url,thumbnail_url,local_path,storage_location,users(name),photo_tags(tag_id)');
 
         if (onlyMine) {
@@ -95,8 +95,8 @@ export const photoService = {
     getPhotosByIds: async (ids: string[]) => {
         if (ids.length === 0) return [];
 
-        const { data, error } = await supabase
-            .from('photos')
+        const { data, error } = await (supabase
+            .from('photos' as any) as any)
             .select('*,users(name),photo_tags(tag_id)')
             .in('id', ids);
 
@@ -120,8 +120,8 @@ export const photoService = {
     },
 
     getPhotos: async (userId: string) => {
-        const { data, error } = await supabase
-            .from('photos')
+        const { data, error } = await (supabase
+            .from('photos' as any) as any)
             .select('*,users(name),photo_tags(tag_id)')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
@@ -162,7 +162,7 @@ export const photoService = {
     },
 
     createPhoto: async (userId: string, data: Omit<Photo, 'id' | 'createdAt' | 'userId'>) => {
-        const insertData: TablesInsert<'photos'> = {
+        const insertData: any = {
             user_id: userId,
             name: data.name,
             url: data.url,
@@ -172,8 +172,8 @@ export const photoService = {
             video_url: data.videoUrl || null
         };
 
-        const { data: newPhoto, error: photoError } = await supabase
-            .from('photos')
+        const { data: newPhoto, error: photoError } = await (supabase
+            .from('photos' as any) as any)
             .insert(insertData)
             .select()
             .single();
@@ -187,8 +187,8 @@ export const photoService = {
                 tag_id: tagId
             }));
 
-            const { error: tagsError } = await supabase
-                .from('photo_tags')
+            const { error: tagsError } = await (supabase
+                .from('photo_tags' as any) as any)
                 .insert(photoTagsData);
 
             if (tagsError) throw new Error(`Failed to create photo tags: ${tagsError.message}`);
@@ -209,7 +209,7 @@ export const photoService = {
     },
 
     updatePhoto: async (id: string, data: Partial<Photo>) => {
-        const updateData: TablesUpdate<'photos'> = {};
+        const updateData: any = {};
         if (data.name !== undefined) updateData.name = data.name;
         if (data.url !== undefined) updateData.url = data.url;
         if (data.thumbnailUrl !== undefined) updateData.thumbnail_url = data.thumbnailUrl;
@@ -218,8 +218,8 @@ export const photoService = {
         if (data.userId !== undefined) updateData.user_id = data.userId;
         if (data.videoUrl !== undefined) updateData.video_url = data.videoUrl;
 
-        const { data: updatedPhoto, error: photoError } = await supabase
-            .from('photos')
+        const { data: updatedPhoto, error: photoError } = await (supabase
+            .from('photos' as any) as any)
             .update(updateData)
             .eq('id', id)
             .select()
@@ -230,11 +230,11 @@ export const photoService = {
         const finalTagIds = data.tagIds ?? [];
 
         if (data.tagIds !== undefined) {
-            await supabase.from('photo_tags').delete().eq('photo_id', id);
+            await (supabase.from('photo_tags' as any) as any).delete().eq('photo_id', id);
 
             if (finalTagIds.length > 0) {
                 const photoTagsData = finalTagIds.map(tagId => ({ photo_id: id, tag_id: tagId }));
-                const { error: tagsError } = await supabase.from('photo_tags').insert(photoTagsData);
+                const { error: tagsError } = await (supabase.from('photo_tags' as any) as any).insert(photoTagsData);
                 if (tagsError) throw new Error(`Failed to update photo tags: ${tagsError.message}`);
             }
         }
@@ -256,14 +256,14 @@ export const photoService = {
 
     deletePhoto: async (id: string) => {
         // Fetch URLs before deleting so we can clean up storage files afterwards
-        const { data: photoData } = await supabase
-            .from('photos')
+        const { data: photoData } = await (supabase
+            .from('photos' as any) as any)
             .select('url, thumbnail_url')
             .eq('id', id)
             .single();
 
-        const { error } = await supabase
-            .from('photos')
+        const { error } = await (supabase
+            .from('photos' as any) as any)
             .delete()
             .eq('id', id);
 

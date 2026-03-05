@@ -11,8 +11,8 @@ export const exportService = {
         try {
             // 1. Fetch all photos for this user
             // We only need specific fields for the txt export to keep it clean
-            const { data: photos, error } = await supabase
-                .from('photos')
+            const { data: photos, error } = await (supabase
+                .from('photos' as any) as any)
                 .select(`
           name,
           url,

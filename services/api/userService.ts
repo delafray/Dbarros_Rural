@@ -10,8 +10,8 @@ type UserWithPhotosRow = {
 
 export const userService = {
     getUsersWithPhotos: async () => {
-        const { data, error } = await supabase
-            .from('photos')
+        const { data, error } = await (supabase
+            .from('photos' as any) as any)
             .select('user_id, users(name)')
             .not('user_id', 'is', null);
 

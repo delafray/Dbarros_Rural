@@ -3,8 +3,8 @@ import { supabase } from '../supabaseClient';
 export const configService = {
     getSystemConfig: async (key: string): Promise<string | null> => {
         try {
-            const { data, error } = await supabase
-                .from('system_config')
+            const { data, error } = await (supabase
+                .from('system_config' as any) as any)
                 .select('value')
                 .eq('key', key)
                 .maybeSingle();
@@ -18,8 +18,8 @@ export const configService = {
     },
 
     updateSystemConfig: async (_userId: string, key: string, value: string): Promise<void> => {
-        const { error } = await supabase
-            .from('system_config')
+        const { error } = await (supabase
+            .from('system_config' as any) as any)
             .upsert({ key, value, updated_at: new Date().toISOString() });
 
         if (error) throw new Error(`Failed to update system config: ${error.message}`);
