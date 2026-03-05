@@ -832,7 +832,7 @@ const Dashboard: React.FC = () => {
                                                     }}
                                                 >
                                                     <div className="hidden sm:block text-[9px] font-bold text-orange-500 uppercase tracking-tighter opacity-60 group-hover/atend:opacity-100 transition-opacity">
-                                                        Abrir Atendimento
+                                                        Atendimentos
                                                     </div>
                                                     <div className="w-7 h-7 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 group-hover/atend:bg-orange-500 group-hover/atend:text-white transition-all shadow-sm border border-orange-100">
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -845,7 +845,7 @@ const Dashboard: React.FC = () => {
                                                 <div className="flex items-center gap-1">
                                                     <div className="flex items-center gap-2 group/planilha cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/planilha-vendas/${edicao.id}`); }}>
                                                         <div className="hidden sm:block text-[9px] font-bold text-blue-600 uppercase tracking-tighter opacity-70 group-hover/planilha:opacity-100 transition-opacity">
-                                                            Abrir Planilha
+                                                            Planilha
                                                         </div>
                                                         <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover/planilha:bg-blue-600 group-hover/planilha:text-white transition-all shadow-sm border border-blue-100">
                                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
