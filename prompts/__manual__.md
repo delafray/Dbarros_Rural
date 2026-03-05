@@ -161,3 +161,11 @@ Abaixo, explico de forma simples e livre de "tecn√™s" o que cada prompt guardado
 **Por que √© genial:** Gerar PDFs no navegador √© famoso por "quebrar linhas" e "ficar torto" ou criar p√°ginas em branco gigantescas com "itens lixo" que o cliente n√£o comprou. Este Blueprint ensina uma IA a construir um filtro cir√∫rgico que *silencia listas n√£o registradas*, e injeta c√°lculos milim√©tricos (Offset de `+0.6mm` de gravidade) para desenhar cruzes "x" e asteriscos "*" *VISUALMENTE* no centro exato de pequenos quadrados da tabela. Um documento final de est√©tica impec√°vel.
 
 .
+
+---
+
+## 23. ?? `PROMPT_23_ANALISADOR_OPTICO_DE_PLANTAS.md`
+**(Vis„o Computacional Front-End sem IA)**
+**O que ele faz:** Ensina a IA a construir um motor de reconhecimento visual que roda 100% no navegador usando OpenCV. Ele encontra objetos repetidos (como mesas ou extintores) em uma planta baixa fornecendo apenas 1 exemplo de referÍncia.
+**Por que È genial:** N„o gasta IA nem servidores externos para descobrir onde os itens est„o (matem·tica pura de Pixels). E o mais importante: entrega uma arquitetura visual onde a planta gigante fica apagada em escala de cinza, e apenas os itens achados brilham na tela com suas cores originais, com uma linha apontando para eles. Pura engenharia criativa.
+
