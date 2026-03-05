@@ -154,3 +154,5 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 **O que ele faz:** Documenta o sistema de backup automático completo do projeto — aquele que é ativado com um único botão **"Backup BD"** e gera um ZIP com absolutamente tudo: dados de todas as tabelas, usuários com UUIDs originais, funções PostgreSQL ao vivo, políticas RLS ao vivo, histórico de migrations e todos os arquivos do Storage.
 **Por que é genial:** O sistema descobre automaticamente tabelas novas, funções criadas no Studio e políticas RLS sem nenhuma atualização manual. A função `backup_introspect()` vasculha o banco ao vivo usando `pg_get_functiondef()` e `pg_policies` — capturando até scripts criados fora das migrations. O prompt ensina uma IA completa como restaurar o sistema do zero em um projeto Supabase novo, na ordem certa, sem perder nenhum vínculo de dados. **Se o pior acontecer, este prompt + o ZIP de backup = sistema funcionando em horas.**
 
+
+.
