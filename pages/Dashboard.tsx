@@ -489,7 +489,7 @@ const Dashboard: React.FC = () => {
                             doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
                             // centro do quadrado interno + ajuste baseline 8pt (* sobe mais, precisa +1mm extra)
                             const boxCenterY = y + pad + (ROW_H - pad * 2) / 2 + 0.8;
-                            const charY = isStar ? boxCenterY + 0.5 : boxCenterY;
+                            const charY = isStar ? boxCenterY + 0.6 : boxCenterY;
                             doc.text(isStar ? '*' : 'x', x + col.w / 2, charY, { align: 'center' });
                         }
                     } else if (col.key.startsWith('opt_')) {
@@ -503,7 +503,7 @@ const Dashboard: React.FC = () => {
                             doc.roundedRect(x + pad, y + pad, col.w - pad * 2, ROW_H - pad * 2, 1, 1, 'F');
                             doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
                             const boxCenterY2 = y + pad + (ROW_H - pad * 2) / 2 + 0.8;
-                            const charY2 = val === '*' ? boxCenterY2 + 0.5 : boxCenterY2;
+                            const charY2 = val === '*' ? boxCenterY2 + 0.6 : boxCenterY2;
                             doc.text(val, x + col.w / 2, charY2, { align: 'center' });
                         }
                     } else if (col.key === 'subTotal') {
