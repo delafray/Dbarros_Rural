@@ -424,8 +424,9 @@ const Dashboard: React.FC = () => {
 
                 let x = MX;
                 allCols.forEach(col => {
-                    const isFin = col.key === 'subTotal' || col.key === 'desconto' || col.key === 'total';
-                    doc.setFillColor(...(isFin ? ([248, 250, 253] as [number, number, number]) : rowBg));
+                    // desconto com fundo clarinho se houver desconto, senao rowBg como o resto
+                    const isDesc = col.key === 'desconto' && desconto > 0;
+                    doc.setFillColor(...(isDesc ? ([255, 235, 210] as [number, number, number]) : rowBg));
                     doc.rect(x, y, col.w, ROW_H, 'F');
                     doc.setDrawColor(...BORDER); doc.rect(x, y, col.w, ROW_H, 'S');
                     // vertical center Y
@@ -482,13 +483,10 @@ const Dashboard: React.FC = () => {
                         // centered in column
                         doc.text(fmtMoney(subTotal), x + col.w / 2, midY, { align: 'center' });
                     } else if (col.key === 'desconto') {
-                        // always white text, no amber
-                        doc.setFontSize(7); doc.setTextColor(...WHITE);
+                        doc.setFontSize(7);
                         if (desconto > 0) {
-                            // highlight background for discount
-                            doc.setFillColor(200, 90, 0);
-                            doc.rect(x, y, col.w, ROW_H, 'F');
                             doc.setFont('helvetica', 'bold');
+                            doc.setTextColor(160, 60, 0); // texto laranja escuro sobre fundo clarinho
                             doc.text(fmtMoney(desconto), x + col.w / 2, midY, { align: 'center' });
                         } else {
                             doc.setTextColor(160, 160, 180);
