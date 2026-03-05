@@ -31,7 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } catch (err: any) {
                 console.error("Auth sync error:", err);
             } finally {
-                if (isInitial) setIsLoading(false);
+                // Incondicional: libera o carregamento ao terminar o sync independente da desmontagem
+                setIsLoading(false);
             }
         };
 
