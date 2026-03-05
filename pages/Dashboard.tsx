@@ -558,18 +558,18 @@ const Dashboard: React.FC = () => {
             curY = drawResumoGeral(curY);
             curY = drawColHeaders(curY);
 
-            // Itens não-stand (Merc., etc.) só entram se tiverem QUALQUER dado:
-            // cliente vinculado, tipo_venda preenchido, qualquer opcional x/* ou desconto
+            // Itens não-stand (Merc., etc.) só são omitidos se TUDO estiver em branco/nulo
             const rowsForPdf = sorted.filter(row => {
                 const cat = getCategoria(row.stand_nr);
                 const isStand = cat ? (cat as any).is_stand !== false : true;
                 if (isStand) return true;
-                // tem cliente_id ou tipo diferente de DISPONÍVEL
+                // tem cliente vinculado
                 if (row.cliente_id) return true;
-                if (row.tipo_venda !== 'DISPONÍVEL') return true;
-                // tem algum opcional selecionado
+                // tem tipo preenchido (não DISPONÍVEL)
+                if (row.tipo_venda && row.tipo_venda !== 'DISPONÍVEL') return true;
+                // tem QUALQUER opcional com algum valor não vazio
                 const sel = (row.opcionais_selecionados as Record<string, string>) || {};
-                if (Object.values(sel).some(v => v === 'x' || v === '*')) return true;
+                if (Object.values(sel).some(v => v && v.trim() !== '')) return true;
                 // tem desconto
                 if (Number(row.desconto) > 0) return true;
                 return false;
