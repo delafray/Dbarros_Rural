@@ -558,16 +558,24 @@ const Dashboard: React.FC = () => {
             curY = drawResumoGeral(curY);
             curY = drawColHeaders(curY);
 
-            for (let i = 0; i < sorted.length; i++) {
+            // Itens não-stand (Merc., etc.) só entram se tiverem cliente atribuído
+            const rowsForPdf = sorted.filter(row => {
+                const cat = getCategoria(row.stand_nr);
+                const isStand = cat ? (cat as any).is_stand !== false : true;
+                if (isStand) return true;
+                return row.tipo_venda !== 'DISPONÍVEL';
+            });
+
+            for (let i = 0; i < rowsForPdf.length; i++) {
                 if (curY + ROW_H > PH - MY - ROW_H) {
                     doc.addPage(); page++;
                     drawPageBanner(page);
                     curY = MY + TITLE_H + 1;
                     curY = drawColHeaders(curY);
                 }
-                drawDataRow(sorted[i], curY);
+                drawDataRow(rowsForPdf[i], curY);
                 curY += ROW_H;
-                if (i % 5 === 0) setPdfProgress(65 + Math.round((i / sorted.length) * 22));
+                if (i % 5 === 0) setPdfProgress(65 + Math.round((i / rowsForPdf.length) * 22));
             }
             if (curY + ROW_H > PH - MY) { doc.addPage(); curY = MY + TITLE_H + 1; }
             drawTotalsRow(curY);
