@@ -352,6 +352,20 @@ const CadastroEvento: React.FC = () => {
                                             placeholder="Nome oficial do evento..."
                                         />
                                     </div>
+                                    {user?.canManageTags && (
+                                        <div>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!(dados as any).master_user_id}
+                                                    onChange={(e) => setDados({ ...dados, master_user_id: e.target.checked ? user.id : null } as any)}
+                                                    className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer"
+                                                />
+                                                <span className="text-[11px] font-bold text-amber-700 uppercase">Evento exclusivo Master</span>
+                                                <span className="text-[10px] text-slate-400">(somente masters podem ver este evento)</span>
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 
