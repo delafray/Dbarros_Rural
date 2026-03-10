@@ -14,6 +14,7 @@ import Eventos from './pages/Eventos';
 import CadastroEvento from './pages/CadastroEvento';
 import TempPlanilha from './pages/TempPlanilha';
 import ConfiguracaoVendas from './pages/ConfiguracaoVendas';
+import PlanilhaAreaLivre from './pages/PlanilhaAreaLivre';
 import ItensOpcionais from './pages/ItensOpcionais';
 import Dashboard from './pages/Dashboard';
 import Atendimentos from './pages/Atendimentos';
@@ -57,6 +58,7 @@ const App: React.FC = () => {
 
         <Route path="/planilha-vendas/:edicaoId" element={<ProtectedRoute><TempPlanilha /></ProtectedRoute>} />
         <Route path="/configuracao-vendas/:edicaoId" element={<ProtectedRoute><ConfiguracaoVendas /></ProtectedRoute>} />
+        <Route path="/planilha-area-livre/:edicaoId/:categoriaTag" element={<ProtectedRoute><PlanilhaAreaLivre /></ProtectedRoute>} />
         <Route path="/atendimentos/:edicaoId" element={<ProtectedRoute><Atendimentos /></ProtectedRoute>} />
         <Route path="/controle-imagens" element={<ProtectedRoute><ControleImagens /></ProtectedRoute>} />
         <Route path="/itens-opcionais" element={<ProtectedRoute><ItensOpcionais /></ProtectedRoute>} />

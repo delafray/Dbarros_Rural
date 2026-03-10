@@ -396,8 +396,8 @@ const Users: React.FC = () => {
                             </label>
                         </div>
 
-                        {/* Sub-permissions conditionally rendered */}
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAdmin ? 'max-h-24 opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}`}>
+                        {/* Sub-permissions conditionally rendered — apenas masters podem definir outro master */}
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAdmin && currentUser?.canManageTags ? 'max-h-24 opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}`}>
                             <label className="flex items-center space-x-3 cursor-pointer p-3 bg-indigo-50 border-2 border-indigo-200 hover:border-indigo-400 transition-colors">
                                 <input
                                     type="checkbox"

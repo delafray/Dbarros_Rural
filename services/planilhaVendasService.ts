@@ -16,7 +16,20 @@ export interface CategoriaSetup {
     comboNames?: string[]; // Nomes customizados pros combos (usualmente salvo só no index 0)
     ordem?: number;
     is_stand?: boolean; // false = não é stand (ex: merchandising) — ignora na contagem de stands
+    // Área Livre
+    tipo_precificacao?: 'fixo' | 'area_livre'; // default = 'fixo'
+    preco_m2?: number;          // preço/m² de referência (centavos) — só area_livre
+    combos_adicionais?: number[]; // adicional fixo por combo (centavos) — só area_livre
+    precos_fixados?: boolean;       // true = preços travados, não recalcular automaticamente
 }
+
+// Extensão com campos de área livre (adicionados pela migration 20260310000002)
+export type PlanilhaEstandeAL = PlanilhaEstande & {
+    area_m2?: number | null;
+    preco_m2_override?: number | null;
+    total_override?: number | null;
+    combo_overrides?: Record<string, number> | null;
+};
 
 export const planilhaVendasService = {
     async getConfig(edicaoId: string) {
@@ -147,7 +160,7 @@ export const planilhaVendasService = {
         // Identifica estandes EXISTENTES que não estão no mapeamento de válidos (são órfãos/excedentes)
         (existentes || []).forEach(e => {
             if (!validStandNrs.has(e.stand_nr)) {
-                // Remove-os apenas se estiverem sem dados
+                // Remove-os apenas se estiverem sem dados na planilha principal (ignora campos de AL)
                 const isEmpty =
                     !e.cliente_id &&
                     !e.cliente_nome_livre &&

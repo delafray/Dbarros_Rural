@@ -84,6 +84,12 @@ const PlanilhaVendas: React.FC = () => {
     imgRecebidas: number;
     imgDoStand: ImagemConfig[];
   } | null>(null);
+  // Modal de aviso ao alterar m² de stand AL na planilha principal
+  const [m2AvisoModal, setM2AvisoModal] = useState(false);
+  // Edição inline de m² para stands AL
+  const [editingM2, setEditingM2] = useState<{ id: string; val: string } | null>(null);
+  // Filtro de status
+  const [viewFilter, setViewFilter] = useState<'todos' | 'vendidos' | 'disponivel'>('todos');
 
   useEffect(() => {
     if (!statusModal?.rowId) { setModalRecebimentos({}); return; }
@@ -427,10 +433,39 @@ const PlanilhaVendas: React.FC = () => {
 
   const getPrecoForCombo = (
     cat: CategoriaSetup | undefined,
+    row: PlanilhaEstande,
     tipoVenda: string,
   ): number => {
     if (!cat || tipoVenda.includes("*")) return 0;
     const tipo = tipoVenda.replace("*", "").trim();
+
+    // Área Livre: preço vem dos overrides salvos na sub-planilha AL
+    if (cat.tipo_precificacao === 'area_livre') {
+      const rowAL = row as any;
+      if (tipo === "STAND PADRÃO") {
+        if (rowAL.total_override != null) return Number(rowAL.total_override);
+        if (rowAL.area_m2 != null) {
+          const pm2 = rowAL.preco_m2_override ?? cat.preco_m2 ?? 0;
+          return Number(rowAL.area_m2) * Number(pm2);
+        }
+        return 0;
+      }
+      const match = tipo.match(/COMBO (\d+)/);
+      if (match) {
+        const comboOverrides = (rowAL.combo_overrides as Record<string, number>) || {};
+        // Tenta pelo label exato primeiro
+        if (comboOverrides[tipo] != null) return comboOverrides[tipo];
+        // Fallback: calcular base + adicional
+        const idx = parseInt(match[1], 10) - 1;
+        const base = rowAL.total_override ??
+          (rowAL.area_m2 != null ? Number(rowAL.area_m2) * Number(rowAL.preco_m2_override ?? cat.preco_m2 ?? 0) : 0);
+        const adicional = Array.isArray(cat.combos_adicionais) ? (cat.combos_adicionais[idx] || 0) : 0;
+        return base + adicional;
+      }
+      return 0;
+    }
+
+    // Fixo: comportamento original
     if (tipo === "STAND PADRÃO") return cat.standBase || 0;
     const match = tipo.match(/COMBO (\d+)/);
     if (match) {
@@ -443,7 +478,7 @@ const PlanilhaVendas: React.FC = () => {
   const calculateRow = useCallback(
     (row: PlanilhaEstande) => {
       const cat = getCategoriaOfRow(row);
-      const precoBase = getPrecoForCombo(cat, row.tipo_venda);
+      const precoBase = getPrecoForCombo(cat, row, row.tipo_venda);
 
       const selecoes =
         (row.opcionais_selecionados as Record<string, string>) || {};
@@ -607,8 +642,13 @@ const PlanilhaVendas: React.FC = () => {
 
   // ─── Render ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    const arr = rows.filter(
-      (r) =>
+    const arr = rows.filter((r) => {
+      // Filtro de status
+      if (viewFilter === 'vendidos' && r.tipo_venda === 'DISPONÍVEL') return false;
+      if (viewFilter === 'disponivel' && r.tipo_venda !== 'DISPONÍVEL') return false;
+      // Busca textual
+      if (!searchTerm) return true;
+      return (
         r.stand_nr.toLowerCase().includes(searchTerm.toLowerCase()) ||
         clientes
           .find((c) => c.id === r.cliente_id)
@@ -618,8 +658,9 @@ const PlanilhaVendas: React.FC = () => {
           .find((c) => c.id === r.cliente_id)
           ?.razao_social?.toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        r.cliente_nome_livre?.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
+        r.cliente_nome_livre?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
 
     return arr.sort((a, b) => {
       const catA = getCategoriaOfRow(a);
@@ -640,7 +681,24 @@ const PlanilhaVendas: React.FC = () => {
       // 3. Desempate dentro do mesmo prefixo/categoria: M 01, M 02
       return naturalSort(a.stand_nr, b.stand_nr);
     });
-  }, [rows, clientes, searchTerm, getCategoriaOfRow, categorias]);
+  }, [rows, clientes, searchTerm, viewFilter, getCategoriaOfRow, categorias]);
+
+  // ── Handler: salvar m² de stand AL com aviso ─────────────────
+  const handleSaveM2 = async (rowId: string, newVal: string) => {
+    const parsed = parseFloat(newVal);
+    const area_m2 = isNaN(parsed) ? null : parsed;
+    setEditingM2(null);
+    if (area_m2 === null) return;
+    // Salva no banco
+    await supabase
+      .from("planilha_vendas_estandes")
+      .update({ area_m2 } as any)
+      .eq("id", rowId);
+    setRows((prev) =>
+      prev.map((r) => r.id === rowId ? { ...r, area_m2 } as any : r),
+    );
+    setM2AvisoModal(true);
+  };
 
   if (loading)
     return (
@@ -727,6 +785,27 @@ const PlanilhaVendas: React.FC = () => {
               </Button>
             </>
           )}
+          {/* Filtro de status */}
+          <div className="flex border border-slate-200 rounded overflow-hidden text-xs font-bold">
+            {(['todos', 'vendidos', 'disponivel'] as const).map((f) => {
+              const labels = { todos: 'Todos', vendidos: 'Vendidos', disponivel: 'Disponível' };
+              const active = viewFilter === f;
+              const colors = {
+                todos: active ? 'bg-slate-700 text-white' : 'bg-white text-slate-500 hover:bg-slate-50',
+                vendidos: active ? 'bg-green-700 text-white' : 'bg-white text-green-700 hover:bg-green-50',
+                disponivel: active ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-50',
+              };
+              return (
+                <button
+                  key={f}
+                  onClick={() => setViewFilter(f)}
+                  className={`px-3 py-1.5 transition-colors border-r last:border-r-0 border-slate-200 ${colors[f]}`}
+                >
+                  {labels[f]}
+                </button>
+              );
+            })}
+          </div>
           <input
             type="text"
             placeholder="Buscar estande ou cliente..."
@@ -737,6 +816,39 @@ const PlanilhaVendas: React.FC = () => {
         </div>
       }
     >
+      {/* Modal de aviso: m² alterado em stand de Área Livre */}
+      {m2AvisoModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-center gap-3 px-6 py-5 bg-red-50 border-b-2 border-red-300">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-2xl">
+                ⚠️
+              </div>
+              <div>
+                <h2 className="font-black text-red-900 text-base uppercase tracking-wide">ATENÇÃO — Metragem Alterada</h2>
+                <p className="text-sm text-red-700 font-medium mt-0.5">Esta alteração requer comunicação imediata</p>
+              </div>
+            </div>
+            <div className="px-6 py-6">
+              <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                A metragem deste stand foi alterada.
+              </p>
+              <p className="text-sm text-slate-700 leading-relaxed mt-2">
+                <strong>Você deve informar todas as diretorias sobre esta mudança.</strong> Os valores de preço exibidos na planilha podem estar desatualizados — acesse a Planilha AL para recalcular.
+              </p>
+            </div>
+            <div className="flex justify-end px-6 py-4 bg-slate-50 border-t border-slate-200">
+              <button
+                onClick={() => setM2AvisoModal(false)}
+                className="px-6 py-2 text-sm font-black text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Entendido — Vou informar as diretorias
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de confirmação: COMPLETO com imagens pendentes */}
       {pendingCompleteConfirm && statusModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -1013,17 +1125,40 @@ const PlanilhaVendas: React.FC = () => {
                     className={`${tdStyle} px-1 py-0 align-middle w-[90px] min-w-[90px] max-w-[90px]`}
                   >
                     <div className="flex items-center gap-1 leading-none">
-                      {/* TAG: sempre visível, pequena */}
-                      {cat?.tag && (
-                        <span
-                          className="text-[7px] text-slate-500/80 font-normal uppercase tracking-tighter text-left pointer-events-none shrink-0"
-                          style={{ lineHeight: 1 }}
-                        >
-                          {cat.tag}
-                        </span>
-                      )}
-                      {/* Se tem prefixo → mostra stand_nr completo ("M 01")
-                                                Se não tem prefixo → retira a tag do início e mostra só o número ("01") */}
+                      {/* TAG + metragem (para AL) */}
+                      <div className="flex flex-col items-start shrink-0" style={{ lineHeight: 1 }}>
+                        {cat?.tag && (
+                          <span className="text-[7px] text-slate-500/80 font-normal uppercase tracking-tighter pointer-events-none">
+                            {cat.tag}
+                          </span>
+                        )}
+                        {cat?.tipo_precificacao === 'area_livre' && (
+                          editingM2?.id === row.id ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              inputMode="numeric"
+                              value={editingM2.val}
+                              onChange={(e) => setEditingM2({ id: row.id, val: e.target.value.replace(/[^0-9.]/g, "") })}
+                              onBlur={() => handleSaveM2(row.id, editingM2.val)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSaveM2(row.id, editingM2.val);
+                                if (e.key === "Escape") setEditingM2(null);
+                              }}
+                              className="w-10 text-[8px] font-black text-slate-700 border-b border-amber-400 bg-transparent focus:outline-none text-center"
+                            />
+                          ) : (
+                            <span
+                              className="text-[8px] font-black text-slate-600 cursor-pointer hover:text-amber-700 hover:underline"
+                              title="Clique para editar m²"
+                              onClick={() => !isVisitor && setEditingM2({ id: row.id, val: String((row as any).area_m2 ?? "") })}
+                            >
+                              {(row as any).area_m2 != null ? String((row as any).area_m2) : "—"}
+                            </span>
+                          )
+                        )}
+                      </div>
+                      {/* Stand_nr */}
                       <span className="flex-1 text-center font-bold text-[11px] whitespace-nowrap">
                         {cat?.prefix?.trim()
                           ? row.stand_nr

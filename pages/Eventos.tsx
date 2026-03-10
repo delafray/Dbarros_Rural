@@ -3,6 +3,7 @@ import { simplifyText } from '../src/utils/textUtils';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Button } from '../components/UI';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { Evento, EventoEdicao } from '../services/eventosService';
 
@@ -22,6 +23,7 @@ const ultimaEdicao = (e: EventoComEdicoes) => {
 
 const Eventos: React.FC = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [eventos, setEventos] = useState<EventoComEdicoes[]>([]);
     const [totalCount, setTotalCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -32,18 +34,27 @@ const Eventos: React.FC = () => {
     const observerRef = useRef<IntersectionObserver | null>(null);
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Aplica filtro de visibilidade:
+    // - Master: ve TODOS os eventos (sem filtro)
+    // - Nao-master: ve apenas eventos sem dono (master_user_id IS NULL)
+    const applyMasterFilter = (q: any) =>
+        user?.canManageTags ? q : q.is('master_user_id', null);
+
     // Count metadata (zero payload)
     useEffect(() => {
-        supabase
-            .from('eventos')
-            .select('*', { count: 'exact', head: true })
-            .then(({ count }) => setTotalCount(count));
-    }, []);
+        applyMasterFilter(
+            supabase.from('eventos').select('*', { count: 'exact', head: true })
+        ).then(({ count }: { count: number | null }) => setTotalCount(count));
+    }, [user?.id, user?.canManageTags]);
 
-    // Initial load
+    // Initial load — aguarda user estar disponível para aplicar filtro correto
     useEffect(() => {
+        if (user === null) return; // user ainda carregando
+        pageRef.current = 0;
+        setEventos([]);
+        setHasMore(true);
         loadPage(0);
-    }, []);
+    }, [user?.id, user?.canManageTags]);
 
     // Search debounce
     useEffect(() => {
@@ -72,11 +83,12 @@ const Eventos: React.FC = () => {
             else setLoadingMore(true);
 
             const from = page * PAGE_SIZE;
-            const { data, error } = await supabase
-                .from('eventos')
-                .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
-                .order('nome')
-                .range(from, from + PAGE_SIZE - 1);
+            const { data, error } = await applyMasterFilter(
+                supabase
+                    .from('eventos')
+                    .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
+                    .order('nome')
+            ).range(from, from + PAGE_SIZE - 1);
 
             if (error) throw error;
 
@@ -94,12 +106,13 @@ const Eventos: React.FC = () => {
     const serverSearch = async (term: string) => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('eventos')
-                .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
-                .or(`nome.ilike.%${term}%,promotor_nome.ilike.%${term}%,promotor_email.ilike.%${term}%`)
-                .order('nome')
-                .limit(200);
+            const { data, error } = await applyMasterFilter(
+                supabase
+                    .from('eventos')
+                    .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
+                    .or(`nome.ilike.%${term}%,promotor_nome.ilike.%${term}%,promotor_email.ilike.%${term}%`)
+                    .order('nome')
+            ).limit(200);
 
             if (error) throw error;
             setEventos(data || []);

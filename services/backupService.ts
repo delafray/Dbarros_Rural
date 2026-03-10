@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 // ── Auto-discovery de migrations via Vite glob ────────────────────────────────
 // Qualquer novo arquivo .sql em supabase/migrations/ e incluido automaticamente.
 // Nao e necessario atualizar este arquivo ao criar novas migrations.
-const migModules = import.meta.glob('../supabase/migrations/*.sql', { as: 'raw', eager: true });
+const migModules = import.meta.glob('../supabase/migrations/*.sql', { query: '?raw', import: 'default', eager: true });
 
 const MIGRATION_FILES: { filename: string; content: string }[] = Object.entries(migModules)
     .map(([path, content]) => ({

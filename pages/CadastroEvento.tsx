@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Button, Input } from '../components/UI';
 import { useAppDialog } from '../context/DialogContext';
+import { useAuth } from '../context/AuthContext';
 import { eventosService, Evento, EventoEdicao } from '../services/eventosService';
 import { edicaoDocsService, DocTipo } from '../services/edicaoDocsService';
 
@@ -16,6 +17,7 @@ type TabType = 'dados' | 'edicoes';
 const CadastroEvento: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabType>(id ? 'edicoes' : 'dados');
     const [eventoId, setEventoId] = useState<string | null>(id || null);
     const [isLoading, setIsLoading] = useState(false);
@@ -75,7 +77,10 @@ const CadastroEvento: React.FC = () => {
     const handleSaveEvento = async () => {
         try {
             setIsSaving(true);
-            const savedEvento = await eventosService.saveEvento(dados);
+            const payload = (!eventoId && user?.canManageTags)
+                ? { ...dados, master_user_id: user.id }
+                : dados;
+            const savedEvento = await eventosService.saveEvento(payload as any);
             setEventoId(savedEvento.id);
             setDados(savedEvento);
 

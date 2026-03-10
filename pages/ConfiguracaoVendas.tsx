@@ -123,6 +123,30 @@ const ConfiguracaoVendas: React.FC = () => {
   } | null>(null);
   // Tags salvas no banco — usadas para detectar renames na hora de salvar
   const [savedTags, setSavedTags] = useState<string[]>([]);
+  // Tags de categorias AL que já têm dados configurados (bloqueia toggle/delete)
+  const [alCategoriesWithData, setAlCategoriesWithData] = useState<Set<string>>(new Set());
+  // Dirty state — alterações não salvas
+  const [isDirty, setIsDirty] = useState(false);
+  const [showDirtyModal, setShowDirtyModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  // Avisa o browser ao fechar/recarregar aba
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  const guardNavigation = (action: () => void) => {
+    if (isDirty) {
+      setPendingAction(() => action);
+      setShowDirtyModal(true);
+    } else {
+      action();
+    }
+  };
 
   useEffect(() => {
     if (edicaoId) loadData();
@@ -194,7 +218,7 @@ const ConfiguracaoVendas: React.FC = () => {
         const { data: estandes } = await supabase
           .from("planilha_vendas_estandes")
           .select(
-            "id, stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados",
+            "id, stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados, area_m2, total_override",
           )
           .eq("config_id", config.id);
         if (estandes && estandes.length > 0) {
@@ -220,6 +244,19 @@ const ConfiguracaoVendas: React.FC = () => {
             });
           });
           setOpcionaisUsados(usados);
+          // Descobrir quais categorias AL já têm dados configurados
+          const alComDados = new Set<string>();
+          mappedCats
+            .filter((c) => c.tipo_precificacao === 'area_livre')
+            .forEach((cat) => {
+              const prefix = (cat.prefix || cat.tag || '').trim().toUpperCase();
+              const temDados = (estandes as any[]).some((e) => {
+                const ePrefix = e.stand_nr.split(' ')[0].toUpperCase();
+                return ePrefix === prefix && (e.area_m2 != null || e.total_override != null);
+              });
+              if (temDados) alComDados.add(cat.tag);
+            });
+          setAlCategoriesWithData(alComDados);
         }
       }
       setOpcionaisDisponiveis(allOpcionais);
@@ -236,7 +273,7 @@ const ConfiguracaoVendas: React.FC = () => {
     idx: number,
     field: K,
     value: string | number,
-  ) =>
+  ) => {
     setCategorias((prev) =>
       prev.map((c, i) =>
         i !== idx
@@ -250,8 +287,10 @@ const ConfiguracaoVendas: React.FC = () => {
           },
       ),
     );
+    setIsDirty(true);
+  };
 
-  const updateCombo = (catIdx: number, ci: number, value: string | number) =>
+  const updateCombo = (catIdx: number, ci: number, value: string | number) => {
     setCategorias((prev) =>
       prev.map((c, i) => {
         if (i !== catIdx) return c;
@@ -260,6 +299,21 @@ const ConfiguracaoVendas: React.FC = () => {
         return { ...c, combos: arr };
       }),
     );
+    setIsDirty(true);
+  };
+
+  const updateComboAdicional = (catIdx: number, ci: number, value: string | number) => {
+    setCategorias((prev) =>
+      prev.map((c, i) => {
+        if (i !== catIdx) return c;
+        const arr = Array.isArray(c.combos_adicionais) ? [...c.combos_adicionais] : [];
+        while (arr.length <= ci) arr.push(0);
+        arr[ci] = Number(value) || 0;
+        return { ...c, combos_adicionais: arr };
+      }),
+    );
+    setIsDirty(true);
+  };
 
   const addCombo = () => {
     setNumCombos((n) => n + 1);
@@ -273,6 +327,7 @@ const ConfiguracaoVendas: React.FC = () => {
         combos: Array.isArray(c.combos) ? [...c.combos, 0] : [0],
       })),
     );
+    setIsDirty(true);
   };
 
   const removeCombo = () => {
@@ -285,6 +340,7 @@ const ConfiguracaoVendas: React.FC = () => {
         combos: Array.isArray(c.combos) ? c.combos.slice(0, -1) : [],
       })),
     );
+    setIsDirty(true);
   };
 
   const handleComboNameChange = (idx: number, newName: string) => {
@@ -293,6 +349,7 @@ const ConfiguracaoVendas: React.FC = () => {
       arr[idx] = newName.toUpperCase();
       return arr;
     });
+    setIsDirty(true);
   };
 
   const addCategoria = () => {
@@ -314,6 +371,7 @@ const ConfiguracaoVendas: React.FC = () => {
         },
       ];
     });
+    setIsDirty(true);
   };
 
   const removeCategoria = async (idx: number) => {
@@ -358,6 +416,7 @@ const ConfiguracaoVendas: React.FC = () => {
     // Removido da lista em tempo de execução. O banco será limpo no "Salvar Configurações".
     const novasCategorias = categorias.filter((_, i) => i !== idx);
     setCategorias(novasCategorias);
+    setIsDirty(true);
   };
 
   // ── Opcionais handlers ─────────────────────────────────────
@@ -539,7 +598,7 @@ const ConfiguracaoVendas: React.FC = () => {
     const { data: estandes, error } = await supabase
       .from("planilha_vendas_estandes")
       .select(
-        "stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados",
+        "stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados, area_m2, total_override",
       )
       .eq("config_id", configId);
 
@@ -552,9 +611,9 @@ const ConfiguracaoVendas: React.FC = () => {
       }
     }
 
-    const orphansWithData = estandes.filter((e) => {
+    const orphansWithData = (estandes as any[]).filter((e) => {
       if (validStandNrs.has(e.stand_nr)) return false;
-      // É um órfão. Tem dados?
+      // É um órfão. Tem dados na planilha principal? (ignora campos de AL — area_m2, total_override)
       return (
         e.cliente_id ||
         e.cliente_nome_livre ||
@@ -631,6 +690,22 @@ const ConfiguracaoVendas: React.FC = () => {
     return null;
   };
 
+  // ── Navegar para AL (salva config antes) ───────────────────
+  const handleNavigateToAL = async (cat: CategoriaSetup) => {
+    try {
+      setSaving(true);
+      const savedId = await persistConfig();
+      setConfigId(savedId);
+      await planilhaVendasService.syncEstandes(savedId, categorias);
+      setIsDirty(false);
+      navigate(`/planilha-area-livre/${edicaoId}/${encodeURIComponent(cat.tag)}`);
+    } catch (err) {
+      await appDialog.alert({ title: 'Erro', message: String(err), type: 'danger' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ── Save config ────────────────────────────────────────────
   const handleSave = async () => {
     if (!edicaoId) return;
@@ -681,6 +756,7 @@ const ConfiguracaoVendas: React.FC = () => {
       });
       setSavedCounts(counts);
 
+      setIsDirty(false);
       await appDialog.alert({ title: 'Salvo!', message: 'Configuracoes salvas!', type: 'success' });
       // Redireciona para planilha para refletir novas cores/preços
       navigate(`/planilha-vendas/${edicaoId}`);
@@ -748,6 +824,32 @@ const ConfiguracaoVendas: React.FC = () => {
 
   return (
     <Layout title="Estruturar Planilha de Vendas">
+      {/* Modal de alterações não salvas */}
+      {showDirtyModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5 bg-amber-50 border-b border-amber-200">
+              <h2 className="font-black text-slate-800">Alterações não salvas</h2>
+              <p className="text-sm text-amber-700 mt-1">Você tem alterações não salvas. Deseja sair sem salvar?</p>
+            </div>
+            <div className="flex gap-3 px-6 py-4 justify-end bg-slate-50">
+              <button
+                onClick={() => { setShowDirtyModal(false); setPendingAction(null); }}
+                className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                Ficar aqui
+              </button>
+              <button
+                onClick={() => { setIsDirty(false); setShowDirtyModal(false); if (pendingAction) pendingAction(); }}
+                className="px-4 py-2 text-sm font-black text-white bg-red-600 rounded-lg hover:bg-red-700"
+              >
+                Sair sem salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto p-4 pb-32 space-y-6">
         {/* Status banner */}
         {planilhaExiste ? (
@@ -777,29 +879,41 @@ const ConfiguracaoVendas: React.FC = () => {
         {/* ── Categorias / Preços ── */}
         <div className="bg-white border border-slate-200 overflow-hidden shadow-sm">
           <div className="bg-slate-900 text-white px-5 py-3 flex flex-wrap gap-2 items-center justify-between">
-            <div>
-              <span className="font-bold text-sm uppercase tracking-wider">
-                Estrutura de Estandes e Preços
-              </span>
-              <span className="ml-3 text-slate-400 text-xs">
-                {totalEstandes} stand(s) no total
-              </span>
+            <div className="flex items-center gap-3">
+              <div>
+                <span className="font-bold text-sm uppercase tracking-wider">
+                  Estrutura de Estandes e Preços
+                </span>
+                <span className="ml-3 text-slate-400 text-xs">
+                  {totalEstandes} stand(s) no total
+                </span>
+              </div>
+              {/* Botões de acesso às planilhas AL — junto ao contador */}
+              {configId && categorias.filter(c => c.tipo_precificacao === 'area_livre').map((cat) => (
+                <button
+                  key={cat.tag}
+                  onClick={() => handleNavigateToAL(cat)}
+                  className="text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 transition-colors shadow-sm whitespace-nowrap"
+                >
+                  Configurar Área Livre
+                </button>
+              ))}
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <button
                 onClick={addCombo}
-                className="text-xs font-bold bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 transition-colors shadow-sm"
+                className="text-xs font-black bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 transition-colors shadow-sm"
               >
                 + Adicionar Combo
               </button>
-              {numCombos > 0 && (
-                <button
-                  onClick={removeCombo}
-                  className="text-xs bg-red-900/60 hover:bg-red-800 text-red-200 px-3 py-1.5 transition-colors"
-                >
-                  − Remover Combo
-                </button>
-              )}
+              <div className="w-3" />
+              <button
+                onClick={removeCombo}
+                disabled={numCombos === 0}
+                className={`text-xs font-black px-3 py-1.5 text-white transition-colors ${numCombos === 0 ? "bg-red-800/40 cursor-not-allowed" : "bg-red-700 hover:bg-red-600"}`}
+              >
+                − Remover Combo
+              </button>
               <div className="w-px bg-slate-600 mx-1" />
               <button
                 onClick={addCategoria}
@@ -825,8 +939,12 @@ const ConfiguracaoVendas: React.FC = () => {
                   <th className="px-4 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-20 border border-slate-200">
                     Qtd.
                   </th>
+                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-amber-600 w-16 border border-slate-200"
+                    title="Categoria de Área Livre (venda por m²)">
+                    AL?
+                  </th>
                   <th className="px-4 py-1 text-right text-[11px] font-bold uppercase text-slate-500 w-32 border border-slate-200">
-                    Base
+                    Base / R$/m²
                   </th>
                   {Array.from({ length: numCombos }).map((_, i) => (
                     <th
@@ -915,38 +1033,111 @@ const ConfiguracaoVendas: React.FC = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-0.5 border border-slate-200">
-                          <CurrencyField
-                            value={cat.standBase}
-                            onChange={(n) => updateCat(idx, "standBase", n)}
-                            className="w-full p-1 border border-black/10 text-right font-mono font-bold text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[90px]"
-                          />
+                        {/* Toggle Área Livre */}
+                        <td className="px-1 py-0.5 text-center border border-slate-200">
+                          {(() => {
+                            const isAL = cat.tipo_precificacao === 'area_livre';
+                            const hasData = alCategoriesWithData.has(cat.tag);
+                            const isDisabled = hasData;
+                            const title = hasData
+                              ? 'Categoria com dados AL. Acesse a Planilha AL para desmarcar.'
+                              : 'Marcar como Área Livre (venda por m²) — desmarca automaticamente qualquer outra';
+                            return (
+                              <label
+                                className={`flex items-center justify-center gap-1 ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                                title={title}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isAL}
+                                  disabled={isDisabled}
+                                  onChange={async (e) => {
+                                    if (e.target.checked) {
+                                      // Bloqueia se outra AL já tem dados configurados
+                                      const outraComDados = categorias.find(
+                                        (c, i) => i !== idx && c.tipo_precificacao === 'area_livre' && alCategoriesWithData.has(c.tag)
+                                      );
+                                      if (outraComDados) {
+                                        await appDialog.alert({
+                                          title: 'Área Livre com dados',
+                                          message: `A categoria "${outraComDados.tag}" já tem dados na Planilha AL. Limpe os dados dela antes de trocar.`,
+                                          type: 'warning',
+                                        });
+                                        return;
+                                      }
+                                      // Desmarca qualquer outra AL e marca esta (radio behavior)
+                                      setCategorias((prev) =>
+                                        prev.map((c, i) => ({
+                                          ...c,
+                                          tipo_precificacao: (i === idx ? 'area_livre' : 'fixo') as 'fixo' | 'area_livre',
+                                        }))
+                                      );
+                                      setIsDirty(true);
+                                    } else {
+                                      setCategorias((prev) =>
+                                        prev.map((c, i) =>
+                                          i !== idx ? c : { ...c, tipo_precificacao: 'fixo' as const }
+                                        )
+                                      );
+                                      setIsDirty(true);
+                                    }
+                                  }}
+                                  className="w-4 h-4 accent-amber-600 cursor-pointer"
+                                />
+                              </label>
+                            );
+                          })()}
                         </td>
-                        {Array.from({ length: numCombos }).map((_, ci) => (
-                          <td
-                            key={ci}
-                            className="px-2 py-0.5 border border-slate-200"
-                          >
-                            <CurrencyField
-                              value={Array.isArray(cat.combos) ? cat.combos[ci] || 0 : 0}
-                              onChange={(n) => updateCombo(idx, ci, n)}
-                              className="w-full p-1 border border-blue-200 text-right text-blue-900 font-black font-mono text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[90px]"
-                            />
-                          </td>
-                        ))}
+                        {cat.tipo_precificacao === 'area_livre' ? (
+                          <>
+                            {/* Base desabilitado — configurar na Planilha AL */}
+                            <td className="px-2 py-0.5 border border-slate-200 bg-slate-100" title="Configurar na Planilha Área Livre">
+                              <span className="block w-full p-1 text-right font-mono text-[11px] text-slate-400 italic min-w-[90px]">via AL</span>
+                            </td>
+                            {/* Combos desabilitados — configurar na Planilha AL */}
+                            {Array.from({ length: numCombos }).map((_, ci) => (
+                              <td key={ci} className="px-2 py-0.5 border border-slate-200 bg-slate-100" title="Configurar na Planilha Área Livre">
+                                <span className="block w-full p-1 text-right font-mono text-[11px] text-slate-400 italic min-w-[90px]">via AL</span>
+                              </td>
+                            ))}
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-2 py-0.5 border border-slate-200">
+                              <CurrencyField
+                                value={cat.standBase}
+                                onChange={(n) => updateCat(idx, "standBase", n)}
+                                className="w-full p-1 border border-black/10 text-right font-mono font-bold text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[90px]"
+                              />
+                            </td>
+                            {Array.from({ length: numCombos }).map((_, ci) => (
+                              <td
+                                key={ci}
+                                className="px-2 py-0.5 border border-slate-200"
+                              >
+                                <CurrencyField
+                                  value={Array.isArray(cat.combos) ? cat.combos[ci] || 0 : 0}
+                                  onChange={(n) => updateCombo(idx, ci, n)}
+                                  className="w-full p-1 border border-blue-200 text-right text-blue-900 font-black font-mono text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[90px]"
+                                />
+                              </td>
+                            ))}
+                          </>
+                        )}
                         {/* Checkbox is_stand */}
                         <td className="px-1 py-0.5 text-center border border-slate-200">
                           <label className="flex items-center justify-center gap-1 cursor-pointer" title="Marque para contar como stand na contagem total">
                             <input
                               type="checkbox"
                               checked={cat.is_stand !== false}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setCategorias((prev) =>
                                   prev.map((c, i) =>
                                     i !== idx ? c : { ...c, is_stand: e.target.checked },
                                   ),
-                                )
-                              }
+                                );
+                                setIsDirty(true);
+                              }}
                               className="w-4 h-4 accent-slate-700 cursor-pointer"
                             />
                           </label>
@@ -975,12 +1166,21 @@ const ConfiguracaoVendas: React.FC = () => {
                           })()}
                         </td>
                         <td className="px-1 py-0.5 text-center border border-slate-200">
-                          <button
-                            onClick={() => removeCategoria(idx)}
-                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors font-bold text-xs"
-                          >
-                            ✕
-                          </button>
+                          {cat.tipo_precificacao === 'area_livre' && alCategoriesWithData.has(cat.tag) ? (
+                            <span
+                              className="p-1 text-slate-300 cursor-not-allowed text-xs block text-center"
+                              title="Categoria com dados AL. Acesse a Planilha AL para excluir."
+                            >
+                              ✕
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => removeCategoria(idx)}
+                              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors font-bold text-xs"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1342,7 +1542,7 @@ const ConfiguracaoVendas: React.FC = () => {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => navigate(`/planilha-vendas/${edicaoId}`)}
+              onClick={() => guardNavigation(() => navigate(`/planilha-vendas/${edicaoId}`))}
               className="text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 border-2 border-blue-400 px-5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
