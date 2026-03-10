@@ -149,7 +149,7 @@ const PlanilhaAreaLivre: React.FC = () => {
   // ── Load ──────────────────────────────────────────────────
   useEffect(() => {
     if (edicaoId) loadData();
-  }, [edicaoId]);
+  }, [edicaoId, categoriaTag]);
 
   const loadData = async () => {
     try {
@@ -431,7 +431,7 @@ const PlanilhaAreaLivre: React.FC = () => {
       setSaving(true);
 
       // 1. Salva os estandes
-      await Promise.all(
+      const results = await Promise.all(
         rows.map((r) =>
           supabase
             .from("planilha_vendas_estandes")
@@ -446,6 +446,10 @@ const PlanilhaAreaLivre: React.FC = () => {
             .eq("id", r.id),
         ),
       );
+      const erros = results.filter((r) => r.error);
+      if (erros.length > 0) {
+        throw new Error(`Falha ao salvar ${erros.length} de ${rows.length} estandes.`);
+      }
 
       // 2. Salva a configuração da categoria (preco_m2, combos_adicionais, comboNames)
       if (configId && categoria) {

@@ -121,14 +121,14 @@ const PlanilhaVendas: React.FC = () => {
         (payload) => {
           if (payload.eventType === "INSERT") {
             setRows((prev) => {
-              if (prev.some((r) => r.id === (payload.new as PlanilhaEstande).id)) return prev;
+              if (prev.some((r) => r.id === (payload.new as any).id)) return prev;
               return [...prev, payload.new as PlanilhaEstande];
             });
           } else if (payload.eventType === "UPDATE") {
             setRows((prev) =>
               prev.map((r) =>
-                r.id === (payload.new as PlanilhaEstande).id
-                  ? (payload.new as PlanilhaEstande)
+                r.id === (payload.new as any).id
+                  ? { ...r, ...payload.new } as PlanilhaEstande
                   : r,
               ),
             );

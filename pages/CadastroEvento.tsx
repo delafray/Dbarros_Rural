@@ -53,6 +53,9 @@ const CadastroEvento: React.FC = () => {
                 const { eventos_edicoes, ...eventoData } = data as any;
                 setDados(eventoData);
                 setEdicoes((eventos_edicoes || []) as EventoEdicaoComDocs[]);
+            } else {
+                await appDialog.alert({ title: 'Evento não encontrado', message: 'Este evento não existe ou você não tem permissão para acessá-lo.', type: 'danger' });
+                navigate('/eventos');
             }
         } catch (error) {
             console.error('Erro ao buscar evento:', error);
@@ -77,8 +80,8 @@ const CadastroEvento: React.FC = () => {
     const handleSaveEvento = async () => {
         try {
             setIsSaving(true);
-            const payload = (!eventoId && user?.canManageTags)
-                ? { ...dados, master_user_id: user.id }
+            const payload = user?.canManageTags
+                ? { ...dados, master_user_id: (dados as any).master_user_id ? user.id : null }
                 : dados;
             const savedEvento = await eventosService.saveEvento(payload as any);
             setEventoId(savedEvento.id);
