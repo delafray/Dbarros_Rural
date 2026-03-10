@@ -53,19 +53,14 @@ const ItensOpcionais: React.FC = () => {
         if (!editModal || !editModal.nome.trim()) return;
         setSaving(true);
         try {
-            const itemAnterior = editModal.id ? itens.find(i => i.id === editModal.id) : null;
-            const nomeAnterior = itemAnterior?.nome;
-
             await itensOpcionaisService.upsertItem({
                 id: editModal.id || undefined,
                 nome: editModal.nome.trim(),
                 preco_base: editModal.preco_base,
                 tipo_padrao: editModal.tipo_padrao,
             });
-
-            if (nomeAnterior && nomeAnterior !== editModal.nome.trim()) {
-                await itensOpcionaisService.renameItemReferences(nomeAnterior, editModal.nome.trim());
-            }
+            // Nota: renomear no catálogo NÃO propaga mais para edições existentes.
+            // Cada edição tem seu próprio snapshot de nomes (opcionais_nomes).
 
             setEditModal(null);
             loadItens();

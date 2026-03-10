@@ -211,11 +211,26 @@ const PlanilhaVendas: React.FC = () => {
     [config],
   );
 
+  // Usa snapshot de nomes (opcionais_nomes) da edição — desvinculado do catálogo
   const opcionaisAtivos = useMemo<ItemOpcional[]>(() => {
     if (!config?.opcionais_ativos) return [];
-    return allItensOpcionais.filter((item) =>
-      config.opcionais_ativos?.includes(item.id),
-    );
+    const nomes = (config.opcionais_nomes as Record<string, string>) || {};
+    return config.opcionais_ativos
+      .map((id) => {
+        // Snapshot disponível — usa nome da edição
+        if (nomes[id]) {
+          return {
+            id,
+            nome: nomes[id],
+            preco_base: 0,
+            created_at: null,
+            tipo_padrao: null,
+          } as ItemOpcional;
+        }
+        // Fallback para catálogo (configs antigas sem snapshot)
+        return allItensOpcionais.find((item) => item.id === id) || null;
+      })
+      .filter(Boolean) as ItemOpcional[];
   }, [config, allItensOpcionais]);
 
   const numCombos = useMemo(() => {

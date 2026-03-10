@@ -86,6 +86,10 @@ const ConfiguracaoVendas: React.FC = () => {
   const [opcionaisPrecos, setOpcionaisPrecos] = useState<
     Record<string, number>
   >({});
+  // Snapshot de nomes por edição: { [itemId]: string } — desvinculado do catálogo
+  const [opcionaisNomes, setOpcionaisNomes] = useState<
+    Record<string, string>
+  >({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
@@ -209,6 +213,19 @@ const ConfiguracaoVendas: React.FC = () => {
         setOpcionaisPrecos(
           (config.opcionais_precos as Record<string, number>) || {},
         );
+        // Load snapshot de nomes (fallback: preenche a partir do catálogo)
+        const savedNomes = (config.opcionais_nomes as Record<string, string>) || {};
+        if (Object.keys(savedNomes).length > 0) {
+          setOpcionaisNomes(savedNomes);
+        } else {
+          // Backward compat: gera snapshot a partir do catálogo para configs antigas
+          const fallback: Record<string, string> = {};
+          (config.opcionais_ativos || []).forEach((id: string) => {
+            const item = allOpcionais.find((o: ItemOpcional) => o.id === id);
+            if (item) fallback[id] = item.nome;
+          });
+          setOpcionaisNomes(fallback);
+        }
         const counts: Record<string, number> = {};
         mappedCats.forEach((cat) => {
           counts[cat.tag] = cat.count;
@@ -422,12 +439,13 @@ const ConfiguracaoVendas: React.FC = () => {
   // ── Opcionais handlers ─────────────────────────────────────
   const toggleOpcional = async (id: string) => {
     if (opcionaisSelecionados.includes(id)) {
-      // Bloquear se o item já foi usado na planilha
-      const item = opcionaisDisponiveis.find((o) => o.id === id);
-      if (item && opcionaisUsados.has(item.nome)) {
+      // Bloquear se o item já foi usado na planilha (usa nome do snapshot)
+      const nomeSnapshot = opcionaisNomes[id];
+      const nomeDisplay = nomeSnapshot || opcionaisDisponiveis.find((o) => o.id === id)?.nome;
+      if (nomeDisplay && opcionaisUsados.has(nomeDisplay)) {
         await appDialog.alert({
           title: 'Item em uso',
-          message: `O item "${item.nome}" ja esta marcado em estandes da planilha.\n\nPara remove-lo da edicao, primeiro desmarque-o em todos os estandes na planilha.`,
+          message: `O item "${nomeDisplay}" ja esta marcado em estandes da planilha.\n\nPara remove-lo da edicao, primeiro desmarque-o em todos os estandes na planilha.`,
           type: 'danger',
         });
         return;
@@ -437,16 +455,26 @@ const ConfiguracaoVendas: React.FC = () => {
         delete n[id];
         return n;
       });
+      setOpcionaisNomes((p) => {
+        const n = { ...p };
+        delete n[id];
+        return n;
+      });
       setOpcionaisSelecionados((prev) => prev.filter((x) => x !== id));
       return;
     }
-    // Adicionar: setar preço sugerido como padrão
+    // Adicionar: setar preço sugerido como padrão + snapshot do nome
     const item = opcionaisDisponiveis.find((o) => o.id === id);
-    if (item)
+    if (item) {
       setOpcionaisPrecos((p) => ({
         ...p,
         [id]: Number(item.preco_base) || 0,
       }));
+      setOpcionaisNomes((p) => ({
+        ...p,
+        [id]: item.nome,
+      }));
+    }
     setOpcionaisSelecionados((prev) => [...prev, id]);
   };
 
@@ -460,16 +488,17 @@ const ConfiguracaoVendas: React.FC = () => {
       return;
     }
     const item = opcionaisDisponiveis.find((o) => o.id === id);
+    const nomeDisplay = opcionaisNomes[id] || item?.nome || id;
     const novoPreco = opcionaisPrecos[id] ?? Number(item?.preco_base ?? 0);
     const precoFmt = novoPreco.toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
     });
 
-    if (item && opcionaisUsados.has(item.nome)) {
+    if (opcionaisUsados.has(nomeDisplay)) {
       const ok = await appDialog.confirm({
         title: 'Atualizar preco',
         message:
-          `O item "${item.nome}" ja esta marcado em estandes desta planilha.\n\n` +
+          `O item "${nomeDisplay}" ja esta marcado em estandes desta planilha.\n\n` +
           `Ao confirmar, o novo preco de R$ ${precoFmt} sera salvo na configuracao e passara a valer para todos os calculos da edicao.\n\n` +
           `Deseja continuar?`,
         confirmText: 'Confirmar',
@@ -643,6 +672,8 @@ const ConfiguracaoVendas: React.FC = () => {
       categorias_config:
         categoriasToSave as unknown as import("../database.types").Json,
       opcionais_ativos: opcionaisSelecionados,
+      opcionais_nomes:
+        opcionaisNomes as unknown as import("../database.types").Json,
       opcionais_precos:
         opcionaisPrecos as unknown as import("../database.types").Json,
     };
@@ -818,9 +849,18 @@ const ConfiguracaoVendas: React.FC = () => {
   const totalEstandes = categorias
     .filter((c) => c.is_stand !== false)
     .reduce((s, c) => s + c.count, 0);
-  const itensAtivos = opcionaisDisponiveis.filter((o) =>
-    opcionaisSelecionados.includes(o.id),
-  );
+  // Itens ativos com nome do snapshot (desvinculado do catálogo)
+  const itensAtivos = opcionaisSelecionados
+    .map((id) => {
+      const catalogItem = opcionaisDisponiveis.find((o) => o.id === id);
+      const snapshotNome = opcionaisNomes[id];
+      if (!catalogItem && !snapshotNome) return null;
+      return {
+        ...(catalogItem || { id, preco_base: 0, created_at: null, tipo_padrao: null }),
+        nome: snapshotNome || catalogItem?.nome || id,
+      } as ItemOpcional;
+    })
+    .filter(Boolean) as ItemOpcional[];
 
   return (
     <Layout title="Estruturar Planilha de Vendas">

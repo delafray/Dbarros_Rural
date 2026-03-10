@@ -521,6 +521,7 @@ export type Database = {
           edicao_id: string | null
           id: string
           opcionais_ativos: string[] | null
+          opcionais_nomes: Json | null
           opcionais_precos: Json | null
           updated_at: string | null
         }
@@ -530,6 +531,7 @@ export type Database = {
           edicao_id?: string | null
           id?: string
           opcionais_ativos?: string[] | null
+          opcionais_nomes?: Json | null
           opcionais_precos?: Json | null
           updated_at?: string | null
         }
@@ -539,6 +541,7 @@ export type Database = {
           edicao_id?: string | null
           id?: string
           opcionais_ativos?: string[] | null
+          opcionais_nomes?: Json | null
           opcionais_precos?: Json | null
           updated_at?: string | null
         }
