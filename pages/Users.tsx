@@ -922,6 +922,7 @@ const Users: React.FC = () => {
                         <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">
                             {backupProgress.phase === 'db' && 'Exportando Tabelas'}
                             {backupProgress.phase === 'storage' && 'Baixando Arquivos do Storage'}
+                            {backupProgress.phase === 'source' && 'Incluindo Codigo-Fonte'}
                             {backupProgress.phase === 'zipping' && 'Compactando Arquivos'}
                             {backupProgress.phase === 'done' && 'Backup Completo'}
                         </h3>

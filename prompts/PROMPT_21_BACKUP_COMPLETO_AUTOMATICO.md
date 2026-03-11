@@ -15,6 +15,7 @@ O ZIP gerado contém:
 - **Definições de todas as funções PostgreSQL** (extraídas ao vivo via `pg_get_functiondef`)
 - **Todas as políticas RLS** (extraídas ao vivo via `pg_policies`)
 - Todos os arquivos do Storage (fotos, documentos PDF, etc.)
+- **Código-fonte completo do projeto** (~122 arquivos — pages, components, hooks, services, etc.)
 - Um guia de restauração dinâmico gerado no momento do backup
 
 ---
@@ -43,6 +44,15 @@ backup_dbarros_full_YYYYMMDD.zip
 │   └── 6_rls_policies.sql            ← Políticas RLS (extraídas ao vivo)
 ├── schema_migrations/
 │   └── *.sql (arquivos individuais de referência)
+├── source_code/                        ← CÓDIGO-FONTE COMPLETO DO PROJETO
+│   ├── pages/                          ← Telas do app
+│   ├── components/                     ← Componentes reutilizáveis
+│   ├── hooks/                          ← Hooks customizados
+│   ├── services/                       ← Lógica de dados e APIs
+│   ├── context/                        ← Context providers
+│   ├── utils/                          ← Utilitários
+│   ├── supabase/                       ← Migrations e edge functions
+│   └── *.tsx, *.ts, *.json             ← Arquivos raiz (App, config, types)
 └── storage_backup/
     ├── photos/
     ├── edicao-docs/
@@ -72,7 +82,40 @@ Quando uma nova tabela é criada, ela é automaticamente descoberta na próxima 
 ### 3. Ordenação por FK → topological sort
 O `backupService.ts` ordena as tabelas em ordem de inserção segura: tabelas referenciadas por FK são inseridas antes das dependentes. O arquivo `4_database_backup.sql` desativa validação de FK durante o restore com `SET session_replication_role = 'replica'`.
 
-### 4. Guia de restauração → gerado dinamicamente
+### 4. Código-fonte → embutido via Vite glob (igual às migrations)
+```typescript
+// Em services/backupService.ts — linha ~12
+const sourceModules = import.meta.glob(
+    [
+        '../pages/**/*.{ts,tsx}',
+        '../components/**/*.{ts,tsx}',
+        '../hooks/**/*.{ts,tsx}',
+        '../services/**/*.{ts,tsx}',
+        '../context/**/*.{ts,tsx}',
+        '../utils/**/*.{ts,tsx}',
+        '../supabase/**/*.{sql,ts}',
+        '../App.tsx',
+        '../index.tsx',
+        '../index.css',
+        '../types.ts',
+        '../database.types.ts',
+        '../version.ts',
+        '../vite-env.d.ts',
+        '../vite.config.ts',
+        '../tsconfig.json',
+        '../package.json',
+        '../index.html',
+        '../CLAUDE.md',
+        '../README.md',
+    ],
+    { query: '?raw', import: 'default', eager: true }
+);
+```
+O Vite embute o conteúdo de todos os arquivos em build-time como strings. Qualquer novo arquivo nas pastas cobertas (pages, components, hooks, services, context, utils, supabase) é incluído automaticamente no ZIP sem atualizar nenhuma lista. Os arquivos ficam na pasta `source_code/` do ZIP, mantendo a estrutura de pastas original do projeto.
+
+**ATENÇÃO:** Arquivos `.env*` são bloqueados pelo Vite por segurança (retorna 403 Forbidden). Por isso `.env` e `.env.example` NÃO estão incluídos nos globs. As variáveis de ambiente devem ser reconfiguradas manualmente após a restauração (ver Passo 8).
+
+### 5. Guia de restauração → gerado dinamicamente
 A função `generateRestoreGuide()` gera um guia personalizado contendo a contagem real de tabelas, funções, políticas e buckets do backup atual. O RESTORE_GUIDE.md dentro do ZIP sempre está atualizado.
 
 ---
@@ -382,12 +425,26 @@ supabase storage cp --recursive ./storage_backup/edicao-docs/ supabase://edicao-
 ```
 Ou upload manual via Supabase Studio → Storage.
 
-### PASSO 8 — Atualizar variáveis de ambiente
-Edite `.env.local` na raiz do projeto:
+### PASSO 8 — Restaurar código-fonte do projeto
+A pasta `source_code/` do ZIP contém o código-fonte completo (~122 arquivos). Para restaurar:
+
+1. Crie uma pasta para o novo projeto
+2. Copie todo o conteúdo de `source_code/` para essa pasta
+3. Instale as dependências:
+```bash
+npm install
+```
+4. Crie o arquivo `.env.local` com as chaves do novo projeto Supabase:
 ```
 VITE_SUPABASE_URL=https://SEU-NOVO-PROJETO.supabase.co
 VITE_SUPABASE_ANON_KEY=sua-nova-anon-key
 ```
+5. Rode o projeto:
+```bash
+npm run dev
+```
+
+> **Nota:** O `source_code/` preserva a estrutura exata de pastas do repositório Git. Se preferir, pode inicializar um novo repositório Git com `git init` e fazer o primeiro commit a partir desses arquivos.
 
 ### PASSO 9 — Corrigir URLs das fotos no banco
 ```sql
@@ -548,7 +605,19 @@ photos, avatars, assets, system, edicao-docs
 1. Abrir o sistema no navegador
 2. Ir para a seção de configurações / admin
 3. Clicar no botão **"Backup BD"**
-4. Aguardar a barra de progresso completar (exporta tabelas → storage → compacta)
+4. Aguardar a barra de progresso completar (exporta tabelas → storage → código-fonte → compacta)
 5. O arquivo `backup_dbarros_full_YYYYMMDD.zip` será baixado automaticamente
 
-**O backup é completamente automático.** Não é necessário atualizar nenhum arquivo de código ao criar novas tabelas, funções ou políticas — tudo é descoberto automaticamente via `backup_introspect()`.
+**O backup é completamente automático.** Não é necessário atualizar nenhum arquivo de código ao criar novas tabelas, funções, políticas ou novos arquivos de código-fonte — tudo é descoberto automaticamente via `backup_introspect()` (banco) e `import.meta.glob` (código).
+
+---
+
+## FASES DO PROGRESSO (o que aparece na tela)
+
+| Fase | % | Label na tela |
+|---|---|---|
+| `db` | 0–30% | Exportando tabelas... |
+| `storage` | 30–80% | Baixando arquivos do Storage... |
+| `source` | 80–88% | Incluindo Codigo-Fonte... |
+| `zipping` | 88–100% | Compactando... |
+| `done` | 100% | Backup concluído! |

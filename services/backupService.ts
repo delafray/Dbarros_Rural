@@ -6,6 +6,43 @@ import JSZip from 'jszip';
 // Nao e necessario atualizar este arquivo ao criar novas migrations.
 const migModules = import.meta.glob('../supabase/migrations/*.sql', { query: '?raw', import: 'default', eager: true });
 
+// ── Auto-discovery do codigo-fonte via Vite glob ────────────────────────────
+// Embutido no build para inclusao no backup ZIP.
+// Exclui node_modules, dist, .git — apenas codigo-fonte do projeto.
+const sourceModules = import.meta.glob(
+    [
+        '../pages/**/*.{ts,tsx}',
+        '../components/**/*.{ts,tsx}',
+        '../hooks/**/*.{ts,tsx}',
+        '../services/**/*.{ts,tsx}',
+        '../context/**/*.{ts,tsx}',
+        '../utils/**/*.{ts,tsx}',
+        '../supabase/**/*.{sql,ts}',
+        '../App.tsx',
+        '../index.tsx',
+        '../index.css',
+        '../types.ts',
+        '../database.types.ts',
+        '../version.ts',
+        '../vite-env.d.ts',
+        '../vite.config.ts',
+        '../tsconfig.json',
+        '../package.json',
+        '../index.html',
+        '../CLAUDE.md',
+        '../README.md',
+    ],
+    { query: '?raw', import: 'default', eager: true }
+);
+
+const SOURCE_FILES: { relativePath: string; content: string }[] = Object.entries(sourceModules)
+    .map(([path, content]) => ({
+        // Remove o prefixo '../' para ter caminho relativo ao projeto
+        relativePath: path.replace(/^\.\.\//, ''),
+        content: content as string,
+    }))
+    .sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+
 const MIGRATION_FILES: { filename: string; content: string }[] = Object.entries(migModules)
     .map(([path, content]) => ({
         filename: path.split('/').pop()!,
@@ -436,6 +473,7 @@ Se os UUIDs mudarem, tudo quebra. Execute SEMPRE na ordem indicada.
 - ${functionsCount} funcoes PostgreSQL (DDL completo extraido ao vivo do banco)
 - ${policiesCount} politicas RLS (extraidas ao vivo — arquivo idempotente)
 - Todos os arquivos do Storage (fotos, documentos)
+- Codigo-fonte completo do projeto (pages, components, hooks, services, etc.)
 - Este guia de restauracao
 
 ### Senhas apos restauracao
@@ -459,6 +497,15 @@ backup_dbarros_full_${dateStr}.zip
 │   └── 6_rls_policies.sql               <- SEXTO: ${policiesCount} politica(s) RLS (auto-gerado)
 ├── schema_migrations/
 │   └── *.sql (${MIGRATION_FILES.length} arquivos — referencia individual)
+├── source_code/
+│   ├── pages/              <- Telas do app
+│   ├── components/         <- Componentes reutilizaveis
+│   ├── hooks/              <- Hooks customizados
+│   ├── services/           <- Logica de dados e APIs
+│   ├── context/            <- Context providers
+│   ├── utils/              <- Utilitarios
+│   ├── supabase/           <- Migrations e edge functions
+│   └── *.tsx, *.ts, *.json <- Arquivos raiz (App, config, types)
 └── storage_backup/
 ${storageLines}
 \`\`\`
@@ -813,7 +860,7 @@ ORDER BY policyname;
 
 // ── Helpers de progresso ─────────────────────────────────────────────────────
 export type BackupProgressCallback = (info: {
-    phase: 'db' | 'storage' | 'zipping' | 'done';
+    phase: 'db' | 'storage' | 'source' | 'zipping' | 'done';
     label: string;
     pct: number;
 }) => void;
@@ -966,7 +1013,7 @@ export const backupService = {
             zip.file(`schema_migrations/${mig.filename}`, mig.content);
         }
 
-        // ── Storage (30–90%) ──────────────────────────────────────────────────
+        // ── Storage (30–80%) ──────────────────────────────────────────────────
         onProgress?.({ phase: 'storage', label: 'Descobrindo buckets do Storage...', pct: 30 });
 
         const availableBuckets = await discoverBuckets();
@@ -994,7 +1041,7 @@ export const backupService = {
                         return;
                     }
 
-                    const pct = 30 + Math.round((downloadedCount / Math.max(allFiles.length, 1)) * 58);
+                    const pct = 30 + Math.round((downloadedCount / Math.max(allFiles.length, 1)) * 48);
                     onProgress?.({
                         phase: 'storage',
                         label: `Arquivo ${downloadedCount}/${allFiles.length}: ${file.path}`,
@@ -1008,6 +1055,16 @@ export const backupService = {
             );
         }
 
+        // ── Codigo-fonte (80–88%) ───────────────────────────────────────────────
+        onProgress?.({ phase: 'source', label: `Incluindo codigo-fonte (${SOURCE_FILES.length} arquivos)...`, pct: 80 });
+
+        for (let i = 0; i < SOURCE_FILES.length; i++) {
+            const sf = SOURCE_FILES[i];
+            zip.file(`source_code/${sf.relativePath}`, sf.content);
+        }
+
+        onProgress?.({ phase: 'source', label: `Codigo-fonte: ${SOURCE_FILES.length} arquivos incluidos`, pct: 88 });
+
         // ── RESTORE_GUIDE.md dentro do ZIP ────────────────────────────────────
         zip.file('RESTORE_GUIDE.md', generateRestoreGuide(
             dateStr, tables, availableBuckets,
@@ -1015,8 +1072,8 @@ export const backupService = {
             schema?.policies?.length ?? 0,
         ));
 
-        // ── Compressao (90–100%) ───────────────────────────────────────────────
-        onProgress?.({ phase: 'zipping', label: 'Compactando...', pct: 90 });
+        // ── Compressao (88–100%) ───────────────────────────────────────────────
+        onProgress?.({ phase: 'zipping', label: 'Compactando...', pct: 88 });
 
         const blob = await zip.generateAsync(
             { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
@@ -1024,7 +1081,7 @@ export const backupService = {
                 onProgress?.({
                     phase: 'zipping',
                     label: `Compactando... ${Math.round(meta.percent)}%`,
-                    pct: 90 + Math.round(meta.percent * 0.1),
+                    pct: 88 + Math.round(meta.percent * 0.12),
                 });
             },
         );
@@ -1040,7 +1097,7 @@ export const backupService = {
 
         onProgress?.({
             phase: 'done',
-            label: `Backup concluido! ${tables.length} tabelas, ${allFiles.length} arquivo(s) de storage.`,
+            label: `Backup concluido! ${tables.length} tabelas, ${allFiles.length} arquivo(s) de storage, ${SOURCE_FILES.length} arquivos de codigo-fonte.`,
             pct: 100,
         });
     },

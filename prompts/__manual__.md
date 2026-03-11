@@ -150,9 +150,9 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 ---
 
 ## 21. 💾 `PROMPT_21_BACKUP_COMPLETO_AUTOMATICO.md`
-**(Segurança Total e Paz de Espírito)**
-**O que ele faz:** Documenta o sistema de backup automático completo do projeto — aquele que é ativado com um único botão **"Backup BD"** e gera um ZIP com absolutamente tudo: dados de todas as tabelas, usuários com UUIDs originais, funções PostgreSQL ao vivo, políticas RLS ao vivo, histórico de migrations e todos os arquivos do Storage.
-**Por que é genial:** O sistema descobre automaticamente tabelas novas, funções criadas no Studio e políticas RLS sem nenhuma atualização manual. A função `backup_introspect()` vasculha o banco ao vivo usando `pg_get_functiondef()` e `pg_policies` — capturando até scripts criados fora das migrations. O prompt ensina uma IA completa como restaurar o sistema do zero em um projeto Supabase novo, na ordem certa, sem perder nenhum vínculo de dados. **Se o pior acontecer, este prompt + o ZIP de backup = sistema funcionando em horas.**
+**(Segurança Total e Paz de Espírito — Backup Nuclear)**
+**O que ele faz:** Documenta o sistema de backup automático completo do projeto — aquele que é ativado com um único botão **"Backup BD"** e gera um ZIP com absolutamente tudo: dados de todas as tabelas, usuários com UUIDs originais, funções PostgreSQL ao vivo, políticas RLS ao vivo, histórico de migrations, todos os arquivos do Storage **e o código-fonte completo do projeto (~122 arquivos)**.
+**Por que é genial:** O sistema descobre automaticamente tabelas novas, funções criadas no Studio, políticas RLS e arquivos de código-fonte novos — sem nenhuma atualização manual. O banco é descoberto via `backup_introspect()` e o código via `import.meta.glob` do Vite (mesma técnica usada para as migrations). O ZIP contém literalmente tudo: banco + storage + código + guia de restauração. **Se o Supabase cair, se o GitHub sumir, se o computador queimar — com este ZIP + uma IA + 10 minutos, o sistema inteiro volta a funcionar do zero.** Nenhum projeto pequeno/médio no mundo tem uma solução tão completa com um único botão.
 ---
 
 ## 22. 📄 `PROMPT_22_RELATORIO_COMERCIAL_PDF.md`
@@ -165,7 +165,7 @@ Abaixo, explico de forma simples e livre de "tecnês" o que cada prompt guardado
 ---
 
 ## 23. ?? `PROMPT_23_ANALISADOR_OPTICO_DE_PLANTAS.md`
-**(Vis�o Computacional Front-End sem IA)**
-**O que ele faz:** Ensina a IA a construir um motor de reconhecimento visual que roda 100% no navegador usando OpenCV. Ele encontra objetos repetidos (como mesas ou extintores) em uma planta baixa fornecendo apenas 1 exemplo de refer�ncia.
-**Por que � genial:** N�o gasta IA nem servidores externos para descobrir onde os itens est�o (matem�tica pura de Pixels). E o mais importante: entrega uma arquitetura visual onde a planta gigante fica apagada em escala de cinza, e apenas os itens achados brilham na tela com suas cores originais, com uma linha apontando para eles. Pura engenharia criativa.
+**(Vis�o Computacional Front-End sem IA)**
+**O que ele faz:** Ensina a IA a construir um motor de reconhecimento visual que roda 100% no navegador usando OpenCV. Ele encontra objetos repetidos (como mesas ou extintores) em uma planta baixa fornecendo apenas 1 exemplo de refer�ncia.
+**Por que � genial:** N�o gasta IA nem servidores externos para descobrir onde os itens est�o (matem�tica pura de Pixels). E o mais importante: entrega uma arquitetura visual onde a planta gigante fica apagada em escala de cinza, e apenas os itens achados brilham na tela com suas cores originais, com uma linha apontando para eles. Pura engenharia criativa.
 
