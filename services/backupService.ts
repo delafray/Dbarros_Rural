@@ -403,29 +403,32 @@ async function listAllFiles(bucket: string, folder = ''): Promise<StorageFile[]>
     if (error || !data) return [];
 
     const files: StorageFile[] = [];
+    const subfolderPromises: Promise<StorageFile[]>[] = [];
     for (const item of data) {
         const fullPath = folder ? `${folder}/${item.name}` : item.name;
         if (item.id === null) {
-            const nested = await listAllFiles(bucket, fullPath);
-            files.push(...nested);
+            subfolderPromises.push(listAllFiles(bucket, fullPath));
         } else {
             files.push({ bucket, path: fullPath });
         }
+    }
+    if (subfolderPromises.length > 0) {
+        const nested = await Promise.all(subfolderPromises);
+        for (const n of nested) files.push(...n);
     }
     return files;
 }
 
 async function discoverBuckets(): Promise<string[]> {
-    const found: string[] = [];
-    for (const bucket of STORAGE_BUCKETS_TO_TRY) {
-        try {
-            const { error } = await supabase.storage.from(bucket).list('', { limit: 1 });
-            if (!error) found.push(bucket);
-        } catch {
-            // Bucket nao existe ou sem acesso — ignorar
-        }
-    }
-    return found;
+    const results = await Promise.all(
+        STORAGE_BUCKETS_TO_TRY.map(async (bucket) => {
+            try {
+                const { error } = await supabase.storage.from(bucket).list('', { limit: 1 });
+                return error ? null : bucket;
+            } catch { return null; }
+        })
+    );
+    return results.filter((b): b is string => b !== null);
 }
 
 function getZipCompression(filename: string): { compression: 'STORE' | 'DEFLATE'; compressionOptions?: { level: number } } {
@@ -1019,11 +1022,8 @@ export const backupService = {
         const availableBuckets = await discoverBuckets();
         zip.folder('storage_backup');
 
-        const allFiles: StorageFile[] = [];
-        for (const bucket of availableBuckets) {
-            const files = await listAllFiles(bucket);
-            allFiles.push(...files);
-        }
+        const filesPerBucket = await Promise.all(availableBuckets.map((b) => listAllFiles(b)));
+        const allFiles = filesPerBucket.flat();
 
         const CHUNK_SIZE = 8;
         let downloadedCount = 0;
