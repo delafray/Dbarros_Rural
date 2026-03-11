@@ -337,6 +337,10 @@ const PlanilhaAreaLivre: React.FC = () => {
   const handleM2Change = (id: string, val: number | null) => {
     setRows((prev) => prev.map((r) => {
       if (r.id !== id) return r;
+      // Se limpou o m², limpa também total_override e combo_overrides
+      if (val == null) {
+        return { ...r, area_m2: null, total_override: null, combo_overrides: {}, total_stale: false };
+      }
       const stale = r.total_override != null || Object.keys(r.combo_overrides).length > 0;
       return { ...r, area_m2: val, total_stale: stale };
     }));
@@ -427,8 +431,13 @@ const PlanilhaAreaLivre: React.FC = () => {
       }
 
       markClean();
-      await appDialog.alert({ title: "Salvo!", message: "Planilha AL salva com sucesso!", type: "success" });
-      navigate(`/configuracao-vendas/${edicaoId}`);
+      const todosLimpos = rows.every((r) => r.area_m2 == null && r.total_override == null);
+      if (todosLimpos) {
+        await appDialog.alert({ title: "Salvo!", message: "Dados limpos. Use o botao 'Desmarcar AL' para remover o modo Area Livre.", type: "success" });
+      } else {
+        await appDialog.alert({ title: "Salvo!", message: "Planilha AL salva com sucesso!", type: "success" });
+        navigate(`/configuracao-vendas/${edicaoId}`);
+      }
     } catch (err) {
       console.error(err);
       await appDialog.alert({ title: "Erro", message: String(err), type: "danger" });
