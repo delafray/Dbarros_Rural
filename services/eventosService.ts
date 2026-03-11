@@ -73,14 +73,15 @@ export const eventosService = {
 
         if (error) throw error;
 
-        // Resolver ordenação de data_inicio no frontend para evitar problemas de colação/formato (YYYY-MM-DD vs DD/MM/YYYY)
-        const parseDate = (d: string | null) => {
-            if (!d) return 0;
+        // Ordenar por data_inicio crescente (evento mais proximo primeiro)
+        const parseDate = (d: string | null): number => {
+            if (!d) return Infinity; // sem data vai pro final
             if (d.includes('/')) {
                 const parts = d.split('/'); // DD/MM/YYYY
                 if (parts.length >= 3) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
             }
-            return new Date(d).getTime() || 0;
+            const ts = new Date(d).getTime();
+            return isNaN(ts) ? Infinity : ts;
         };
 
         const result = data as (EventoEdicao & { eventos: { nome: string } | null })[];
