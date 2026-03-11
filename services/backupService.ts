@@ -489,7 +489,7 @@ Instrua cada usuario a redefinir sua senha apos o primeiro login.
 ## Estrutura do ZIP
 
 \`\`\`
-backup_dbarros_full_${dateStr}.zip
+Sistema_Dbarros_Rural_Backup_completo_${dateStr}.zip
 ├── RESTORE_GUIDE.md                       <- Este arquivo
 ├── database/
 │   ├── 1_auth_users_restore.sql           <- PRIMEIRO: usuarios no Auth com UUIDs originais
@@ -1089,7 +1089,7 @@ export const backupService = {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `backup_dbarros_full_${dateStr.replace(/-/g, '')}.zip`;
+        a.download = `Sistema_Dbarros_Rural_Backup_completo_${dateStr.replace(/-/g, '')}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
