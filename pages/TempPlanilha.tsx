@@ -128,7 +128,7 @@ const PlanilhaVendas: React.FC = () => {
         (acc, row) => {
           const c = calculateRow(row);
           acc.subTotal += c.subTotal;
-          acc.desconto += c.desconto;
+          acc.desconto += c.desconto > 0 ? c.desconto : 0;
           acc.totalVenda += c.totalVenda;
           acc.valorPago += c.valorPago;
           acc.pendente += c.pendente;
