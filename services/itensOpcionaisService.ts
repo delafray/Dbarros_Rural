@@ -48,7 +48,7 @@ export const itensOpcionaisService = {
     /** Retorna lista de planilhas (edições) que têm este item em opcionais_ativos */
     async getPlanilhasUsingItem(itemId: string): Promise<{ titulo: string; evento: string }[]> {
         const { data, error } = await supabase
-            .from('planilha_configuracoes' as any)
+            .from('planilha_configuracoes')
             .select('edicao_id, eventos_edicoes(titulo, eventos(nome))')
             .contains('opcionais_ativos', [itemId]) as any;
 

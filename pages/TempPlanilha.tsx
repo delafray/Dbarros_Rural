@@ -1,563 +1,124 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { Button } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
-import {
-  planilhaVendasService,
-  PlanilhaConfig,
-  PlanilhaEstande,
-  CategoriaSetup,
-} from "../services/planilhaVendasService";
-import {
-  itensOpcionaisService,
-  ItemOpcional,
-} from "../services/itensOpcionaisService";
-import { clientesService, ClienteComContatos } from "../services/clientesService";
-import { atendimentosService, Atendimento } from "../services/atendimentosService";
-import { eventosService, EventoEdicao } from "../services/eventosService";
+import { useAppDialog } from "../context/DialogContext";
 import { edicaoDocsService } from "../services/edicaoDocsService";
-
-type DocModalState = { tipo: 'proposta_comercial' | 'planta_baixa'; url: string; edicaoTitulo: string } | null;
+import { ImagemConfig } from "../services/imagensService";
+import { ClienteComContatos } from "../services/clientesService";
+import { Atendimento } from "../services/atendimentosService";
+import { DocModal, DocModalState } from "../components/dashboard/DocModal";
 import ClienteSelectorPopup from "../components/ClienteSelectorPopup";
 import ResolucaoAtendimentoModal from "../components/ResolucaoAtendimentoModal";
-import {
-  imagensService,
-  ImagemConfig,
-  RecebimentosMap,
-  StandImagemStatus,
-  StandStatus,
-} from "../services/imagensService";
-import { supabase } from "../services/supabaseClient";
+import PlanilhaM2AvisoModal from "../components/planilha/PlanilhaM2AvisoModal";
+import PlanilhaCompleteConfirmModal from "../components/planilha/PlanilhaCompleteConfirmModal";
+import PlanilhaStatusModal from "../components/planilha/PlanilhaStatusModal";
+import { usePlanilhaData } from "../hooks/usePlanilhaData";
+import { usePlanilhaRealtime } from "../hooks/usePlanilhaRealtime";
+import { usePlanilhaEditing } from "../hooks/usePlanilhaEditing";
+import { usePlanilhaStatusModal } from "../hooks/usePlanilhaStatusModal";
 
-// Module-level constant — not recreated on every render
 const naturalSort = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
 const PlanilhaVendas: React.FC = () => {
   const { edicaoId } = useParams<{ edicaoId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const isVisitor = user?.isVisitor ?? false;
+  const appDialog = useAppDialog();
 
-  const [loading, setLoading] = useState(true);
-  const [config, setConfig] = useState<PlanilhaConfig | null>(null);
-  const [edicao, setEdicao] = useState<
-    (EventoEdicao & { eventos: { nome: string } | null }) | null
-  >(null);
-  const [rows, setRows] = useState<PlanilhaEstande[]>([]);
-  const [allItensOpcionais, setAllItensOpcionais] = useState<ItemOpcional[]>(
-    [],
-  );
-  const [clientes, setClientes] = useState<ClienteComContatos[]>([]);
-  const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
-  const [atendimentoModal, setAtendimentoModal] = useState<Atendimento | null>(null);
+  // ─── Data ───────────────────────────────────────────────────
+  const data = usePlanilhaData(edicaoId, navigate);
+  const {
+    loading, config, edicao, rows, setRows, clientes, imagensConfig,
+    statusMap, setStatusMap, recebimentosMap, setRecebimentosMap,
+    categorias, opcionaisAtivos, comboLabels, comboNamesDisplay,
+    atendimentoMap, getCategoriaOfRow, calculateRow, getComputedStatus, getImagensDoStand,
+  } = data;
+
+  // ─── Realtime ───────────────────────────────────────────────
+  const { realtimeToast } = usePlanilhaRealtime(config?.id, setRows);
+
+  // ─── Editing ────────────────────────────────────────────────
+  const edit = usePlanilhaEditing(rows, setRows);
+  const {
+    editing, setEditing, pendingAction, setPendingAction,
+    editingM2, setEditingM2, m2AvisoModal, setM2AvisoModal,
+    handleSelectCombo, handleToggleOpcional, handleUpdateField,
+    handleClienteSelect, handleSaveM2,
+  } = edit;
+
+  // ─── Status Modal ──────────────────────────────────────────
+  const sm = usePlanilhaStatusModal({
+    rows, statusMap, setStatusMap, setRecebimentosMap, getImagensDoStand, appDialog,
+  });
+  const {
+    statusModal, setStatusModal, modalRecebimentos, modalRecebLoading,
+    handleToggleRecebimento, handleSaveModal, pendingCompleteConfirm, setPendingCompleteConfirm,
+  } = sm;
+
+  // ─── Local state ───────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewFilter, setViewFilter] = useState<'todos' | 'vendidos' | 'disponivel'>('todos');
   const [docModal, setDocModal] = useState<DocModalState>(null);
   const [popupRowId, setPopupRowId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{
-    id: string;
-    field: string;
-    val: string;
-  } | null>(null);
-  const [pendingAction, setPendingAction] = useState<{
-    rowId: string;
-    field: string;
-  } | null>(null);
-  const [imagensConfig, setImagensConfig] = useState<ImagemConfig[]>([]);
-  const [statusMap, setStatusMap] = useState<
-    Record<string, StandImagemStatus>
-  >({});
-  const [recebimentosMap, setRecebimentosMap] = useState<RecebimentosMap>({});
-  const [statusModal, setStatusModal] = useState<{
-    rowId: string;
-    obs: string;
-  } | null>(null);
-  const [modalRecebimentos, setModalRecebimentos] = useState<Record<string, boolean>>({});
-  const [modalRecebLoading, setModalRecebLoading] = useState(false);
-  const [realtimeToast, setRealtimeToast] = useState(false);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [pendingCompleteConfirm, setPendingCompleteConfirm] = useState<{
-    imgTotal: number;
-    imgRecebidas: number;
-    imgDoStand: ImagemConfig[];
-  } | null>(null);
-  // Modal de aviso ao alterar m² de stand AL na planilha principal
-  const [m2AvisoModal, setM2AvisoModal] = useState(false);
-  // Edição inline de m² para stands AL
-  const [editingM2, setEditingM2] = useState<{ id: string; val: string } | null>(null);
-  // Filtro de status
-  const [viewFilter, setViewFilter] = useState<'todos' | 'vendidos' | 'disponivel'>('todos');
+  const [atendimentoModal, setAtendimentoModal] = useState<Atendimento | null>(null);
 
-  useEffect(() => {
-    if (!statusModal?.rowId) { setModalRecebimentos({}); return; }
-    setModalRecebLoading(true);
-    imagensService.getRecebimentosByEstande(statusModal.rowId)
-      .then(setModalRecebimentos)
-      .catch(console.error)
-      .finally(() => setModalRecebLoading(false));
-  }, [statusModal?.rowId]);
-
-  useEffect(() => {
-    if (edicaoId) loadData();
-  }, [edicaoId]);
-
-  // ─── Realtime subscription ────────────────────────────────────
-  useEffect(() => {
-    if (!config?.id) return;
-
-    const channel = supabase
-      .channel(`planilha_realtime_${config.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "planilha_vendas_estandes",
-          filter: `config_id=eq.${config.id}`,
-        },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            setRows((prev) => {
-              if (prev.some((r) => r.id === (payload.new as any).id)) return prev;
-              return [...prev, payload.new as PlanilhaEstande];
-            });
-          } else if (payload.eventType === "UPDATE") {
-            setRows((prev) =>
-              prev.map((r) =>
-                r.id === (payload.new as any).id
-                  ? { ...r, ...payload.new } as PlanilhaEstande
-                  : r,
-              ),
-            );
-          } else if (payload.eventType === "DELETE") {
-            setRows((prev) =>
-              prev.filter((r) => r.id !== (payload.old as { id: string }).id),
-            );
-          }
-          // Show toast notification
-          setRealtimeToast(true);
-          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-          toastTimerRef.current = setTimeout(() => setRealtimeToast(false), 3000);
-        },
-      )
-      .subscribe();
-
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      supabase.removeChannel(channel);
-    };
-  }, [config?.id]);
-
-  // Clear pending action on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPendingAction(null);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [configData, edicaoData] = await Promise.all([
-        planilhaVendasService.getConfig(edicaoId!),
-        eventosService.getEdicaoById(edicaoId!),
-      ]);
-
-      if (!configData) {
-        if (
-          confirm("Nenhuma configuração encontrada. Deseja configurar agora?")
-        ) {
-          navigate(`/configuracao-vendas/${edicaoId}`);
-        }
-        return;
-      }
-
-      const [estandes, opcionais, listaClientes, imagens, statusData, recData, listaAtendimentos] =
-        await Promise.all([
-          planilhaVendasService.getEstandes(configData.id),
-          itensOpcionaisService.getItens(),
-          clientesService.getClientesComContatos(),
-          imagensService.getConfig(edicaoId!),
-          imagensService.getStatusByConfig(configData.id),
-          imagensService.getRecebimentos(configData.id),
-          atendimentosService.getByEdicao(edicaoId!),
-        ]);
-
-      setConfig(configData);
-      setEdicao(edicaoData);
-      setRows(estandes);
-      setAllItensOpcionais(opcionais);
-      setClientes(listaClientes);
-      setAtendimentos(listaAtendimentos);
-      setImagensConfig(imagens || []);
-      setStatusMap(statusData || {});
-      setRecebimentosMap(recData || {});
-    } catch (err) {
-      console.error("Erro ao carregar dados:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ─── Derived data ─────────────────────────────────────────────
-  const categorias = useMemo<CategoriaSetup[]>(
-    () =>
-      config ? (config.categorias_config as unknown as CategoriaSetup[]) : [],
-    [config],
-  );
-
-  // Usa snapshot de nomes (opcionais_nomes) da edição — desvinculado do catálogo
-  const opcionaisAtivos = useMemo<ItemOpcional[]>(() => {
-    if (!config?.opcionais_ativos) return [];
-    const nomes = (config.opcionais_nomes as Record<string, string>) || {};
-    return config.opcionais_ativos
-      .map((id) => {
-        // Snapshot disponível — usa nome da edição
-        if (nomes[id]) {
-          return {
-            id,
-            nome: nomes[id],
-            preco_base: 0,
-            created_at: null,
-            tipo_padrao: null,
-          } as ItemOpcional;
-        }
-        // Fallback para catálogo (configs antigas sem snapshot)
-        return allItensOpcionais.find((item) => item.id === id) || null;
-      })
-      .filter(Boolean) as ItemOpcional[];
-  }, [config, allItensOpcionais]);
-
-  const numCombos = useMemo(() => {
-    let max = 0;
-    categorias.forEach((c) => {
-      const len = Array.isArray(c.combos) ? c.combos.length : 3;
-      if (len > max) max = len;
-    });
-    return max;
-  }, [categorias]);
-
-  const comboLabels = useMemo(() => {
-    const labels = ["STAND PADRÃO"];
-    for (let i = 1; i <= numCombos; i++)
-      labels.push(`COMBO ${String(i).padStart(2, "0")}`);
-    return labels;
-  }, [numCombos]);
-
-  const comboNamesDisplay = useMemo(() => {
-    const names: Record<string, string> = { "STAND PADRÃO": "STAND PADRÃO" };
-    let customNames: string[] = [];
-    if (categorias.length > 0 && Array.isArray(categorias[0].comboNames)) {
-      customNames = categorias[0].comboNames;
-    }
-
-    for (let i = 1; i <= numCombos; i++) {
-      const defaultLabel = `COMBO ${String(i).padStart(2, "0")}`;
-      const custom = customNames[i - 1];
-      names[defaultLabel] = custom ? custom : defaultLabel;
-    }
-    return names;
-  }, [numCombos, categorias]);
-
-  const formatMoney = (value: number) =>
-    new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value || 0);
-
-  // ─── Atendimento map: clienteId → último atendimento desta edição ────
-  const atendimentoMap = useMemo<Record<string, Atendimento>>(() => {
-    const map: Record<string, Atendimento> = {};
-    const sorted = [...atendimentos].sort((a, b) => {
-      const da = a.updated_at || a.created_at;
-      const db = b.updated_at || b.created_at;
-      return db.localeCompare(da);
-    });
-    for (const at of sorted) {
-      if (at.cliente_id && !map[at.cliente_id]) {
-        map[at.cliente_id] = at;
-      }
-    }
-    return map;
-  }, [atendimentos]);
-
-  // ─── Row helpers ──────────────────────────────────────────────
-  // Espelha a lógica de buildStandNr: match pelo prefixo (se existir) ou pela tag
-  const getCategoriaOfRow = useCallback(
-    (row: PlanilhaEstande): CategoriaSetup | undefined => {
-      const nr = row.stand_nr.toLowerCase();
-
-      // Ordena do identificador mais longo para o mais curto para evitar falso match (ex: "M" casando "MA 01")
-      const sortedCats = [...categorias].sort((a, b) => {
-        const idA = (a.prefix || a.tag || "").length;
-        const idB = (b.prefix || b.tag || "").length;
-        return idB - idA;
-      });
-
-      return sortedCats.find((c) => {
-        const id = (c.prefix || c.tag || "").toLowerCase().trim();
-        if (!id) return false;
-        // Match exato: "M 01" começa com "m " ou é apenas "m"
-        return nr === id || nr.startsWith(`${id} `);
-      });
-    },
-    [categorias],
-  );
-
-  const precosEdicao = useMemo<Record<string, number>>(
-    () => (config?.opcionais_precos as Record<string, number>) || {},
-    [config],
-  );
-
-  const configsByOrigem = useMemo(
-    () => imagensService.buildConfigsByOrigem(imagensConfig),
-    [imagensConfig],
-  );
-
-  const getComputedStatus = useCallback(
-    (row: PlanilhaEstande) => {
-      const cat = getCategoriaOfRow(row);
-      const manual = statusMap[row.id];
-      return imagensService.computeStatus(
-        (row.opcionais_selecionados as Record<string, string>) || null,
-        cat?.tag,
-        configsByOrigem,
-        manual?.status,
+  // ─── Filtered + sorted rows ────────────────────────────────
+  const filtered = useMemo(() => {
+    const arr = rows.filter((r) => {
+      if (viewFilter === 'vendidos' && r.tipo_venda === 'DISPONÍVEL') return false;
+      if (viewFilter === 'disponivel' && r.tipo_venda !== 'DISPONÍVEL') return false;
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        r.stand_nr.toLowerCase().includes(term) ||
+        clientes.find((c) => c.id === r.cliente_id)?.nome_fantasia?.toLowerCase().includes(term) ||
+        clientes.find((c) => c.id === r.cliente_id)?.razao_social?.toLowerCase().includes(term) ||
+        r.cliente_nome_livre?.toLowerCase().includes(term)
       );
-    },
-    [getCategoriaOfRow, configsByOrigem, statusMap],
-  );
-
-  const getImagensDoStand = useCallback(
-    (row: PlanilhaEstande) => {
-      const cat = getCategoriaOfRow(row);
-      const sel =
-        (row.opcionais_selecionados as Record<string, string>) || {};
-      const result: ImagemConfig[] = [];
-      imagensConfig.forEach((cfg) => {
-        if (
-          cfg.origem_tipo === "stand_categoria" &&
-          cfg.origem_ref === cat?.tag
-        )
-          result.push(cfg);
-        else if (
-          cfg.origem_tipo === "item_opcional" &&
-          (sel[cfg.origem_ref] === "x" || sel[cfg.origem_ref] === "*")
-        )
-          result.push(cfg);
-      });
-      return result;
-    },
-    [getCategoriaOfRow, imagensConfig],
-  );
-
-
-  // Apenas atualiza o estado local — DB é salvo em handleSaveModal
-  const handleToggleRecebimento = (configId: string) => {
-    setModalRecebimentos((prev) => ({ ...prev, [configId]: !prev[configId] }));
-  };
-
-  const STATUS_ORDER: Record<StandStatus, number> = { pendente: 0, solicitado: 1, completo: 2 };
-  const TS_KEY: Record<StandStatus, 'pendente_em' | 'solicitado_em' | 'completo_em'> = {
-    pendente: 'pendente_em', solicitado: 'solicitado_em', completo: 'completo_em',
-  };
-  const STATUS_LABELS: Record<StandStatus, string> = {
-    pendente: 'Pendente', solicitado: 'Solicitado', completo: 'Completo',
-  };
-
-  // Salva tudo de uma vez: checkboxes + status + obs
-  const handleSaveModal = async (status: StandStatus, forceComplete = false) => {
-    if (!statusModal) return;
-    const row = rows.find((r) => r.id === statusModal.rowId);
-    const imgDoStand = row ? getImagensDoStand(row) : [];
-    const existingSt = statusMap[statusModal.rowId];
-    const currentLevel = STATUS_ORDER[existingSt?.status as StandStatus ?? 'pendente'] ?? 0;
-    const newLevel = STATUS_ORDER[status];
-
-    // Intercepta COMPLETO com imagens pendentes
-    if (status === 'completo' && !forceComplete && imgDoStand.length > 0) {
-      const totalImgs = imgDoStand.length;
-      const recebidas = imgDoStand.filter((cfg) => !!modalRecebimentos[cfg.id]).length;
-      if (recebidas < totalImgs) {
-        setPendingCompleteConfirm({ imgTotal: totalImgs, imgRecebidas: recebidas, imgDoStand });
-        return;
+    });
+    return arr.sort((a, b) => {
+      const catA = getCategoriaOfRow(a);
+      const catB = getCategoriaOfRow(b);
+      const ordA = catA?.ordem ?? 0;
+      const ordB = catB?.ordem ?? 0;
+      if (ordA !== ordB) return ordA - ordB;
+      if (catA && catB) {
+        const idxA = categorias.findIndex((c) => c === catA);
+        const idxB = categorias.findIndex((c) => c === catB);
+        if (idxA !== idxB) return idxA - idxB;
       }
-    }
+      return naturalSort(a.stand_nr, b.stand_nr);
+    });
+  }, [rows, clientes, searchTerm, viewFilter, getCategoriaOfRow, categorias]);
 
-    // Detecta regressão de status — pede confirmação e limpa timestamps superiores
-    let clearTimestamps: Array<'pendente_em' | 'solicitado_em' | 'completo_em'> | undefined;
-    if (newLevel < currentLevel) {
-      const confirmed = confirm(
-        `Atenção: você está voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serão apagadas. Confirma?`
-      );
-      if (!confirmed) return;
-      clearTimestamps = (Object.keys(STATUS_ORDER) as StandStatus[])
-        .filter((s) => STATUS_ORDER[s] > newLevel)
-        .map((s) => TS_KEY[s]);
-    }
-
-    try {
-      // Se forçando completo, marca TODOS como recebidos antes de salvar
-      const recebimentosParaSalvar = forceComplete
-        ? Object.fromEntries(imgDoStand.map((cfg) => [cfg.id, true]))
-        : modalRecebimentos;
-
-      if (imgDoStand.length > 0) {
-        await Promise.all(
-          imgDoStand.map((cfg: ImagemConfig) =>
-            imagensService.setRecebimento(statusModal.rowId, cfg.id, !!recebimentosParaSalvar[cfg.id]),
-          ),
-        );
-      }
-      await imagensService.upsertStatus(statusModal.rowId, status, statusModal.obs, existingSt, clearTimestamps);
-      // Atualiza recebimentosMap para o contador na badge
-      const newRec: Record<string, boolean> = {};
-      imgDoStand.forEach((cfg: ImagemConfig) => { newRec[cfg.id] = !!recebimentosParaSalvar[cfg.id]; });
-      setRecebimentosMap((prev) => ({
-        ...prev,
-        [statusModal.rowId]: { ...(prev[statusModal.rowId] || {}), ...newRec },
-      }));
-      const now = new Date().toISOString();
-      const tsKey = TS_KEY[status];
-      setStatusMap((prev) => {
-        const existing = prev[statusModal.rowId] as any;
-        const updated: any = {
-          ...existing,
-          id: existing?.id || "",
-          estande_id: statusModal.rowId,
-          status,
-          observacoes: statusModal.obs || null,
-          atualizado_em: now,
-          [tsKey]: existing?.[tsKey] ?? now,
-        };
-        if (clearTimestamps) clearTimestamps.forEach((k) => { updated[k] = null; });
-        return { ...prev, [statusModal.rowId]: updated as StandImagemStatus };
-      });
-      setStatusModal(null);
-      setPendingCompleteConfirm(null);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : (err as any)?.message || JSON.stringify(err);
-      alert("Erro ao salvar: " + msg);
-    }
-  };
-
-  const getPrecoForCombo = (
-    cat: CategoriaSetup | undefined,
-    row: PlanilhaEstande,
-    tipoVenda: string,
-  ): number => {
-    if (!cat || tipoVenda.includes("*")) return 0;
-    const tipo = tipoVenda.replace("*", "").trim();
-
-    // Área Livre: preço vem dos overrides salvos na sub-planilha AL
-    if (cat.tipo_precificacao === 'area_livre') {
-      const rowAL = row as any;
-      if (tipo === "STAND PADRÃO") {
-        if (rowAL.total_override != null) return Number(rowAL.total_override);
-        if (rowAL.area_m2 != null) {
-          const pm2 = rowAL.preco_m2_override ?? cat.preco_m2 ?? 0;
-          return Number(rowAL.area_m2) * Number(pm2);
-        }
-        return 0;
-      }
-      const match = tipo.match(/COMBO (\d+)/);
-      if (match) {
-        const comboOverrides = (rowAL.combo_overrides as Record<string, number>) || {};
-        // Tenta pelo label exato primeiro
-        if (comboOverrides[tipo] != null) return comboOverrides[tipo];
-        // Fallback: calcular base + adicional
-        const idx = parseInt(match[1], 10) - 1;
-        const base = rowAL.total_override ??
-          (rowAL.area_m2 != null ? Number(rowAL.area_m2) * Number(rowAL.preco_m2_override ?? cat.preco_m2 ?? 0) : 0);
-        const adicional = Array.isArray(cat.combos_adicionais) ? (cat.combos_adicionais[idx] || 0) : 0;
-        return base + adicional;
-      }
-      return 0;
-    }
-
-    // Fixo: comportamento original
-    if (tipo === "STAND PADRÃO") return cat.standBase || 0;
-    const match = tipo.match(/COMBO (\d+)/);
-    if (match) {
-      const idx = parseInt(match[1], 10) - 1;
-      if (Array.isArray(cat.combos)) return (cat.combos as number[])[idx] || 0;
-    }
-    return 0;
-  };
-
-  const calculateRow = useCallback(
-    (row: PlanilhaEstande) => {
-      const cat = getCategoriaOfRow(row);
-      const precoBase = getPrecoForCombo(cat, row, row.tipo_venda);
-
-      const selecoes =
-        (row.opcionais_selecionados as Record<string, string>) || {};
-      let totalOpcionais = 0;
-      opcionaisAtivos.forEach((opt) => {
-        if (selecoes[opt.nome] === "x") {
-          const preco =
-            precosEdicao[opt.id] !== undefined
-              ? Number(precosEdicao[opt.id])
-              : Number(opt.preco_base);
-          totalOpcionais += preco;
-        }
-      });
-
-      const subTotal = precoBase + totalOpcionais;
-      const desconto = Number(row.desconto) || 0;
-      const totalVenda = subTotal - desconto;
-      const valorPago = Number(row.valor_pago) || 0;
-      const pendente = totalVenda - valorPago;
-
-      return {
-        precoBase,
-        totalOpcionais,
-        subTotal,
-        desconto,
-        totalVenda,
-        valorPago,
-        pendente,
-      };
-    },
-    [getCategoriaOfRow, opcionaisAtivos, precosEdicao],
-  );
-
-  // ─── Summary row ─────────────────────────────────────────────
+  // ─── Summary ───────────────────────────────────────────────
   const summary = useMemo(() => {
     const comboXCounts: Record<string, number> = {};
     const comboStarCounts: Record<string, number> = {};
     const optCounts: Record<string, number> = {};
-
-    comboLabels.forEach((l) => {
-      comboXCounts[l] = 0;
-      comboStarCounts[l] = 0;
-    });
-    opcionaisAtivos.forEach((o) => {
-      optCounts[o.nome] = 0;
-    });
-
+    comboLabels.forEach((l) => { comboXCounts[l] = 0; comboStarCounts[l] = 0; });
+    opcionaisAtivos.forEach((o) => { optCounts[o.nome] = 0; });
     rows.forEach((row) => {
       const tipo = row.tipo_venda;
       if (tipo !== "DISPONÍVEL") {
         const isStar = tipo.endsWith("*");
         const baseLabel = tipo.replace("*", "").trim();
-        if (isStar)
-          comboStarCounts[baseLabel] = (comboStarCounts[baseLabel] || 0) + 1;
+        if (isStar) comboStarCounts[baseLabel] = (comboStarCounts[baseLabel] || 0) + 1;
         else comboXCounts[baseLabel] = (comboXCounts[baseLabel] || 0) + 1;
       }
       const sel = (row.opcionais_selecionados as Record<string, string>) || {};
       opcionaisAtivos.forEach((opt) => {
         const val = sel[opt.nome];
-        if (val === "x" || val === "*")
-          optCounts[opt.nome] = (optCounts[opt.nome] || 0) + 1;
+        if (val === "x" || val === "*") optCounts[opt.nome] = (optCounts[opt.nome] || 0) + 1;
       });
     });
-
     return { comboXCounts, comboStarCounts, optCounts };
   }, [rows, comboLabels, opcionaisAtivos]);
 
@@ -578,143 +139,7 @@ const PlanilhaVendas: React.FC = () => {
     [rows, calculateRow],
   );
 
-  // ─── Update handlers ──────────────────────────────────────────
-  const handleSelectCombo = async (rowId: string, comboLabel: string) => {
-    const row = rows.find((r) => r.id === rowId);
-    if (!row) return;
-    let newTipo: string;
-    if (row.tipo_venda === comboLabel) newTipo = comboLabel + "*";
-    else if (row.tipo_venda === comboLabel + "*") newTipo = "DISPONÍVEL";
-    else newTipo = comboLabel;
-    setRows((prev) =>
-      prev.map((r) => (r.id === rowId ? { ...r, tipo_venda: newTipo } : r)),
-    );
-    planilhaVendasService
-      .updateEstande(rowId, { tipo_venda: newTipo })
-      .catch((err) => console.error("Erro ao salvar combo:", err));
-  };
-
-  const handleToggleOpcional = async (rowId: string, optNome: string) => {
-    const row = rows.find((r) => r.id === rowId);
-    if (!row) return;
-    const sel = {
-      ...((row.opcionais_selecionados as Record<string, string>) || {}),
-    };
-    const cur = sel[optNome] || "";
-    if (cur === "") sel[optNome] = "x";
-    else if (cur === "x") sel[optNome] = "*";
-    else sel[optNome] = "";
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === rowId ? { ...r, opcionais_selecionados: sel } : r,
-      ),
-    );
-    planilhaVendasService
-      .updateEstande(rowId, { opcionais_selecionados: sel })
-      .catch((err) => console.error("Erro ao salvar opcional:", err));
-  };
-
-  const handleUpdateField = (rowId: string, field: string, value: unknown) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)),
-    );
-    planilhaVendasService
-      .updateEstande(rowId, { [field]: value } as Partial<PlanilhaEstande>)
-      .catch((err) => console.error(`Erro ao salvar ${field}:`, err));
-  };
-
-  const handleObsChange = (rowId: string, value: string) => {
-    setRows(
-      rows.map((r) => (r.id === rowId ? { ...r, observacoes: value } : r)),
-    );
-  };
-
-  const handleObsBlur = (rowId: string, value: string) => {
-    planilhaVendasService
-      .updateEstande(rowId, { observacoes: value })
-      .catch((err) => console.error("Erro ao salvar obs:", err));
-  };
-
-  const handleClienteSelect = (
-    rowId: string,
-    clienteId: string | null,
-    nomeLivre: string | null,
-  ) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === rowId
-          ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre }
-          : r,
-      ),
-    );
-    planilhaVendasService
-      .updateEstande(rowId, {
-        cliente_id: clienteId,
-        cliente_nome_livre: nomeLivre,
-      })
-      .catch((err) => console.error("Erro ao salvar cliente:", err));
-  };
-
-  // ─── Render ───────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    const arr = rows.filter((r) => {
-      // Filtro de status
-      if (viewFilter === 'vendidos' && r.tipo_venda === 'DISPONÍVEL') return false;
-      if (viewFilter === 'disponivel' && r.tipo_venda !== 'DISPONÍVEL') return false;
-      // Busca textual
-      if (!searchTerm) return true;
-      return (
-        r.stand_nr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        clientes
-          .find((c) => c.id === r.cliente_id)
-          ?.nome_fantasia?.toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        clientes
-          .find((c) => c.id === r.cliente_id)
-          ?.razao_social?.toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        r.cliente_nome_livre?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    });
-
-    return arr.sort((a, b) => {
-      const catA = getCategoriaOfRow(a);
-      const catB = getCategoriaOfRow(b);
-      const ordA = catA?.ordem ?? 0;
-      const ordB = catB?.ordem ?? 0;
-
-      // 1. Ordem numérica explícita
-      if (ordA !== ordB) return ordA - ordB;
-
-      // 2. Desempate por Ordem de Inserção na Configuração (para quando a Ordem é 1-1, 2-2)
-      if (catA && catB) {
-        const idxA = categorias.findIndex((c) => c === catA);
-        const idxB = categorias.findIndex((c) => c === catB);
-        if (idxA !== idxB) return idxA - idxB;
-      }
-
-      // 3. Desempate dentro do mesmo prefixo/categoria: M 01, M 02
-      return naturalSort(a.stand_nr, b.stand_nr);
-    });
-  }, [rows, clientes, searchTerm, viewFilter, getCategoriaOfRow, categorias]);
-
-  // ── Handler: salvar m² de stand AL com aviso ─────────────────
-  const handleSaveM2 = async (rowId: string, newVal: string) => {
-    const parsed = parseFloat(newVal);
-    const area_m2 = isNaN(parsed) ? null : parsed;
-    setEditingM2(null);
-    if (area_m2 === null) return;
-    // Salva no banco
-    await supabase
-      .from("planilha_vendas_estandes")
-      .update({ area_m2 } as any)
-      .eq("id", rowId);
-    setRows((prev) =>
-      prev.map((r) => r.id === rowId ? { ...r, area_m2 } as any : r),
-    );
-    setM2AvisoModal(true);
-  };
-
+  // ─── Loading ───────────────────────────────────────────────
   if (loading)
     return (
       <Layout title="Planilha">
@@ -774,28 +199,16 @@ const PlanilhaVendas: React.FC = () => {
                   🗺️ Planta
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/atendimentos/${edicaoId}`)}
-              >
+              <Button variant="outline" size="sm" onClick={() => navigate(`/atendimentos/${edicaoId}`)}>
                 📋 Atendimentos
               </Button>
             </div>
           ) : (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/configuracao-vendas/${edicaoId}`)}
-              >
+              <Button variant="outline" size="sm" onClick={() => navigate(`/configuracao-vendas/${edicaoId}`)}>
                 ⚙️ Setup
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/controle-imagens', { state: { edicaoId } })}
-              >
+              <Button variant="outline" size="sm" onClick={() => navigate('/controle-imagens', { state: { edicaoId } })}>
                 🖼 Controle de Imagens
               </Button>
             </>
@@ -831,93 +244,17 @@ const PlanilhaVendas: React.FC = () => {
         </div>
       }
     >
-      {/* Modal de aviso: m² alterado em stand de Área Livre */}
-      {m2AvisoModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center gap-3 px-6 py-5 bg-red-50 border-b-2 border-red-300">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-2xl">
-                ⚠️
-              </div>
-              <div>
-                <h2 className="font-black text-red-900 text-base uppercase tracking-wide">ATENÇÃO — Metragem Alterada</h2>
-                <p className="text-sm text-red-700 font-medium mt-0.5">Esta alteração requer comunicação imediata</p>
-              </div>
-            </div>
-            <div className="px-6 py-6">
-              <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                A metragem deste stand foi alterada.
-              </p>
-              <p className="text-sm text-slate-700 leading-relaxed mt-2">
-                <strong>Você deve informar todas as diretorias sobre esta mudança.</strong> Os valores de preço exibidos na planilha podem estar desatualizados — acesse a Planilha AL para recalcular.
-              </p>
-            </div>
-            <div className="flex justify-end px-6 py-4 bg-slate-50 border-t border-slate-200">
-              <button
-                onClick={() => setM2AvisoModal(false)}
-                className="px-6 py-2 text-sm font-black text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Entendido — Vou informar as diretorias
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de aviso: m² alterado */}
+      {m2AvisoModal && <PlanilhaM2AvisoModal onClose={() => setM2AvisoModal(false)} />}
 
       {/* Modal de confirmação: COMPLETO com imagens pendentes */}
       {pendingCompleteConfirm && statusModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-amber-50 border-b border-amber-200">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="font-black text-slate-800 text-sm">Arquivos de imagem pendentes</h2>
-                <p className="text-xs text-amber-700 font-medium mt-0.5">
-                  {pendingCompleteConfirm.imgRecebidas} de {pendingCompleteConfirm.imgTotal} arquivos recebidos
-                </p>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="px-6 py-5 space-y-3">
-              <p className="text-sm text-slate-700 leading-relaxed">
-                Você está marcando este stand como <strong>Completo</strong>, mas ainda há{' '}
-                <strong className="text-amber-600">
-                  {pendingCompleteConfirm.imgTotal - pendingCompleteConfirm.imgRecebidas} arquivo{pendingCompleteConfirm.imgTotal - pendingCompleteConfirm.imgRecebidas > 1 ? 's' : ''} sem confirmação de recebimento.
-                </strong>
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-                <p className="text-xs text-blue-800 font-semibold leading-relaxed">
-                  💡 Ao confirmar, <strong>todos os arquivos serão automaticamente marcados como recebidos</strong> — tanto na planilha quanto no Controle de Imagens.
-                </p>
-              </div>
-              <p className="text-xs text-slate-500">
-                Deseja continuar e confirmar que os arquivos estão com você?
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200">
-              <button
-                onClick={() => setPendingCompleteConfirm(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                Cancelar — vou revisar
-              </button>
-              <button
-                onClick={() => handleSaveModal('completo', true)}
-                className="px-4 py-2 text-xs font-black text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-              >
-                Confirmar — arquivos estão comigo
-              </button>
-            </div>
-          </div>
-        </div>
+        <PlanilhaCompleteConfirmModal
+          imgTotal={pendingCompleteConfirm.imgTotal}
+          imgRecebidas={pendingCompleteConfirm.imgRecebidas}
+          onCancel={() => setPendingCompleteConfirm(null)}
+          onConfirm={handleSaveModal}
+        />
       )}
 
       {/* Realtime update toast */}
@@ -930,53 +267,29 @@ const PlanilhaVendas: React.FC = () => {
           Atualizado por outro usuário
         </div>
       )}
+
       <div
         className="overflow-x-auto overflow-y-auto bg-white shadow-xl rounded-lg border border-slate-200 select-none w-full"
         style={{ maxHeight: "calc(100vh - 80px)" }}
       >
-        <table
-          className="border-collapse text-[11px] font-sans select-none w-full"
-        >
+        <table className="border-collapse text-[11px] font-sans select-none w-full">
           <thead className="sticky top-0 z-10 shadow-sm">
             {/* ── Row 1: Summary Titles ── */}
             <tr className="bg-slate-900 text-white">
-              <th
-                colSpan={2}
-                className="border border-white/10 px-2 py-1 text-left text-[11px] font-black tracking-widest text-slate-400 uppercase whitespace-nowrap"
-              >
+              <th colSpan={2} className="border border-white/10 px-2 py-1 text-left text-[11px] font-black tracking-widest text-slate-400 uppercase whitespace-nowrap">
                 Resumo Geral
               </th>
               {comboLabels.map((l) => (
-                <th
-                  key={l}
-                  className="border border-white/10 text-[8px] text-slate-500 font-normal uppercase leading-none overflow-hidden max-w-[24px]"
-                ></th>
+                <th key={l} className="border border-white/10 text-[8px] text-slate-500 font-normal uppercase leading-none overflow-hidden max-w-[24px]"></th>
               ))}
               {opcionaisAtivos.map((o) => (
-                <th
-                  key={o.id}
-                  className="border border-white/10 text-[8px] text-slate-500 font-normal uppercase leading-none overflow-hidden max-w-[24px]"
-                ></th>
+                <th key={o.id} className="border border-white/10 text-[8px] text-slate-500 font-normal uppercase leading-none overflow-hidden max-w-[24px]"></th>
               ))}
-              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-slate-400 font-bold uppercase">
-                SubTotal
-              </th>
-              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-yellow-500/90 font-bold uppercase">
-                Desconto
-              </th>
-              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-white font-bold uppercase bg-slate-800/40">
-                Total
-              </th>
-              {!isVisitor && (
-                <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-green-400 font-bold uppercase bg-slate-800/40">
-                  Pago
-                </th>
-              )}
-              {!isVisitor && (
-                <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-red-400 font-bold uppercase bg-slate-800/40">
-                  Pendente
-                </th>
-              )}
+              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-slate-400 font-bold uppercase">SubTotal</th>
+              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-yellow-500/90 font-bold uppercase">Desconto</th>
+              <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-white font-bold uppercase bg-slate-800/40">Total</th>
+              {!isVisitor && <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-green-400 font-bold uppercase bg-slate-800/40">Pago</th>}
+              {!isVisitor && <th className="border border-white/10 px-2 py-1 text-center text-[11px] text-red-400 font-bold uppercase bg-slate-800/40">Pendente</th>}
               <th className="border border-white/10 bg-violet-900/20" />
               <th className="border border-white/10 bg-violet-900/30" />
               <th className="border border-white/10 bg-violet-900/30" />
@@ -1012,112 +325,50 @@ const PlanilhaVendas: React.FC = () => {
                 const x = summary.comboXCounts[label] || 0;
                 const s = summary.comboStarCounts[label] || 0;
                 return (
-                  <th
-                    key={label}
-                    className="border border-white/10 px-1 py-0.5 text-center text-[10px] font-mono text-green-400 font-bold"
-                  >
+                  <th key={label} className="border border-white/10 px-1 py-0.5 text-center text-[10px] font-mono text-green-400 font-bold">
                     {x + s}
                   </th>
                 );
               })}
               {opcionaisAtivos.map((o) => (
-                <th
-                  key={o.id}
-                  className="border border-white/10 px-1 py-0.5 text-center text-[10px] text-green-400 font-mono font-bold"
-                >
+                <th key={o.id} className="border border-white/10 px-1 py-0.5 text-center text-[10px] text-green-400 font-mono font-bold">
                   {summary.optCounts[o.nome] || 0}
                 </th>
               ))}
-              <th className={`${thStyle} text-right font-mono`}>
-                {formatMoney(totals.subTotal)}
-              </th>
-              <th className={`${thStyle} text-right font-mono text-yellow-400`}>
-                {formatMoney(totals.desconto)}
-              </th>
-              <th
-                className={`${thStyle} text-right font-mono font-black text-white bg-slate-700/60 text-[12px]`}
-              >
-                {formatMoney(totals.totalVenda)}
-              </th>
-              {!isVisitor && (
-                <th
-                  className={`${thStyle} text-right font-mono font-black text-green-400 bg-slate-700/60 text-[12px]`}
-                >
-                  {formatMoney(totals.valorPago)}
-                </th>
-              )}
-              {!isVisitor && (
-                <th
-                  className={`${thStyle} text-right font-mono font-black text-red-400 bg-slate-700/60 text-[12px]`}
-                >
-                  {formatMoney(totals.pendente)}
-                </th>
-              )}
+              <th className={`${thStyle} text-right font-mono`}>{formatMoney(totals.subTotal)}</th>
+              <th className={`${thStyle} text-right font-mono text-yellow-400`}>{formatMoney(totals.desconto)}</th>
+              <th className={`${thStyle} text-right font-mono font-black text-white bg-slate-700/60 text-[12px]`}>{formatMoney(totals.totalVenda)}</th>
+              {!isVisitor && <th className={`${thStyle} text-right font-mono font-black text-green-400 bg-slate-700/60 text-[12px]`}>{formatMoney(totals.valorPago)}</th>}
+              {!isVisitor && <th className={`${thStyle} text-right font-mono font-black text-red-400 bg-slate-700/60 text-[12px]`}>{formatMoney(totals.pendente)}</th>}
               <th className="border border-white/10 bg-violet-900/20" />
               <th className="border border-white/10 bg-violet-900/30" />
               <th className="border border-white/10 bg-violet-900/30" />
             </tr>
 
-            {/* ── Row 3: Column headers (Excel Style) ── */}
+            {/* ── Row 3: Column headers ── */}
             <tr className="bg-[#1F497D]">
               <th className={`${thStyle} w-16`}>Stand</th>
               <th className={`${thStyle} min-w-[180px]`}>Cliente</th>
               {comboLabels.map((label) => (
-                <th
-                  key={label}
-                  className={`${thStyle} w-6 p-0 font-normal`}
-                  title={label}
-                  style={{ verticalAlign: 'bottom' }}
-                >
-                  <div
-                    style={{
-                      writingMode: 'vertical-rl',
-                      transform: 'rotate(180deg)',
-                      fontSize: comboNamesDisplay[label].length > 10 ? '7px' : '8px',
-                      lineHeight: 1,
-                      padding: '4px 2px',
-                      textAlign: 'left',
-                      display: 'block',
-                    }}
-                  >
+                <th key={label} className={`${thStyle} w-6 p-0 font-normal`} title={label} style={{ verticalAlign: 'bottom' }}>
+                  <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: comboNamesDisplay[label].length > 10 ? '7px' : '8px', lineHeight: 1, padding: '4px 2px', textAlign: 'left', display: 'block' }}>
                     {comboNamesDisplay[label]}
                   </div>
                 </th>
               ))}
               {opcionaisAtivos.map((opt) => (
-                <th
-                  key={opt.id}
-                  className={`${thStyle} w-6 p-0 font-normal`}
-                  style={{ verticalAlign: 'bottom' }}
-                >
-                  <div
-                    style={{
-                      writingMode: 'vertical-rl',
-                      transform: 'rotate(180deg)',
-                      fontSize: opt.nome.length > 10 ? '7px' : '8px',
-                      lineHeight: 1,
-                      padding: '4px 2px',
-                      textAlign: 'left',
-                      display: 'block',
-                    }}
-                  >
+                <th key={opt.id} className={`${thStyle} w-6 p-0 font-normal`} style={{ verticalAlign: 'bottom' }}>
+                  <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: opt.nome.length > 10 ? '7px' : '8px', lineHeight: 1, padding: '4px 2px', textAlign: 'left', display: 'block' }}>
                     {opt.nome}
                   </div>
                 </th>
               ))}
-              <th className={`${thStyle}`}>SubTotal</th>
-              <th className={`${thStyle}`}>Desconto</th>
-              <th className={`${thStyle}`}>Total</th>
+              <th className={thStyle}>SubTotal</th>
+              <th className={thStyle}>Desconto</th>
+              <th className={thStyle}>Total</th>
               {!isVisitor && <th className={`${thStyle} bg-[#385723]`}>PAGO</th>}
               {!isVisitor && <th className={`${thStyle} bg-[#C00000]`}>PENDENTE</th>}
-              {!isVisitor && (
-                <th
-                  className={`${thStyle} w-20 bg-violet-900/60`}
-                  title="Status de recebimento de imagens"
-                >
-                  Imagens
-                </th>
-              )}
+              {!isVisitor && <th className={`${thStyle} w-20 bg-violet-900/60`} title="Status de recebimento de imagens">Imagens</th>}
               {!isVisitor && <th className={`${thStyle} w-px whitespace-nowrap bg-violet-900/60 px-2`}>Cliente</th>}
               <th className={`${thStyle} w-px whitespace-nowrap bg-violet-900/60`}>Contato</th>
             </tr>
@@ -1127,25 +378,16 @@ const PlanilhaVendas: React.FC = () => {
             {filtered.map((row) => {
               const cat = getCategoriaOfRow(row);
               const calc = calculateRow(row);
-              const sel =
-                (row.opcionais_selecionados as Record<string, string>) || {};
+              const sel = (row.opcionais_selecionados as Record<string, string>) || {};
 
               return (
-                <tr
-                  key={row.id}
-                  className={`${cat?.cor || "bg-white"} border-b border-slate-300 hover:brightness-95`}
-                >
+                <tr key={row.id} className={`${cat?.cor || "bg-white"} border-b border-slate-300 hover:brightness-95`}>
                   {/* Stand nº */}
-                  <td
-                    className={`${tdStyle} px-1 py-0 align-middle w-[90px] min-w-[90px] max-w-[90px]`}
-                  >
+                  <td className={`${tdStyle} px-1 py-0 align-middle w-[90px] min-w-[90px] max-w-[90px]`}>
                     <div className="flex items-center gap-1 leading-none">
-                      {/* TAG + metragem (para AL) */}
                       <div className="flex flex-col items-start shrink-0" style={{ lineHeight: 1 }}>
                         {cat?.tag && (
-                          <span className="text-[7px] text-slate-500/80 font-normal uppercase tracking-tighter pointer-events-none">
-                            {cat.tag}
-                          </span>
+                          <span className="text-[7px] text-slate-500/80 font-normal uppercase tracking-tighter pointer-events-none">{cat.tag}</span>
                         )}
                         {cat?.tipo_precificacao === 'area_livre' && (
                           editingM2?.id === row.id ? (
@@ -1166,60 +408,35 @@ const PlanilhaVendas: React.FC = () => {
                             <span
                               className="text-[8px] font-black text-slate-600 cursor-pointer hover:text-amber-700 hover:underline"
                               title="Clique para editar m²"
-                              onClick={() => !isVisitor && setEditingM2({ id: row.id, val: String((row as any).area_m2 ?? "") })}
+                              onClick={() => !isVisitor && setEditingM2({ id: row.id, val: String(row.area_m2 ?? "") })}
                             >
-                              {(row as any).area_m2 != null ? String((row as any).area_m2) : "—"}
+                              {row.area_m2 != null ? String(row.area_m2) : "—"}
                             </span>
                           )
                         )}
                       </div>
-                      {/* Stand_nr */}
                       <span className="flex-1 text-center font-bold text-[11px] whitespace-nowrap">
                         {cat?.prefix?.trim()
                           ? row.stand_nr
-                          : row.stand_nr
-                            .replace(
-                              new RegExp(`^${cat?.tag ?? ""}\\s*`, "i"),
-                              "",
-                            )
-                            .trim()}
+                          : row.stand_nr.replace(new RegExp(`^${cat?.tag ?? ""}\\s*`, "i"), "").trim()}
                       </span>
                     </div>
                   </td>
 
-                  {/* Cliente — clica para abrir popup (desabilitado para visitante) */}
+                  {/* Cliente */}
                   <td
                     className={`${tdStyle} min-w-[200px] ${isVisitor ? '' : 'cursor-pointer'} group px-2`}
                     onClick={() => !isVisitor && setPopupRowId(row.id)}
                     title={isVisitor ? undefined : "Clique para selecionar cliente"}
                   >
                     {(() => {
-                      const cliente = clientes.find(
-                        (c) => c.id === row.cliente_id,
-                      );
+                      const cliente = clientes.find((c) => c.id === row.cliente_id);
                       if (cliente) {
-                        const nomeExibir =
-                          cliente.nome_fantasia ||
-                          (cliente.tipo_pessoa === "PJ"
-                            ? cliente.razao_social
-                            : cliente.nome_completo);
-                        return (
-                          <span className="font-bold text-slate-900 truncate block">
-                            {nomeExibir}
-                          </span>
-                        );
+                        const nomeExibir = cliente.nome_fantasia || (cliente.tipo_pessoa === "PJ" ? cliente.razao_social : cliente.nome_completo);
+                        return <span className="font-bold text-slate-900 truncate block">{nomeExibir}</span>;
                       }
-                      if (row.cliente_nome_livre)
-                        return (
-                          <span className="text-amber-900 font-black italic truncate block">
-                            {row.cliente_nome_livre}
-                          </span>
-                        );
-                      return (
-                        <span className="text-slate-400 italic text-[11px] group-hover:text-blue-500 transition-colors uppercase">
-                          Disponível
-                        </span>
-                      );
+                      if (row.cliente_nome_livre) return <span className="text-amber-900 font-black italic truncate block">{row.cliente_nome_livre}</span>;
+                      return <span className="text-slate-400 italic text-[11px] group-hover:text-blue-500 transition-colors uppercase">Disponível</span>;
                     })()}
                   </td>
 
@@ -1227,41 +444,22 @@ const PlanilhaVendas: React.FC = () => {
                   {comboLabels.map((label) => {
                     const isX = row.tipo_venda === label;
                     const isStar = row.tipo_venda === label + "*";
-                    const isPending =
-                      pendingAction?.rowId === row.id &&
-                      pendingAction?.field === label;
-
+                    const isPending = pendingAction?.rowId === row.id && pendingAction?.field === label;
                     return (
                       <td
                         key={label}
                         className={`${tdStyle} text-center font-black select-none w-6 h-5 leading-none px-0
-                                                ${!isVisitor ? "cursor-pointer" : ""}
-                                                ${isPending
-                            ? "!bg-slate-400 !text-white"
-                            : isX
-                              ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
-                              : isStar
-                                ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
-                                : "!bg-white hover:bg-blue-100/50 text-transparent"
-                          }`}
+                          ${!isVisitor ? "cursor-pointer" : ""}
+                          ${isPending ? "!bg-slate-400 !text-white"
+                            : isX ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
+                            : isStar ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
+                            : "!bg-white hover:bg-blue-100/50 text-transparent"}`}
                         onClick={() => {
                           if (isVisitor) return;
-                          if (isPending) {
-                            handleSelectCombo(row.id, label);
-                            setPendingAction(null);
-                          } else {
-                            setPendingAction({ rowId: row.id, field: label });
-                          }
+                          if (isPending) { handleSelectCombo(row.id, label); setPendingAction(null); }
+                          else { setPendingAction({ rowId: row.id, field: label }); }
                         }}
-                        title={
-                          isPending
-                            ? "Clique novamente para confirmar"
-                            : isX
-                              ? `${comboNamesDisplay[label]} (clique para cortesia)`
-                              : isStar
-                                ? `${comboNamesDisplay[label]} - Cortesia (clique para limpar)`
-                                : comboNamesDisplay[label]
-                        }
+                        title={isPending ? "Clique novamente para confirmar" : isX ? `${comboNamesDisplay[label]} (clique para cortesia)` : isStar ? `${comboNamesDisplay[label]} - Cortesia (clique para limpar)` : comboNamesDisplay[label]}
                       >
                         <span className="flex items-center justify-center w-full h-full text-[11px]">
                           {isPending ? "?" : isX ? "x" : isStar ? "*" : ""}
@@ -1273,40 +471,22 @@ const PlanilhaVendas: React.FC = () => {
                   {/* Optional columns */}
                   {opcionaisAtivos.map((opt) => {
                     const status = sel[opt.nome] || "";
-                    const isPending =
-                      pendingAction?.rowId === row.id &&
-                      pendingAction?.field === opt.nome;
-
+                    const isPending = pendingAction?.rowId === row.id && pendingAction?.field === opt.nome;
                     return (
                       <td
                         key={opt.id}
                         className={`${tdStyle} text-center font-black w-6 h-5 leading-none select-none px-0
-                                                ${!isVisitor ? "cursor-pointer" : ""}
-                                                ${isPending
-                            ? "!bg-slate-400 !text-white"
-                            : status === "x"
-                              ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
-                              : status === "*"
-                                ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
-                                : "!bg-white hover:bg-slate-100/50 text-transparent"
-                          }`}
+                          ${!isVisitor ? "cursor-pointer" : ""}
+                          ${isPending ? "!bg-slate-400 !text-white"
+                            : status === "x" ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
+                            : status === "*" ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
+                            : "!bg-white hover:bg-slate-100/50 text-transparent"}`}
                         onClick={() => {
                           if (isVisitor) return;
-                          if (isPending) {
-                            handleToggleOpcional(row.id, opt.nome);
-                            setPendingAction(null);
-                          } else {
-                            setPendingAction({
-                              rowId: row.id,
-                              field: opt.nome,
-                            });
-                          }
+                          if (isPending) { handleToggleOpcional(row.id, opt.nome); setPendingAction(null); }
+                          else { setPendingAction({ rowId: row.id, field: opt.nome }); }
                         }}
-                        title={
-                          isPending
-                            ? "Clique novamente para confirmar"
-                            : opt.nome
-                        }
+                        title={isPending ? "Clique novamente para confirmar" : opt.nome}
                       >
                         <span className="flex items-center justify-center w-full h-full text-[11px]">
                           {isPending ? "?" : status}
@@ -1316,9 +496,7 @@ const PlanilhaVendas: React.FC = () => {
                   })}
 
                   {/* Sub Total */}
-                  <td
-                    className={`${tdStyle} px-2 py-0 text-right font-mono font-bold bg-[#D9E1F2]/50 whitespace-nowrap text-slate-700`}
-                  >
+                  <td className={`${tdStyle} px-2 py-0 text-right font-mono font-bold bg-[#D9E1F2]/50 whitespace-nowrap text-slate-700`}>
                     {formatMoney(calc.subTotal)}
                   </td>
 
@@ -1327,17 +505,8 @@ const PlanilhaVendas: React.FC = () => {
                     className={`${tdStyle} px-2 py-0 text-right font-mono bg-white group ${!isVisitor ? "cursor-pointer" : ""}`}
                     onClick={() => {
                       if (isVisitor) return;
-                      if (
-                        !(
-                          editing?.id === row.id &&
-                          editing?.field === "desconto"
-                        )
-                      )
-                        setEditing({
-                          id: row.id,
-                          field: "desconto",
-                          val: String(row.desconto || ""),
-                        });
+                      if (!(editing?.id === row.id && editing?.field === "desconto"))
+                        setEditing({ id: row.id, field: "desconto", val: String(row.desconto || "") });
                     }}
                     title={isVisitor ? undefined : "Clique para editar"}
                   >
@@ -1347,88 +516,51 @@ const PlanilhaVendas: React.FC = () => {
                         type="text"
                         className="w-full bg-slate-100 text-right font-mono outline-none border-b border-red-400 min-w-[70px] px-1"
                         value={editing.val}
-                        onChange={(e) =>
-                          setEditing({ ...editing, val: e.target.value })
-                        }
+                        onChange={(e) => setEditing({ ...editing, val: e.target.value })}
                         onBlur={() => {
-                          const num = Number(
-                            editing?.val.replace(",", ".") || 0,
-                          );
-                          setRows(
-                            rows.map((r) =>
-                              r.id === row.id ? { ...r, desconto: num } : r,
-                            ),
-                          );
+                          const num = Number(editing?.val.replace(",", ".") || 0);
+                          setRows(rows.map((r) => (r.id === row.id ? { ...r, desconto: num } : r)));
                           handleUpdateField(row.id, "desconto", num);
                           setEditing(null);
                         }}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" &&
-                          (e.currentTarget as HTMLInputElement).blur()
-                        }
+                        onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
                       />
                     ) : (
-                      <span
-                        className={`group-hover:text-blue-500 transition-colors ${(row.desconto || 0) > 0 ? "text-yellow-600 font-bold" : "text-slate-400"}`}
-                      >
+                      <span className={`group-hover:text-blue-500 transition-colors ${(row.desconto || 0) > 0 ? "text-yellow-600 font-bold" : "text-slate-400"}`}>
                         {formatMoney(row.desconto ?? 0)}
                       </span>
                     )}
                   </td>
 
                   {/* Total Vendas */}
-                  <td
-                    className={`${tdStyle} text-right font-mono font-black text-[12px] bg-[#D9E1F2]/60 text-slate-900`}
-                  >
+                  <td className={`${tdStyle} text-right font-mono font-black text-[12px] bg-[#D9E1F2]/60 text-slate-900`}>
                     {formatMoney(calc.totalVenda)}
                   </td>
 
                   {/* Valor Pago */}
                   {!isVisitor && (
                     <td
-                      className={`${tdStyle} px-2 py-0 text-right font-mono text-[12px] bg-green-50/60 group ${!isVisitor ? "cursor-pointer" : ""}`}
+                      className={`${tdStyle} px-2 py-0 text-right font-mono text-[12px] bg-green-50/60 group cursor-pointer`}
                       onClick={() => {
-                        if (isVisitor) return;
-                        if (
-                          !(
-                            editing?.id === row.id &&
-                            editing?.field === "valor_pago"
-                          )
-                        )
-                          setEditing({
-                            id: row.id,
-                            field: "valor_pago",
-                            val: String(row.valor_pago || ""),
-                          });
+                        if (!(editing?.id === row.id && editing?.field === "valor_pago"))
+                          setEditing({ id: row.id, field: "valor_pago", val: String(row.valor_pago || "") });
                       }}
                       title="Clique para editar"
                     >
-                      {editing?.id === row.id &&
-                        editing?.field === "valor_pago" ? (
+                      {editing?.id === row.id && editing?.field === "valor_pago" ? (
                         <input
                           autoFocus
                           type="text"
                           className="w-full bg-slate-100 text-right font-mono outline-none border-b border-green-500 font-bold px-1 min-w-[70px]"
                           value={editing.val}
-                          onChange={(e) =>
-                            setEditing({ ...editing, val: e.target.value })
-                          }
+                          onChange={(e) => setEditing({ ...editing, val: e.target.value })}
                           onBlur={() => {
-                            const num = Number(
-                              editing?.val.replace(",", ".") || 0,
-                            );
-                            setRows(
-                              rows.map((r) =>
-                                r.id === row.id ? { ...r, valor_pago: num } : r,
-                              ),
-                            );
+                            const num = Number(editing?.val.replace(",", ".") || 0);
+                            setRows(rows.map((r) => (r.id === row.id ? { ...r, valor_pago: num } : r)));
                             handleUpdateField(row.id, "valor_pago", num);
                             setEditing(null);
                           }}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" &&
-                            (e.currentTarget as HTMLInputElement).blur()
-                          }
+                          onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
                         />
                       ) : (
                         <span className="text-green-900 font-bold group-hover:text-blue-500 transition-colors">
@@ -1440,9 +572,7 @@ const PlanilhaVendas: React.FC = () => {
 
                   {/* Pendente */}
                   {!isVisitor && (
-                    <td
-                      className={`${tdStyle} text-right font-mono font-black text-[12px] ${calc.pendente > 0 ? "text-red-600 bg-red-50/30" : calc.pendente < 0 ? "text-blue-600" : "text-slate-300"}`}
-                    >
+                    <td className={`${tdStyle} text-right font-mono font-black text-[12px] ${calc.pendente > 0 ? "text-red-600 bg-red-50/30" : calc.pendente < 0 ? "text-blue-600" : "text-slate-300"}`}>
                       {formatMoney(calc.pendente)}
                     </td>
                   )}
@@ -1450,68 +580,39 @@ const PlanilhaVendas: React.FC = () => {
                   {/* Imagens status */}
                   {(() => {
                     if (isVisitor) return null;
-                    const hasCliente =
-                      row.cliente_id || row.cliente_nome_livre;
-                    if (!hasCliente)
-                      return (
-                        <td
-                          className={`${tdStyle} w-20 text-center`}
-                        />
-                      );
+                    const hasCliente = row.cliente_id || row.cliente_nome_livre;
+                    if (!hasCliente) return <td className={`${tdStyle} w-20 text-center`} />;
                     const computed = getComputedStatus(row);
                     const imgDoStand = getImagensDoStand(row);
                     const rowRec = recebimentosMap[row.id] || {};
                     const receivedCount = imgDoStand.filter((c: ImagemConfig) => rowRec[c.id]).length;
                     const todasRecebidas = computed === "solicitado" && imgDoStand.length > 0 && receivedCount === imgDoStand.length;
                     const badgeConfig = {
-                      sem_config: {
-                        label: "Sem config",
-                        cls: "bg-slate-100 text-slate-400 border-slate-200",
-                      },
-                      pendente: {
-                        label: "Pendente",
-                        cls: "bg-yellow-100 text-yellow-700 border-yellow-300 cursor-pointer hover:bg-yellow-200",
-                      },
+                      sem_config: { label: "Sem config", cls: "bg-slate-100 text-slate-400 border-slate-200" },
+                      pendente: { label: "Pendente", cls: "bg-yellow-100 text-yellow-700 border-yellow-300 cursor-pointer hover:bg-yellow-200" },
                       solicitado: {
                         label: "Solicitado",
                         cls: todasRecebidas
                           ? "bg-green-100 text-green-800 border-green-400 cursor-pointer hover:bg-green-200"
                           : "bg-blue-100 text-blue-700 border-blue-300 cursor-pointer hover:bg-blue-200",
                       },
-                      completo: {
-                        label: "Completo",
-                        cls: "bg-green-100 text-green-700 border-green-300 cursor-pointer hover:bg-green-200",
-                      },
+                      completo: { label: "Completo", cls: "bg-green-100 text-green-700 border-green-300 cursor-pointer hover:bg-green-200" },
                     }[computed];
-                    return isVisitor ? null : (
+                    return (
                       <td className={`${tdStyle} w-20 text-center px-1`}>
                         <button
                           className={`text-[9px] font-bold uppercase px-1.5 py-0.5 border rounded-sm transition-colors w-full ${badgeConfig.cls}`}
-                          onClick={() =>
-                            computed !== "sem_config" &&
-                            setStatusModal({
-                              rowId: row.id,
-                              obs: statusMap[row.id]?.observacoes || "",
-                            })
-                          }
-                          title={
-                            computed === "sem_config"
-                              ? "Configure imagens na tela de Setup"
-                              : "Clique para atualizar status"
-                          }
+                          onClick={() => computed !== "sem_config" && setStatusModal({ rowId: row.id, obs: statusMap[row.id]?.observacoes || "" })}
+                          title={computed === "sem_config" ? "Configure imagens na tela de Setup" : "Clique para atualizar status"}
                         >
                           {badgeConfig.label}
-                          {imgDoStand.length > 0 && (
-                            <span className="ml-1">
-                              {receivedCount}/{imgDoStand.length}
-                            </span>
-                          )}
+                          {imgDoStand.length > 0 && <span className="ml-1">{receivedCount}/{imgDoStand.length}</span>}
                         </button>
                       </td>
                     );
                   })()}
 
-                  {/* Cadastro — oculto totalmente para visitante */}
+                  {/* Cadastro */}
                   {!isVisitor && (
                     <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
                       {row.cliente_id && clientes.find((c) => c.id === row.cliente_id) ? (
@@ -1528,7 +629,7 @@ const PlanilhaVendas: React.FC = () => {
                     </td>
                   )}
 
-                  {/* Contato — abre histórico de atendimento */}
+                  {/* Contato */}
                   <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
                     {row.cliente_id && atendimentoMap[row.cliente_id] ? (
                       <button
@@ -1547,13 +648,8 @@ const PlanilhaVendas: React.FC = () => {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td
-                  colSpan={5 + comboLabels.length + opcionaisAtivos.length + 5}
-                  className="py-8 text-center text-slate-400"
-                >
-                  {rows.length === 0
-                    ? "Nenhum estande gerado. Vá em ⚙️ Setup para configurar e gerar a planilha."
-                    : "Nenhum resultado para a busca."}
+                <td colSpan={5 + comboLabels.length + opcionaisAtivos.length + 5} className="py-8 text-center text-slate-400">
+                  {rows.length === 0 ? "Nenhum estande gerado. Vá em ⚙️ Setup para configurar e gerar a planilha." : "Nenhum resultado para a busca."}
                 </td>
               </tr>
             )}
@@ -1561,42 +657,31 @@ const PlanilhaVendas: React.FC = () => {
         </table>
       </div>
 
-      <style>{`
-                .vertical-text {
-                    writing-mode: vertical-rl;
-                    transform: rotate(180deg);
-                    white-space: nowrap;
-                }
-            `}</style>
+      <style>{`.vertical-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }`}</style>
 
-      {popupRowId &&
-        (() => {
-          const popupRow = rows.find((r) => r.id === popupRowId);
-          const popupCliente = clientes.find((c: ClienteComContatos) => c.id === popupRow?.cliente_id);
-          const popupClienteNome = popupCliente
-            ? (popupCliente.tipo_pessoa === 'PJ'
-              ? (popupCliente.razao_social || popupCliente.nome_fantasia)
-              : popupCliente.nome_completo) || null
-            : null;
-          const rowHasData = !!popupRow && (
-            (!!popupRow.tipo_venda && popupRow.tipo_venda !== 'DISPONÍVEL') ||
-            Object.values((popupRow.opcionais_selecionados as Record<string, string>) || {}).some(v => !!v)
-          );
-          return (
-            <ClienteSelectorPopup
-              currentClienteId={popupRow?.cliente_id}
-              currentNomeLivre={popupRow?.cliente_nome_livre}
-              currentClienteNome={popupClienteNome}
-              rowHasData={rowHasData}
-              onSelect={(clienteId, nomeLivre) =>
-                handleClienteSelect(popupRowId, clienteId, nomeLivre)
-              }
-              onClose={() => setPopupRowId(null)}
-            />
-          );
-        })()}
+      {popupRowId && (() => {
+        const popupRow = rows.find((r) => r.id === popupRowId);
+        const popupCliente = clientes.find((c: ClienteComContatos) => c.id === popupRow?.cliente_id);
+        const popupClienteNome = popupCliente
+          ? (popupCliente.tipo_pessoa === 'PJ' ? (popupCliente.razao_social || popupCliente.nome_fantasia) : popupCliente.nome_completo) || null
+          : null;
+        const rowHasData = !!popupRow && (
+          (!!popupRow.tipo_venda && popupRow.tipo_venda !== 'DISPONÍVEL') ||
+          Object.values((popupRow.opcionais_selecionados as Record<string, string>) || {}).some(v => !!v)
+        );
+        return (
+          <ClienteSelectorPopup
+            currentClienteId={popupRow?.cliente_id}
+            currentNomeLivre={popupRow?.cliente_nome_livre}
+            currentClienteNome={popupClienteNome}
+            rowHasData={rowHasData}
+            onSelect={(clienteId, nomeLivre) => handleClienteSelect(popupRowId, clienteId, nomeLivre)}
+            onClose={() => setPopupRowId(null)}
+          />
+        );
+      })()}
 
-      {/* ── Modal de Histórico de Atendimento ── */}
+      {/* Modal de Histórico de Atendimento */}
       {atendimentoModal && (
         <ResolucaoAtendimentoModal
           atendimento={atendimentoModal}
@@ -1606,321 +691,29 @@ const PlanilhaVendas: React.FC = () => {
         />
       )}
 
-      {/* ── Modal de Status de Imagens ── */}
-      {statusModal &&
-        (() => {
-          const row = rows.find((r) => r.id === statusModal.rowId);
-          if (!row) return null;
-          const imagens = getImagensDoStand(row);
-          const currentStatus = statusMap[row.id]?.status || "pendente";
-          const cliente = clientes.find((c) => c.id === row.cliente_id);
-          const nomeCliente = cliente
-            ? cliente.nome_fantasia ||
-            (cliente.tipo_pessoa === "PJ"
-              ? cliente.razao_social
-              : cliente.nome_completo)
-            : row.cliente_nome_livre || row.stand_nr;
-          return (
-            <div
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
-              onClick={(e) =>
-                e.target === e.currentTarget && setStatusModal(null)
-              }
-            >
-              <div className="bg-white shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
-                {/* Header */}
-                <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between flex-shrink-0">
-                  <div>
-                    <span className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">
-                      {row.stand_nr}
-                    </span>
-                    <p className="font-black text-sm truncate max-w-[280px]">
-                      {nomeCliente}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setStatusModal(null)}
-                    className="text-slate-400 hover:text-white text-2xl leading-none ml-4"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                {/* Lista de imagens exigidas */}
-                <div className="flex-1 overflow-y-auto px-5 py-4">
-                  <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-3">
-                    Imagens exigidas ({imagens.length})
-                  </p>
-                  {imagens.length === 0 ? (
-                    <p className="text-slate-400 italic text-sm">
-                      Nenhuma imagem configurada para este stand.
-                    </p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {imagens.map((cfg) => {
-                        const recebido = !!modalRecebimentos[cfg.id];
-                        return (
-                          <li
-                            key={cfg.id}
-                            className={`flex items-center gap-2 text-sm py-1 px-2 rounded transition-colors ${recebido ? "bg-green-50" : "hover:bg-slate-50"}`}
-                          >
-                            <button
-                              onClick={() => handleToggleRecebimento(cfg.id)}
-                              disabled={modalRecebLoading}
-                              title={recebido ? "Marcar como não recebido" : "Marcar como recebido"}
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${recebido
-                                ? "bg-green-500 border-green-500 text-white"
-                                : "bg-white border-slate-300 hover:border-green-400"
-                                }`}
-                            >
-                              {recebido && <span className="text-[10px] font-black leading-none">✓</span>}
-                            </button>
-                            <span>{cfg.tipo === "logo" ? "🏷️" : "📐"}</span>
-                            <span className={`font-semibold flex-1 ${recebido ? "text-green-700 line-through" : "text-slate-700"}`}>
-                              {cfg.descricao}
-                            </span>
-                            {cfg.dimensoes && (
-                              <span className="text-xs font-mono text-slate-400 bg-slate-100 px-1">
-                                {cfg.dimensoes}
-                              </span>
-                            )}
-                            <span className="text-[10px] text-violet-400 uppercase">
-                              {cfg.tipo}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-
-                  <div className="mt-4">
-                    <label className="block text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-1">
-                      Observação (opcional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      className="w-full border border-slate-300 text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-violet-400 resize-none"
-                      placeholder="Ex: Cliente enviou só a logo, falta a testeira"
-                      value={statusModal.obs}
-                      onChange={(e) =>
-                        setStatusModal((p) =>
-                          p ? { ...p, obs: e.target.value } : null,
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Botões de status */}
-                <div className="flex-shrink-0 border-t border-slate-200 px-5 py-4 bg-slate-50">
-                  <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-3">
-                    Atualizar status
-                  </p>
-                  {(() => {
-                    const st = statusMap[row.id];
-                    const fmtDate = (d: string | null | undefined) =>
-                      d ? format(parseISO(d), "dd/MM/yy HH:mm", { locale: ptBR }) : null;
-                    const items = [
-                      { key: "pendente" as StandStatus, label: "Pendente", date: fmtDate(st?.pendente_em), active: currentStatus === "pendente", activeClass: "bg-yellow-100 border-yellow-400 text-yellow-800", hoverClass: "hover:bg-yellow-50 hover:border-yellow-300" },
-                      { key: "solicitado" as StandStatus, label: "Solicitado", date: fmtDate(st?.solicitado_em), active: currentStatus === "solicitado", activeClass: "bg-blue-100 border-blue-400 text-blue-800", hoverClass: "hover:bg-blue-50 hover:border-blue-300" },
-                      { key: "completo" as StandStatus, label: "Completo", date: fmtDate(st?.completo_em), active: currentStatus === "completo", activeClass: "bg-green-100 border-green-400 text-green-800", hoverClass: "hover:bg-green-50 hover:border-green-300" },
-                    ];
-                    return (
-                      <div className="flex gap-2">
-                        {items.map(({ key, label, date, active, activeClass, hoverClass }) => (
-                          <div key={key} className="flex-1 flex flex-col items-center gap-0.5">
-                            <button
-                              onClick={() => handleSaveModal(key)}
-                              className={`w-full text-xs font-bold px-3 py-2 border transition-colors ${active ? activeClass : `border-slate-300 text-slate-500 ${hoverClass}`}`}
-                            >
-                              {label}
-                            </button>
-                            {date && (
-                              <span className="text-[9px] text-slate-400 font-mono leading-tight text-center">{date}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => setStatusModal(null)}
-                      className="flex-1 text-sm text-slate-500 py-1.5 hover:bg-slate-100 transition-colors border border-transparent"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => handleSaveModal(currentStatus as StandStatus)}
-                      className="flex-1 text-sm font-bold text-white bg-slate-700 hover:bg-slate-900 py-1.5 transition-colors"
-                    >
-                      Salvar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      {/* Modal: Ações de Documento (Proposta / Planta Baixa) */}
-      {docModal && (() => {
-        const label = docModal.tipo === "proposta_comercial" ? "Proposta Comercial" : "Planta Baixa";
-        const url = docModal.url;
-        const nomeEdicao = docModal.edicaoTitulo
-          .toUpperCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^A-Z0-9\s]/g, "")
-          .trim()
-          .replace(/\s+/g, "_");
-        const prefix = docModal.tipo === "proposta_comercial" ? "PROPOSTA_COMERCIAL" : "PLANTA_BAIXA";
-        const ext = url.split(".").pop()?.split("?")[0] || "pdf";
-        const fileName = `${prefix}_${nomeEdicao}.${ext}`;
-        const handleDownload = async () => {
-          try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = objectUrl;
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(objectUrl);
-          } catch {
-            alert("Não foi possível baixar o arquivo.");
-          }
-        };
-        const handleShare = async () => {
-          try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const file = new File([blob], fileName, { type: blob.type });
-            if (typeof navigator.share !== "function") {
-              alert("Seu navegador não suporta compartilhamento. Use o botão Baixar.");
-              return;
-            }
-            try {
-              await navigator.share({ files: [file], title: fileName });
-            } catch (shareErr: unknown) {
-              if (shareErr instanceof Error && shareErr.name === "AbortError") return;
-              try {
-                await navigator.share({ title: fileName, url });
-              } catch {
-                alert("Não foi possível compartilhar. Use o botão Baixar.");
-              }
-            }
-          } catch {
-            alert("Não foi possível preparar o arquivo para compartilhar.");
-          }
-        };
+      {/* Modal de Status de Imagens */}
+      {statusModal && (() => {
+        const row = rows.find((r) => r.id === statusModal.rowId);
+        if (!row) return null;
         return (
-          <div
-            className="fixed inset-0 z-[500] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={() => setDocModal(null)}
-          >
-            <div
-              className="bg-white rounded-2xl shadow-2xl w-[320px] p-6 flex flex-col items-center gap-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-16 h-16 rounded-full bg-green-50 border-4 border-green-100 flex items-center justify-center">
-                <svg
-                  className="w-8 h-8 text-green-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-              <div className="text-center">
-                <p className="text-[11px] text-slate-500 font-medium">O que deseja fazer com a</p>
-                <p className="text-[13px] font-black text-slate-800 uppercase tracking-wide">
-                  {label}?
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[250px]">
-                  {docModal.edicaoTitulo}
-                </p>
-              </div>
-              <div className="w-full flex flex-col gap-2">
-                <button
-                  onClick={() => window.open(url, "_blank")}
-                  className="w-full py-3 rounded-xl bg-blue-600 text-white font-black text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
-                  Visualizar
-                </button>
-                <button
-                  onClick={handleDownload}
-                  className="w-full py-3 rounded-xl bg-slate-800 text-white font-black text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-900 transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                    />
-                  </svg>
-                  Baixar
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="w-full py-3 rounded-xl bg-green-600 text-white font-black text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                    />
-                  </svg>
-                  Compartilhar
-                </button>
-              </div>
-              <button
-                onClick={() => setDocModal(null)}
-                className="text-[11px] text-slate-400 hover:text-slate-600 font-medium transition-colors"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
+          <PlanilhaStatusModal
+            statusModal={statusModal}
+            row={row}
+            imagens={getImagensDoStand(row)}
+            statusMap={statusMap}
+            clientes={clientes}
+            modalRecebimentos={modalRecebimentos}
+            modalRecebLoading={modalRecebLoading}
+            onClose={() => setStatusModal(null)}
+            onObsChange={(obs) => setStatusModal((p) => p ? { ...p, obs } : null)}
+            onToggleRecebimento={handleToggleRecebimento}
+            onSave={handleSaveModal}
+          />
         );
       })()}
+
+      {/* Modal de Documento (Proposta / Planta) */}
+      {docModal && <DocModal docModal={docModal} onClose={() => setDocModal(null)} />}
     </Layout>
   );
 };

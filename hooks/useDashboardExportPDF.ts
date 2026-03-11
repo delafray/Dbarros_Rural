@@ -107,7 +107,7 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
             // Only count real stands (is_stand !== false) for the RESUMO
             const standsOnly = sorted.filter(row => {
                 const cat = getCategoria(row.stand_nr);
-                return cat ? (cat as any).is_stand !== false : true;
+                return cat ? cat.is_stand !== false : true;
             });
             const totalStands = standsOnly.length;
 
@@ -461,7 +461,7 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
             // Itens não-stand (Merc., etc.) só são omitidos se TUDO estiver em branco/nulo
             const rowsForPdf = sorted.filter(row => {
                 const cat = getCategoria(row.stand_nr);
-                const isStand = cat ? (cat as any).is_stand !== false : true;
+                const isStand = cat ? cat.is_stand !== false : true;
                 if (isStand) return true;
                 // tem cliente vinculado (FK) ou nome livre digitado
                 if (row.cliente_id) return true;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { useAppDialog } from '../context/DialogContext';
 import { itensOpcionaisService, ItemOpcional } from '../services/itensOpcionaisService';
 
 type TipoPadrao = 'imagem' | 'logo' | null;
@@ -17,6 +18,7 @@ const TIPO_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 const ItensOpcionais: React.FC = () => {
+    const appDialog = useAppDialog();
     const [itens, setItens] = useState<ItemOpcional[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,7 @@ const ItensOpcionais: React.FC = () => {
             setEditModal(null);
             loadItens();
         } catch (err) {
-            alert('Erro ao salvar item');
+            void appDialog.alert({ title: 'Erro', message: 'Erro ao salvar item.', type: 'danger' });
             console.error(err);
         } finally {
             setSaving(false);
@@ -78,7 +80,7 @@ const ItensOpcionais: React.FC = () => {
             planilhas = await itensOpcionaisService.getPlanilhasUsingItem(id);
         } catch (err) {
             console.error('Erro ao verificar uso do item:', err);
-            alert('Não foi possível verificar se o item está em uso. Tente novamente.');
+            void appDialog.alert({ title: 'Erro', message: 'Nao foi possivel verificar se o item esta em uso. Tente novamente.', type: 'danger' });
             return;
         }
 
@@ -92,7 +94,7 @@ const ItensOpcionais: React.FC = () => {
             await itensOpcionaisService.deleteItem(id);
             loadItens();
         } catch (err) {
-            alert('Erro ao excluir item');
+            void appDialog.alert({ title: 'Erro', message: 'Erro ao excluir item.', type: 'danger' });
             console.error(err);
         }
     };

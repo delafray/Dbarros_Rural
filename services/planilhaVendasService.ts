@@ -161,9 +161,8 @@ export const planilhaVendasService = {
         (existentes || []).forEach(e => {
             if (!validStandNrs.has(e.stand_nr)) {
                 // Remove-os apenas se estiverem sem dados na planilha principal (ignora campos de AL)
-                const eAny = e as any;
-                const hasALData = eAny.area_m2 != null || eAny.preco_m2_override != null || eAny.total_override != null ||
-                    (eAny.combo_overrides != null && Object.keys(eAny.combo_overrides).length > 0);
+                const hasALData = e.area_m2 != null || e.preco_m2_override != null || e.total_override != null ||
+                    (e.combo_overrides != null && typeof e.combo_overrides === 'object' && Object.keys(e.combo_overrides as Record<string, unknown>).length > 0);
                 const isEmpty =
                     !e.cliente_id &&
                     !e.cliente_nome_livre &&

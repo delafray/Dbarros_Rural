@@ -1,841 +1,73 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { useAppDialog } from "../context/DialogContext";
-import {
-  planilhaVendasService,
-  CategoriaSetup,
-} from "../services/planilhaVendasService";
-import {
-  itensOpcionaisService,
-  ItemOpcional,
-} from "../services/itensOpcionaisService";
-import { supabase } from "../services/supabaseClient";
-import {
-  imagensService,
-  ImagemConfig,
-  OrigemTipo,
-  AvulsoStatus,
-} from "../services/imagensService";
-
-const CORES = [
-  "bg-[#FCE4D6]",
-  "bg-[#FFF2CC]",
-  "bg-[#E2EFDA]",
-  "bg-[#D9E1F2]",
-  "bg-[#F2F2F2]",
-  "bg-[#E6E6FA]",
-];
-
-const DEFAULT_CATS: CategoriaSetup[] = [
-  {
-    tag: "NAMING",
-    prefix: "Naming",
-    cor: CORES[0],
-    count: 16,
-    standBase: 20000,
-    combos: [20000, 20000, 20000],
-  },
-];
-
-// ── Componente de input com máscara de moeda BRL ────────────
-const CurrencyField: React.FC<{
-  value: number;
-  onChange: (n: number) => void;
-  className?: string;
-}> = ({ value, onChange, className }) => {
-  const [editing, setEditing] = React.useState(false);
-  const [draft, setDraft] = React.useState('');
-
-  const formatted = value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      value={editing ? draft : formatted}
-      onFocus={(e) => {
-        setEditing(true);
-        setDraft(value === 0 ? '' : String(value));
-        setTimeout(() => e.target.select(), 0);
-      }}
-      onChange={(e) => setDraft(e.target.value.replace(/[^0-9,]/g, ''))}
-      onBlur={() => {
-        setEditing(false);
-        onChange(parseFloat(draft.replace(',', '.')) || 0);
-      }}
-      className={className}
-    />
-  );
-};
+import { CategoriaSetup } from "../services/planilhaVendasService";
+import { AvulsoStatus } from "../services/imagensService";
+import CurrencyField from "../components/CurrencyField";
+import { useDirtyState } from "../hooks/useDirtyState";
+import { useConfigData } from "../hooks/useConfigData";
+import { useConfigOpcionais } from "../hooks/useConfigOpcionais";
+import { useConfigImagens } from "../hooks/useConfigImagens";
+import { useConfigSave } from "../hooks/useConfigSave";
+import ConfigImagensModal from "../components/config/ConfigImagensModal";
+import ConfigOpcionaisPopup from "../components/config/ConfigOpcionaisPopup";
 
 const ConfiguracaoVendas: React.FC = () => {
   const { edicaoId } = useParams<{ edicaoId: string }>();
   const navigate = useNavigate();
   const appDialog = useAppDialog();
 
-  const [categorias, setCategorias] = useState<CategoriaSetup[]>(DEFAULT_CATS);
-  const [numCombos, setNumCombos] = useState(3);
-  const [opcionaisDisponiveis, setOpcionaisDisponiveis] = useState<
-    ItemOpcional[]
-  >([]);
-  const [opcionaisSelecionados, setOpcionaisSelecionados] = useState<string[]>(
-    [],
-  );
-  // Preços por edição: { [itemId]: number }
-  const [opcionaisPrecos, setOpcionaisPrecos] = useState<
-    Record<string, number>
-  >({});
-  // Snapshot de nomes por edição: { [itemId]: string } — desvinculado do catálogo
-  const [opcionaisNomes, setOpcionaisNomes] = useState<
-    Record<string, string>
-  >({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [configId, setConfigId] = useState<string | null>(null);
-  const [savedCounts, setSavedCounts] = useState<Record<string, number>>({});
-  const [planilhaExiste, setPlanilhaExiste] = useState(false);
-  const [totalStands, setTotalStands] = useState(0);
-  // Nomes dos combos customizáveis
-  const [comboNames, setComboNames] = useState<string[]>([]);
-  // Popup state
-  const [showOpcionaisPopup, setShowOpcionaisPopup] = useState(false);
-  // Nomes de opcionais que já têm marcação em algum estande da planilha
-  const [opcionaisUsados, setOpcionaisUsados] = useState<Set<string>>(
-    new Set(),
-  );
-  // IDs de linhas com preço salvo recentemente (feedback visual)
-  const [salvosOk, setSalvosOk] = useState<Set<string>>(new Set());
-  // Imagens
-  const [imagensConfig, setImagensConfig] = useState<ImagemConfig[]>([]);
-  const [imagensModal, setImagensModal] = useState<{
-    tipo: OrigemTipo;
-    ref: string;
-    label: string;
-  } | null>(null);
-  const [novaImagem, setNovaImagem] = useState({
-    tipo: "imagem" as "imagem" | "logo",
-    descricao: "",
-    dimensoes: "",
+  const {
+    isDirty, showDirtyModal,
+    markDirty, markClean,
+    guardAction: guardNavigation,
+    confirmDiscard, cancelDiscard,
+  } = useDirtyState();
+
+  // ─── Data + Categories ──────────────────────────────────────
+  const data = useConfigData(edicaoId, markDirty);
+  const {
+    categorias, setCategorias, numCombos, comboNames, loading, saving, setSaving,
+    configId, setConfigId, savedCounts, setSavedCounts, planilhaExiste, setPlanilhaExiste,
+    totalStands, setTotalStands, savedTags, setSavedTags, alCategoriesWithData,
+    opcionaisDisponiveis, opcionaisSelecionados, setOpcionaisSelecionados,
+    opcionaisPrecos, setOpcionaisPrecos, opcionaisNomes, setOpcionaisNomes,
+    opcionaisUsados, salvosOk, setSalvosOk,
+    imagensConfig, setImagensConfig,
+    totalEstandes, itensAtivos,
+    updateCat, updateCombo, updateComboAdicional, addCombo, removeCombo,
+    handleComboNameChange, addCategoria,
+  } = data;
+
+  // ─── Opcionais ──────────────────────────────────────────────
+  const opc = useConfigOpcionais({
+    configId, edicaoId, opcionaisDisponiveis,
+    opcionaisSelecionados, setOpcionaisSelecionados,
+    opcionaisPrecos, setOpcionaisPrecos,
+    opcionaisNomes, setOpcionaisNomes,
+    opcionaisUsados, salvosOk, setSalvosOk,
+    appDialog,
   });
-  const [savingImagem, setSavingImagem] = useState(false);
-  const [editingImagem, setEditingImagem] = useState<{
-    id: string;
-    tipo: "imagem" | "logo";
-    descricao: string;
-    dimensoes: string;
-  } | null>(null);
-  // Tags salvas no banco — usadas para detectar renames na hora de salvar
-  const [savedTags, setSavedTags] = useState<string[]>([]);
-  // Tags de categorias AL que já têm dados configurados (bloqueia toggle/delete)
-  const [alCategoriesWithData, setAlCategoriesWithData] = useState<Set<string>>(new Set());
-  // Dirty state — alterações não salvas
-  const [isDirty, setIsDirty] = useState(false);
-  const [showDirtyModal, setShowDirtyModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
-  // Avisa o browser ao fechar/recarregar aba
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = ""; }
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
+  // ─── Imagens ────────────────────────────────────────────────
+  const img = useConfigImagens({ edicaoId, imagensConfig, setImagensConfig, appDialog });
 
-  const guardNavigation = (action: () => void) => {
-    if (isDirty) {
-      setPendingAction(() => action);
-      setShowDirtyModal(true);
-    } else {
-      action();
-    }
-  };
+  // ─── Save / Generate ────────────────────────────────────────
+  const sav = useConfigSave({
+    edicaoId, categorias, configId, setConfigId,
+    savedTags, setSavedTags, savedCounts, setSavedCounts,
+    planilhaExiste, setPlanilhaExiste, totalStands, setTotalStands,
+    saving, setSaving, comboNames,
+    opcionaisSelecionados, opcionaisNomes, opcionaisPrecos,
+    markClean, navigate, appDialog,
+  });
 
-  useEffect(() => {
-    if (edicaoId) loadData();
-  }, [edicaoId]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [config, allOpcionais, imagens] = await Promise.all([
-        planilhaVendasService.getConfig(edicaoId!),
-        itensOpcionaisService.getItens(),
-        imagensService.getConfig(edicaoId!),
-      ]);
-      if (config) {
-        setConfigId(config.id);
-        // Categorias vindas do banco como Json (precisam de cast seguro para CategoriaSetup)
-        const storedCats =
-          (config.categorias_config as unknown as CategoriaSetup[]) || [];
-
-        let maxCombos = 1;
-        // Ajuste defensivo: garante que combos é array e descobre o limite máximo (numCombos)
-        storedCats.forEach((cat) => {
-          if (Array.isArray(cat.combos)) {
-            maxCombos = Math.max(maxCombos, cat.combos.length);
-          } else if (typeof cat.combos === "object" && cat.combos !== null) {
-            // Migração legada para quem usava objeto { combo01: number }
-            const cArr = Object.values(cat.combos).map((v) => Number(v) || 0);
-            maxCombos = Math.max(maxCombos, cArr.length);
-            cat.combos = cArr;
-          } else {
-            cat.combos = [];
-          }
-        });
-
-        setNumCombos(maxCombos);
-
-        // Normaliza o array de combos para ter o mesmo tamnho padding (ex 0, 0, 0)
-        const mappedCats = storedCats.map((cat) => {
-          const padded = Array.isArray(cat.combos) ? [...cat.combos] : [];
-          while (padded.length < maxCombos) padded.push(0);
-          return { ...cat, combos: padded };
-        });
-
-        // Carrega nomes customizados dos combos (usa da primeira cat, se existir)
-        let savedComboNames: string[] = [];
-        if (storedCats.length > 0 && Array.isArray(storedCats[0].comboNames)) {
-          savedComboNames = [...storedCats[0].comboNames];
-        }
-        while (savedComboNames.length < maxCombos) {
-          savedComboNames.push(
-            `COMBO ${String(savedComboNames.length + 1).padStart(2, "0")}`,
-          );
-        }
-        setComboNames(savedComboNames);
-
-        setCategorias(mappedCats);
-        setSavedTags(mappedCats.map((c) => c.tag));
-        setOpcionaisSelecionados(config.opcionais_ativos || []);
-        // Load custom prices
-        setOpcionaisPrecos(
-          (config.opcionais_precos as Record<string, number>) || {},
-        );
-        // Load snapshot de nomes (fallback: preenche a partir do catálogo)
-        const savedNomes = (config.opcionais_nomes as Record<string, string>) || {};
-        if (Object.keys(savedNomes).length > 0) {
-          setOpcionaisNomes(savedNomes);
-        } else {
-          // Backward compat: gera snapshot a partir do catálogo para configs antigas
-          const fallback: Record<string, string> = {};
-          (config.opcionais_ativos || []).forEach((id: string) => {
-            const item = allOpcionais.find((o: ItemOpcional) => o.id === id);
-            if (item) fallback[id] = item.nome;
-          });
-          setOpcionaisNomes(fallback);
-        }
-        const counts: Record<string, number> = {};
-        mappedCats.forEach((cat) => {
-          counts[cat.tag] = cat.count;
-        });
-        setSavedCounts(counts);
-
-        const { data: estandes } = await supabase
-          .from("planilha_vendas_estandes")
-          .select(
-            "id, stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados, area_m2, total_override",
-          )
-          .eq("config_id", config.id);
-        if (estandes && estandes.length > 0) {
-          setPlanilhaExiste(true);
-          // Conta apenas estandes de categorias que são stands (is_stand !== false)
-          const standPrefixes = new Set(
-            storedCats
-              .filter((c) => c.is_stand !== false)
-              .map((c) => (c.prefix || c.tag || "").trim().toUpperCase()),
-          );
-          const totalStandsCount = estandes.filter((e) => {
-            const prefix = e.stand_nr.split(" ")[0].toUpperCase();
-            return standPrefixes.has(prefix);
-          }).length;
-          setTotalStands(totalStandsCount);
-          // Descobrir quais opcionais (por nome) têm marcação em algum estande
-          const usados = new Set<string>();
-          estandes.forEach((e) => {
-            const sel =
-              (e.opcionais_selecionados as Record<string, string>) || {};
-            Object.entries(sel).forEach(([nome, valor]) => {
-              if (valor === "x" || valor === "*") usados.add(nome);
-            });
-          });
-          setOpcionaisUsados(usados);
-          // Descobrir quais categorias AL já têm dados configurados
-          const alComDados = new Set<string>();
-          mappedCats
-            .filter((c) => c.tipo_precificacao === 'area_livre')
-            .forEach((cat) => {
-              const prefix = (cat.prefix || cat.tag || '').trim().toUpperCase();
-              const temDados = (estandes as any[]).some((e) => {
-                const ePrefix = e.stand_nr.split(' ')[0].toUpperCase();
-                return ePrefix === prefix && (e.area_m2 != null || e.total_override != null);
-              });
-              if (temDados) alComDados.add(cat.tag);
-            });
-          setAlCategoriesWithData(alComDados);
-        }
-      }
-      setOpcionaisDisponiveis(allOpcionais);
-      setImagensConfig(imagens || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Category handlers ──────────────────────────────────────
-  const updateCat = <K extends keyof CategoriaSetup>(
-    idx: number,
-    field: K,
-    value: string | number,
-  ) => {
-    setCategorias((prev) =>
-      prev.map((c, i) =>
-        i !== idx
-          ? c
-          : {
-            ...c,
-            [field]:
-              field === "count" || field === "standBase"
-                ? Number(value) || 0
-                : value,
-          },
-      ),
-    );
-    setIsDirty(true);
-  };
-
-  const updateCombo = (catIdx: number, ci: number, value: string | number) => {
-    setCategorias((prev) =>
-      prev.map((c, i) => {
-        if (i !== catIdx) return c;
-        const arr = Array.isArray(c.combos) ? [...c.combos] : [];
-        arr[ci] = Number(value) || 0;
-        return { ...c, combos: arr };
-      }),
-    );
-    setIsDirty(true);
-  };
-
-  const updateComboAdicional = (catIdx: number, ci: number, value: string | number) => {
-    setCategorias((prev) =>
-      prev.map((c, i) => {
-        if (i !== catIdx) return c;
-        const arr = Array.isArray(c.combos_adicionais) ? [...c.combos_adicionais] : [];
-        while (arr.length <= ci) arr.push(0);
-        arr[ci] = Number(value) || 0;
-        return { ...c, combos_adicionais: arr };
-      }),
-    );
-    setIsDirty(true);
-  };
-
-  const addCombo = () => {
-    setNumCombos((n) => n + 1);
-    setComboNames((prev) => [
-      ...prev,
-      `COMBO ${String(prev.length + 1).padStart(2, "0")}`,
-    ]);
-    setCategorias((prev) =>
-      prev.map((c) => ({
-        ...c,
-        combos: Array.isArray(c.combos) ? [...c.combos, 0] : [0],
-      })),
-    );
-    setIsDirty(true);
-  };
-
-  const removeCombo = () => {
-    if (numCombos <= 0) return;
-    setNumCombos((n) => n - 1);
-    setComboNames((prev) => prev.slice(0, -1));
-    setCategorias((prev) =>
-      prev.map((c) => ({
-        ...c,
-        combos: Array.isArray(c.combos) ? c.combos.slice(0, -1) : [],
-      })),
-    );
-    setIsDirty(true);
-  };
-
-  const handleComboNameChange = (idx: number, newName: string) => {
-    setComboNames((prev) => {
-      const arr = [...prev];
-      arr[idx] = newName.toUpperCase();
-      return arr;
-    });
-    setIsDirty(true);
-  };
-
-  const addCategoria = () => {
-    setCategorias((prev) => {
-      const maxOrdem = prev.reduce(
-        (max, cat) => Math.max(max, cat.ordem ?? 0),
-        0,
-      );
-      return [
-        ...prev,
-        {
-          tag: "",
-          prefix: "",
-          cor: CORES[prev.length % CORES.length],
-          count: 1,
-          standBase: 0,
-          combos: Array(numCombos).fill(0),
-          ordem: maxOrdem + 1,
-        },
-      ];
-    });
-    setIsDirty(true);
-  };
-
-  const removeCategoria = async (idx: number) => {
-    const cat = categorias[idx];
-    const identifier = (cat.prefix || cat.tag || "").trim();
-
-    // Se já existe uma planilha gerada, verificar se há estandes com dados
-    if (configId && identifier) {
-      const { data: estandes } = await supabase
-        .from("planilha_vendas_estandes")
-        .select(
-          "stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados",
-        )
-        .eq("config_id", configId)
-        .ilike("stand_nr", `${identifier} %`);
-
-      if (estandes && estandes.length > 0) {
-        const comDados = estandes.filter(
-          (e) =>
-            e.cliente_id ||
-            e.cliente_nome_livre ||
-            (e.tipo_venda && e.tipo_venda !== "DISPONÍVEL") ||
-            (e.opcionais_selecionados &&
-              Object.values(e.opcionais_selecionados as Record<string, string>).some(v => !!v)),
-        );
-
-        if (comDados.length > 0) {
-          await appDialog.alert({
-            title: 'Categoria com dados',
-            message:
-              `A categoria "${cat.tag}" nao pode ser removida.\n\n` +
-              `${comDados.length} estande(s) com dados cadastrados:\n` +
-              comDados.map((e) => `• ${e.stand_nr}`).join("\n") +
-              `\n\nLimpe os dados na planilha antes de remover esta categoria.`,
-            type: 'danger',
-          });
-          return;
-        }
-      }
-    }
-
-    // Removido da lista em tempo de execução. O banco será limpo no "Salvar Configurações".
-    const novasCategorias = categorias.filter((_, i) => i !== idx);
-    setCategorias(novasCategorias);
-    setIsDirty(true);
-  };
-
-  // ── Opcionais handlers ─────────────────────────────────────
-  const toggleOpcional = async (id: string) => {
-    if (opcionaisSelecionados.includes(id)) {
-      // Bloquear se o item já foi usado na planilha (usa nome do snapshot)
-      const nomeSnapshot = opcionaisNomes[id];
-      const nomeDisplay = nomeSnapshot || opcionaisDisponiveis.find((o) => o.id === id)?.nome;
-      if (nomeDisplay && opcionaisUsados.has(nomeDisplay)) {
-        await appDialog.alert({
-          title: 'Item em uso',
-          message: `O item "${nomeDisplay}" ja esta marcado em estandes da planilha.\n\nPara remove-lo da edicao, primeiro desmarque-o em todos os estandes na planilha.`,
-          type: 'danger',
-        });
-        return;
-      }
-      setOpcionaisPrecos((p) => {
-        const n = { ...p };
-        delete n[id];
-        return n;
-      });
-      setOpcionaisNomes((p) => {
-        const n = { ...p };
-        delete n[id];
-        return n;
-      });
-      setOpcionaisSelecionados((prev) => prev.filter((x) => x !== id));
-      return;
-    }
-    // Adicionar: setar preço sugerido como padrão + snapshot do nome
-    const item = opcionaisDisponiveis.find((o) => o.id === id);
-    if (item) {
-      setOpcionaisPrecos((p) => ({
-        ...p,
-        [id]: Number(item.preco_base) || 0,
-      }));
-      setOpcionaisNomes((p) => ({
-        ...p,
-        [id]: item.nome,
-      }));
-    }
-    setOpcionaisSelecionados((prev) => [...prev, id]);
-  };
-
-  const updatePreco = (id: string, value: string) => {
-    setOpcionaisPrecos((prev) => ({ ...prev, [id]: Number(value) || 0 }));
-  };
-
-  const handleSavePreco = async (id: string) => {
-    if (!edicaoId || !configId) {
-      await appDialog.alert({ title: 'Aviso', message: 'Salve as configuracoes gerais primeiro.', type: 'warning' });
-      return;
-    }
-    const item = opcionaisDisponiveis.find((o) => o.id === id);
-    const nomeDisplay = opcionaisNomes[id] || item?.nome || id;
-    const novoPreco = opcionaisPrecos[id] ?? Number(item?.preco_base ?? 0);
-    const precoFmt = novoPreco.toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-    });
-
-    if (opcionaisUsados.has(nomeDisplay)) {
-      const ok = await appDialog.confirm({
-        title: 'Atualizar preco',
-        message:
-          `O item "${nomeDisplay}" ja esta marcado em estandes desta planilha.\n\n` +
-          `Ao confirmar, o novo preco de R$ ${precoFmt} sera salvo na configuracao e passara a valer para todos os calculos da edicao.\n\n` +
-          `Deseja continuar?`,
-        confirmText: 'Confirmar',
-        type: 'danger',
-      });
-      if (!ok) return;
-    }
-
-    // Salva opcionais_precos no banco imediatamente
-    const newPrecos = { ...opcionaisPrecos, [id]: novoPreco };
-    const { error } = await supabase
-      .from("planilha_configuracoes")
-      .update({
-        opcionais_precos:
-          newPrecos as unknown as import("../database.types").Json,
-      })
-      .eq("id", configId);
-
-    if (error) {
-      await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar preco: ' + error.message, type: 'danger' });
-      return;
-    }
-
-    setOpcionaisPrecos(newPrecos);
-    setSalvosOk((prev) => new Set(prev).add(id));
-    setTimeout(
-      () =>
-        setSalvosOk((prev) => {
-          const n = new Set(prev);
-          n.delete(id);
-          return n;
-        }),
-      2500,
-    );
-  };
-
-  // ── Imagens handlers ───────────────────────────────────────
-  const getImagensForRef = (tipo: OrigemTipo, ref: string) =>
-    imagensConfig.filter(
-      (c) => c.origem_tipo === tipo && c.origem_ref === ref,
-    );
-
-  const handleOpenImagensModal = (
-    tipo: OrigemTipo,
-    ref: string,
-    label: string,
-    tipoPadrao?: "imagem" | "logo" | null,
-  ) => {
-    setImagensModal({ tipo, ref, label });
-    setNovaImagem({ tipo: tipoPadrao ?? "imagem", descricao: "", dimensoes: "" });
-    setEditingImagem(null);
-  };
-
-  const handleAddImagem = async () => {
-    if (!novaImagem.descricao.trim() || !edicaoId || !imagensModal) return;
-    setSavingImagem(true);
-    try {
-      const added = await imagensService.addConfig({
-        edicao_id: edicaoId,
-        origem_tipo: imagensModal.tipo,
-        origem_ref: imagensModal.ref,
-        tipo: novaImagem.tipo,
-        descricao: novaImagem.descricao.trim(),
-        dimensoes:
-          novaImagem.tipo === "imagem" && novaImagem.dimensoes.trim()
-            ? novaImagem.dimensoes.trim()
-            : null,
-      });
-      setImagensConfig((prev) => [...prev, added]);
-      setNovaImagem({ tipo: "imagem", descricao: "", dimensoes: "" });
-    } catch (err) {
-      await appDialog.alert({ title: 'Erro', message: 'Erro ao adicionar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
-    } finally {
-      setSavingImagem(false);
-    }
-  };
-
-  const handleRemoveImagem = async (id: string) => {
-    try {
-      await imagensService.removeConfig(id);
-      setImagensConfig((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
-      await appDialog.alert({ title: 'Erro', message: 'Erro ao remover: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
-    }
-  };
-
-  const handleUpdateImagem = async () => {
-    if (!editingImagem || !editingImagem.descricao.trim()) return;
-    setSavingImagem(true);
-    try {
-      const updated = await imagensService.updateConfig(editingImagem.id, {
-        tipo: editingImagem.tipo,
-        descricao: editingImagem.descricao.trim(),
-        dimensoes:
-          editingImagem.tipo === "imagem" && editingImagem.dimensoes.trim()
-            ? editingImagem.dimensoes.trim()
-            : null,
-      });
-      setImagensConfig((prev) =>
-        prev.map((c) => (c.id === updated.id ? updated : c)),
-      );
-      setEditingImagem(null);
-    } catch (err) {
-      await appDialog.alert({ title: 'Erro', message: 'Erro ao atualizar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
-    } finally {
-      setSavingImagem(false);
-    }
-  };
-
-  const handleUpdateAvulsoStatus = async (id: string, status: AvulsoStatus) => {
-    try {
-      await imagensService.updateAvulsoStatus(id, status);
-      setImagensConfig((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, avulso_status: status } : c)),
-      );
-    } catch (err) {
-      await appDialog.alert({ title: 'Erro', message: 'Erro ao atualizar status: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
-    }
-  };
-
-  // ── Validation ─────────────────────────────────────────────
-  const validateCountReduction = async (): Promise<string | null> => {
-    if (!configId) return null;
-
-    // Verifica se há estandes "órfãos" (removidos ou com prefixo alterado) que possuem dados
-    const { data: estandes, error } = await supabase
-      .from("planilha_vendas_estandes")
-      .select(
-        "stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados, area_m2, total_override",
-      )
-      .eq("config_id", configId);
-
-    if (error || !estandes) return null;
-
-    const validStandNrs = new Set<string>();
-    for (const cat of categorias) {
-      for (let i = 1; i <= cat.count; i++) {
-        validStandNrs.add(planilhaVendasService.buildStandNr(cat, i));
-      }
-    }
-
-    const orphansWithData = (estandes as any[]).filter((e) => {
-      if (validStandNrs.has(e.stand_nr)) return false;
-      // É um órfão. Tem dados na planilha principal? (ignora campos de AL — area_m2, total_override)
-      return (
-        e.cliente_id ||
-        e.cliente_nome_livre ||
-        (e.tipo_venda && e.tipo_venda !== "DISPONÍVEL") ||
-        (e.opcionais_selecionados &&
-          Object.values(e.opcionais_selecionados as Record<string, string>).some(v => !!v))
-      );
-    });
-
-    if (orphansWithData.length > 0) {
-      return `Existem ${orphansWithData.length} estande(s) com dados que ficariam órfãos (ex: ${orphansWithData[0].stand_nr}). Isso ocorre ao reduzir a quantidade, excluir uma categoria ou alterar seu prefixo. Limpe estes estandes na planilha primeiro.`;
-    }
-
-    return null;
-  };
-
-  // ── Helper: salva config no banco ──────────────────────────
-  const persistConfig = async (): Promise<string> => {
-    // Vincula a property comboNames no payload (vamos gravar em todas pra ser seguro, mas apenas as do Index 0 importam de verdade)
-    const categoriasToSave = categorias.map((c) => ({
-      ...c,
-      comboNames: comboNames,
-    }));
-
-    const payload = {
-      edicao_id: edicaoId,
-      categorias_config:
-        categoriasToSave as unknown as import("../database.types").Json,
-      opcionais_ativos: opcionaisSelecionados,
-      opcionais_nomes:
-        opcionaisNomes as unknown as import("../database.types").Json,
-      opcionais_precos:
-        opcionaisPrecos as unknown as import("../database.types").Json,
-    };
-
-    if (configId) {
-      const { data, error } = await supabase
-        .from("planilha_configuracoes")
-        .update(payload)
-        .eq("id", configId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data.id;
-    } else {
-      const { data, error } = await supabase
-        .from("planilha_configuracoes")
-        .insert(payload)
-        .select()
-        .single();
-      if (error) throw error;
-      return data.id;
-    }
-  };
-
-  // ── Validate categories ────────────────────────────────────
-  const validateCategorias = (): string | null => {
-    const identifiers = new Set<string>();
-
-    for (const cat of categorias) {
-      const tagNormalized = (cat.tag || "").trim().toUpperCase();
-      if (!tagNormalized || tagNormalized === "NOVA") {
-        return `Todas as categorias precisam de uma TAG válida (A TAG "${cat.tag || "vazia"}" não é permitida). Corrija antes de continuar.`;
-      }
-      if (cat.count < 1) {
-        return `A categoria "${cat.tag}" precisa ter ao menos 1 stand (QTD ≥ 1).`;
-      }
-
-      // Checar por identificadores (prefixos) duplicados
-      const identifier = (cat.prefix || cat.tag || "").trim().toUpperCase();
-      if (identifiers.has(identifier)) {
-        return `O Identificador/Prefixo "${identifier}" está duplicado. Cada categoria precisa de um prefixo único para evitar erros na geração da planilha.`;
-      }
-      identifiers.add(identifier);
-    }
-    return null;
-  };
-
-  // ── Navegar para AL (salva config antes) ───────────────────
-  const handleNavigateToAL = async (cat: CategoriaSetup) => {
-    try {
-      setSaving(true);
-      const savedId = await persistConfig();
-      setConfigId(savedId);
-      await planilhaVendasService.syncEstandes(savedId, categorias);
-      setIsDirty(false);
-      navigate(`/planilha-area-livre/${edicaoId}/${encodeURIComponent(cat.tag)}`);
-    } catch (err) {
-      await appDialog.alert({ title: 'Erro', message: String(err), type: 'danger' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ── Save config ────────────────────────────────────────────
-  const handleSave = async () => {
-    if (!edicaoId) return;
-    const catErr = validateCategorias();
-    if (catErr) {
-      await appDialog.alert({ title: 'Validacao', message: catErr, type: 'warning' });
-      return;
-    }
-    const err = await validateCountReduction();
-    if (err) {
-      await appDialog.alert({ title: 'Validacao', message: err, type: 'warning' });
-      return;
-    }
-    try {
-      setSaving(true);
-
-      // Detecta tags renomeadas e atualiza edicao_imagens_config antes de salvar
-      const renames = savedTags
-        .map((oldTag, i) => ({ oldTag, newTag: categorias[i]?.tag }))
-        .filter(({ oldTag, newTag }) => oldTag && newTag && oldTag !== newTag);
-      if (renames.length > 0) {
-        await Promise.all(
-          renames.map(({ oldTag, newTag }) =>
-            imagensService.updateOrigemRef(edicaoId, oldTag, newTag),
-          ),
-        );
-      }
-
-      const savedId = await persistConfig();
-      setConfigId(savedId);
-      setSavedTags(categorias.map((c) => c.tag));
-
-      // Sincroniza estandes (insere novos, remove excedentes sem dados)
-      if (planilhaExiste || savedId) {
-        const result = await planilhaVendasService.syncEstandes(
-          savedId,
-          categorias,
-        );
-        if (result.inserted > 0 || result.deleted > 0) {
-          setPlanilhaExiste(true);
-          setTotalStands((prev) => prev + result.inserted - result.deleted);
-        }
-      }
-
-      const counts: Record<string, number> = {};
-      categorias.forEach((c) => {
-        counts[c.prefix] = c.count;
-      });
-      setSavedCounts(counts);
-
-      setIsDirty(false);
-      await appDialog.alert({ title: 'Salvo!', message: 'Configuracoes salvas!', type: 'success' });
-      // Redireciona para planilha para refletir novas cores/preços
-      navigate(`/planilha-vendas/${edicaoId}`);
-    } catch (err) {
-      console.error(err);
-      await appDialog.alert({ title: 'Erro', message: 'Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ── Generate planilha ──────────────────────────────────────
-  const handleGenerate = async () => {
-    if (!edicaoId) return;
-    if (planilhaExiste) {
-      await appDialog.alert({
-        title: 'Planilha ja existe',
-        message: `Planilha ja existe com ${totalStands} estandes. Limpe os dados na planilha antes de gerar novamente.`,
-        type: 'danger',
-      });
-      return;
-    }
-    const catErr = validateCategorias();
-    if (catErr) {
-      await appDialog.alert({ title: 'Validacao', message: catErr, type: 'warning' });
-      return;
-    }
-    const err = await validateCountReduction();
-    if (err) {
-      await appDialog.alert({ title: 'Validacao', message: err, type: 'warning' });
-      return;
-    }
-    const confirmed = await appDialog.confirm({ title: 'Gerar Planilha', message: 'Gerar planilha com as categorias definidas?', confirmText: 'Gerar Planilha', type: 'danger' });
-    if (!confirmed) return;
-    try {
-      setSaving(true);
-      const savedId = await persistConfig();
-      setConfigId(savedId);
-      await planilhaVendasService.generateEstandes(savedId, categorias);
-      setPlanilhaExiste(true);
-      setTotalStands(categorias.reduce((s, c) => s + c.count, 0));
-      await appDialog.alert({ title: 'Gerado!', message: 'Planilha gerada com sucesso!', type: 'success' });
-      navigate(`/planilha-vendas/${edicaoId}`);
-    } catch (err) {
-      console.error(err);
-      await appDialog.alert({ title: 'Erro', message: 'Erro ao gerar planilha: ' + (err instanceof Error ? err.message : String(err)), type: 'danger' });
-    } finally {
-      setSaving(false);
+  const handleRemoveCategoria = async (idx: number) => {
+    const canRemove = await sav.removeCategoria(idx);
+    if (canRemove) {
+      setCategorias((prev) => prev.filter((_, i) => i !== idx));
+      markDirty();
     }
   };
 
@@ -845,22 +77,6 @@ const ConfiguracaoVendas: React.FC = () => {
         <div className="p-8 text-center text-slate-500">Carregando...</div>
       </Layout>
     );
-
-  const totalEstandes = categorias
-    .filter((c) => c.is_stand !== false)
-    .reduce((s, c) => s + c.count, 0);
-  // Itens ativos com nome do snapshot (desvinculado do catálogo)
-  const itensAtivos = opcionaisSelecionados
-    .map((id) => {
-      const catalogItem = opcionaisDisponiveis.find((o) => o.id === id);
-      const snapshotNome = opcionaisNomes[id];
-      if (!catalogItem && !snapshotNome) return null;
-      return {
-        ...(catalogItem || { id, preco_base: 0, created_at: null, tipo_padrao: null }),
-        nome: snapshotNome || catalogItem?.nome || id,
-      } as ItemOpcional;
-    })
-    .filter(Boolean) as ItemOpcional[];
 
   return (
     <Layout title="Estruturar Planilha de Vendas">
@@ -873,18 +89,8 @@ const ConfiguracaoVendas: React.FC = () => {
               <p className="text-sm text-amber-700 mt-1">Você tem alterações não salvas. Deseja sair sem salvar?</p>
             </div>
             <div className="flex gap-3 px-6 py-4 justify-end bg-slate-50">
-              <button
-                onClick={() => { setShowDirtyModal(false); setPendingAction(null); }}
-                className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
-              >
-                Ficar aqui
-              </button>
-              <button
-                onClick={() => { setIsDirty(false); setShowDirtyModal(false); if (pendingAction) pendingAction(); }}
-                className="px-4 py-2 text-sm font-black text-white bg-red-600 rounded-lg hover:bg-red-700"
-              >
-                Sair sem salvar
-              </button>
+              <button onClick={cancelDiscard} className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Ficar aqui</button>
+              <button onClick={confirmDiscard} className="px-4 py-2 text-sm font-black text-white bg-red-600 rounded-lg hover:bg-red-700">Sair sem salvar</button>
             </div>
           </div>
         </div>
@@ -896,23 +102,14 @@ const ConfiguracaoVendas: React.FC = () => {
           <div className="border-l-4 border-amber-500 bg-amber-50 px-5 py-3 flex items-start gap-3">
             <span className="text-xl mt-0.5">⚠️</span>
             <div>
-              <p className="font-bold text-amber-800 text-sm">
-                Planilha já gerada — {totalStands} estandes ativos
-              </p>
-              <p className="text-amber-700 text-xs mt-0.5">
-                Você pode editar preços e opcionais e salvar. Para gerar nova
-                planilha, limpe os dados primeiro.
-              </p>
+              <p className="font-bold text-amber-800 text-sm">Planilha já gerada — {totalStands} estandes ativos</p>
+              <p className="text-amber-700 text-xs mt-0.5">Você pode editar preços e opcionais e salvar. Para gerar nova planilha, limpe os dados primeiro.</p>
             </div>
           </div>
         ) : (
           <div className="border-l-4 border-blue-500 bg-blue-50 px-5 py-3">
-            <p className="font-bold text-blue-800 text-sm">
-              Nenhuma planilha gerada ainda
-            </p>
-            <p className="text-blue-700 text-xs mt-0.5">
-              Configure abaixo, salve e clique em "Gerar Planilha".
-            </p>
+            <p className="font-bold text-blue-800 text-sm">Nenhuma planilha gerada ainda</p>
+            <p className="text-blue-700 text-xs mt-0.5">Configure abaixo, salve e clique em "Gerar Planilha".</p>
           </div>
         )}
 
@@ -921,95 +118,47 @@ const ConfiguracaoVendas: React.FC = () => {
           <div className="bg-slate-900 text-white px-5 py-3 flex flex-wrap gap-2 items-center justify-between">
             <div className="flex items-center gap-3">
               <div>
-                <span className="font-bold text-sm uppercase tracking-wider">
-                  Estrutura de Estandes e Preços
-                </span>
-                <span className="ml-3 text-slate-400 text-xs">
-                  {totalEstandes} stand(s) no total
-                </span>
+                <span className="font-bold text-sm uppercase tracking-wider">Estrutura de Estandes e Preços</span>
+                <span className="ml-3 text-slate-400 text-xs">{totalEstandes} stand(s) no total</span>
               </div>
-              {/* Botões de acesso às planilhas AL — junto ao contador */}
               {configId && categorias.filter(c => c.tipo_precificacao === 'area_livre').map((cat) => (
-                <button
-                  key={cat.tag}
-                  onClick={() => handleNavigateToAL(cat)}
-                  className="text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 transition-colors shadow-sm whitespace-nowrap"
-                >
+                <button key={cat.tag} onClick={() => sav.handleNavigateToAL(cat)} className="text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 transition-colors shadow-sm whitespace-nowrap">
                   Configurar Área Livre
                 </button>
               ))}
             </div>
             <div className="flex gap-2 flex-wrap items-center">
-              <button
-                onClick={addCombo}
-                className="text-xs font-black bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 transition-colors shadow-sm"
-              >
-                + Adicionar Combo
-              </button>
+              <button onClick={addCombo} className="text-xs font-black bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 transition-colors shadow-sm">+ Adicionar Combo</button>
               <div className="w-3" />
-              <button
-                onClick={removeCombo}
-                disabled={numCombos === 0}
-                className={`text-xs font-black px-3 py-1.5 text-white transition-colors ${numCombos === 0 ? "bg-red-800/40 cursor-not-allowed" : "bg-red-700 hover:bg-red-600"}`}
-              >
-                − Remover Combo
-              </button>
+              <button onClick={removeCombo} disabled={numCombos === 0} className={`text-xs font-black px-3 py-1.5 text-white transition-colors ${numCombos === 0 ? "bg-red-800/40 cursor-not-allowed" : "bg-red-700 hover:bg-red-600"}`}>− Remover Combo</button>
               <div className="w-px bg-slate-600 mx-1" />
-              <button
-                onClick={addCategoria}
-                className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 font-bold transition-colors"
-              >
-                + Categoria
-              </button>
+              <button onClick={addCategoria} className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 font-bold transition-colors">+ Categoria</button>
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-16 border border-slate-200">
-                    Ord.
-                  </th>
-                  <th className="px-4 py-1 text-left text-[11px] font-bold uppercase text-slate-500 w-28 border border-slate-200">
-                    Tag
-                  </th>
-                  <th className="px-4 py-1 text-left text-[11px] font-bold uppercase text-slate-500 w-36 border border-slate-200">
-                    Prefixo
-                  </th>
-                  <th className="px-4 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-20 border border-slate-200">
-                    Qtd.
-                  </th>
-                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-amber-600 w-16 border border-slate-200"
-                    title="Categoria de Área Livre (venda por m²)">
-                    AL?
-                  </th>
-                  <th className="px-4 py-1 text-right text-[11px] font-bold uppercase text-slate-500 w-32 border border-slate-200">
-                    Base / R$/m²
-                  </th>
+                  <th className="px-4 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-16 border border-slate-200">Ord.</th>
+                  <th className="px-4 py-1 text-left text-[11px] font-bold uppercase text-slate-500 w-28 border border-slate-200">Tag</th>
+                  <th className="px-4 py-1 text-left text-[11px] font-bold uppercase text-slate-500 w-36 border border-slate-200">Prefixo</th>
+                  <th className="px-4 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-20 border border-slate-200">Qtd.</th>
+                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-amber-600 w-16 border border-slate-200" title="Categoria de Área Livre (venda por m²)">AL?</th>
+                  <th className="px-4 py-1 text-right text-[11px] font-bold uppercase text-slate-500 w-32 border border-slate-200">Base / R$/m²</th>
                   {Array.from({ length: numCombos }).map((_, i) => (
-                    <th
-                      key={i}
-                      className="px-2 py-1 text-center text-[11px] font-bold uppercase text-blue-600 min-w-[100px] border border-slate-200"
-                    >
+                    <th key={i} className="px-2 py-1 text-center text-[11px] font-bold uppercase text-blue-600 min-w-[100px] border border-slate-200">
                       <input
                         type="text"
                         className="w-full text-center bg-transparent border-b border-transparent focus:border-blue-400 focus:outline-none placeholder:text-blue-300 transition-colors uppercase text-blue-700"
                         value={comboNames[i] || ""}
-                        onChange={(e) =>
-                          handleComboNameChange(i, e.target.value)
-                        }
+                        onChange={(e) => handleComboNameChange(i, e.target.value)}
                         placeholder={`COMBO ${String(i + 1).padStart(2, "0")}`}
                         title="Clique para editar o Nome/Fantasia deste combo na Planilha"
                       />
                     </th>
                   ))}
-                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-16 border border-slate-200"
-                    title="Indica se esta categoria conta como stand na contagem total">
-                    Stand?
-                  </th>
-                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-violet-600 w-20 border border-slate-200">
-                    Imagens
-                  </th>
+                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-slate-500 w-16 border border-slate-200" title="Indica se esta categoria conta como stand na contagem total">Stand?</th>
+                  <th className="px-2 py-1 text-center text-[11px] font-bold uppercase text-violet-600 w-20 border border-slate-200">Imagens</th>
                   <th className="w-8 border border-slate-200" />
                 </tr>
               </thead>
@@ -1018,59 +167,22 @@ const ConfiguracaoVendas: React.FC = () => {
                   .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
                   .map((cat) => {
                     const idx = categorias.indexOf(cat);
-                    const isReducing =
-                      savedCounts[cat.prefix] &&
-                      cat.count < savedCounts[cat.prefix];
+                    const isReducing = savedCounts[cat.prefix] && cat.count < savedCounts[cat.prefix];
                     return (
-                      <tr
-                        key={idx}
-                        className={`${cat.cor} hover:brightness-95 transition-all`}
-                      >
+                      <tr key={idx} className={`${cat.cor} hover:brightness-95 transition-all`}>
                         <td className="px-2 py-0.5 border border-slate-200">
-                          <input
-                            type="number"
-                            className="w-full p-1 border border-black/10 font-mono font-bold text-[12px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 text-center"
-                            value={cat.ordem ?? 0}
-                            onChange={(e) =>
-                              updateCat(idx, "ordem", e.target.value)
-                            }
-                          />
+                          <input type="number" className="w-full p-1 border border-black/10 font-mono font-bold text-[12px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 text-center" value={cat.ordem ?? 0} onChange={(e) => updateCat(idx, "ordem", e.target.value)} />
                         </td>
                         <td className="px-2 py-0.5 border border-slate-200">
-                          <input
-                            className="w-full p-1 border border-black/10 font-mono text-[12px] uppercase bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 font-bold"
-                            value={cat.tag}
-                            onChange={(e) =>
-                              updateCat(idx, "tag", e.target.value)
-                            }
-                            placeholder="NAMING"
-                          />
+                          <input className="w-full p-1 border border-black/10 font-mono text-[12px] uppercase bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 font-bold" value={cat.tag} onChange={(e) => updateCat(idx, "tag", e.target.value)} placeholder="NAMING" />
                         </td>
                         <td className="px-2 py-0.5 border border-slate-200">
-                          <input
-                            className="w-full p-1 border border-black/10 font-black text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 text-center"
-                            value={cat.prefix}
-                            onChange={(e) =>
-                              updateCat(idx, "prefix", e.target.value)
-                            }
-                          />
+                          <input className="w-full p-1 border border-black/10 font-black text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 text-center" value={cat.prefix} onChange={(e) => updateCat(idx, "prefix", e.target.value)} />
                         </td>
                         <td className="px-2 py-0.5 border border-slate-200">
                           <div className="flex flex-col items-center">
-                            <input
-                              type="number"
-                              min="0"
-                              className={`w-14 p-1 border text-center font-black text-[14px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 block ${isReducing ? "border-amber-400 focus:ring-amber-400 bg-amber-50" : "border-black/10 focus:ring-slate-400"}`}
-                              value={cat.count}
-                              onChange={(e) =>
-                                updateCat(idx, "count", e.target.value)
-                              }
-                            />
-                            {isReducing && (
-                              <span className="text-[8px] text-amber-700 font-bold uppercase tracking-tighter">
-                                era {savedCounts[cat.prefix]}
-                              </span>
-                            )}
+                            <input type="number" min="0" className={`w-14 p-1 border text-center font-black text-[14px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 block ${isReducing ? "border-amber-400 focus:ring-amber-400 bg-amber-50" : "border-black/10 focus:ring-slate-400"}`} value={cat.count} onChange={(e) => updateCat(idx, "count", e.target.value)} />
+                            {isReducing && <span className="text-[8px] text-amber-700 font-bold uppercase tracking-tighter">era {savedCounts[cat.prefix]}</span>}
                           </div>
                         </td>
                         {/* Toggle Área Livre */}
@@ -1078,48 +190,24 @@ const ConfiguracaoVendas: React.FC = () => {
                           {(() => {
                             const isAL = cat.tipo_precificacao === 'area_livre';
                             const hasData = alCategoriesWithData.has(cat.tag);
-                            const isDisabled = hasData;
-                            const title = hasData
-                              ? 'Categoria com dados AL. Acesse a Planilha AL para desmarcar.'
-                              : 'Marcar como Área Livre (venda por m²) — desmarca automaticamente qualquer outra';
                             return (
-                              <label
-                                className={`flex items-center justify-center gap-1 ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                                title={title}
-                              >
+                              <label className={`flex items-center justify-center gap-1 ${hasData ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`} title={hasData ? 'Categoria com dados AL. Acesse a Planilha AL para desmarcar.' : 'Marcar como Área Livre (venda por m²)'}>
                                 <input
                                   type="checkbox"
                                   checked={isAL}
-                                  disabled={isDisabled}
+                                  disabled={hasData}
                                   onChange={async (e) => {
                                     if (e.target.checked) {
-                                      // Bloqueia se outra AL já tem dados configurados
-                                      const outraComDados = categorias.find(
-                                        (c, i) => i !== idx && c.tipo_precificacao === 'area_livre' && alCategoriesWithData.has(c.tag)
-                                      );
+                                      const outraComDados = categorias.find((c, i) => i !== idx && c.tipo_precificacao === 'area_livre' && alCategoriesWithData.has(c.tag));
                                       if (outraComDados) {
-                                        await appDialog.alert({
-                                          title: 'Área Livre com dados',
-                                          message: `A categoria "${outraComDados.tag}" já tem dados na Planilha AL. Limpe os dados dela antes de trocar.`,
-                                          type: 'warning',
-                                        });
+                                        await appDialog.alert({ title: 'Área Livre com dados', message: `A categoria "${outraComDados.tag}" já tem dados na Planilha AL. Limpe os dados dela antes de trocar.`, type: 'warning' });
                                         return;
                                       }
-                                      // Desmarca qualquer outra AL e marca esta (radio behavior)
-                                      setCategorias((prev) =>
-                                        prev.map((c, i) => ({
-                                          ...c,
-                                          tipo_precificacao: (i === idx ? 'area_livre' : 'fixo') as 'fixo' | 'area_livre',
-                                        }))
-                                      );
-                                      setIsDirty(true);
+                                      setCategorias((prev) => prev.map((c, i) => ({ ...c, tipo_precificacao: (i === idx ? 'area_livre' : 'fixo') as 'fixo' | 'area_livre' })));
+                                      markDirty();
                                     } else {
-                                      setCategorias((prev) =>
-                                        prev.map((c, i) =>
-                                          i !== idx ? c : { ...c, tipo_precificacao: 'fixo' as const }
-                                        )
-                                      );
-                                      setIsDirty(true);
+                                      setCategorias((prev) => prev.map((c, i) => i !== idx ? c : { ...c, tipo_precificacao: 'fixo' as const }));
+                                      markDirty();
                                     }
                                   }}
                                   className="w-4 h-4 accent-amber-600 cursor-pointer"
@@ -1130,11 +218,9 @@ const ConfiguracaoVendas: React.FC = () => {
                         </td>
                         {cat.tipo_precificacao === 'area_livre' ? (
                           <>
-                            {/* Base desabilitado — configurar na Planilha AL */}
                             <td className="px-2 py-0.5 border border-slate-200 bg-slate-100" title="Configurar na Planilha Área Livre">
                               <span className="block w-full p-1 text-right font-mono text-[11px] text-slate-400 italic min-w-[90px]">via AL</span>
                             </td>
-                            {/* Combos desabilitados — configurar na Planilha AL */}
                             {Array.from({ length: numCombos }).map((_, ci) => (
                               <td key={ci} className="px-2 py-0.5 border border-slate-200 bg-slate-100" title="Configurar na Planilha Área Livre">
                                 <span className="block w-full p-1 text-right font-mono text-[11px] text-slate-400 italic min-w-[90px]">via AL</span>
@@ -1144,62 +230,25 @@ const ConfiguracaoVendas: React.FC = () => {
                         ) : (
                           <>
                             <td className="px-2 py-0.5 border border-slate-200">
-                              <CurrencyField
-                                value={cat.standBase}
-                                onChange={(n) => updateCat(idx, "standBase", n)}
-                                className="w-full p-1 border border-black/10 text-right font-mono font-bold text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[90px]"
-                              />
+                              <CurrencyField value={cat.standBase ?? 0} onChange={(n) => updateCat(idx, "standBase", n ?? 0)} className="w-full p-1 border border-black/10 text-right font-mono font-bold text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[90px]" />
                             </td>
                             {Array.from({ length: numCombos }).map((_, ci) => (
-                              <td
-                                key={ci}
-                                className="px-2 py-0.5 border border-slate-200"
-                              >
-                                <CurrencyField
-                                  value={Array.isArray(cat.combos) ? cat.combos[ci] || 0 : 0}
-                                  onChange={(n) => updateCombo(idx, ci, n)}
-                                  className="w-full p-1 border border-blue-200 text-right text-blue-900 font-black font-mono text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[90px]"
-                                />
+                              <td key={ci} className="px-2 py-0.5 border border-slate-200">
+                                <CurrencyField value={Array.isArray(cat.combos) ? cat.combos[ci] || 0 : 0} onChange={(n) => updateCombo(idx, ci, n ?? 0)} className="w-full p-1 border border-blue-200 text-right text-blue-900 font-black font-mono text-[13px] bg-white/80 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[90px]" />
                               </td>
                             ))}
                           </>
                         )}
-                        {/* Checkbox is_stand */}
                         <td className="px-1 py-0.5 text-center border border-slate-200">
                           <label className="flex items-center justify-center gap-1 cursor-pointer" title="Marque para contar como stand na contagem total">
-                            <input
-                              type="checkbox"
-                              checked={cat.is_stand !== false}
-                              onChange={(e) => {
-                                setCategorias((prev) =>
-                                  prev.map((c, i) =>
-                                    i !== idx ? c : { ...c, is_stand: e.target.checked },
-                                  ),
-                                );
-                                setIsDirty(true);
-                              }}
-                              className="w-4 h-4 accent-slate-700 cursor-pointer"
-                            />
+                            <input type="checkbox" checked={cat.is_stand !== false} onChange={(e) => { setCategorias((prev) => prev.map((c, i) => i !== idx ? c : { ...c, is_stand: e.target.checked })); markDirty(); }} className="w-4 h-4 accent-slate-700 cursor-pointer" />
                           </label>
                         </td>
                         <td className="px-1 py-0.5 text-center border border-slate-200">
                           {(() => {
-                            const cnt = getImagensForRef(
-                              "stand_categoria",
-                              cat.tag,
-                            ).length;
+                            const cnt = img.getImagensForRef("stand_categoria", cat.tag).length;
                             return (
-                              <button
-                                onClick={() =>
-                                  handleOpenImagensModal(
-                                    "stand_categoria",
-                                    cat.tag,
-                                    cat.prefix || cat.tag,
-                                  )
-                                }
-                                className={`text-[10px] font-bold px-1.5 py-0.5 border transition-colors whitespace-nowrap ${cnt > 0 ? "text-violet-700 bg-violet-50 border-violet-300 hover:bg-violet-100" : "text-slate-400 border-slate-200 hover:text-violet-600 hover:border-violet-300"}`}
-                                title="Configurar imagens exigidas para esta categoria"
-                              >
+                              <button onClick={() => img.handleOpenImagensModal("stand_categoria", cat.tag, cat.prefix || cat.tag)} className={`text-[10px] font-bold px-1.5 py-0.5 border transition-colors whitespace-nowrap ${cnt > 0 ? "text-violet-700 bg-violet-50 border-violet-300 hover:bg-violet-100" : "text-slate-400 border-slate-200 hover:text-violet-600 hover:border-violet-300"}`} title="Configurar imagens exigidas para esta categoria">
                                 🖼 {cnt > 0 ? cnt : "+"}
                               </button>
                             );
@@ -1207,33 +256,16 @@ const ConfiguracaoVendas: React.FC = () => {
                         </td>
                         <td className="px-1 py-0.5 text-center border border-slate-200">
                           {cat.tipo_precificacao === 'area_livre' && alCategoriesWithData.has(cat.tag) ? (
-                            <span
-                              className="p-1 text-slate-300 cursor-not-allowed text-xs block text-center"
-                              title="Categoria com dados AL. Acesse a Planilha AL para excluir."
-                            >
-                              ✕
-                            </span>
+                            <span className="p-1 text-slate-300 cursor-not-allowed text-xs block text-center" title="Categoria com dados AL. Acesse a Planilha AL para excluir.">✕</span>
                           ) : (
-                            <button
-                              onClick={() => removeCategoria(idx)}
-                              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors font-bold text-xs"
-                            >
-                              ✕
-                            </button>
+                            <button onClick={() => handleRemoveCategoria(idx)} className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors font-bold text-xs">✕</button>
                           )}
                         </td>
                       </tr>
                     );
                   })}
                 {categorias.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4 + numCombos + 1}
-                      className="px-4 py-8 text-center text-slate-400 italic"
-                    >
-                      Nenhuma categoria. Clique em "+ Categoria".
-                    </td>
-                  </tr>
+                  <tr><td colSpan={4 + numCombos + 1} className="px-4 py-8 text-center text-slate-400 italic">Nenhuma categoria. Clique em "+ Categoria".</td></tr>
                 )}
               </tbody>
             </table>
@@ -1244,46 +276,23 @@ const ConfiguracaoVendas: React.FC = () => {
         <div className="bg-white border border-slate-200 overflow-hidden shadow-sm">
           <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
             <div>
-              <span className="font-bold text-sm uppercase tracking-wider">
-                Itens Opcionais nesta Edição
-              </span>
-              <span className="ml-3 text-slate-400 text-xs">
-                {opcionaisSelecionados.length} selecionado(s)
-              </span>
+              <span className="font-bold text-sm uppercase tracking-wider">Itens Opcionais nesta Edição</span>
+              <span className="ml-3 text-slate-400 text-xs">{opcionaisSelecionados.length} selecionado(s)</span>
             </div>
-            <button
-              onClick={() => setShowOpcionaisPopup(true)}
-              className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 font-bold transition-colors"
-            >
-              📋 Selecionar Itens
-            </button>
+            <button onClick={() => opc.setShowOpcionaisPopup(true)} className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 font-bold transition-colors">📋 Selecionar Itens</button>
           </div>
-
           {itensAtivos.length === 0 ? (
-            <div className="px-6 py-8 text-center text-slate-400 italic text-sm">
-              Nenhum item selecionado. Clique em "Selecionar Itens" para
-              vincular opcionais a esta edição.
-            </div>
+            <div className="px-6 py-8 text-center text-slate-400 italic text-sm">Nenhum item selecionado. Clique em "Selecionar Itens" para vincular opcionais a esta edição.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-0.5 text-left text-[11px] font-bold uppercase text-slate-500">
-                      Item Opcional
-                    </th>
-                    <th className="px-3 py-0.5 text-right text-[11px] font-bold uppercase text-slate-400">
-                      Preço Sugerido
-                    </th>
-                    <th className="px-3 py-0.5 text-right text-[11px] font-bold uppercase text-green-700 w-48">
-                      Preço Nesta Edição ✏️
-                    </th>
-                    <th className="w-16 text-center text-[11px] font-bold uppercase text-slate-400">
-                      Ações
-                    </th>
-                    <th className="w-16 text-center text-[11px] font-bold uppercase text-violet-500">
-                      Imagens
-                    </th>
+                    <th className="px-3 py-0.5 text-left text-[11px] font-bold uppercase text-slate-500">Item Opcional</th>
+                    <th className="px-3 py-0.5 text-right text-[11px] font-bold uppercase text-slate-400">Preço Sugerido</th>
+                    <th className="px-3 py-0.5 text-right text-[11px] font-bold uppercase text-green-700 w-48">Preço Nesta Edição ✏️</th>
+                    <th className="w-16 text-center text-[11px] font-bold uppercase text-slate-400">Ações</th>
+                    <th className="w-16 text-center text-[11px] font-bold uppercase text-violet-500">Imagens</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1291,82 +300,34 @@ const ConfiguracaoVendas: React.FC = () => {
                     const emUso = opcionaisUsados.has(item.nome);
                     const salvo = salvosOk.has(item.id);
                     return (
-                      <tr
-                        key={item.id}
-                        className={`transition-colors ${emUso ? "bg-amber-50 hover:bg-amber-100/60" : "hover:bg-slate-50"}`}
-                      >
+                      <tr key={item.id} className={`transition-colors ${emUso ? "bg-amber-50 hover:bg-amber-100/60" : "hover:bg-slate-50"}`}>
                         <td className="px-3 py-0.5">
-                          <span className="font-semibold text-slate-800 text-[12px]">
-                            {item.nome}
-                          </span>
-                          {emUso && (
-                            <span className="ml-2 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 align-middle">
-                              🔒 em uso
-                            </span>
-                          )}
+                          <span className="font-semibold text-slate-800 text-[12px]">{item.nome}</span>
+                          {emUso && <span className="ml-2 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 align-middle">🔒 em uso</span>}
                         </td>
                         <td className="px-3 py-0.5 text-right text-slate-400 font-mono text-[11px]">
-                          R${" "}
-                          {Number(item.preco_base).toLocaleString("pt-BR", {
-                            minimumFractionDigits: 2,
-                          })}
+                          R$ {Number(item.preco_base).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-0.5 text-right">
                           <CurrencyField
                             value={opcionaisPrecos[item.id] ?? Number(item.preco_base)}
-                            onChange={(n) => updatePreco(item.id, String(n))}
-                            className={`w-36 p-1 border-2 text-right font-bold font-mono text-[12px] focus:bg-white focus:outline-none focus:ring-1
-                              ${emUso
-                                ? "border-amber-400 text-amber-900 bg-amber-50 focus:ring-amber-500"
-                                : "border-green-400 text-green-800 bg-green-50 focus:ring-green-500"
-                              }`}
+                            onChange={(n) => opc.updatePreco(item.id, String(n ?? 0))}
+                            className={`w-36 p-1 border-2 text-right font-bold font-mono text-[12px] focus:bg-white focus:outline-none focus:ring-1 ${emUso ? "border-amber-400 text-amber-900 bg-amber-50 focus:ring-amber-500" : "border-green-400 text-green-800 bg-green-50 focus:ring-green-500"}`}
                           />
                         </td>
                         <td className="px-2 py-0.5 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleSavePreco(item.id)}
-                              title="Confirmar preço"
-                              className={`p-1 transition-colors text-sm font-bold
-                                                                ${salvo
-                                  ? "text-green-600 bg-green-50"
-                                  : "text-slate-500 hover:text-green-700 hover:bg-green-50"
-                                }`}
-                            >
+                            <button onClick={() => opc.handleSavePreco(item.id)} title="Confirmar preço" className={`p-1 transition-colors text-sm font-bold ${salvo ? "text-green-600 bg-green-50" : "text-slate-500 hover:text-green-700 hover:bg-green-50"}`}>
                               {salvo ? "✓" : "💾"}
                             </button>
-                            <button
-                              onClick={() => toggleOpcional(item.id)}
-                              title={
-                                emUso
-                                  ? "Desmarque nos estandes antes de remover"
-                                  : "Remover da edição"
-                              }
-                              className="p-1 text-red-400 hover:text-red-700 hover:bg-red-50 transition-colors text-sm"
-                            >
-                              ✕
-                            </button>
+                            <button onClick={() => opc.toggleOpcional(item.id)} title={emUso ? "Desmarque nos estandes antes de remover" : "Remover da edição"} className="p-1 text-red-400 hover:text-red-700 hover:bg-red-50 transition-colors text-sm">✕</button>
                           </div>
                         </td>
                         <td className="px-2 py-0.5 text-center">
                           {(() => {
-                            const cnt = getImagensForRef(
-                              "item_opcional",
-                              item.nome,
-                            ).length;
+                            const cnt = img.getImagensForRef("item_opcional", item.nome).length;
                             return (
-                              <button
-                                onClick={() =>
-                                  handleOpenImagensModal(
-                                    "item_opcional",
-                                    item.nome,
-                                    item.nome,
-                                    item.tipo_padrao as "imagem" | "logo" | null,
-                                  )
-                                }
-                                className={`text-[10px] font-bold px-1.5 py-0.5 border transition-colors whitespace-nowrap ${cnt > 0 ? "text-violet-700 bg-violet-50 border-violet-300 hover:bg-violet-100" : "text-slate-400 border-slate-200 hover:text-violet-600 hover:border-violet-300"}`}
-                                title="Configurar imagens exigidas para este item"
-                              >
+                              <button onClick={() => img.handleOpenImagensModal("item_opcional", item.nome, item.nome, item.tipo_padrao as "imagem" | "logo" | null)} className={`text-[10px] font-bold px-1.5 py-0.5 border transition-colors whitespace-nowrap ${cnt > 0 ? "text-violet-700 bg-violet-50 border-violet-300 hover:bg-violet-100" : "text-slate-400 border-slate-200 hover:text-violet-600 hover:border-violet-300"}`} title="Configurar imagens exigidas para este item">
                                 🖼 {cnt > 0 ? cnt : "+"}
                               </button>
                             );
@@ -1383,124 +344,49 @@ const ConfiguracaoVendas: React.FC = () => {
 
         {/* ── Imagens Avulsas ── */}
         {(() => {
-          const avulsas = imagensConfig.filter(
-            (c) => c.origem_tipo === "avulso",
-          );
-          const avulsoStatusLabel: Record<string, string> = {
-            pendente: "Pendente",
-            solicitado: "Solicitado",
-            recebido: "Recebido",
-          };
-          const avulsoStatusColor: Record<string, string> = {
-            pendente: "bg-slate-100 text-slate-600",
-            solicitado: "bg-blue-100 text-blue-700",
-            recebido: "bg-green-100 text-green-700",
-          };
+          const avulsas = imagensConfig.filter((c) => c.origem_tipo === "avulso");
+          const avulsoStatusColor: Record<string, string> = { pendente: "bg-slate-100 text-slate-600", solicitado: "bg-blue-100 text-blue-700", recebido: "bg-green-100 text-green-700" };
           return (
             <div className="bg-white border border-slate-200 overflow-hidden shadow-sm">
               <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-sm uppercase tracking-wider">
-                    Imagens Avulsas
-                  </span>
-                  <span className="ml-3 text-slate-400 text-xs">
-                    não vinculadas a stands específicos (produtor, portal de
-                    entrada, palco...)
-                  </span>
+                  <span className="font-bold text-sm uppercase tracking-wider">Imagens Avulsas</span>
+                  <span className="ml-3 text-slate-400 text-xs">não vinculadas a stands específicos (produtor, portal de entrada, palco...)</span>
                 </div>
-                <button
-                  onClick={() =>
-                    handleOpenImagensModal("avulso", "__avulso__", "Avulsa")
-                  }
-                  className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors"
-                >
-                  + Adicionar
-                </button>
+                <button onClick={() => img.handleOpenImagensModal("avulso", "__avulso__", "Avulsa")} className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors">+ Adicionar</button>
               </div>
               {avulsas.length === 0 ? (
-                <div className="px-6 py-6 text-center text-slate-400 italic text-sm">
-                  Nenhuma imagem avulsa cadastrada.
-                </div>
+                <div className="px-6 py-6 text-center text-slate-400 italic text-sm">Nenhuma imagem avulsa cadastrada.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-3 py-0.5 text-left text-[11px] font-bold uppercase text-slate-500">
-                          Descrição
-                        </th>
-                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-24">
-                          Tipo
-                        </th>
-                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-28">
-                          Dimensões
-                        </th>
-                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-36">
-                          Status
-                        </th>
+                        <th className="px-3 py-0.5 text-left text-[11px] font-bold uppercase text-slate-500">Descrição</th>
+                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-24">Tipo</th>
+                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-28">Dimensões</th>
+                        <th className="px-3 py-0.5 text-center text-[11px] font-bold uppercase text-slate-500 w-36">Status</th>
                         <th className="w-12" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {avulsas.map((av) => {
-                        const isEditing = editingImagem?.id === av.id;
+                        const isEditing = img.editingImagem?.id === av.id;
                         if (isEditing) {
                           return (
                             <tr key={av.id} className="bg-violet-50">
                               <td colSpan={5} className="px-3 py-2">
                                 <div className="flex gap-2 items-center">
-                                  <select
-                                    value={editingImagem.tipo}
-                                    onChange={(e) =>
-                                      setEditingImagem((p) =>
-                                        p ? { ...p, tipo: e.target.value as "imagem" | "logo", dimensoes: "" } : null
-                                      )
-                                    }
-                                    className="border border-slate-300 text-sm px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
-                                  >
+                                  <select value={img.editingImagem!.tipo} onChange={(e) => img.setEditingImagem((p) => p ? { ...p, tipo: e.target.value as "imagem" | "logo", dimensoes: "" } : null)} className="border border-slate-300 text-sm px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0">
                                     <option value="imagem">📐 Imagem</option>
                                     <option value="logo">🏷️ Logo</option>
                                   </select>
-                                  <input
-                                    autoFocus
-                                    type="text"
-                                    value={editingImagem.descricao}
-                                    onChange={(e) =>
-                                      setEditingImagem((p) =>
-                                        p ? { ...p, descricao: e.target.value } : null
-                                      )
-                                    }
-                                    onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
-                                    className="flex-1 border border-violet-400 text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                                    placeholder="Descrição"
-                                  />
-                                  {editingImagem.tipo === "imagem" && (
-                                    <input
-                                      type="text"
-                                      value={editingImagem.dimensoes}
-                                      onChange={(e) =>
-                                        setEditingImagem((p) =>
-                                          p ? { ...p, dimensoes: e.target.value } : null
-                                        )
-                                      }
-                                      onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
-                                      className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                                      placeholder="Dimensões"
-                                    />
+                                  <input autoFocus type="text" value={img.editingImagem!.descricao} onChange={(e) => img.setEditingImagem((p) => p ? { ...p, descricao: e.target.value } : null)} onKeyDown={(e) => e.key === "Enter" && img.handleUpdateImagem()} className="flex-1 border border-violet-400 text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400" placeholder="Descrição" />
+                                  {img.editingImagem!.tipo === "imagem" && (
+                                    <input type="text" value={img.editingImagem!.dimensoes} onChange={(e) => img.setEditingImagem((p) => p ? { ...p, dimensoes: e.target.value } : null)} onKeyDown={(e) => e.key === "Enter" && img.handleUpdateImagem()} className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400" placeholder="Dimensões" />
                                   )}
-                                  <button
-                                    onClick={handleUpdateImagem}
-                                    disabled={savingImagem || !editingImagem.descricao.trim()}
-                                    className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors disabled:opacity-50 shrink-0"
-                                  >
-                                    {savingImagem ? "Salvando..." : "Salvar"}
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingImagem(null)}
-                                    className="text-xs text-slate-500 border border-slate-300 px-3 py-1.5 hover:bg-slate-100 transition-colors shrink-0"
-                                  >
-                                    Cancelar
-                                  </button>
+                                  <button onClick={img.handleUpdateImagem} disabled={img.savingImagem || !img.editingImagem!.descricao.trim()} className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1.5 font-bold transition-colors disabled:opacity-50 shrink-0">{img.savingImagem ? "Salvando..." : "Salvar"}</button>
+                                  <button onClick={() => img.setEditingImagem(null)} className="text-xs text-slate-500 border border-slate-300 px-3 py-1.5 hover:bg-slate-100 transition-colors shrink-0">Cancelar</button>
                                 </div>
                               </td>
                             </tr>
@@ -1508,52 +394,19 @@ const ConfiguracaoVendas: React.FC = () => {
                         }
                         return (
                           <tr key={av.id} className="hover:bg-slate-50">
-                            <td className="px-3 py-0.5 font-semibold text-[12px] text-slate-800">
-                              {av.descricao}
-                            </td>
-                            <td className="px-3 py-0.5 text-center text-[11px] text-slate-500 uppercase">
-                              {av.tipo}
-                            </td>
-                            <td className="px-3 py-0.5 text-center text-[11px] font-mono text-slate-500">
-                              {av.dimensoes || "—"}
-                            </td>
+                            <td className="px-3 py-0.5 font-semibold text-[12px] text-slate-800">{av.descricao}</td>
+                            <td className="px-3 py-0.5 text-center text-[11px] text-slate-500 uppercase">{av.tipo}</td>
+                            <td className="px-3 py-0.5 text-center text-[11px] font-mono text-slate-500">{av.dimensoes || "—"}</td>
                             <td className="px-3 py-0.5 text-center">
-                              <select
-                                value={av.avulso_status}
-                                onChange={(e) =>
-                                  handleUpdateAvulsoStatus(
-                                    av.id,
-                                    e.target.value as AvulsoStatus,
-                                  )
-                                }
-                                className={`text-xs font-bold px-2 py-1 border-0 rounded cursor-pointer focus:outline-none ${avulsoStatusColor[av.avulso_status] || "bg-slate-100 text-slate-600"}`}
-                              >
+                              <select value={av.avulso_status} onChange={(e) => img.handleUpdateAvulsoStatus(av.id, e.target.value as AvulsoStatus)} className={`text-xs font-bold px-2 py-1 border-0 rounded cursor-pointer focus:outline-none ${avulsoStatusColor[av.avulso_status] || "bg-slate-100 text-slate-600"}`}>
                                 <option value="pendente">Pendente</option>
                                 <option value="solicitado">Solicitado</option>
                                 <option value="recebido">Recebido</option>
                               </select>
                             </td>
                             <td className="px-2 text-center">
-                              <button
-                                onClick={() =>
-                                  setEditingImagem({
-                                    id: av.id,
-                                    tipo: av.tipo,
-                                    descricao: av.descricao,
-                                    dimensoes: av.dimensoes || "",
-                                  })
-                                }
-                                className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-1 rounded transition-colors"
-                                title="Editar"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => handleRemoveImagem(av.id)}
-                                className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 transition-colors text-sm"
-                              >
-                                ✕
-                              </button>
+                              <button onClick={() => img.setEditingImagem({ id: av.id, tipo: av.tipo, descricao: av.descricao, dimensoes: av.dimensoes || "" })} className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-1 rounded transition-colors" title="Editar">✏️</button>
+                              <button onClick={() => img.handleRemoveImagem(av.id)} className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 transition-colors text-sm">✕</button>
                             </td>
                           </tr>
                         );
@@ -1571,38 +424,19 @@ const ConfiguracaoVendas: React.FC = () => {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-sm text-slate-500">
-            <span className="font-semibold text-slate-700">
-              {totalEstandes} stand(s)
-            </span>
-            {planilhaExiste && (
-              <span className="ml-2 text-amber-600 font-semibold">
-                • Planilha ativa
-              </span>
-            )}
+            <span className="font-semibold text-slate-700">{totalEstandes} stand(s)</span>
+            {planilhaExiste && <span className="ml-2 text-amber-600 font-semibold">• Planilha ativa</span>}
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={() => guardNavigation(() => navigate(`/planilha-vendas/${edicaoId}`))}
-              className="text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 border-2 border-blue-400 px-5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-              </svg>
+            <button onClick={() => guardNavigation(() => navigate(`/planilha-vendas/${edicaoId}`))} className="text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 border-2 border-blue-400 px-5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
               Ver Planilha
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="text-sm bg-slate-800 hover:bg-slate-700 text-white px-5 py-2 font-bold transition-colors disabled:opacity-50"
-            >
+            <button onClick={sav.handleSave} disabled={saving} className="text-sm bg-slate-800 hover:bg-slate-700 text-white px-5 py-2 font-bold transition-colors disabled:opacity-50">
               {saving ? "Salvando..." : "💾 Salvar Configurações"}
             </button>
             {!planilhaExiste && (
-              <button
-                onClick={handleGenerate}
-                disabled={saving || categorias.length === 0}
-                className="text-sm bg-green-700 hover:bg-green-600 text-white px-6 py-2 font-bold transition-colors disabled:opacity-50"
-              >
+              <button onClick={sav.handleGenerate} disabled={saving || categorias.length === 0} className="text-sm bg-green-700 hover:bg-green-600 text-white px-6 py-2 font-bold transition-colors disabled:opacity-50">
                 {saving ? "Gerando..." : "🗂️ Gerar Planilha"}
               </button>
             )}
@@ -1611,321 +445,31 @@ const ConfiguracaoVendas: React.FC = () => {
       </div>
 
       {/* ── Modal de Imagens ── */}
-      {imagensModal && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setImagensModal(null);
-              setEditingImagem(null);
-            }
-          }}
-        >
-          <div className="bg-white shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
-            {/* Header */}
-            <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between flex-shrink-0">
-              <div>
-                <span className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">
-                  {imagensModal.tipo === "stand_categoria"
-                    ? "Categoria"
-                    : imagensModal.tipo === "item_opcional"
-                      ? "Item Opcional"
-                      : "Imagem Avulsa"}
-                </span>
-                <p className="font-black text-sm uppercase">
-                  Imagens — {imagensModal.label}
-                </p>
-              </div>
-              <button
-                onClick={() => { setImagensModal(null); setEditingImagem(null); }}
-                className="text-slate-400 hover:text-white text-2xl leading-none ml-4"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Lista existente */}
-            <div className="flex-1 overflow-y-auto">
-              {getImagensForRef(imagensModal.tipo, imagensModal.ref).length ===
-                0 ? (
-                <div className="px-6 py-6 text-center text-slate-400 italic text-sm">
-                  Nenhuma imagem configurada ainda.
-                </div>
-              ) : (
-                <ul className="divide-y divide-slate-100">
-                  {getImagensForRef(imagensModal.tipo, imagensModal.ref).map(
-                    (cfg) => {
-                      const isEditing = editingImagem?.id === cfg.id;
-                      return (
-                        <li key={cfg.id} className="px-5 py-2 hover:bg-slate-50">
-                          {isEditing ? (
-                            /* ── Modo edição inline ── */
-                            <div className="space-y-2">
-                              <div className="flex gap-2">
-                                <select
-                                  value={editingImagem.tipo}
-                                  onChange={(e) =>
-                                    setEditingImagem((p) =>
-                                      p
-                                        ? {
-                                          ...p,
-                                          tipo: e.target.value as "imagem" | "logo",
-                                          dimensoes: "",
-                                        }
-                                        : null,
-                                    )
-                                  }
-                                  className="border border-slate-300 text-sm px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
-                                >
-                                  <option value="imagem">📐 Imagem</option>
-                                  <option value="logo">🏷️ Logo</option>
-                                </select>
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  value={editingImagem.descricao}
-                                  onChange={(e) =>
-                                    setEditingImagem((p) =>
-                                      p ? { ...p, descricao: e.target.value } : null,
-                                    )
-                                  }
-                                  onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
-                                  className="flex-1 border border-violet-400 text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                                  placeholder="Descrição"
-                                />
-                                {editingImagem.tipo === "imagem" && (
-                                  <input
-                                    type="text"
-                                    value={editingImagem.dimensoes}
-                                    onChange={(e) =>
-                                      setEditingImagem((p) =>
-                                        p ? { ...p, dimensoes: e.target.value } : null,
-                                      )
-                                    }
-                                    onKeyDown={(e) => e.key === "Enter" && handleUpdateImagem()}
-                                    className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                                    placeholder="Dimensões"
-                                  />
-                                )}
-                              </div>
-                              <div className="flex gap-2 justify-end">
-                                <button
-                                  onClick={() => setEditingImagem(null)}
-                                  className="text-xs text-slate-500 border border-slate-300 px-3 py-1 hover:bg-slate-100 transition-colors"
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  onClick={handleUpdateImagem}
-                                  disabled={savingImagem || !editingImagem.descricao.trim()}
-                                  className="text-xs bg-violet-700 hover:bg-violet-600 text-white px-4 py-1 font-bold transition-colors disabled:opacity-50"
-                                >
-                                  {savingImagem ? "Salvando..." : "Salvar"}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            /* ── Modo visualização ── */
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-base">
-                                  {cfg.tipo === "logo" ? "🏷️" : "📐"}
-                                </span>
-                                <div>
-                                  <span className="font-semibold text-slate-800 text-sm">
-                                    {cfg.descricao}
-                                  </span>
-                                  {cfg.dimensoes && (
-                                    <span className="ml-2 text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5">
-                                      {cfg.dimensoes}
-                                    </span>
-                                  )}
-                                  <span className="ml-2 text-[10px] font-bold uppercase text-violet-500">
-                                    {cfg.tipo}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() =>
-                                    setEditingImagem({
-                                      id: cfg.id,
-                                      tipo: cfg.tipo,
-                                      descricao: cfg.descricao,
-                                      dimensoes: cfg.dimensoes || "",
-                                    })
-                                  }
-                                  className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-1 rounded transition-colors"
-                                  title="Editar"
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  onClick={() => handleRemoveImagem(cfg.id)}
-                                  className="text-red-400 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
-                                  title="Remover"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </li>
-                      );
-                    },
-                  )}
-                </ul>
-              )}
-            </div>
-
-            {/* Formulário de adição */}
-            <div className="flex-shrink-0 border-t border-slate-200 px-5 py-4 bg-slate-50 space-y-3">
-              <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
-                Adicionar imagem
-              </p>
-              <div className="flex gap-2">
-                <select
-                  value={novaImagem.tipo}
-                  onChange={(e) =>
-                    setNovaImagem((p) => ({
-                      ...p,
-                      tipo: e.target.value as "imagem" | "logo",
-                      dimensoes: "",
-                    }))
-                  }
-                  className="border border-slate-300 text-sm px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 w-28 shrink-0"
-                >
-                  <option value="imagem">📐 Imagem</option>
-                  <option value="logo">🏷️ Logo</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Descrição (ex: Testeira, Fundo)"
-                  className="flex-1 border border-slate-300 text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                  value={novaImagem.descricao}
-                  onChange={(e) =>
-                    setNovaImagem((p) => ({
-                      ...p,
-                      descricao: e.target.value,
-                    }))
-                  }
-                  onKeyDown={(e) => e.key === "Enter" && handleAddImagem()}
-                />
-                {novaImagem.tipo === "imagem" && (
-                  <input
-                    type="text"
-                    placeholder="Dimensões (ex: 5x1m)"
-                    className="w-28 shrink-0 border border-slate-300 text-sm px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                    value={novaImagem.dimensoes}
-                    onChange={(e) =>
-                      setNovaImagem((p) => ({
-                        ...p,
-                        dimensoes: e.target.value,
-                      }))
-                    }
-                    onKeyDown={(e) => e.key === "Enter" && handleAddImagem()}
-                  />
-                )}
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => { setImagensModal(null); setEditingImagem(null); }}
-                  className="text-sm text-slate-600 border border-slate-300 px-4 py-1.5 hover:bg-slate-100 transition-colors"
-                >
-                  Fechar
-                </button>
-                <button
-                  onClick={handleAddImagem}
-                  disabled={savingImagem || !novaImagem.descricao.trim()}
-                  className="text-sm bg-violet-700 hover:bg-violet-600 text-white px-5 py-1.5 font-bold transition-colors disabled:opacity-50"
-                >
-                  {savingImagem ? "Salvando..." : "+ Adicionar"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {img.imagensModal && (
+        <ConfigImagensModal
+          imagensModal={img.imagensModal}
+          imagens={img.getImagensForRef(img.imagensModal.tipo, img.imagensModal.ref)}
+          novaImagem={img.novaImagem}
+          setNovaImagem={img.setNovaImagem}
+          savingImagem={img.savingImagem}
+          editingImagem={img.editingImagem}
+          setEditingImagem={img.setEditingImagem}
+          onClose={() => { img.setImagensModal(null); img.setEditingImagem(null); }}
+          onAdd={img.handleAddImagem}
+          onRemove={img.handleRemoveImagem}
+          onUpdate={img.handleUpdateImagem}
+        />
       )}
 
       {/* ── Popup de Seleção de Opcionais ── */}
-      {showOpcionaisPopup && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) =>
-            e.target === e.currentTarget && setShowOpcionaisPopup(false)
-          }
-        >
-          <div className="bg-white shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh] overflow-hidden border border-slate-200">
-            <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between flex-shrink-0">
-              <span className="font-bold text-sm uppercase tracking-wider">
-                Selecionar Itens Opcionais
-              </span>
-              <button
-                onClick={() => setShowOpcionaisPopup(false)}
-                className="text-slate-400 hover:text-white text-2xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-              {opcionaisDisponiveis.length === 0 ? (
-                <div className="px-6 py-8 text-center text-slate-400 italic text-sm">
-                  Nenhum item opcional cadastrado. Acesse "Opcionais" para
-                  criar.
-                </div>
-              ) : (
-                opcionaisDisponiveis.map((item) => {
-                  const selected = opcionaisSelecionados.includes(item.id);
-                  const emUso = opcionaisUsados.has(item.nome);
-                  return (
-                    <label
-                      key={item.id}
-                      className={`flex items-center gap-3 px-5 py-3 transition-colors
-                                                ${selected ? "bg-blue-50" : "hover:bg-slate-50"}
-                                                ${emUso ? "cursor-not-allowed" : "cursor-pointer"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggleOpcional(item.id)}
-                        className="w-4 h-4 accent-blue-600"
-                      />
-                      <div className="flex-1">
-                        <span
-                          className={`font-semibold text-sm ${selected ? "text-blue-900" : "text-slate-800"}`}
-                        >
-                          {item.nome}
-                        </span>
-                        {emUso && (
-                          <span className="ml-2 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5">
-                            🔒 em uso na planilha
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-400 font-mono">
-                        R${" "}
-                        {Number(item.preco_base).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </label>
-                  );
-                })
-              )}
-            </div>
-            <div className="flex-shrink-0 px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-500">
-                {opcionaisSelecionados.length} selecionado(s)
-              </span>
-              <button
-                onClick={() => setShowOpcionaisPopup(false)}
-                className="bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold px-5 py-2 transition-colors"
-              >
-                ✓ Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
+      {opc.showOpcionaisPopup && (
+        <ConfigOpcionaisPopup
+          opcionaisDisponiveis={opcionaisDisponiveis}
+          opcionaisSelecionados={opcionaisSelecionados}
+          opcionaisUsados={opcionaisUsados}
+          onToggle={opc.toggleOpcional}
+          onClose={() => opc.setShowOpcionaisPopup(false)}
+        />
       )}
     </Layout>
   );

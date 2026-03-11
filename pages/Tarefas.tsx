@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { Button } from '../components/UI';
+import { useAppDialog } from '../context/DialogContext';
 import { useAuth } from '../context/AuthContext';
 import { eventosService, EventoEdicao } from '../services/eventosService';
 import { userService } from '../services/api/userService';
@@ -42,6 +43,7 @@ interface TarefaDetailModalProps {
 }
 
 const TarefaDetailModal: React.FC<TarefaDetailModalProps> = ({ tarefa, onClose, onSuccess }) => {
+    const appDialog = useAppDialog();
     const [historico, setHistorico] = useState<TarefaHistorico[]>([]);
     const [loadingHist, setLoadingHist] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,7 +82,7 @@ const TarefaDetailModal: React.FC<TarefaDetailModalProps> = ({ tarefa, onClose, 
             onSuccess();
             onClose();
         } catch (err: any) {
-            alert('Erro ao salvar: ' + err.message);
+            void appDialog.alert({ title: 'Erro', message: 'Erro ao salvar: ' + err.message, type: 'danger' });
         } finally {
             setIsSubmitting(false);
         }
@@ -246,6 +248,7 @@ interface NovaTarefaModalProps {
 }
 
 const NovaTarefaModal: React.FC<NovaTarefaModalProps> = ({ edicaoId: edicaoIdProp, edicoes, users, onClose, onSuccess }) => {
+    const appDialog = useAppDialog();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [titulo, setTitulo] = useState('');
     const [descricao, setDescricao] = useState('');
@@ -275,7 +278,7 @@ const NovaTarefaModal: React.FC<NovaTarefaModalProps> = ({ edicaoId: edicaoIdPro
             onSuccess();
             onClose();
         } catch (err: any) {
-            alert('Erro ao criar tarefa: ' + err.message);
+            void appDialog.alert({ title: 'Erro', message: 'Erro ao criar tarefa: ' + err.message, type: 'danger' });
         } finally {
             setIsSubmitting(false);
         }

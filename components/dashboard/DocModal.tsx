@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAppDialog } from '../../context/DialogContext';
 
 export type DocModalState = {
     tipo: 'proposta_comercial' | 'planta_baixa' | 'relatorio_pdf';
@@ -13,6 +14,7 @@ interface DocModalProps {
 }
 
 export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
+    const appDialog = useAppDialog();
     const label = docModal.tipo === 'proposta_comercial' ? 'Proposta Comercial'
         : docModal.tipo === 'planta_baixa' ? 'Planta Baixa'
         : 'Relatório PDF';
@@ -35,7 +37,7 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
             a.click();
             URL.revokeObjectURL(objectUrl);
         } catch {
-            alert('Não foi possível baixar o arquivo.');
+            void appDialog.alert({ title: 'Erro', message: 'Não foi possível baixar o arquivo.', type: 'danger' });
         }
     };
 
@@ -45,7 +47,7 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
             const blob = await response.blob();
             const file = new File([blob], fileName, { type: blob.type });
             if (typeof navigator.share !== 'function') {
-                alert('Seu navegador não suporta compartilhamento. Use o botão Baixar.');
+                void appDialog.alert({ title: 'Aviso', message: 'Seu navegador não suporta compartilhamento. Use o botão Baixar.', type: 'warning' });
                 return;
             }
             try {
@@ -55,11 +57,11 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
                 try {
                     await navigator.share({ title: fileName, url });
                 } catch {
-                    alert('Não foi possível compartilhar. Use o botão Baixar.');
+                    void appDialog.alert({ title: 'Erro', message: 'Não foi possível compartilhar. Use o botão Baixar.', type: 'danger' });
                 }
             }
         } catch {
-            alert('Não foi possível preparar o arquivo para compartilhar.');
+            void appDialog.alert({ title: 'Erro', message: 'Não foi possível preparar o arquivo para compartilhar.', type: 'danger' });
         }
     };
 

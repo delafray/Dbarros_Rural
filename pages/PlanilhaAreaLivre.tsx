@@ -10,6 +10,8 @@ import {
 } from "../services/planilhaVendasService";
 import { clientesService, ClienteComContatos } from "../services/clientesService";
 import { supabase } from "../services/supabaseClient";
+import CurrencyField from "../components/CurrencyField";
+import { useDirtyState } from "../hooks/useDirtyState";
 
 // ── Helpers ──────────────────────────────────────────────────
 const formatMoney = (v: number) =>
@@ -59,43 +61,6 @@ const M2Field: React.FC<{
   );
 };
 
-// ── Componente de campo moeda ────────────────────────────────
-const CurrencyField: React.FC<{
-  value: number | null;
-  onChange: (v: number | null) => void;
-  className?: string;
-  placeholder?: string;
-}> = ({ value, onChange, className, placeholder }) => {
-  const [editing, setEditing] = React.useState(false);
-  const [draft, setDraft] = React.useState("");
-
-  const formatted = value != null
-    ? value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    : "";
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      value={editing ? draft : formatted}
-      placeholder={placeholder ?? "—"}
-      onFocus={(e) => {
-        setEditing(true);
-        setDraft(value != null ? String(value) : "");
-        setTimeout(() => e.target.select(), 0);
-      }}
-      onChange={(e) => setDraft(e.target.value.replace(/[^0-9,]/g, ""))}
-      onBlur={() => {
-        setEditing(false);
-        const raw = draft.replace(",", ".");
-        const parsed = parseFloat(raw);
-        onChange(isNaN(parsed) ? null : parsed);
-      }}
-      className={className}
-    />
-  );
-};
-
 // ── Tipo local para linha editável ────────────────────────────
 interface ALRow {
   id: string;
@@ -124,27 +89,17 @@ const PlanilhaAreaLivre: React.FC = () => {
   const [comboNames, setComboNames] = useState<string[]>([]);
   const [rows, setRows] = useState<ALRow[]>([]);
   const [clientes, setClientes] = useState<ClienteComContatos[]>([]);
-  const [isDirty, setIsDirty] = useState(false);
-  const [showDirtyModal, setShowDirtyModal] = useState(false);
-  const [pendingNav, setPendingNav] = useState<string | null>(null);
+  // Dirty state (hook compartilhado)
+  const {
+    isDirty, showDirtyModal,
+    markDirty, markClean,
+    safeNavigate,
+    confirmDiscard, cancelDiscard,
+  } = useDirtyState();
   // Referência a todas as categorias da config (para salvar de volta)
   const [allCategorias, setAllCategorias] = useState<CategoriaSetup[]>([]);
   // Refs dos inputs m² para navegação com Enter
   const m2Refs = useRef<Map<number, HTMLInputElement>>(new Map());
-
-  // Avisa o browser ao fechar/recarregar aba
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = ""; }
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
-
-  const safeNavigate = (to: string) => {
-    if (isDirty) { setPendingNav(to); setShowDirtyModal(true); }
-    else navigate(to);
-  };
 
   // ── Load ──────────────────────────────────────────────────
   useEffect(() => {
@@ -238,7 +193,7 @@ const PlanilhaAreaLivre: React.FC = () => {
     setRows((prev) => prev.map((r) =>
       r.preco_m2_is_override ? r : { ...r, preco_m2: val }
     ));
-    setIsDirty(true);
+    markDirty();
   };
 
   const addCombo = () => {
@@ -250,7 +205,7 @@ const PlanilhaAreaLivre: React.FC = () => {
       const names = Array.isArray(prev.comboNames) ? [...prev.comboNames, newName] : [newName];
       return { ...prev, combos_adicionais: adicionais, comboNames: names };
     });
-    setIsDirty(true);
+    markDirty();
   };
 
   const removeCombo = () => {
@@ -269,7 +224,7 @@ const PlanilhaAreaLivre: React.FC = () => {
       delete overrides[removedName];
       return { ...r, combo_overrides: overrides };
     }));
-    setIsDirty(true);
+    markDirty();
   };
 
   const updateComboName = (ci: number, name: string) => {
@@ -292,7 +247,7 @@ const PlanilhaAreaLivre: React.FC = () => {
         return { ...r, combo_overrides: overrides };
       }));
     }
-    setIsDirty(true);
+    markDirty();
   };
 
   const updateComboAdicional = (ci: number, val: number) => {
@@ -303,7 +258,7 @@ const PlanilhaAreaLivre: React.FC = () => {
       arr[ci] = val;
       return { ...prev, combos_adicionais: arr };
     });
-    setIsDirty(true);
+    markDirty();
   };
 
   // ── Atualizar / Fixar preços ────────────────────────────
@@ -344,7 +299,7 @@ const PlanilhaAreaLivre: React.FC = () => {
         total_stale: false,
       };
     }));
-    setIsDirty(true);
+    markDirty();
   };
 
   const handleFixarPrecos = async () => {
@@ -356,7 +311,7 @@ const PlanilhaAreaLivre: React.FC = () => {
     });
     if (!ok) return;
     setCategoria((prev) => prev ? { ...prev, precos_fixados: true } : prev);
-    setIsDirty(true);
+    markDirty();
   };
 
   // ── Cálculo de totais ────────────────────────────────────
@@ -376,7 +331,7 @@ const PlanilhaAreaLivre: React.FC = () => {
   // ── Row Handlers ─────────────────────────────────────────
   const updateRow = (id: string, patch: Partial<ALRow>) => {
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, ...patch } : r));
-    setIsDirty(true);
+    markDirty();
   };
 
   const handleM2Change = (id: string, val: number | null) => {
@@ -389,7 +344,7 @@ const PlanilhaAreaLivre: React.FC = () => {
     if (val != null && val > 0) {
       setM2Faltando((prev) => { const next = new Set(prev); next.delete(id); return next; });
     }
-    setIsDirty(true);
+    markDirty();
   };
 
   const handlePrecoM2Change = (id: string, val: number | null) => {
@@ -403,7 +358,7 @@ const PlanilhaAreaLivre: React.FC = () => {
         total_stale: stale,
       };
     }));
-    setIsDirty(true);
+    markDirty();
   };
 
   const handleTotalChange = (id: string, val: number | null) => {
@@ -422,7 +377,7 @@ const PlanilhaAreaLivre: React.FC = () => {
       }
       return { ...r, combo_overrides: overrides };
     }));
-    setIsDirty(true);
+    markDirty();
   };
 
   // ── Salvar (estandes + config da categoria) ────────────────
@@ -471,7 +426,7 @@ const PlanilhaAreaLivre: React.FC = () => {
         setAllCategorias(updatedCats);
       }
 
-      setIsDirty(false);
+      markClean();
       await appDialog.alert({ title: "Salvo!", message: "Planilha AL salva com sucesso!", type: "success" });
       navigate(`/configuracao-vendas/${edicaoId}`);
     } catch (err) {
@@ -543,13 +498,13 @@ const PlanilhaAreaLivre: React.FC = () => {
             </div>
             <div className="flex gap-3 px-6 py-4 justify-end bg-slate-50">
               <button
-                onClick={() => { setShowDirtyModal(false); setPendingNav(null); }}
+                onClick={cancelDiscard}
                 className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
               >
                 Ficar aqui
               </button>
               <button
-                onClick={() => { setIsDirty(false); setShowDirtyModal(false); if (pendingNav) navigate(pendingNav); }}
+                onClick={confirmDiscard}
                 className="px-4 py-2 text-sm font-black text-white bg-red-600 rounded-lg hover:bg-red-700"
               >
                 Sair sem salvar

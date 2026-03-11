@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import { LoadingSpinner } from '../components/UI';
 import { eventosService, EventoEdicao } from '../services/eventosService';
 import { edicaoDocsService } from '../services/edicaoDocsService';
+import { useAppDialog } from '../context/DialogContext';
 
 type EdicaoComDocs = EventoEdicao & {
     eventos: { nome: string } | null;
@@ -15,6 +16,7 @@ type DocModalState = { tipo: 'proposta_comercial' | 'planta_baixa'; url: string;
 
 const TodosEventos: React.FC = () => {
     const navigate = useNavigate();
+    const appDialog = useAppDialog();
     const [edicoes, setEdicoes] = useState<EdicaoComDocs[]>([]);
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -232,7 +234,7 @@ const TodosEventos: React.FC = () => {
                         a.click();
                         URL.revokeObjectURL(objectUrl);
                     } catch {
-                        alert('Nao foi possivel baixar o arquivo.');
+                        void appDialog.alert({ title: 'Erro', message: 'Nao foi possivel baixar o arquivo.', type: 'danger' });
                     }
                 };
                 const handleShare = async () => {
@@ -241,7 +243,7 @@ const TodosEventos: React.FC = () => {
                         const blob = await response.blob();
                         const file = new File([blob], fileName, { type: blob.type });
                         if (typeof navigator.share !== 'function') {
-                            alert('Seu navegador nao suporta compartilhamento. Use o botao Baixar.');
+                            void appDialog.alert({ title: 'Aviso', message: 'Seu navegador nao suporta compartilhamento. Use o botao Baixar.', type: 'info' });
                             return;
                         }
                         try {
@@ -251,11 +253,11 @@ const TodosEventos: React.FC = () => {
                             try {
                                 await navigator.share({ title: fileName, url });
                             } catch {
-                                alert('Nao foi possivel compartilhar. Use o botao Baixar.');
+                                void appDialog.alert({ title: 'Erro', message: 'Nao foi possivel compartilhar. Use o botao Baixar.', type: 'danger' });
                             }
                         }
                     } catch {
-                        alert('Nao foi possivel preparar o arquivo para compartilhar.');
+                        void appDialog.alert({ title: 'Erro', message: 'Nao foi possivel preparar o arquivo para compartilhar.', type: 'danger' });
                     }
                 };
                 return (
