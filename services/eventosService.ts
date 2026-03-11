@@ -69,13 +69,22 @@ export const eventosService = {
                 *,
                 eventos ( nome )
             `)
-            .eq('ativo', true)
-            .order('data_inicio', { ascending: true }); // Ordena por data_inicio crescente (as mais próximas primeiro)
+            .eq('ativo', true);
 
         if (error) throw error;
 
-        // Formata o retorno para incluir o nome do evento raiz caso necessário, ou apenas os dados da edição.
-        return data as (EventoEdicao & { eventos: { nome: string } | null })[];
+        // Resolver ordenação de data_inicio no frontend para evitar problemas de colação/formato (YYYY-MM-DD vs DD/MM/YYYY)
+        const parseDate = (d: string | null) => {
+            if (!d) return 0;
+            if (d.includes('/')) {
+                const parts = d.split('/'); // DD/MM/YYYY
+                if (parts.length >= 3) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
+            }
+            return new Date(d).getTime() || 0;
+        };
+
+        const result = data as (EventoEdicao & { eventos: { nome: string } | null })[];
+        return result.sort((a, b) => parseDate(a.data_inicio) - parseDate(b.data_inicio));
     },
 
     async getAllEdicoes() {
