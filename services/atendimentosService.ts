@@ -40,6 +40,7 @@ export interface AtendimentoHistorico {
     created_at: string;
     // Joined
     users?: { name: string | null } | null;
+    retorno_cancelado_nota?: string | null;
 }
 
 export type AtendimentoInsert = Omit<Atendimento, 'id' | 'created_at' | 'updated_at' | 'clientes' | 'contatos' | 'users'>;
@@ -173,6 +174,43 @@ export const atendimentosService = {
             .from('atendimentos')
             .update(updatePayload)
             .eq('id', entry.atendimento_id);
+
+        if (updateError) throw updateError;
+    },
+
+    /** 
+     * Cancela o retorno programado sem criar nova interação.
+     * Atualiza o último registro de histórico que tinha uma data de retorno.
+     */
+    async cancelRetorno(atendimentoId: string, nota: string): Promise<void> {
+        // 1. Busca o histórico mais recente desse atendimento
+        const { data: lastHist, error: findError } = await supabase
+            .from('atendimentos_historico')
+            .select('id')
+            .eq('atendimento_id', atendimentoId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (findError) throw findError;
+
+        // 2. Atualiza esse histórico com a nota de cancelamento
+        const { error: patchError } = await supabase
+            .from('atendimentos_historico')
+            .update({ retorno_cancelado_nota: nota })
+            .eq('id', lastHist.id);
+
+        if (patchError) throw patchError;
+
+        // 3. Atualiza o atendimento pai para resolvido
+        const { error: updateError } = await supabase
+            .from('atendimentos')
+            .update({ 
+                resolvido: true, 
+                data_retorno: null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', atendimentoId);
 
         if (updateError) throw updateError;
     },

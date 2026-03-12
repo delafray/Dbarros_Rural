@@ -36,15 +36,6 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
         return `Retorno cancelado pelo Usuário ${nome}, em ${dia} às ${hora}`;
     };
 
-    const handleAdiarChange = (value: boolean) => {
-        setAdiar(value);
-        if (!value) {
-            setDescricao(buildCancelText());
-        } else {
-            setDescricao('');
-        }
-    };
-
     const nomeExibicao = atendimentosService.getNomeExibicao(atendimento);
 
     useEffect(() => {
@@ -54,21 +45,22 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
     }, [atendimento.id]);
 
     const handleSave = async () => {
-        // Se adiar=true, descricao é obrigatória; se adiar=false (cancelamento), já foi preenchida automaticamente
         if (adiar && !descricao.trim()) return;
         setIsSubmitting(true);
         try {
-            // Se NÃO for adiar, a data_retorno é limpa (resolvido)
-            const finalDataRetorno = adiar ? (dataRetorno ? new Date(dataRetorno).toISOString() : null) : null;
-
-            await atendimentosService.addHistorico({
-                atendimento_id: atendimento.id,
-                descricao: descricao.trim(),
-                probabilidade: probabilidade,
-                data_retorno: finalDataRetorno,
-                resolvido: !adiar,
-                user_id: null, // Sistema via trigger
-            });
+            if (adiar) {
+                const finalDataRetorno = dataRetorno ? new Date(dataRetorno).toISOString() : null;
+                await atendimentosService.addHistorico({
+                    atendimento_id: atendimento.id,
+                    descricao: descricao.trim(),
+                    probabilidade: probabilidade,
+                    data_retorno: finalDataRetorno,
+                    resolvido: false,
+                    user_id: null,
+                });
+            } else {
+                await atendimentosService.cancelRetorno(atendimento.id, buildCancelText());
+            }
 
             onSuccess();
             onClose();
@@ -96,13 +88,13 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Adiar retorno?</span>
                                 <div className="flex bg-slate-200 p-0.5 rounded-lg">
                                     <button
-                                        onClick={() => handleAdiarChange(true)}
+                                        onClick={() => setAdiar(true)}
                                         className={`px-3 py-0.5 text-[9px] font-black rounded-md transition-all ${adiar ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         SIM
                                     </button>
                                     <button
-                                        onClick={() => handleAdiarChange(false)}
+                                        onClick={() => setAdiar(false)}
                                         className={`px-3 py-0.5 text-[9px] font-black rounded-md transition-all ${!adiar ? 'bg-red-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         NÃO
@@ -135,13 +127,13 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
                             autoFocus
                             value={descricao}
                             onChange={e => setDescricao(e.target.value)}
-                            readOnly={!adiar}
-                            placeholder={adiar ? 'Descreva o contato realizado (obrigatório)...' : ''}
+                            disabled={!adiar}
+                            placeholder={adiar ? 'Descreva o contato realizado (obrigatório)...' : 'Retorno será cancelado no registro anterior.'}
                             rows={2}
-                            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none resize-none ${
+                            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none resize-none transition-opacity ${
                                 adiar
                                     ? 'border-slate-300 focus:ring-blue-500 bg-slate-50'
-                                    : 'border-red-200 bg-red-50 text-red-700 font-semibold cursor-default focus:ring-red-300'
+                                    : 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
                             }`}
                         />
                     </div>
@@ -213,6 +205,11 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
                                                 <span className="normal-case tracking-normal">
                                                     <span className="text-slate-600 font-bold">Retorno:</span>
                                                     {' '}<span className="text-amber-600 font-black">{fmt(h.data_retorno)}</span>
+                                                    {h.retorno_cancelado_nota && (
+                                                        <span className="ml-2 bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-100 font-bold border-dashed text-[9px] animate-in zoom-in duration-300">
+                                                            — {h.retorno_cancelado_nota}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </>
                                         )}
