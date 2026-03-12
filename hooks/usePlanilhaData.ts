@@ -154,26 +154,37 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
     [config],
   );
 
+  const clienteMap = useMemo<Map<string, ClienteComContatos>>(
+    () => new Map(clientes.map((c) => [c.id, c])),
+    [clientes],
+  );
+
   const configsByOrigem = useMemo(
     () => imagensService.buildConfigsByOrigem(imagensConfig),
     [imagensConfig],
   );
 
-  const getCategoriaOfRow = useCallback(
-    (row: PlanilhaEstande): CategoriaSetup | undefined => {
-      const nr = row.stand_nr.toLowerCase();
-      const sortedCats = [...categorias].sort((a, b) => {
+  // Pre-sort categorias by prefix length (longest first) — once per change, not per row
+  const sortedCategorias = useMemo(
+    () =>
+      [...categorias].sort((a, b) => {
         const idA = (a.prefix || a.tag || "").length;
         const idB = (b.prefix || b.tag || "").length;
         return idB - idA;
-      });
-      return sortedCats.find((c) => {
+      }),
+    [categorias],
+  );
+
+  const getCategoriaOfRow = useCallback(
+    (row: PlanilhaEstande): CategoriaSetup | undefined => {
+      const nr = row.stand_nr.toLowerCase();
+      return sortedCategorias.find((c) => {
         const id = (c.prefix || c.tag || "").toLowerCase().trim();
         if (!id) return false;
         return nr === id || nr.startsWith(`${id} `);
       });
     },
-    [categorias],
+    [sortedCategorias],
   );
 
   const getPrecoForCombo = useCallback(
@@ -279,6 +290,7 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
     rows,
     setRows,
     clientes,
+    clienteMap,
     atendimentos,
     imagensConfig,
     statusMap,

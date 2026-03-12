@@ -6,7 +6,6 @@ import { useAuth } from "../context/AuthContext";
 import { useAppDialog } from "../context/DialogContext";
 import { edicaoDocsService } from "../services/edicaoDocsService";
 import { ImagemConfig } from "../services/imagensService";
-import { ClienteComContatos } from "../services/clientesService";
 import { Atendimento } from "../services/atendimentosService";
 import { DocModal, DocModalState } from "../components/dashboard/DocModal";
 import ClienteSelectorPopup from "../components/ClienteSelectorPopup";
@@ -35,7 +34,7 @@ const PlanilhaVendas: React.FC = () => {
   // ─── Data ───────────────────────────────────────────────────
   const data = usePlanilhaData(edicaoId, navigate);
   const {
-    loading, config, edicao, rows, setRows, clientes, imagensConfig,
+    loading, config, edicao, rows, setRows, clientes, clienteMap, imagensConfig,
     statusMap, setStatusMap, recebimentosMap, setRecebimentosMap,
     categorias, opcionaisAtivos, comboLabels, comboNamesDisplay,
     atendimentoMap, getCategoriaOfRow, calculateRow, getComputedStatus, getImagensDoStand,
@@ -45,7 +44,7 @@ const PlanilhaVendas: React.FC = () => {
   const { realtimeToast } = usePlanilhaRealtime(config?.id, setRows);
 
   // ─── Editing ────────────────────────────────────────────────
-  const edit = usePlanilhaEditing(rows, setRows);
+  const edit = usePlanilhaEditing(rows, setRows, appDialog);
   const {
     editing, setEditing, pendingAction, setPendingAction,
     editingM2, setEditingM2, m2AvisoModal, setM2AvisoModal,
@@ -78,8 +77,8 @@ const PlanilhaVendas: React.FC = () => {
       const term = searchTerm.toLowerCase();
       return (
         r.stand_nr.toLowerCase().includes(term) ||
-        clientes.find((c) => c.id === r.cliente_id)?.nome_fantasia?.toLowerCase().includes(term) ||
-        clientes.find((c) => c.id === r.cliente_id)?.razao_social?.toLowerCase().includes(term) ||
+        clienteMap.get(r.cliente_id ?? "")?.nome_fantasia?.toLowerCase().includes(term) ||
+        clienteMap.get(r.cliente_id ?? "")?.razao_social?.toLowerCase().includes(term) ||
         r.cliente_nome_livre?.toLowerCase().includes(term)
       );
     });
@@ -96,7 +95,7 @@ const PlanilhaVendas: React.FC = () => {
       }
       return naturalSort(a.stand_nr, b.stand_nr);
     });
-  }, [rows, clientes, searchTerm, viewFilter, getCategoriaOfRow, categorias]);
+  }, [rows, clienteMap, searchTerm, viewFilter, getCategoriaOfRow, categorias]);
 
   // ─── Summary ───────────────────────────────────────────────
   const summary = useMemo(() => {
@@ -430,7 +429,7 @@ const PlanilhaVendas: React.FC = () => {
                     title={isVisitor ? undefined : "Clique para selecionar cliente"}
                   >
                     {(() => {
-                      const cliente = clientes.find((c) => c.id === row.cliente_id);
+                      const cliente = clienteMap.get(row.cliente_id ?? "");
                       if (cliente) {
                         const nomeExibir = cliente.nome_fantasia || (cliente.tipo_pessoa === "PJ" ? cliente.razao_social : cliente.nome_completo);
                         return <span className="font-bold text-slate-900 truncate block">{nomeExibir}</span>;
@@ -518,8 +517,8 @@ const PlanilhaVendas: React.FC = () => {
                         value={editing.val}
                         onChange={(e) => setEditing({ ...editing, val: e.target.value })}
                         onBlur={() => {
-                          const num = Number(editing?.val.replace(",", ".") || 0);
-                          setRows(rows.map((r) => (r.id === row.id ? { ...r, desconto: num } : r)));
+                          const parsed = Number(editing?.val.replace(",", "."));
+                          const num = isNaN(parsed) ? 0 : parsed;
                           handleUpdateField(row.id, "desconto", num);
                           setEditing(null);
                         }}
@@ -555,8 +554,8 @@ const PlanilhaVendas: React.FC = () => {
                           value={editing.val}
                           onChange={(e) => setEditing({ ...editing, val: e.target.value })}
                           onBlur={() => {
-                            const num = Number(editing?.val.replace(",", ".") || 0);
-                            setRows(rows.map((r) => (r.id === row.id ? { ...r, valor_pago: num } : r)));
+                            const parsed = Number(editing?.val.replace(",", "."));
+                            const num = isNaN(parsed) ? 0 : parsed;
                             handleUpdateField(row.id, "valor_pago", num);
                             setEditing(null);
                           }}
@@ -615,7 +614,7 @@ const PlanilhaVendas: React.FC = () => {
                   {/* Cadastro */}
                   {!isVisitor && (
                     <td className={`${tdStyle} w-px text-center px-1 bg-violet-50/30`}>
-                      {row.cliente_id && clientes.find((c) => c.id === row.cliente_id) ? (
+                      {row.cliente_id && clienteMap.has(row.cliente_id) ? (
                         <button
                           onClick={() => navigate(`/clientes/editar/${row.cliente_id}`)}
                           className="text-violet-700 hover:text-violet-900 hover:underline text-[10px] font-bold transition-colors whitespace-nowrap"
@@ -661,7 +660,7 @@ const PlanilhaVendas: React.FC = () => {
 
       {popupRowId && (() => {
         const popupRow = rows.find((r) => r.id === popupRowId);
-        const popupCliente = clientes.find((c: ClienteComContatos) => c.id === popupRow?.cliente_id);
+        const popupCliente = popupRow?.cliente_id ? clienteMap.get(popupRow.cliente_id) : undefined;
         const popupClienteNome = popupCliente
           ? (popupCliente.tipo_pessoa === 'PJ' ? (popupCliente.razao_social || popupCliente.nome_fantasia) : popupCliente.nome_completo) || null
           : null;
