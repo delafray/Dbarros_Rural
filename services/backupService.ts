@@ -50,6 +50,40 @@ const MIGRATION_FILES: { filename: string; content: string }[] = Object.entries(
     }))
     .sort((a, b) => a.filename.localeCompare(b.filename));
 
+// ── Git: ultimos 10 commits injetados no build time ─────────────────────────
+const GIT_COMMITS: GitCommit[] = typeof __GIT_COMMITS__ !== 'undefined' ? __GIT_COMMITS__ : [];
+
+const STATUS_LABELS: Record<string, string> = { A: 'Adicionado', M: 'Modificado', D: 'Removido', R: 'Renomeado', C: 'Copiado' };
+
+function slugify(text: string): string {
+    return text
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 60);
+}
+
+function generateCommitMd(c: GitCommit): string {
+    const lines = [
+        `# ${c.subject}`,
+        ``,
+        `- **Hash:** ${c.hash}`,
+        `- **Data:** ${c.date}`,
+        `- **Autor:** ${c.author}`,
+        ``,
+    ];
+    if (c.files.length > 0) {
+        lines.push(`## Arquivos alterados`, ``, `| Status | Arquivo |`, `|--------|---------|`);
+        for (const f of c.files) {
+            lines.push(`| ${STATUS_LABELS[f.status] ?? f.status} | ${f.path} |`);
+        }
+    } else {
+        lines.push(`_Nenhum arquivo alterado registrado._`);
+    }
+    return lines.join('\n');
+}
+
 // ── Fallback: lista de tabelas caso backup_introspect() nao esteja disponivel ─
 // Usada apenas se a funcao RPC ainda nao foi criada no banco.
 // Quando backup_introspect() existir, a lista e descoberta automaticamente.
@@ -477,6 +511,7 @@ Se os UUIDs mudarem, tudo quebra. Execute SEMPRE na ordem indicada.
 - ${policiesCount} politicas RLS (extraidas ao vivo — arquivo idempotente)
 - Todos os arquivos do Storage (fotos, documentos)
 - Codigo-fonte completo do projeto (pages, components, hooks, services, etc.)
+- Historico git dos ultimos 10 commits (com lista de arquivos alterados)
 - Este guia de restauracao
 
 ### Senhas apos restauracao
@@ -509,6 +544,8 @@ Sistema_Dbarros_Rural_Backup_completo_${dateStr}.zip
 │   ├── utils/              <- Utilitarios
 │   ├── supabase/           <- Migrations e edge functions
 │   └── *.tsx, *.ts, *.json <- Arquivos raiz (App, config, types)
+├── git_history/
+│   └── YYYY-MM-DD/          <- Ultimos 10 commits (1 .md por commit com arquivos alterados)
 └── storage_backup/
 ${storageLines}
 \`\`\`
@@ -857,6 +894,7 @@ ORDER BY policyname;
 | Funcoes SQL | Auto-exportadas em 5_functions_ddl.sql (DDL extraido ao vivo do banco) |
 | Politicas RLS | Auto-exportadas em 6_rls_policies.sql (pg_policies extraido ao vivo) |
 | Storage URLs | Apos migrar o projeto execute o UPDATE do Passo 10 |
+| Git History | Pasta git_history/ contem os 10 ultimos commits com detalhes de arquivos alterados |
 | psql externo | psql -h HOST -U USER -d DB -f 4_database_backup.sql |
 `;
 }
@@ -1063,7 +1101,18 @@ export const backupService = {
             zip.file(`source_code/${sf.relativePath}`, sf.content);
         }
 
-        onProgress?.({ phase: 'source', label: `Codigo-fonte: ${SOURCE_FILES.length} arquivos incluidos`, pct: 88 });
+        onProgress?.({ phase: 'source', label: `Codigo-fonte: ${SOURCE_FILES.length} arquivos incluidos`, pct: 85 });
+
+        // ── Git history (85–88%) ─────────────────────────────────────────────
+        if (GIT_COMMITS.length > 0) {
+            onProgress?.({ phase: 'source', label: `Incluindo historico git (${GIT_COMMITS.length} commits)...`, pct: 86 });
+            for (const commit of GIT_COMMITS) {
+                const dateFolder = commit.date.slice(0, 10); // YYYY-MM-DD
+                const slug = slugify(commit.subject);
+                const filename = `git_history/${dateFolder}/${commit.hash}_${slug}.md`;
+                zip.file(filename, generateCommitMd(commit));
+            }
+        }
 
         // ── RESTORE_GUIDE.md dentro do ZIP ────────────────────────────────────
         zip.file('RESTORE_GUIDE.md', generateRestoreGuide(
