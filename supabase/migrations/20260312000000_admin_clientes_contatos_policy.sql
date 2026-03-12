@@ -21,3 +21,11 @@ CREATE POLICY "Admin ou usuario pode gerenciar contatos"
   TO authenticated
   USING (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()))
   WITH CHECK (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()));
+
+-- ─── enderecos: limpar policy antiga e dar acesso a admin + projetista ──────────
+DROP POLICY IF EXISTS "Access enderecos via cliente" ON public.enderecos;
+CREATE POLICY "Admin ou usuario pode gerenciar enderecos"
+  ON public.enderecos FOR ALL
+  TO authenticated
+  USING (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()))
+  WITH CHECK (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()));
