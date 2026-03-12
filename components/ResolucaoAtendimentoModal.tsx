@@ -4,6 +4,7 @@ import { atendimentosService, Atendimento, AtendimentoHistorico, probBgColor, pr
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAppDialog } from '../context/DialogContext';
+import { useAuth } from '../context/AuthContext';
 
 interface ResolucaoAtendimentoModalProps {
     atendimento: Atendimento;
@@ -14,6 +15,7 @@ interface ResolucaoAtendimentoModalProps {
 
 const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ atendimento, onClose, onSuccess, readOnly = false }) => {
     const appDialog = useAppDialog();
+    const { user } = useAuth();
     const [historico, setHistorico] = useState<AtendimentoHistorico[]>([]);
     const [loadingHistorico, setLoadingHistorico] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,6 +28,23 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
     );
     const [adiar, setAdiar] = useState(true);
 
+    const buildCancelText = () => {
+        const now = new Date();
+        const dia = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const hora = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const nome = user?.name || 'Usuário';
+        return `Retorno cancelado pelo Usuário ${nome}, em ${dia} às ${hora}`;
+    };
+
+    const handleAdiarChange = (value: boolean) => {
+        setAdiar(value);
+        if (!value) {
+            setDescricao(buildCancelText());
+        } else {
+            setDescricao('');
+        }
+    };
+
     const nomeExibicao = atendimentosService.getNomeExibicao(atendimento);
 
     useEffect(() => {
@@ -35,7 +54,8 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
     }, [atendimento.id]);
 
     const handleSave = async () => {
-        if (!descricao.trim()) return;
+        // Se adiar=true, descricao é obrigatória; se adiar=false (cancelamento), já foi preenchida automaticamente
+        if (adiar && !descricao.trim()) return;
         setIsSubmitting(true);
         try {
             // Se NÃO for adiar, a data_retorno é limpa (resolvido)
@@ -76,13 +96,13 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Adiar retorno?</span>
                                 <div className="flex bg-slate-200 p-0.5 rounded-lg">
                                     <button
-                                        onClick={() => setAdiar(true)}
+                                        onClick={() => handleAdiarChange(true)}
                                         className={`px-3 py-0.5 text-[9px] font-black rounded-md transition-all ${adiar ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         SIM
                                     </button>
                                     <button
-                                        onClick={() => setAdiar(false)}
+                                        onClick={() => handleAdiarChange(false)}
                                         className={`px-3 py-0.5 text-[9px] font-black rounded-md transition-all ${!adiar ? 'bg-red-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         NÃO
@@ -115,9 +135,14 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
                             autoFocus
                             value={descricao}
                             onChange={e => setDescricao(e.target.value)}
-                            placeholder="Descreva o contato realizado (obrigatório)..."
+                            readOnly={!adiar}
+                            placeholder={adiar ? 'Descreva o contato realizado (obrigatório)...' : ''}
                             rows={2}
-                            className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-slate-50"
+                            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none resize-none ${
+                                adiar
+                                    ? 'border-slate-300 focus:ring-blue-500 bg-slate-50'
+                                    : 'border-red-200 bg-red-50 text-red-700 font-semibold cursor-default focus:ring-red-300'
+                            }`}
                         />
                     </div>
 
@@ -151,10 +176,10 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
                             </Button>
                             <Button
                                 onClick={handleSave}
-                                disabled={isSubmitting || !descricao.trim() || (adiar && !dataRetorno)}
-                                className={`h-9 px-6 text-[11px] font-black uppercase tracking-wider ${adiar ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                                disabled={isSubmitting || (adiar && (!descricao.trim() || !dataRetorno))}
+                                className={`h-9 px-6 text-[11px] font-black uppercase tracking-wider ${adiar ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}
                             >
-                                {isSubmitting ? 'Salvando...' : adiar ? 'Agendar e Salvar' : 'Resolver e Salvar'}
+                                {isSubmitting ? 'Salvando...' : adiar ? 'Agendar e Salvar' : 'Cancelar Retorno'}
                             </Button>
                         </div>
                     </div>
