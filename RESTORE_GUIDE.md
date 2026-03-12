@@ -435,7 +435,7 @@ USING (is_active = true);
 
 1. Crie os buckets no novo projeto (mesmos nomes, mesma configuração):
    - `photos` — público
-   - `edicao-docs` — público
+   - `edicao-docs` — privado (acesso via signed URLs)
 
 2. Via Supabase CLI (mais rápido):
 

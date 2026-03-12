@@ -417,7 +417,7 @@ USING (is_active = true);
 ### PASSO 7 — Restaurar arquivos do Storage
 1. Crie os buckets no novo projeto (mesmos nomes):
    - `photos` — público
-   - `edicao-docs` — público
+   - `edicao-docs` — privado (acesso via signed URLs)
 2. Via CLI:
 ```bash
 supabase storage cp --recursive ./storage_backup/photos/ supabase://photos/
