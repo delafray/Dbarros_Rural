@@ -169,7 +169,7 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                                     </div>
                                 </td>
                                 <td className="px-3 py-1">
-                                    <div className="text-[11px] text-slate-700 italic line-clamp-3 leading-tight whitespace-normal">
+                                    <div className="text-[11px] text-slate-700 italic line-clamp-2 leading-tight whitespace-normal">
                                         {item.ultima_obs || <span className="text-slate-400 font-normal">Sem histórico</span>}
                                     </div>
                                     {item.ultima_obs_at && (
