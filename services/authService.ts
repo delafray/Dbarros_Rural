@@ -138,6 +138,9 @@ export const authService = {
      * O `identifier` é sanitizado antes de ser usado no filtro PostgREST.
      */
     async login(identifier: string, password: string): Promise<User> {
+        // Limpa sessão expirada para evitar "JWT expired" na query seguinte
+        await supabase.auth.signOut().catch(() => {});
+
         // Sanitiza o identificador para evitar injeção via filtro PostgREST
         const safeId = sanitizeFilterValue(identifier.trim());
 
