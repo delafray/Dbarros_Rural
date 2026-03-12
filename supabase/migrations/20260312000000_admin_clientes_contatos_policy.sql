@@ -1,18 +1,18 @@
--- Permite que qualquer admin (master ou comum) gerencie clientes e contatos.
--- Antes, apenas visitantes tinham SELECT e admins comuns ficavam sem acesso.
+-- Permite que admins e usuarios (projetistas) gerenciem clientes e contatos.
+-- Visitantes mantêm apenas SELECT (policy separada).
 
--- ─── clientes: admin full access ────────────────────────────────────────────────
+-- ─── clientes: admin + projetista full access ──────────────────────────────────
 DROP POLICY IF EXISTS "Admin pode gerenciar clientes" ON public.clientes;
-CREATE POLICY "Admin pode gerenciar clientes"
+CREATE POLICY "Admin ou usuario pode gerenciar clientes"
   ON public.clientes FOR ALL
   TO authenticated
-  USING (is_admin())
-  WITH CHECK (is_admin());
+  USING (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()))
+  WITH CHECK (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()));
 
--- ─── contatos: admin full access ────────────────────────────────────────────────
+-- ─── contatos: admin + projetista full access ──────────────────────────────────
 DROP POLICY IF EXISTS "Admin pode gerenciar contatos" ON public.contatos;
-CREATE POLICY "Admin pode gerenciar contatos"
+CREATE POLICY "Admin ou usuario pode gerenciar contatos"
   ON public.contatos FOR ALL
   TO authenticated
-  USING (is_admin())
-  WITH CHECK (is_admin());
+  USING (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()))
+  WITH CHECK (is_admin() OR (SELECT is_projetista FROM public.users WHERE id = auth.uid()));
