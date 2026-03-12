@@ -177,8 +177,8 @@ const PlanilhaVendas: React.FC = () => {
                   variant="outline"
                   size="sm"
                   className="text-violet-600 border-violet-200 hover:bg-violet-50"
-                  onClick={() => {
-                    const url = edicaoDocsService.getPublicUrl(edicao.proposta_comercial_path!);
+                  onClick={async () => {
+                    const url = await edicaoDocsService.getSignedUrl(edicao.proposta_comercial_path!);
                     setDocModal({ tipo: 'proposta_comercial', url, edicaoTitulo: edicao.titulo });
                   }}
                 >
@@ -190,8 +190,8 @@ const PlanilhaVendas: React.FC = () => {
                   variant="outline"
                   size="sm"
                   className="text-teal-600 border-teal-200 hover:bg-teal-50"
-                  onClick={() => {
-                    const url = edicaoDocsService.getPublicUrl(edicao.planta_baixa_path!);
+                  onClick={async () => {
+                    const url = await edicaoDocsService.getSignedUrl(edicao.planta_baixa_path!);
                     setDocModal({ tipo: 'planta_baixa', url, edicaoTitulo: edicao.titulo });
                   }}
                 >

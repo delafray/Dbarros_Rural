@@ -38,9 +38,10 @@ export const edicaoDocsService = {
         return newPath;
     },
 
-    getPublicUrl(path: string): string {
-        const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-        return data.publicUrl;
+    async getSignedUrl(path: string): Promise<string> {
+        const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
+        if (error || !data?.signedUrl) throw new Error('Erro ao gerar URL do documento');
+        return data.signedUrl;
     },
 
     async remove(edicaoId: string, tipo: DocTipo): Promise<void> {

@@ -120,8 +120,8 @@ const TodosEventos: React.FC = () => {
 
                                 {/* Edition rows */}
                                 {edicoesList.map(edicao => {
-                                    const propostaUrl = edicao.proposta_comercial_path ? edicaoDocsService.getPublicUrl(edicao.proposta_comercial_path) : null;
-                                    const plantaUrl = edicao.planta_baixa_path ? edicaoDocsService.getPublicUrl(edicao.planta_baixa_path) : null;
+                                    const hasProposta = !!edicao.proposta_comercial_path;
+                                    const hasPlanta = !!edicao.planta_baixa_path;
                                     return (
                                         <div
                                             key={edicao.id}
@@ -138,9 +138,12 @@ const TodosEventos: React.FC = () => {
                                             <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
 
                                                 {/* Docs */}
-                                                {propostaUrl && (
+                                                {hasProposta && (
                                                     <button
-                                                        onClick={() => setDocModal({ tipo: 'proposta_comercial', url: propostaUrl, edicaoTitulo: edicao.titulo })}
+                                                        onClick={async () => {
+                                                            const url = await edicaoDocsService.getSignedUrl(edicao.proposta_comercial_path!);
+                                                            setDocModal({ tipo: 'proposta_comercial', url, edicaoTitulo: edicao.titulo });
+                                                        }}
                                                         className="flex items-center gap-1 group/prop"
                                                     >
                                                         <span className="text-[9px] font-bold text-violet-500 uppercase tracking-tighter opacity-60 group-hover/prop:opacity-100 transition-opacity">Proposta</span>
@@ -151,9 +154,12 @@ const TodosEventos: React.FC = () => {
                                                         </div>
                                                     </button>
                                                 )}
-                                                {plantaUrl && (
+                                                {hasPlanta && (
                                                     <button
-                                                        onClick={() => setDocModal({ tipo: 'planta_baixa', url: plantaUrl, edicaoTitulo: edicao.titulo })}
+                                                        onClick={async () => {
+                                                            const url = await edicaoDocsService.getSignedUrl(edicao.planta_baixa_path!);
+                                                            setDocModal({ tipo: 'planta_baixa', url, edicaoTitulo: edicao.titulo });
+                                                        }}
                                                         className="flex items-center gap-1 group/planta"
                                                     >
                                                         <span className="text-[9px] font-bold text-teal-500 uppercase tracking-tighter opacity-60 group-hover/planta:opacity-100 transition-opacity">Planta</span>
@@ -165,7 +171,7 @@ const TodosEventos: React.FC = () => {
                                                     </button>
                                                 )}
 
-                                                {(propostaUrl || plantaUrl) && <div className="w-px h-3 bg-slate-200" />}
+                                                {(hasProposta || hasPlanta) && <div className="w-px h-3 bg-slate-200" />}
 
                                                 {/* Imagens */}
                                                 <button

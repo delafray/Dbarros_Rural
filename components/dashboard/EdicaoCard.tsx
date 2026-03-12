@@ -57,10 +57,10 @@ export const EdicaoCard: React.FC<EdicaoCardProps> = ({
                     {/* Proposta Comercial */}
                     <div
                         className="flex items-center gap-1.5 group/prop cursor-pointer"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                             e.stopPropagation();
                             if (edicao.proposta_comercial_path) {
-                                const url = edicaoDocsService.getPublicUrl(edicao.proposta_comercial_path);
+                                const url = await edicaoDocsService.getSignedUrl(edicao.proposta_comercial_path);
                                 setDocModal({ tipo: 'proposta_comercial', url, edicaoTitulo: edicao.titulo });
                             } else {
                                 navigate(`/eventos/editar/${edicao.evento_id}`);
@@ -86,10 +86,10 @@ export const EdicaoCard: React.FC<EdicaoCardProps> = ({
                     {/* Planta Baixa */}
                     <div
                         className="flex items-center gap-1.5 group/planta cursor-pointer"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                             e.stopPropagation();
                             if (edicao.planta_baixa_path) {
-                                const url = edicaoDocsService.getPublicUrl(edicao.planta_baixa_path);
+                                const url = await edicaoDocsService.getSignedUrl(edicao.planta_baixa_path);
                                 setDocModal({ tipo: 'planta_baixa', url, edicaoTitulo: edicao.titulo });
                             } else {
                                 navigate(`/eventos/editar/${edicao.evento_id}`);
