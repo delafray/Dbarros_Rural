@@ -33,11 +33,6 @@ export const EdicaoCard: React.FC<EdicaoCardProps> = ({
                     <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate max-w-[220px]">
                         {edicao.eventos?.nome || 'Evento'}
                     </span>
-                    {(edicao.data_inicio || edicao.data_fim) && (
-                        <span className="text-[9px] font-bold text-slate-600 uppercase font-mono bg-slate-50 px-1 rounded border border-slate-100">
-                            {edicao.data_inicio ? new Date(edicao.data_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'} - {edicao.data_fim ? new Date(edicao.data_fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}
-                        </span>
-                    )}
 
                     {edicao.local && (
                         <span className="text-[9px] text-slate-500 truncate italic">
@@ -46,7 +41,12 @@ export const EdicaoCard: React.FC<EdicaoCardProps> = ({
                     )}
                 </div>
 
-                <h4 className="text-[11px] font-medium text-slate-500 group-hover:text-blue-500 transition-colors truncate">
+                <h4 className="text-[11px] font-medium text-slate-500 group-hover:text-blue-500 transition-colors truncate flex items-center gap-1.5">
+                    {(edicao.data_inicio || edicao.data_fim) && (
+                        <span className="text-[10px] font-bold text-slate-700 font-mono bg-slate-100 px-1.5 rounded shrink-0">
+                            {edicao.data_inicio ? new Date(edicao.data_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'} – {edicao.data_fim ? new Date(edicao.data_fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '...'}
+                        </span>
+                    )}
                     {edicao.titulo}
                 </h4>
             </div>
