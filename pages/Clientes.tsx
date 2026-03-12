@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { useAppDialog } from '../context/DialogContext';
 import { supabase } from '../services/supabaseClient';
 import { Database } from '../database.types';
+import { maskTelefone } from '../utils/masks';
 
 type Cliente = Database['public']['Tables']['clientes']['Row'] & {
     contato_nome?: string;
@@ -78,7 +79,7 @@ const Clientes: React.FC = () => {
         return {
             ...c,
             contato_nome: p?.nome || 'N/A',
-            contato_principal: p?.telefone || 'N/A',
+            contato_principal: p?.telefone ? maskTelefone(p.telefone) : 'N/A',
             contato_email: p?.email || 'N/A',
             contato_cargo: p?.cargo || 'N/A',
         };

@@ -6,6 +6,7 @@ import Layout from '../components/Layout';
 import { useAppDialog } from '../context/DialogContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
+import { maskTelefone } from '../utils/masks';
 import {
     atendimentosService,
     Atendimento,
@@ -556,7 +557,7 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved, on
                                             <option value="">— Selecione o contato —</option>
                                             {selectedCliente.contatos.map(c => (
                                                 <option key={c.id} value={c.id}>
-                                                    {c.nome}{c.cargo ? ` (${c.cargo})` : ''} - {c.telefone || 'Sem Tel'}
+                                                    {c.nome}{c.cargo ? ` (${c.cargo})` : ''} - {c.telefone ? maskTelefone(c.telefone) : 'Sem Tel'}
                                                 </option>
                                             ))}
                                         </select>
@@ -596,7 +597,7 @@ function AtendimentoForm({ edicaoId, atendimento, clientes, onClose, onSaved, on
                             <input
                                 type="text"
                                 value={telefone}
-                                onChange={e => setTelefone(e.target.value)}
+                                onChange={e => setTelefone(maskTelefone(e.target.value))}
                                 placeholder="(00) 00000-0000"
                                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                             />

@@ -6,6 +6,7 @@ import { Button } from '../components/UI';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { Evento, EventoEdicao } from '../services/eventosService';
+import { maskTelefone } from '../utils/masks';
 
 const PAGE_SIZE = 50;
 
@@ -221,7 +222,7 @@ const Eventos: React.FC = () => {
                                                     </button>
                                                 </td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_nome || '-'}</td>
-                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap text-[12px] text-slate-600">{e.promotor_telefone || '-'}</td>
+                                                <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap text-[12px] text-slate-600">{e.promotor_telefone ? maskTelefone(e.promotor_telefone) : '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 whitespace-nowrap max-w-[200px] truncate text-[12px] text-slate-600">{e.promotor_email || '-'}</td>
                                                 <td className="px-3 py-0.5 border-b border-r border-slate-300 text-left whitespace-nowrap">
                                                     {(() => {

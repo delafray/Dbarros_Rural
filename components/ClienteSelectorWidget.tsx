@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { simplifyText } from '../src/utils/textUtils';
 import { useAppDialog } from '../context/DialogContext';
 import { supabase } from '../services/supabaseClient';
+import { maskTelefone } from '../utils/masks';
 
 export type ClienteComContato = {
     id: string;
@@ -95,7 +96,7 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
         return {
             ...c,
             contato_nome: p?.nome || 'N/A',
-            contato_principal: p?.telefone || 'N/A',
+            contato_principal: p?.telefone ? maskTelefone(p.telefone) : 'N/A',
             contato_email: p?.email || 'N/A',
             contato_cargo: p?.cargo || 'N/A',
         };

@@ -6,6 +6,7 @@ import { useAppDialog } from '../context/DialogContext';
 import { useAuth } from '../context/AuthContext';
 import { eventosService, Evento, EventoEdicao } from '../services/eventosService';
 import { edicaoDocsService, DocTipo } from '../services/edicaoDocsService';
+import { maskTelefone } from '../utils/masks';
 
 type EventoEdicaoComDocs = EventoEdicao & {
     proposta_comercial_path?: string | null;
@@ -411,7 +412,7 @@ const CadastroEvento: React.FC = () => {
                                         <input
                                             name="promotor_telefone"
                                             value={dados.promotor_telefone || ''}
-                                            onChange={handleInputChange}
+                                            onChange={(e) => setDados({ ...dados, promotor_telefone: maskTelefone(e.target.value) })}
                                             type="text"
                                             className="w-full border border-slate-300 rounded-none px-3 py-1.5 text-[13px] focus:ring-1 focus:ring-blue-500 outline-none"
                                             placeholder="(00) 00000-0000"

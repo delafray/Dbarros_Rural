@@ -96,12 +96,12 @@ const CadastroCliente: React.FC = () => {
                 setTipoPessoa(client.tipo_pessoa as TipoPessoa);
                 setDados({
                     nome: client.nome_completo || '',
-                    cpf: client.cpf || '',
+                    cpf: client.cpf ? maskCPF(client.cpf) : '',
                     rg: client.rg || '',
                     dataNascimento: client.data_nascimento || '',
                     razaoSocial: client.razao_social || '',
                     nomeFantasia: client.nome_fantasia || '',
-                    cnpj: client.cnpj || '',
+                    cnpj: client.cnpj ? maskCNPJ(client.cnpj) : '',
                     inscricaoEstadual: client.inscricao_estadual || '',
                 });
             }
@@ -113,7 +113,7 @@ const CadastroCliente: React.FC = () => {
                 .eq('cliente_id', uid);
 
             if (endsError) throw endsError;
-            if (ends) setEnderecos(ends as Endereco[]);
+            if (ends) setEnderecos((ends as Endereco[]).map(e => ({ ...e, cep: e.cep ? maskCEP(e.cep) : '' })));
 
             // 3. Buscar contatos
             const { data: conts, error: contsError } = await supabase
@@ -126,6 +126,7 @@ const CadastroCliente: React.FC = () => {
                 // Se nenhum for principal, o primeiro será considerado principal
                 const formattedConts = (conts as any[]).map((c, idx) => ({
                     ...c,
+                    telefone: c.telefone ? maskTelefone(c.telefone) : '',
                     principal: c.principal ?? (idx === 0)
                 }));
                 setContatos(formattedConts as Contato[]);
@@ -442,7 +443,7 @@ const CadastroCliente: React.FC = () => {
                         if (savedExt) updatedEnderecos.push(...(savedExt as any[]));
                     }
                 }
-                setEnderecos(updatedEnderecos);
+                setEnderecos(updatedEnderecos.map(e => ({ ...e, cep: e.cep ? maskCEP(e.cep) : '' })));
 
                 // 5. Salvar Contatos
                 const updatedContatos: Contato[] = [];
@@ -475,7 +476,7 @@ const CadastroCliente: React.FC = () => {
                         if (savedExt) updatedContatos.push(...(savedExt as any[]));
                     }
                 }
-                setContatos(updatedContatos);
+                setContatos(updatedContatos.map(c => ({ ...c, telefone: c.telefone ? maskTelefone(c.telefone) : '' })));
 
                 await appDialog.alert({ title: 'Salvo!', message: 'Tudo salvo com sucesso!', type: 'success' });
 
