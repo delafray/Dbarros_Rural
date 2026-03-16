@@ -23,13 +23,44 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
     const prefix = docModal.tipo === 'proposta_comercial' ? 'PROPOSTA_COMERCIAL'
         : docModal.tipo === 'planta_baixa' ? 'PLANTA_BAIXA'
         : 'RELATORIO_PDF';
-    const ext = docModal.isPdfBlob ? 'pdf' : (url.split('.').pop()?.split('?')[0] || 'pdf');
-    const fileName = `${prefix}_${nomeEdicao}.${ext}`;
+    // Extracted extension logic
+    let tempExt = 'pdf';
+    if (!docModal.isPdfBlob && url) {
+        // Tenta pegar a extensão correta da URL (ex: .png, .jpg, .pdf)
+        const pathSegments = url.split('?')[0].split('/');
+        const lastSegment = pathSegments[pathSegments.length - 1];
+        if (lastSegment && lastSegment.includes('.')) {
+            const extPart = lastSegment.split('.').pop();
+            // Apenas aceita se for uma string curta (3 ou 4 letras no final)
+            if (extPart && extPart.length <= 4 && /^[a-zA-Z0-9]+$/.test(extPart)) {
+                tempExt = extPart.toLowerCase();
+            }
+        }
+    }
+    const ext = tempExt;
+
+    // Default fileName que será ajustado caso do download descubra outra extensão via type
+    const baseFileName = `${prefix}_${nomeEdicao}`;
+    let fileName = `${baseFileName}.${ext}`;
 
     const handleDownload = async () => {
         try {
             const response = await fetch(url);
             const blob = await response.blob();
+            
+            // Adjust extension based on actual mimetype if we defaulted to pdf incorrectly
+            if (blob.type && !docModal.isPdfBlob) {
+                const mimeExt = blob.type.split('/')[1]?.split('+')[0]; // image/jpeg -> jpeg, application/pdf -> pdf
+                if (mimeExt && mimeExt !== ext && mimeExt !== 'octet-stream') {
+                   // map common mime parts to proper extension
+                   const mapExe: Record<string, string> = {
+                      'jpeg': 'jpg', 'svg+xml': 'svg', 'plain': 'txt'
+                   };
+                   const finalExt = mapExe[mimeExt] || mimeExt;
+                   fileName = `${baseFileName}.${finalExt}`;
+                }
+            }
+
             const objectUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = objectUrl;
@@ -45,6 +76,19 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
         try {
             const response = await fetch(url);
             const blob = await response.blob();
+            
+            // Adjust extension based on actual mimetype
+            if (blob.type && !docModal.isPdfBlob) {
+                const mimeExt = blob.type.split('/')[1]?.split('+')[0];
+                if (mimeExt && mimeExt !== ext && mimeExt !== 'octet-stream') {
+                   const mapExe: Record<string, string> = {
+                      'jpeg': 'jpg', 'svg+xml': 'svg', 'plain': 'txt'
+                   };
+                   const finalExt = mapExe[mimeExt] || mimeExt;
+                   fileName = `${baseFileName}.${finalExt}`;
+                }
+            }
+
             const file = new File([blob], fileName, { type: blob.type });
             if (typeof navigator.share !== 'function') {
                 void appDialog.alert({ title: 'Aviso', message: 'Seu navegador não suporta compartilhamento. Use o botão Baixar.', type: 'warning' });
