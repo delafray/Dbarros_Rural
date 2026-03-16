@@ -67,7 +67,7 @@ const CadastroCliente: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     // Erros de validação dos dados básicos
-    const [erros, setErros] = useState<{ cnpj?: string; cpf?: string }>({});
+    const [erros, setErros] = useState<{ cnpj?: string; cpf?: string; cpfResponsavel?: string }>({});
 
     // Busca CNPJ
     const [cnpjSearching, setCnpjSearching] = useState(false);
@@ -120,6 +120,8 @@ const CadastroCliente: React.FC = () => {
                     nomeFantasia: client.nome_fantasia || '',
                     cnpj: client.cnpj ? maskCNPJ(client.cnpj) : '',
                     inscricaoEstadual: client.inscricao_estadual || '',
+                    responsavelEmpresa: client.responsavel_empresa || '',
+                    cpfResponsavel: client.cpf_responsavel ? maskCPF(client.cpf_responsavel) : '',
                 });
             }
 
@@ -197,6 +199,8 @@ const CadastroCliente: React.FC = () => {
         nomeFantasia: '',
         cnpj: '',
         inscricaoEstadual: '',
+        responsavelEmpresa: '',
+        cpfResponsavel: '',
     });
 
     // Contratos: dados vinculados (leitura)
@@ -278,8 +282,18 @@ const CadastroCliente: React.FC = () => {
 
         if (name === 'cnpj') masked = maskCNPJ(value);
         else if (name === 'cpf') masked = maskCPF(value);
+        else if (name === 'cpfResponsavel') masked = maskCPF(value);
 
         setDados({ ...dados, [name]: masked });
+    };
+
+    const handleBlurCPFResponsavel = () => {
+        const raw = onlyDigits(dados.cpfResponsavel);
+        if (raw.length > 0 && !validarCPF(raw)) {
+            setErros(e => ({ ...e, cpfResponsavel: 'CPF inválido' }));
+        } else {
+            setErros(e => ({ ...e, cpfResponsavel: undefined }));
+        }
     };
 
     const handleBlurCNPJ = () => {
@@ -443,6 +457,8 @@ const CadastroCliente: React.FC = () => {
                 nome_fantasia: dados.nomeFantasia || null,
                 cnpj: tipoPessoa === 'PJ' ? onlyDigits(dados.cnpj) : null,
                 inscricao_estadual: tipoPessoa === 'PJ' ? dados.inscricaoEstadual : null,
+                responsavel_empresa: tipoPessoa === 'PJ' ? (dados.responsavelEmpresa || null) : null,
+                cpf_responsavel: tipoPessoa === 'PJ' ? (onlyDigits(dados.cpfResponsavel) || null) : null,
                 user_id: user?.id || null
             };
 
@@ -721,6 +737,25 @@ const CadastroCliente: React.FC = () => {
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Nome Fantasia</label>
                                             <input name="nomeFantasia" value={dados.nomeFantasia} onChange={handleInputChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nome Comercial" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Responsável pela Empresa</label>
+                                            <input name="responsavelEmpresa" value={dados.responsavelEmpresa} onChange={handleInputChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nome do responsável" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">CPF do Responsável</label>
+                                            <input
+                                                name="cpfResponsavel"
+                                                value={dados.cpfResponsavel}
+                                                onChange={handleInputChange}
+                                                onBlur={handleBlurCPFResponsavel}
+                                                maxLength={14}
+                                                type="text"
+                                                inputMode="numeric"
+                                                className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 outline-none ${erros.cpfResponsavel ? 'border-red-400 focus:ring-red-300 bg-red-50' : 'border-slate-300 focus:ring-blue-500'}`}
+                                                placeholder="000.000.000-00"
+                                            />
+                                            {erros.cpfResponsavel && <p className="text-red-500 text-[11px] mt-1 font-medium">{erros.cpfResponsavel}</p>}
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">CNPJ</label>
