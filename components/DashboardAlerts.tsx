@@ -120,11 +120,11 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse table-fixed min-w-[1200px]">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[140px]">Evento</th>
-                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[140px]">Cliente</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[250px]">Evento</th>
+                            <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[280px]">Cliente</th>
                             <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[180px]">Contato</th>
                             <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter w-[110px]">Data Retorno</th>
                             <th className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Último Histórico</th>
@@ -134,7 +134,7 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                     <tbody className="divide-y divide-slate-300">
                         {retornosFiltrados.map((item) => (
                             <tr key={item.id} className={`${getRowColor(item.data_retorno)} transition-colors hover:brightness-95`}>
-                                <td className="px-3 py-1 w-[140px]">
+                                <td className="px-3 py-1 w-[250px]">
                                     <div className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter truncate" title={item.eventos_edicoes?.eventos?.nome || ''}>
                                         {item.eventos_edicoes?.eventos?.nome || '—'}
                                     </div>
@@ -142,7 +142,7 @@ const DashboardAlerts: React.FC<DashboardAlertsProps> = ({ onOpenResolucao, refr
                                         {item.eventos_edicoes?.titulo || '—'}
                                     </div>
                                 </td>
-                                <td className="px-3 py-1 w-[140px]">
+                                <td className="px-3 py-1 w-[280px]">
                                     <div className="text-[11px] font-bold text-slate-800 uppercase tracking-tight leading-none truncate" title={atendimentosService.getNomeExibicao(item)}>
                                         {atendimentosService.getNomeExibicao(item)}
                                     </div>
