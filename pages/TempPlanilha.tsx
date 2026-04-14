@@ -105,8 +105,9 @@ const PlanilhaVendas: React.FC = () => {
     comboLabels.forEach((l) => { comboXCounts[l] = 0; comboStarCounts[l] = 0; });
     opcionaisAtivos.forEach((o) => { optCounts[o.nome] = 0; });
     rows.forEach((row) => {
+      const isStand = getCategoriaOfRow(row)?.is_stand !== false;
       const tipo = row.tipo_venda;
-      if (tipo !== "DISPONÍVEL") {
+      if (tipo !== "DISPONÍVEL" && isStand) {
         const isStar = tipo.endsWith("*");
         const baseLabel = tipo.replace("*", "").trim();
         if (isStar) comboStarCounts[baseLabel] = (comboStarCounts[baseLabel] || 0) + 1;
@@ -119,7 +120,7 @@ const PlanilhaVendas: React.FC = () => {
       });
     });
     return { comboXCounts, comboStarCounts, optCounts };
-  }, [rows, comboLabels, opcionaisAtivos]);
+  }, [rows, comboLabels, opcionaisAtivos, getCategoriaOfRow]);
 
   const totals = useMemo(
     () =>

@@ -127,7 +127,7 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
                 const isSt = (getCategoria(row.stand_nr) as any)?.is_stand !== false;
                 if (row.tipo_venda !== 'DISPONÍVEL' && isSt) vendasCount++;
                 const base = row.tipo_venda.replace('*', '').trim();
-                if (!row.tipo_venda.endsWith('*') && row.tipo_venda !== 'DISPONÍVEL')
+                if (!row.tipo_venda.endsWith('*') && row.tipo_venda !== 'DISPONÍVEL' && isSt)
                     comboXCounts[base] = (comboXCounts[base] || 0) + 1;
                 const sel = (row.opcionais_selecionados as Record<string, string>) || {};
                 opcionaisAtivos.forEach(o => {
