@@ -1,0 +1,3 @@
+resume 4faed10e-8d1f-4274-982d-552f36288f0a
+recap: Corrigimos a planilha para que categorias com "Stand?" desmarcado (como OUT1,   OUT2, OUT3) não sejam contadas nos combos/stand padrão, mas continuem nos totais   financeiros. Próximo passo: você testar na planilha se os números estão corretos.       (disable recaps in /config)
+                                    
