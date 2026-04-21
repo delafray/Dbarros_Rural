@@ -79,88 +79,77 @@ const Cardapios: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cardapios.map((c) => (
-            <div
-              key={c.id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-            >
-              {/* Mini banner preview */}
-              <div
-                className="w-full h-24 relative flex flex-col items-center justify-center cursor-pointer"
-                style={{
-                  background: 'linear-gradient(155deg, #071422 0%, #0e254e 50%, #071422 100%)',
-                  border: 'none',
-                }}
-                onClick={() => navigate(`/cardapios/${c.id}`)}
-              >
-                <span className="text-[10px] font-bold tracking-[4px] text-amber-400 uppercase opacity-80">
-                  {c.titulo}
-                </span>
-                <span
-                  className="font-black uppercase text-amber-300 tracking-widest drop-shadow"
-                  style={{ fontSize: Math.min(28, Math.floor(160 / Math.max(c.empresa.length, 1))) }}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-3">Empresa / Título</th>
+                <th className="px-4 py-3 text-center">Categorias</th>
+                <th className="px-4 py-3 text-center">Itens</th>
+                <th className="px-4 py-3">Criado em</th>
+                <th className="px-4 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {cardapios.map((c) => (
+                <tr
+                  key={c.id}
+                  className="hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/cardapios/${c.id}`)}
                 >
-                  {c.empresa}
-                </span>
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-60" />
-              </div>
-
-              {/* Card info */}
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div>
-                    <p className="font-bold text-slate-800 text-sm">{c.empresa}</p>
-                    <p className="text-xs text-slate-500">{c.titulo}</p>
-                  </div>
-                  <span className="text-xs text-slate-400 whitespace-nowrap mt-0.5">
-                    {format(new Date(c.created_at), "dd/MM/yy", { locale: ptBR })}
-                  </span>
-                </div>
-
-                <p className="text-xs text-slate-400 mb-4">
-                  {(c.itens as any[]).reduce((sum, g) => sum + (g.itens?.length || 0), 0)} itens •{' '}
-                  {(c.itens as any[]).length} categorias
-                </p>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => navigate(`/cardapios/${c.id}`)}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold py-2 rounded-lg transition-colors"
-                  >
-                    <EditIcon className="w-3.5 h-3.5" />
-                    Editar
-                  </button>
-
-                  {confirmDeleteId === c.id ? (
-                    <div className="flex gap-1.5">
+                  <td className="px-4 py-3">
+                    <p className="font-bold text-slate-800">{c.empresa}</p>
+                    {c.titulo && <p className="text-xs text-slate-400">{c.titulo}</p>}
+                  </td>
+                  <td className="px-4 py-3 text-center text-slate-600">
+                    {(c.itens as any[]).length}
+                  </td>
+                  <td className="px-4 py-3 text-center text-slate-600">
+                    {(c.itens as any[]).reduce((sum, g) => sum + (g.itens?.length || 0), 0)}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                    {format(new Date(c.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                  </td>
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="text-xs font-bold px-2 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
+                        onClick={() => navigate(`/cardapios/${c.id}`)}
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                        title="Editar"
                       >
-                        Não
+                        <EditIcon className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => handleDelete(c.id)}
-                        disabled={deletingId === c.id}
-                        className="text-xs font-bold px-2 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60"
-                      >
-                        {deletingId === c.id ? '...' : 'Sim'}
-                      </button>
+                      {confirmDeleteId === c.id ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-xs font-bold px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600"
+                          >
+                            Não
+                          </button>
+                          <button
+                            onClick={() => handleDelete(c.id)}
+                            disabled={deletingId === c.id}
+                            className="text-xs font-bold px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white disabled:opacity-60"
+                          >
+                            {deletingId === c.id ? '...' : 'Sim'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(c.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                          title="Excluir"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmDeleteId(c.id)}
-                      className="flex items-center justify-center p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-                      title="Excluir"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </Layout>

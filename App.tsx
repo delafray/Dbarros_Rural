@@ -23,6 +23,8 @@ import ControleImagens from './pages/ControleImagens';
 import TodosEventos from './pages/TodosEventos';
 import Cardapios from './pages/Cardapios';
 import CardapioEditor from './pages/CardapioEditor';
+import CardapiosA4 from './pages/CardapiosA4';
+import CardapioA4Editor from './pages/CardapioA4Editor';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -70,10 +72,15 @@ const App: React.FC = () => {
 
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
 
-        {/* Módulo Cardápios */}
+        {/* Módulo Cardápios Banner */}
         <Route path="/cardapios" element={<ProtectedRoute><Cardapios /></ProtectedRoute>} />
         <Route path="/cardapios/novo" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
         <Route path="/cardapios/:id" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
+
+        {/* Módulo Menu A4 */}
+        <Route path="/cardapios-a4" element={<ProtectedRoute><CardapiosA4 /></ProtectedRoute>} />
+        <Route path="/cardapios-a4/novo" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
+        <Route path="/cardapios-a4/:id" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
 
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>

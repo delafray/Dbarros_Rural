@@ -33,6 +33,8 @@ const CardapioEditor: React.FC = () => {
   const [exportStatus, setExportStatus] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const [previewScale, setPreviewScale] = useState(0.5);
   const [isLoading, setIsLoading] = useState(isEditMode);
@@ -74,7 +76,18 @@ const CardapioEditor: React.FC = () => {
     setGrupos(parsed.grupos);
   }, []);
 
-  // ── Responsive preview scale ─────────────────────────────────────────────
+  // ── Close export menu on outside click ──────────────────────────────────
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    if (showExportMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
+
+  // ── Responsive preview scale ──────────────────────────────────────────────
   useEffect(() => {
     const el = previewContainerRef.current;
     if (!el) return;
@@ -111,8 +124,9 @@ const CardapioEditor: React.FC = () => {
     }
   };
 
-  // ── Export PNG (Canvas2D renderer — no DOM capture, pixel-perfect) ────────
+  // ── Export PNG (Canvas2D renderer — no DOM capture, pixel-perfect) ——————
   const handleExport = async (scale: number) => {
+    setShowExportMenu(false);
     if (grupos.length === 0) return;
     try {
       setIsExporting(true);
@@ -150,8 +164,9 @@ const CardapioEditor: React.FC = () => {
         {isSaving ? 'Salvando...' : 'Salvar'}
       </button>
 
-      <div className="relative group">
+      <div ref={exportMenuRef} className="relative">
         <button
+          onClick={() => setShowExportMenu((v) => !v)}
           disabled={isExporting || grupos.length === 0}
           className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-300 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
         >
@@ -164,14 +179,15 @@ const CardapioEditor: React.FC = () => {
             <>
               <DownloadIcon className="w-4 h-4" />
               Exportar PNG
+              <ChevronIcon className={`w-3 h-3 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
             </>
           )}
         </button>
 
-        {/* Export quality dropdown */}
-        {!isExporting && grupos.length > 0 && (
-          <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-20 min-w-[180px] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity overflow-hidden">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1">
+        {/* Export quality dropdown — state controlled, no hover gap issues */}
+        {showExportMenu && !isExporting && grupos.length > 0 && (
+          <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-[190px] overflow-hidden">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2.5 pb-1">
               Qualidade
             </p>
             {[
@@ -182,7 +198,7 @@ const CardapioEditor: React.FC = () => {
               <button
                 key={scale}
                 onClick={() => handleExport(scale)}
-                className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors"
+                className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors border-t border-slate-100 first:border-0"
               >
                 <p className="text-sm font-bold text-slate-700">{label}</p>
                 <p className="text-xs text-slate-400">{desc}</p>
@@ -336,5 +352,11 @@ const DownloadIcon = (props: any) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
   </svg>
 );
+const ChevronIcon = (props: any) => (
+  <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+  </svg>
+);
+
 
 export default CardapioEditor;
