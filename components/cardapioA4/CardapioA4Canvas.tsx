@@ -25,50 +25,18 @@ import {
   getGroupWeight,
 } from '../../utils/cardapioParser';
 
-// ─── Canvas constants ─────────────────────────────────────────────────────────
-export const CANVAS_W = 810;
-export const CANVAS_H = 1071;
-export const BLEED_PX = 90; // 30mm × 3px/mm
-
-export const SAFE_L = BLEED_PX;
-export const SAFE_T = BLEED_PX;
-export const SAFE_W = CANVAS_W - BLEED_PX * 2; // 630 px = 210mm
-export const SAFE_H = CANVAS_H - BLEED_PX * 2; // 891 px = 297mm
-export const SAFE_R = SAFE_L + SAFE_W;
-export const SAFE_B = SAFE_T + SAFE_H;
-
-// ─── Design tokens ────────────────────────────────────────────────────────────
-const GOLD = '#D4AF37';
-const GOLD_BRIGHT = '#FFE066';
-const TEXT_WHITE = '#FFFFFF';
-const TEXT_GRAY = '#b8cce0';
-const COL_PAD_H = 28;
-const COL_PAD_V = 14;
-const FOOTER_H  = 124;  // chancela 10458×2051px scaled to 630px wide → 123.5px
-const DIVIDER_W = 2;
-const SCREW_SIZE = 20;
-const SCREW_INSET = 12;
-
-// ─── Layout decision ──────────────────────────────────────────────────────────
-const TWO_COL_ITEM_THRESHOLD = 18;
+import {
+  CANVAS_W, CANVAS_H, BLEED_PX,
+  SAFE_L, SAFE_T, SAFE_W, SAFE_H, SAFE_R, SAFE_B,
+  GOLD, GOLD_BRIGHT, TEXT_WHITE, TEXT_GRAY,
+  FONT_REGULAR, FONT_BLACK,
+  COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
+  TWO_COL_ITEM_THRESHOLD,
+  calcHeaderH, calcEmpresaFs
+} from './cardapioA4Config';
 
 function useSingleColumn(totalItens: number): boolean {
   return totalItens <= TWO_COL_ITEM_THRESHOLD;
-}
-
-// ─── Font size helpers ────────────────────────────────────────────────────────
-function calcHeaderH(totalItens: number): number {
-  if (totalItens >= 20) return 100;
-  if (totalItens >= 14) return 116;
-  if (totalItens >= 10) return 128;
-  return 142;
-}
-
-function calcEmpresaFs(empresa: string, totalItens: number): number {
-  const availW = SAFE_W - COL_PAD_H * 2;
-  const byLength = Math.min(64, Math.floor(availW / Math.max(empresa.length, 1)));
-  const pressure = Math.min(0.3, Math.max(0, (totalItens - 6) * 0.025));
-  return Math.max(22, Math.floor(byLength * (1 - pressure)));
 }
 
 // ─── Screw decoration ─────────────────────────────────────────────────────────
@@ -121,7 +89,7 @@ const GroupList = ({
               textTransform: 'uppercase',
               lineHeight: 1.08,
               marginBottom: fs * 0.22,
-              fontFamily: '"Arial Black", "Arial Bold", Gadget, sans-serif',
+              fontFamily: FONT_BLACK,
               textShadow: `0 0 12px ${GOLD_BRIGHT}45`,
             }}
           >
@@ -149,7 +117,7 @@ const GroupList = ({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'baseline',
-                  gap: singleCol ? 16 : 6,
+                  gap: item.descricao ? (singleCol ? 16 : 6) : 0,
                 }}
               >
                 <span
@@ -158,19 +126,34 @@ const GroupList = ({
                     fontSize: itemFs,
                     fontWeight: 700,
                     lineHeight: 1.2,
-                    fontFamily: 'Arial, Helvetica, sans-serif',
-                    flex: 1,
+                    fontFamily: FONT_REGULAR,
+                    flex: item.descricao ? 1 : '0 1 auto',
+                    minWidth: 0,
                   }}
                 >
                   {item.item}
                 </span>
+                {!item.descricao && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      flex: 1,
+                      minWidth: 12,
+                      marginLeft: 8,
+                      marginRight: 8,
+                      alignSelf: 'baseline',
+                      paddingBottom: Math.max(1, Math.round(itemFs * 0.1)),
+                      borderBottom: `1px dotted ${GOLD}40`,
+                    }}
+                  />
+                )}
                 <span
                   style={{
                     color: GOLD_BRIGHT,
                     fontSize: priceFs,
                     fontWeight: 900,
                     whiteSpace: 'nowrap',
-                    fontFamily: '"Arial Black", Gadget, sans-serif',
+                    fontFamily: FONT_BLACK,
                     letterSpacing: 0.4,
                   }}
                 >
@@ -185,7 +168,7 @@ const GroupList = ({
                     fontSize: descFs,
                     lineHeight: 1.35,
                     marginTop: fs * 0.06,
-                    fontFamily: 'Arial, Helvetica, sans-serif',
+                    fontFamily: FONT_REGULAR,
                     fontStyle: 'italic',
                     opacity: 0.88,
                   }}
@@ -217,10 +200,12 @@ interface CardapioA4CanvasProps {
   titulo?: string;
   empresa?: string;
   grupos: CardapioGroup[];
+  /** Hide preview-only overlays (bleed indicators, sangria label) during PNG export */
+  exporting?: boolean;
 }
 
 export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps>(
-  ({ titulo = '', empresa = '', grupos }, ref) => {
+  ({ titulo = '', empresa = '', grupos, exporting = false }, ref) => {
     const totalItens = useMemo(
       () => grupos.reduce((s, g) => s + g.itens.length, 0),
       [grupos]
@@ -244,10 +229,11 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
     // Two col:   narrow → more wrapping → lower factor, smaller cap
     const fs = useMemo(() => {
       if (singleCol) {
-        // Full-width single column (~574px) — text rarely wraps
+        // Single col: full width (~574px), text rarely wraps — fill 98% of space
+        // Cap at 26px keeps short menus elegant without going enormous
         const totalWeight = grupos.reduce((s, g) => s + getGroupWeight(g), 0);
-        const ideal = totalWeight > 0 ? (availH * 0.86) / totalWeight : 24;
-        return Math.max(8, Math.min(24, ideal));
+        const ideal = totalWeight > 0 ? (availH * 0.98) / totalWeight : 26;
+        return Math.max(8, Math.min(26, ideal));
       } else {
         // Two narrow columns (~263px each) — text wraps more
         return Math.min(calcFontSize(grupos, availH * 0.52), 20);
@@ -265,7 +251,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
           position: 'relative',
           overflow: 'hidden',
           background: '#011464',
-          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontFamily: FONT_REGULAR,
           flexShrink: 0,
         }}
       >
@@ -344,7 +330,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                   letterSpacing: Math.max(3, tituloFs * 0.28),
                   textTransform: 'uppercase',
                   opacity: 0.88,
-                  fontFamily: 'Arial, Helvetica, sans-serif',
+                  fontFamily: FONT_REGULAR,
                   marginBottom: 3,
                 }}
               >
@@ -360,7 +346,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                 letterSpacing: Math.max(2, 7 - empresa.length * 0.14),
                 textTransform: 'uppercase',
                 lineHeight: 0.9,
-                fontFamily: '"Arial Black", Impact, Gadget, sans-serif',
+                fontFamily: FONT_BLACK,
                 textShadow: `0 0 35px ${GOLD}60, 0 3px 10px rgba(0,0,0,0.6)`,
                 whiteSpace: 'nowrap',
                 textAlign: 'center',
@@ -459,21 +445,49 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
           </div>
         </div>
 
-        {/* ── Bleed indicators (preview only) ────────────────────── */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderBottom: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderTop: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
-        <div style={{ position: 'absolute', top: BLEED_PX, bottom: BLEED_PX, left: 0, width: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderRight: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
-        <div style={{ position: 'absolute', top: BLEED_PX, bottom: BLEED_PX, right: 0, width: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderLeft: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
+        {/* ── Bleed indicators + label — PREVIEW ONLY (hidden in exported PNG) ── */}
+        {!exporting && (
+          <>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderBottom: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderTop: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
+            <div style={{ position: 'absolute', top: BLEED_PX, bottom: BLEED_PX, left: 0, width: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderRight: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
+            <div style={{ position: 'absolute', top: BLEED_PX, bottom: BLEED_PX, right: 0, width: BLEED_PX, background: 'rgba(255,60,60,0.07)', borderLeft: '1px dashed rgba(255,90,90,0.6)', pointerEvents: 'none', zIndex: 20 }} />
+            <div
+              style={{
+                position: 'absolute', top: 3, left: 4, zIndex: 21,
+                color: 'rgba(255,100,100,0.75)',
+                fontSize: 7, fontFamily: 'Arial', letterSpacing: 1.5, textTransform: 'uppercase',
+              }}
+            >
+              Sangria 3cm
+            </div>
+          </>
+        )}
 
-        <div
-          style={{
-            position: 'absolute', top: 3, left: 4, zIndex: 21,
-            color: 'rgba(255,100,100,0.75)',
-            fontSize: 7, fontFamily: 'Arial', letterSpacing: 1.5, textTransform: 'uppercase',
-          }}
-        >
-          Sangria 3cm
-        </div>
+        {/* ── Crop marks — EXPORT ONLY (print-ready) ─────────────────── */}
+        {exporting && (() => {
+          const ML = 16;  // mark length
+          const GAP = 5;  // gap from safe-area corner
+          const color = 'rgba(255,255,255,0.5)';
+          const SR = SAFE_L + SAFE_W;
+          const SB = SAFE_T + SAFE_H;
+          return (
+            <>
+              {/* top-left */}
+              <div style={{ position: 'absolute', top: SAFE_T, left: SAFE_L - GAP - ML, width: ML, height: 1, background: color, zIndex: 22 }} />
+              <div style={{ position: 'absolute', top: SAFE_T - GAP - ML, left: SAFE_L, width: 1, height: ML, background: color, zIndex: 22 }} />
+              {/* top-right */}
+              <div style={{ position: 'absolute', top: SAFE_T, left: SR + GAP, width: ML, height: 1, background: color, zIndex: 22 }} />
+              <div style={{ position: 'absolute', top: SAFE_T - GAP - ML, left: SR, width: 1, height: ML, background: color, zIndex: 22 }} />
+              {/* bottom-left */}
+              <div style={{ position: 'absolute', top: SB, left: SAFE_L - GAP - ML, width: ML, height: 1, background: color, zIndex: 22 }} />
+              <div style={{ position: 'absolute', top: SB + GAP, left: SAFE_L, width: 1, height: ML, background: color, zIndex: 22 }} />
+              {/* bottom-right */}
+              <div style={{ position: 'absolute', top: SB, left: SR + GAP, width: ML, height: 1, background: color, zIndex: 22 }} />
+              <div style={{ position: 'absolute', top: SB + GAP, left: SR, width: 1, height: ML, background: color, zIndex: 22 }} />
+            </>
+          );
+        })()}
       </div>
     );
   }

@@ -1,11 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import {
-  CardapioA4Canvas,
-  CANVAS_W,
-  CANVAS_H,
-} from '../components/cardapioA4/CardapioA4Canvas';
+import { CardapioA4Canvas } from '../components/cardapioA4/CardapioA4Canvas';
+import { CANVAS_W, CANVAS_H } from '../components/cardapioA4/cardapioA4Config';
 import { exportMenuA4, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
 import { parseCardapioText, CardapioGroup } from '../utils/cardapioParser';
 import { menuA4Service } from '../services/menuA4Service';
@@ -119,11 +116,13 @@ export const CardapioA4Editor: React.FC = () => {
   // ── Export PNG ───────────────────────────────────────────────────────────
   const handleExport = async (scale: number) => {
     setShowExportMenu(false);
-    if (grupos.length === 0) return;
+    if (grupos.length === 0 || !canvasRef.current) return;
     try {
       setIsExporting(true); setError(null);
+      // Give React one frame to re-render with exporting=true (hides bleed indicators)
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const filename = `menu-a4-${empresa.toLowerCase().replace(/\s+/g, '-') || 'menu'}`;
-      await exportMenuA4(titulo, empresa, grupos, filename, scale, setExportStatus);
+      await exportMenuA4(canvasRef.current, filename, scale, setExportStatus);
     } catch (e: any) {
       setError(e.message || 'Erro ao exportar');
     } finally {
@@ -291,6 +290,7 @@ export const CardapioA4Editor: React.FC = () => {
                   titulo={titulo}
                   empresa={empresa}
                   grupos={grupos}
+                  exporting={isExporting}
                 />
               </div>
             )}
