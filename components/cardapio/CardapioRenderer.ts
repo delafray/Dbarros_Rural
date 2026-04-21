@@ -28,10 +28,10 @@ const APPROX_COL_W = (CANVAS_W / 2) - COL_PAD_H - Math.round(COL_PAD_H * 0.7);
 
 // ─── Helpers (shared with Canvas component) ───────────────────────────────────
 function calcHeaderH(totalItens: number): number {
-  if (totalItens >= 14) return 140;
-  if (totalItens >= 10) return 158;
-  if (totalItens >= 7)  return 174;
-  return 195;
+  if (totalItens >= 14) return 128;
+  if (totalItens >= 10) return 144;
+  if (totalItens >= 7)  return 158;
+  return 172;
 }
 
 function calcEmpresaFs(empresa: string, totalItens: number, colW = APPROX_COL_W): number {
@@ -92,8 +92,6 @@ function drawAccentLines(ctx: CanvasRenderingContext2D) {
   ctx.globalAlpha = 0.8;
   ctx.fillStyle = makeGrad(0);
   ctx.fillRect(0, 0, CANVAS_W, 4);
-  ctx.fillStyle = makeGrad(CANVAS_H - 4);
-  ctx.fillRect(0, CANVAS_H - 4, CANVAS_W, 4);
   ctx.globalAlpha = 1;
 }
 
@@ -160,14 +158,42 @@ function drawHalfHeader(
   let empresaY: number;
 
   if (hasTitle) {
-    const titleY = headerH * 0.30;
-    empresaY     = titleY + tituloFs * 0.7 + empresaFs * 0.54;
+    // empresaY is computed from the ORIGINAL title position so it never moves
+    const empresaY = headerH * 0.30 + tituloFs * 0.7 + empresaFs * 0.54;
+    // Title moves up independently
+    const titleY   = headerH * 0.24;
 
     ctx.font        = `700 ${tituloFs}px Arial, Helvetica, sans-serif`;
     ctx.fillStyle   = GOLD_BRIGHT;
     ctx.globalAlpha = 0.88;
     ctx.fillText(titulo, cx, titleY);
     ctx.globalAlpha = 1;
+
+    // Use the fixed empresaY below
+    Object.assign(ctx, {});
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Empresa with glow
+    ctx.font        = `900 ${empresaFs}px "Arial Black", Impact, Helvetica, sans-serif`;
+    ctx.shadowColor = `${GOLD}55`;
+    ctx.shadowBlur  = 28;
+    ctx.fillStyle   = GOLD_BRIGHT;
+    ctx.fillText(empresa, cx, empresaY);
+    ctx.shadowBlur  = 0;
+
+    // Gold underline
+    const underW = Math.max(100, Math.min(colW * 0.75, empresa.length * 22));
+    const underY = empresaY + empresaFs * 0.56 + 6;
+    const ug = ctx.createLinearGradient(cx - underW / 2, 0, cx + underW / 2, 0);
+    ug.addColorStop(0, 'rgba(212,175,55,0)');
+    ug.addColorStop(0.5, GOLD);
+    ug.addColorStop(1, 'rgba(212,175,55,0)');
+    ctx.globalAlpha = 0.72;
+    ctx.fillStyle   = ug;
+    ctx.fillRect(cx - underW / 2, underY, underW, 2);
+    ctx.globalAlpha = 1;
+    return; // early return — empresa already drawn
   } else {
     empresaY = headerH * 0.50;
   }
@@ -310,32 +336,39 @@ export async function renderCardapioToDataURL(
   drawAccentLines(ctx);
 
   const sr = SCREW_SIZE / 2;
-  drawScrew(ctx, SCREW_INSET + sr, SCREW_INSET + sr);
-  drawScrew(ctx, CANVAS_W - SCREW_INSET - sr, SCREW_INSET + sr);
-  drawScrew(ctx, SCREW_INSET + sr, CANVAS_H - SCREW_INSET - sr);
-  drawScrew(ctx, CANVAS_W - SCREW_INSET - sr, CANVAS_H - SCREW_INSET - sr);
+  drawScrew(ctx, SCREW_INSET + sr + 15, SCREW_INSET + sr);                   // top-left
+  drawScrew(ctx, CANVAS_W - SCREW_INSET - sr - 10, SCREW_INSET + sr);         // top-right (shifted left)
+  drawScrew(ctx, SCREW_INSET + sr + 15, CANVAS_H - SCREW_INSET - sr);         // bottom-left
+  drawScrew(ctx, CANVAS_W - SCREW_INSET - sr - 10, CANVAS_H - SCREW_INSET - sr); // bottom-right (shifted left)
 
-  drawDivider(ctx, 0);
+  // Divisor central removido — cada painel é cortado ao meio independentemente
 
   const [leftGrupos, rightGrupos] = splitGroups(grupos);
   const midX      = CANVAS_W / 2;
-  const colStartY = headerH + COL_PAD_V;
+  const colStartY = headerH + Math.round(COL_PAD_V * 0.5); // mirrors CSS paddingTop: COL_PADDING_V * 0.5
 
-  // Left column widths (mirror of CSS paddingLeft/paddingRight)
-  const leftColX  = COL_PAD_H;
-  const leftColW  = midX - DIVIDER_W / 2 - COL_PAD_H - Math.round(COL_PAD_H * 1.6);
+  // Left column — shifted right +20px from original padding
+  const leftColX  = COL_PAD_H + 20;
+  const leftColW  = midX - (COL_PAD_H + 20) - Math.round(COL_PAD_H * 1.6);
 
   // Right column
-  const rightColX = midX + DIVIDER_W / 2 + Math.round(COL_PAD_H * 1.6);
-  const rightColW = CANVAS_W - rightColX - COL_PAD_H;
+  const rightColX = midX + Math.round(COL_PAD_H * 1.6);
+  const rightEdge  = CANVAS_W - (COL_PAD_H + SCREW_SIZE);
+  const rightColW = rightEdge - rightColX;
+
+  // Right column items/categories start 20px closer to the inner edge
+  // rightColW grows by same 20px so price position (rightTextX + rightTextW) stays unchanged
+  const rightTextX = rightColX - 20;
+  const rightTextW = rightColW + 20;
 
   // ── Per-half headers (replicated so each side survives a center cut) ──
   drawHalfHeader(ctx, titulo, empresa, headerH, totalItens, leftColX,  leftColW);
-  drawHalfHeader(ctx, titulo, empresa, headerH, totalItens, rightColX, rightColW);
+  drawHalfHeader(ctx, titulo, empresa, headerH, totalItens, rightColX, rightColW); // header centered as before
 
   // ── Column content ────────────────────────────────────────────────────
   drawColumn(ctx, leftGrupos,  leftColX,  colStartY, leftColW,  fs);
-  drawColumn(ctx, rightGrupos, rightColX, colStartY, rightColW, fs);
+  drawColumn(ctx, rightGrupos, rightTextX, colStartY, rightTextW, fs); // items -20px left, prices unchanged
+
 
   return canvas.toDataURL('image/png');
 }

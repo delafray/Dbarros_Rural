@@ -1,0 +1,21 @@
+____
+BAR	
+CATEGORIA	ITEM	VALOR	DESCRIÇÃO
+Águas	AGUA	R$ 8,00	
+Águas	ÁGUA C/ GÁS	R$ 8,00	
+Sucos	SUCO	R$ 12,00	
+Energéticos	REDBULL	R$ 20,00	
+Refrigerantes	ÁGUA TÔNICA	R$ 10,00	
+Refrigerantes	 COCA COLA	R$ 10,00	
+Refrigerantes	 COCA COLA ZERO	R$ 10,00	
+Refrigerantes	 GUARANÁ	R$ 10,00	
+Refrigerantes	 GUARANÁ DIET	R$ 10,00	
+Chopp	CHOPP HEINEKEN 300ML	R$ 16,00	
+Chopp	CHOPP AMSTEL 300ML	R$ 15,00	
+Chopp	CHOPP HEINEKEN 500ML	R$ 20,00	
+Chopp	CHOPP AMSTEL 500ML	R$ 18,00	
+Destilados / Dose	WHISKY RED LABEL	R$ 35,00	
+Destilados / Dose	ABSOLUT	R$ 25,00	
+Destilados / Dose	SMIRNOFF	R$ 20,00	
+Destilados / Dose	TANQUERAY	R$ 25,00	
+Destilados / Dose	CAMPARI	R$ 20,00	

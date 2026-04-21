@@ -15,7 +15,6 @@ export const CardapioA4Editor: React.FC = () => {
   const isEditMode = isEditMode_check(id);
 
   const canvasRef            = useRef<HTMLDivElement>(null);
-  const previewContainerRef  = useRef<HTMLDivElement>(null);
   const exportMenuRef        = useRef<HTMLDivElement>(null);
 
   const [rawText,      setRawText]      = useState('');
@@ -29,7 +28,6 @@ export const CardapioA4Editor: React.FC = () => {
   const [saveSuccess,  setSaveSuccess]  = useState(false);
   const [error,        setError]        = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [previewScale, setPreviewScale] = useState(0.6);
   const [isLoading,    setIsLoading]    = useState(isEditMode);
 
   // ── Load existing (edit mode) ────────────────────────────────────────────
@@ -77,17 +75,8 @@ export const CardapioA4Editor: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, [showExportMenu]);
 
-  // ── Responsive preview scale ─────────────────────────────────────────────
-  useEffect(() => {
-    const el = previewContainerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      if (w > 0) setPreviewScale(w / CANVAS_W);
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+
+
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -130,7 +119,6 @@ export const CardapioA4Editor: React.FC = () => {
     }
   };
 
-  const scaledH = Math.round(CANVAS_H * previewScale);
 
   const headerActions = (
     <div className="flex items-center gap-2">
@@ -267,7 +255,6 @@ export const CardapioA4Editor: React.FC = () => {
         {/* ── Right panel — preview ─────────────────────────────────────── */}
         <div className="flex-1 flex flex-col gap-2 min-w-0">
           <div
-            ref={previewContainerRef}
             className="flex-1 min-h-0 overflow-auto bg-slate-100 rounded-xl border border-slate-200 flex items-start justify-center p-4"
             style={{ position: 'relative' }}
           >
@@ -277,14 +264,7 @@ export const CardapioA4Editor: React.FC = () => {
                 <p className="text-sm font-medium">Cole o texto para ver o preview A4</p>
               </div>
             ) : (
-              <div
-                style={{
-                  transform: `scale(${previewScale})`,
-                  transformOrigin: 'top left',
-                  width: CANVAS_W,
-                  height: CANVAS_H,
-                }}
-              >
+              <div style={{ flexShrink: 0 }}>
                 <CardapioA4Canvas
                   ref={canvasRef}
                   titulo={titulo}
@@ -297,7 +277,7 @@ export const CardapioA4Editor: React.FC = () => {
           </div>
 
           <p className="text-xs text-slate-400 text-center">
-            A4 + sangria: 270×357mm (810×1071px) · Escala preview: {Math.round(previewScale * 100)}%
+            A4 + sangria: 270×357mm (810×1071px) · Preview em 100%
           </p>
         </div>
       </div>

@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { CardapioCanvas, CANVAS_W, CANVAS_H } from '../components/cardapio/CardapioCanvas';
-import { exportCardapioRenderer, RENDER_SCALES } from '../components/cardapio/CardapioRenderer';
+import { CANVAS_W, CANVAS_H } from '../components/cardapio/CardapioCanvas';
+import {
+  renderCardapioToDataURL,
+  exportCardapioRenderer,
+  RENDER_SCALES,
+} from '../components/cardapio/CardapioRenderer';
 import { parseCardapioText, CardapioGroup } from '../utils/cardapioParser';
 import { cardapioService } from '../services/cardapioService';
 
@@ -18,8 +22,7 @@ const CardapioEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
 
-  // canvasRef → used only for the on-screen preview (inside scale transform)
-  const canvasRef = useRef<HTMLDivElement>(null);
+  // previewContainerRef — used to measure available width for scaling the img
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   const [rawText, setRawText] = useState('');
@@ -36,7 +39,8 @@ const CardapioEditor: React.FC = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
-  const [previewScale, setPreviewScale] = useState(0.5);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [isRendering, setIsRendering] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
 
   // ── Load existing cardapio (edit mode) ──────────────────────────────────
@@ -87,17 +91,30 @@ const CardapioEditor: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportMenu]);
 
-  // ── Responsive preview scale ──────────────────────────────────────────────
+  // ── Responsive preview scale (kept for container height) ──────────────────
   useEffect(() => {
     const el = previewContainerRef.current;
     if (!el) return;
-    const obs = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      if (w > 0) setPreviewScale(w / CANVAS_W);
-    });
+    const obs = new ResizeObserver(() => { /* height managed by img aspect ratio */ });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+
+  // ── Live preview via Canvas2D renderer (same engine as PNG export) ─────────
+  useEffect(() => {
+    if (grupos.length === 0 && !titulo) {
+      setPreviewUrl('');
+      return;
+    }
+    setIsRendering(true);
+    const timer = setTimeout(() => {
+      renderCardapioToDataURL(titulo, empresa, grupos, 1)
+        .then(setPreviewUrl)
+        .catch(() => {})
+        .finally(() => setIsRendering(false));
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [titulo, empresa, grupos]);
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -142,7 +159,6 @@ const CardapioEditor: React.FC = () => {
   };
 
   const totalItens = grupos.reduce((s, g) => s + g.itens.length, 0);
-  const scaledH = Math.round(CANVAS_H * previewScale);
 
   const headerActions = (
     <div className="flex items-center gap-2">
@@ -282,50 +298,36 @@ const CardapioEditor: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Right panel: live preview ──────────────────────────────────── */}
+        {/* ── Right panel: live preview (Canvas2D — idêntico ao PNG exportado) ── */}
         <div className="flex-1 flex flex-col gap-2">
           <div className="flex items-center justify-between px-1">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Preview do Cardápio
             </p>
-            {previewScale > 0 && (
-              <p className="text-xs text-slate-400">
-                Escala: {Math.round(previewScale * 100)}%
-              </p>
+            {isRendering && (
+              <span className="text-xs text-slate-400 animate-pulse">Renderizando...</span>
             )}
           </div>
 
-          {/* Preview container — measures its width and scales the canvas */}
+          {/* Preview container — img fills width, height follows aspect ratio */}
           <div
             ref={previewContainerRef}
-            className="w-full overflow-hidden rounded-2xl border border-slate-200 shadow-inner bg-slate-900"
-            style={{ height: scaledH || 440, minHeight: 240 }}
+            className="w-full rounded-2xl border border-slate-200 shadow-inner bg-slate-900 overflow-hidden"
+            style={{ minHeight: 240 }}
           >
-            {grupos.length === 0 && !titulo ? (
-              <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
+            {!previewUrl ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500">
                 <svg className="w-12 h-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="text-sm font-medium opacity-40">
-                  Cole o texto para ver o preview
-                </p>
+                <p className="text-sm font-medium opacity-40">Cole o texto para ver o preview</p>
               </div>
             ) : (
-              <div
-                style={{
-                  transform: `scale(${previewScale})`,
-                  transformOrigin: 'top left',
-                  width: CANVAS_W,
-                  height: CANVAS_H,
-                }}
-              >
-                <CardapioCanvas
-                  ref={canvasRef}
-                  titulo={titulo}
-                  empresa={empresa}
-                  grupos={grupos}
-                />
-              </div>
+              <img
+                src={previewUrl}
+                alt="Preview do cardápio"
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
             )}
           </div>
 

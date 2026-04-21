@@ -96,19 +96,6 @@ const GroupList = ({
             {group.categoria}
           </div>
 
-          {/* Slim underline below category — only in single-col mode for breathing room */}
-          {singleCol && (
-            <div
-              style={{
-                height: 1,
-                background: `linear-gradient(90deg, ${GOLD}90, transparent)`,
-                marginBottom: fs * 0.22,
-                width: '60%',
-                opacity: 0.6,
-              }}
-            />
-          )}
-
           {/* Items */}
           {group.itens.map((item, idx) => (
             <div key={idx} style={{ marginBottom: fs * 0.3 }}>
@@ -179,15 +166,9 @@ const GroupList = ({
             </div>
           ))}
 
-          {/* Separator between groups in single-col mode */}
+          {/* Spacer entre categorias — ocupa o mesmo espaço que a separator linha ocupava */}
           {singleCol && gi < grupos.length - 1 && (
-            <div
-              style={{
-                height: 1,
-                background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)`,
-                marginTop: fs * 0.18,
-              }}
-            />
+            <div style={{ height: 1, marginTop: fs * 0.18 }} aria-hidden="true" />
           )}
         </div>
       ))}
@@ -310,36 +291,22 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
             paddingTop: COL_PAD_V,
           }}
         >
-          {/* Header */}
+          {/* Header — empresa ancorada no centro vertical; título acima, underline logo abaixo */}
           <div
             style={{
               height: headerH,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
+              position: 'relative',
               flexShrink: 0,
             }}
           >
-            {titulo && (
-              <div
-                style={{
-                  color: GOLD_BRIGHT,
-                  fontSize: tituloFs,
-                  fontWeight: 700,
-                  letterSpacing: Math.max(3, tituloFs * 0.28),
-                  textTransform: 'uppercase',
-                  opacity: 0.88,
-                  fontFamily: FONT_REGULAR,
-                  marginBottom: 3,
-                }}
-              >
-                {titulo}
-              </div>
-            )}
-
+            {/* Empresa — center-anchored (sempre no meio visual do header, independente de título) */}
             <div
               style={{
+                position: 'absolute',
+                top: 'calc(50% - 5px)',
+                left: 0,
+                right: 0,
+                transform: 'translateY(-50%)',
                 color: GOLD_BRIGHT,
                 fontSize: empresaFs,
                 fontWeight: 900,
@@ -350,18 +317,44 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                 textShadow: `0 0 35px ${GOLD}60, 0 3px 10px rgba(0,0,0,0.6)`,
                 whiteSpace: 'nowrap',
                 textAlign: 'center',
-                maxWidth: '100%',
               }}
             >
               {empresa}
             </div>
 
+            {/* Título — acima da empresa (colado na borda superior do glifo + 3px gap) */}
+            {titulo && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: `calc(50% - 5px - ${empresaFs * 0.45 + 3}px)`,
+                  left: 0,
+                  right: 0,
+                  transform: 'translateY(-100%)',
+                  color: GOLD_BRIGHT,
+                  fontSize: tituloFs,
+                  fontWeight: 700,
+                  letterSpacing: Math.max(3, tituloFs * 0.28),
+                  textTransform: 'uppercase',
+                  opacity: 0.88,
+                  fontFamily: FONT_REGULAR,
+                  textAlign: 'center',
+                }}
+              >
+                {titulo}
+              </div>
+            )}
+
+            {/* Underline — logo abaixo da empresa (mesma posição de antes) */}
             <div
               style={{
+                position: 'absolute',
+                top: `calc(50% + ${empresaFs * 0.45 + Math.max(4, headerH * 0.04)}px)`,
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: underlineW,
                 height: 1.5,
                 background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`,
-                marginTop: Math.max(4, headerH * 0.04),
                 opacity: 0.7,
               }}
             />

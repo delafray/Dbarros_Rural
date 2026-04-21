@@ -38,6 +38,7 @@ export const SCREW_SIZE  = 20;
 export const SCREW_INSET = 12;
 
 // ─── Adaptive layout ─────────────────────────────────────────────────────────
+// Menus com até N itens usam coluna única; acima disso, duas colunas.
 export const TWO_COL_ITEM_THRESHOLD = 18;
 
 // ─── Shared helper functions ──────────────────────────────────────────────────

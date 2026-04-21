@@ -25,6 +25,7 @@ import Cardapios from './pages/Cardapios';
 import CardapioEditor from './pages/CardapioEditor';
 import CardapiosA4 from './pages/CardapiosA4';
 import CardapioA4Editor from './pages/CardapioA4Editor';
+import PainelDuplo from './pages/PainelDuplo';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -81,6 +82,9 @@ const App: React.FC = () => {
         <Route path="/cardapios-a4" element={<ProtectedRoute><CardapiosA4 /></ProtectedRoute>} />
         <Route path="/cardapios-a4/novo" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
         <Route path="/cardapios-a4/:id" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
+
+        {/* Módulo Painel Duplo */}
+        <Route path="/painel-duplo" element={<ProtectedRoute><PainelDuplo /></ProtectedRoute>} />
 
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>

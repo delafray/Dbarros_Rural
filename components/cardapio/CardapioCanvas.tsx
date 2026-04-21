@@ -96,7 +96,7 @@ const ColHeader = ({
             textTransform: 'uppercase',
             opacity: 0.88,
             fontFamily: 'Arial, Helvetica, sans-serif',
-            marginBottom: 1,
+            marginBottom: 6,
           }}
         >
           {titulo}
@@ -279,17 +279,14 @@ export const CardapioCanvas = forwardRef<HTMLDivElement, CardapioCanvasProps>(
           background: `linear-gradient(90deg, transparent, ${GOLD} 20%, ${GOLD} 80%, transparent)`,
         }} />
 
-        {/* Bottom accent line */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, opacity: 0.8,
-          background: `linear-gradient(90deg, transparent, ${GOLD} 20%, ${GOLD} 80%, transparent)`,
-        }} />
+
+
 
         {/* Corner screws */}
-        <Screw style={{ top: SCREW_INSET, left: SCREW_INSET }} />
-        <Screw style={{ top: SCREW_INSET, right: SCREW_INSET }} />
-        <Screw style={{ bottom: SCREW_INSET, left: SCREW_INSET }} />
-        <Screw style={{ bottom: SCREW_INSET, right: SCREW_INSET }} />
+        <Screw style={{ top: SCREW_INSET, left: SCREW_INSET + 15 }} />
+        <Screw style={{ top: SCREW_INSET, right: SCREW_INSET + 10 }} />
+        <Screw style={{ bottom: SCREW_INSET, left: SCREW_INSET + 15 }} />
+        <Screw style={{ bottom: SCREW_INSET, right: SCREW_INSET + 10 }} />
 
         {/* ── Two-column layout — each half is independent ──────────────── */}
         <div
@@ -304,7 +301,7 @@ export const CardapioCanvas = forwardRef<HTMLDivElement, CardapioCanvasProps>(
           <div
             style={{
               flex: 1,
-              paddingLeft: COL_PADDING_H,
+              paddingLeft: COL_PADDING_H + 20,
               paddingRight: COL_PADDING_H * 1.6,
               display: 'flex',
               flexDirection: 'column',
@@ -315,22 +312,15 @@ export const CardapioCanvas = forwardRef<HTMLDivElement, CardapioCanvasProps>(
             <ColumnContent grupos={leftGrupos} fs={fs} />
           </div>
 
-          {/* Gold vertical divider — full height */}
-          <div
-            style={{
-              width: DIVIDER_W,
-              flexShrink: 0,
-              margin: '8px 0 10px',
-              background: `linear-gradient(180deg, transparent 0%, ${GOLD} 5%, ${GOLD} 95%, transparent 100%)`,
-            }}
-          />
+
+
 
           {/* ── Right half ────────────────────────────────────────────── */}
           <div
             style={{
               flex: 1,
               paddingLeft: COL_PADDING_H * 1.6,
-              paddingRight: COL_PADDING_H,
+              paddingRight: COL_PADDING_H + SCREW_SIZE,
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',

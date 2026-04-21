@@ -225,6 +225,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerAct
             <SectionLabel label="Ferramentas" />
             <NavItem to="/cardapios" label="Cardápios Banner" icon={MenuBoardIcon} />
             <NavItem to="/cardapios-a4" label="Menu A4" icon={PageA4Icon} />
+            <NavItem to="/painel-duplo" label="Painel Duplo" icon={DualPanelIcon} />
 
             <SectionLabel label="Sistema" />
             {user?.isAdmin && <NavItem to="/usuarios" label="Usuários" icon={UsersIcon} />}
@@ -354,5 +355,6 @@ const ClipboardIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 2
 const ImageIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const MenuBoardIcon = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185z" /></svg>;
 const PageA4Icon     = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
+const DualPanelIcon  = (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h4M9 3h6M9 3v18m6-15h4a2 2 0 012 2v10a2 2 0 01-2 2h-4M15 3v18" /></svg>;
 
 export default Layout;
