@@ -28,27 +28,42 @@ const ITEM_MARGIN_WEIGHT = 0.5;     // margin between items
 const CAT_WEIGHT = 2.3;             // category header height in em
 const CAT_MARGIN_WEIGHT = 0.5;      // margin after category header
 
-/** Weight (em units) of a single item in the canvas layout */
-export function getItemWeight(item: CardapioItem): number {
-  return ITEM_WEIGHT_BASE + (item.descricao ? ITEM_DESC_WEIGHT : 0) + ITEM_MARGIN_WEIGHT;
+/**
+ * Weight (em units) of a single item in the canvas layout.
+ * When avgCharsPerLine is given, estimates how many lines the description
+ * will wrap into. Otherwise assumes 1-line description (legacy behavior).
+ */
+export function getItemWeight(item: CardapioItem, avgCharsPerLine?: number): number {
+  let descWeight = 0;
+  if (item.descricao) {
+    const lines = avgCharsPerLine && avgCharsPerLine > 0
+      ? Math.max(1, Math.ceil(item.descricao.length / avgCharsPerLine))
+      : 1;
+    descWeight = ITEM_DESC_WEIGHT * lines;
+  }
+  return ITEM_WEIGHT_BASE + descWeight + ITEM_MARGIN_WEIGHT;
 }
 
 /** Total weight (em units) of a category group */
-export function getGroupWeight(group: CardapioGroup): number {
-  return CAT_WEIGHT + CAT_MARGIN_WEIGHT + group.itens.reduce((s, i) => s + getItemWeight(i), 0);
+export function getGroupWeight(group: CardapioGroup, avgCharsPerLine?: number): number {
+  return CAT_WEIGHT + CAT_MARGIN_WEIGHT +
+    group.itens.reduce((s, i) => s + getItemWeight(i, avgCharsPerLine), 0);
 }
 
 /** Split groups into two balanced columns */
-export function splitGroups(grupos: CardapioGroup[]): [CardapioGroup[], CardapioGroup[]] {
+export function splitGroups(
+  grupos: CardapioGroup[],
+  avgCharsPerLine?: number
+): [CardapioGroup[], CardapioGroup[]] {
   if (grupos.length === 0) return [[], []];
   if (grupos.length === 1) return [grupos, []];
 
-  const total = grupos.reduce((s, g) => s + getGroupWeight(g), 0);
+  const total = grupos.reduce((s, g) => s + getGroupWeight(g, avgCharsPerLine), 0);
   let accumulated = 0;
   let splitIdx = grupos.length - 1;
 
   for (let i = 0; i < grupos.length; i++) {
-    const w = getGroupWeight(grupos[i]);
+    const w = getGroupWeight(grupos[i], avgCharsPerLine);
     if (accumulated + w >= total / 2) {
       // Decide: is it better to split before or after this group?
       const diffBefore = Math.abs(total / 2 - accumulated);
@@ -68,13 +83,17 @@ export function splitGroups(grupos: CardapioGroup[]): [CardapioGroup[], Cardapio
 }
 
 /** Calculate optimal base font size to fill the canvas column area */
-export function calcFontSize(grupos: CardapioGroup[], availableHeightPx: number): number {
+export function calcFontSize(
+  grupos: CardapioGroup[],
+  availableHeightPx: number,
+  avgCharsPerLine?: number
+): number {
   if (grupos.length === 0 || availableHeightPx <= 0) return 16;
 
-  const [left, right] = splitGroups(grupos);
+  const [left, right] = splitGroups(grupos, avgCharsPerLine);
 
   const totalEm = (grps: CardapioGroup[]) =>
-    grps.reduce((sum, g) => sum + getGroupWeight(g), 0);
+    grps.reduce((sum, g) => sum + getGroupWeight(g, avgCharsPerLine), 0);
 
   const maxEm = Math.max(totalEm(left), totalEm(right));
   if (maxEm <= 0) return 16;

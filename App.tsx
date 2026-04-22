@@ -25,6 +25,8 @@ import Cardapios from './pages/Cardapios';
 import CardapioEditor from './pages/CardapioEditor';
 import CardapiosA4 from './pages/CardapiosA4';
 import CardapioA4Editor from './pages/CardapioA4Editor';
+import A3PreviewA4 from './pages/A3PreviewA4';
+import A3PreviewCardapios from './pages/A3PreviewCardapios';
 import PainelDuplo from './pages/PainelDuplo';
 
 interface ProtectedRouteProps {
@@ -77,11 +79,13 @@ const App: React.FC = () => {
         <Route path="/cardapios" element={<ProtectedRoute><Cardapios /></ProtectedRoute>} />
         <Route path="/cardapios/novo" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
         <Route path="/cardapios/:id" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
+        <Route path="/a3-preview-cardapios" element={<ProtectedRoute><A3PreviewCardapios /></ProtectedRoute>} />
 
         {/* Módulo Menu A4 */}
         <Route path="/cardapios-a4" element={<ProtectedRoute><CardapiosA4 /></ProtectedRoute>} />
         <Route path="/cardapios-a4/novo" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
         <Route path="/cardapios-a4/:id" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
+        <Route path="/a3-preview-a4" element={<ProtectedRoute><A3PreviewA4 /></ProtectedRoute>} />
 
         {/* Módulo Painel Duplo */}
         <Route path="/painel-duplo" element={<ProtectedRoute><PainelDuplo /></ProtectedRoute>} />

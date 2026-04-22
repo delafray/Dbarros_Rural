@@ -102,16 +102,14 @@ export const CardapioA4Editor: React.FC = () => {
     }
   };
 
-  // ── Export PNG ───────────────────────────────────────────────────────────
+  // ── Export PNG (Canvas2D — quebra de texto idêntica ao preview) ─────────
   const handleExport = async (scale: number) => {
     setShowExportMenu(false);
-    if (grupos.length === 0 || !canvasRef.current) return;
+    if (grupos.length === 0) return;
     try {
       setIsExporting(true); setError(null);
-      // Give React one frame to re-render with exporting=true (hides bleed indicators)
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const filename = `menu-a4-${empresa.toLowerCase().replace(/\s+/g, '-') || 'menu'}`;
-      await exportMenuA4(canvasRef.current, filename, scale, setExportStatus);
+      await exportMenuA4(titulo, empresa, grupos, filename, scale, setExportStatus);
     } catch (e: any) {
       setError(e.message || 'Erro ao exportar');
     } finally {

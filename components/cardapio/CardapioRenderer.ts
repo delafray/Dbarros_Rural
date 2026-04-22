@@ -121,6 +121,99 @@ function drawScrew(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
   ctx.fill();
 }
 
+// ─── Fit calculation (pixel-accurate via measureText) ─────────────────────────
+// Replicates the y-advancement of drawColumn without actually drawing.
+// Used for binary-searching the optimal font size.
+function simulateColumnHeight(
+  ctx: CanvasRenderingContext2D,
+  grupos: CardapioGroup[],
+  fs: number,
+  colW: number
+): number {
+  const catFs   = fs * 1.52;
+  const itemFs  = fs * 1.02;
+  const priceFs = Math.max(fs * 1.22, 11.5);
+  const descFs  = fs * 0.68;
+
+  let y = 0;
+  for (const group of grupos) {
+    y += catFs * 1.15 + fs * 0.30;
+
+    for (const item of group.itens) {
+      ctx.font = `900 ${priceFs}px "Arial Black", Arial, Helvetica, sans-serif`;
+      const priceW = item.valor ? ctx.measureText(item.valor).width : 0;
+      const nameMaxW = colW - priceW - 12;
+
+      ctx.font = `700 ${itemFs}px Arial, Helvetica, sans-serif`;
+      const nameLines = wrapText(ctx, item.item, nameMaxW);
+      const nameH = nameLines.length * itemFs * 1.2;
+      y += Math.max(nameH, priceFs * 1.2);
+
+      if (item.descricao) {
+        ctx.font = `italic ${descFs}px Arial, Helvetica, sans-serif`;
+        const descLines = wrapText(ctx, item.descricao, colW);
+        y += descLines.length * descFs * 1.3 + fs * 0.06;
+      }
+
+      y += fs * 0.34;
+    }
+
+    y += fs * 0.42;
+  }
+  return y;
+}
+
+/**
+ * Binary-searches the largest font size in [6, 28] such that both columns
+ * fit within availH. Uses real text wrapping via ctx.measureText — much
+ * more accurate than em-based weight estimation.
+ */
+export function findFitFontSize(
+  grupos: CardapioGroup[],
+  availH: number,
+  colW: number
+): number {
+  if (grupos.length === 0) return 16;
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return 12;
+
+  const [left, right] = splitGroups(grupos, 75);
+
+  let lo = 6, hi = 28;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    const lh = simulateColumnHeight(ctx, left, mid, colW);
+    const rh = simulateColumnHeight(ctx, right, mid, colW);
+    if (Math.max(lh, rh) <= availH) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  return Math.max(6, lo);
+}
+
+function drawDottedLink(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  x2: number,
+  y: number
+) {
+  if (x2 <= x1) return;
+  ctx.save();
+  ctx.setLineDash([1.5, 3]);
+  ctx.strokeStyle = 'rgba(184,204,224,0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x1, y);
+  ctx.lineTo(x2, y);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawDivider(ctx: CanvasRenderingContext2D, headerH: number) {
   const x = CANVAS_W / 2;
   const yStart = headerH + 4;
@@ -266,6 +359,18 @@ function drawColumn(
       });
       const nameH = nameLines.length * itemFs * 1.2;
 
+      // Dotted link entre nome e preço (só quando NÃO tem descrição)
+      if (!item.descricao && item.valor) {
+        const firstLineW = ctx.measureText(nameLines[0]).width;
+        const linkY = itemBaseY + Math.max(1, Math.round(itemFs * 0.1));
+        drawDottedLink(
+          ctx,
+          colX + firstLineW + 8,
+          colX + colW - priceW - 8,
+          linkY
+        );
+      }
+
       // Price — right-aligned, baseline aligned with name's first line
       ctx.font        = `900 ${priceFs}px "Arial Black", Arial, Helvetica, sans-serif`;
       ctx.fillStyle   = GOLD_BRIGHT;
@@ -329,7 +434,9 @@ export async function renderCardapioToDataURL(
   const totalItens = grupos.reduce((s, g) => s + g.itens.length, 0);
   const headerH    = calcHeaderH(totalItens);
   const availH     = CANVAS_H - headerH - COL_PAD_V * 2 - 8;
-  const fs         = calcFontSize(grupos, availH);
+  // Largura útil da coluna mais estreita (esquerda)
+  const FIT_COL_W = (CANVAS_W / 2) - (COL_PAD_H + 20) - Math.round(COL_PAD_H * 1.6);
+  const fs         = findFitFontSize(grupos, availH, FIT_COL_W);
 
   // ── Draw layers ──────────────────────────────────────────────────────
   drawBackground(ctx);
@@ -343,7 +450,7 @@ export async function renderCardapioToDataURL(
 
   // Divisor central removido — cada painel é cortado ao meio independentemente
 
-  const [leftGrupos, rightGrupos] = splitGroups(grupos);
+  const [leftGrupos, rightGrupos] = splitGroups(grupos, 75);
   const midX      = CANVAS_W / 2;
   const colStartY = headerH + Math.round(COL_PAD_V * 0.5); // mirrors CSS paddingTop: COL_PADDING_V * 0.5
 

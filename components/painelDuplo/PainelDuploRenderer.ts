@@ -1,19 +1,14 @@
 /**
  * PainelDuploRenderer.ts
  *
- * Lógica simples: divide o banner ao meio e coloca cada metade no painel.
- * Não copia nem estende pixels das bordas — a sangria circular é preenchida
- * apenas com a cor de fundo (#011464), igual ao banner.
- *
- * O próprio banner já foi projetado com as margens/sangria corretas.
- *
- * Arquivo final:  1 030 mm × 2 160 mm  (sangria 30 mm em todos os lados)
- * Área útil:        970 mm × 2 100 mm  (após corte)
+ * Arquivo final:   990 mm × 2 120 mm  (sangria 10 mm em todos os lados)
+ * Área útil:       970 mm × 2 100 mm  (após corte)
  *
  * Pixels a 0.8 px/mm (scale=1):
- *   PANEL_W = 824 px  =  1 030 mm
- *   PANEL_H = 1728 px =  2 160 mm
- *   BLEED   =  24 px  =    30 mm
+ *   PANEL_W  = 792 px  =   990 mm
+ *   PANEL_H  = 1696 px = 2 120 mm
+ *   BLEED    =   8 px  =    10 mm
+ *   USEFUL_W = 776 px  =   970 mm
  */
 
 import { CANVAS_W, CANVAS_H } from '../cardapio/CardapioCanvas';
@@ -21,21 +16,21 @@ import { renderCardapioToDataURL } from '../cardapio/CardapioRenderer';
 import { CardapioGroup } from '../../utils/cardapioParser';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
-const HALF_W = CANVAS_W / 2;             // 800 px = 1000 mm por metade
-const BLEED  = Math.round(30 * 0.8);    //  24 px =   30 mm sangria
-const MENU_H = CANVAS_H;                // 880 px = 1100 mm
-const LOGO_H = Math.round(1030 * 0.8); // 824 px = 1030 mm (incl. sangria inferior)
-const BG     = '#011464';               // mesmo fundo do banner
+const BLEED    = 8;                     // 10 mm * 0.8 px/mm
+const USEFUL_W = 776;                   // 970 mm * 0.8 px/mm
+const MENU_H   = 880;                   // 1100 mm * 0.8 px/mm (top half)
+const LOGO_H   = 800;                   // 1000 mm * 0.8 px/mm (bottom half)
+const BG       = '#011464';             // mesmo fundo do banner
 
 // Canvas completo de cada painel (scale=1)
-const PANEL_W = HALF_W + BLEED;          // 824 px = 1030 mm
-const PANEL_H = BLEED + MENU_H + LOGO_H; // 1728 px = 2160 mm
+const PANEL_W = USEFUL_W + (BLEED * 2); // 792 px => 990 mm
+const PANEL_H = MENU_H + LOGO_H + (BLEED * 2); // 1696 px => 2120 mm
 
 // Linhas de corte (onde as marcas de corte são desenhadas)
-const CX1 = BLEED;            //  24 px — borda esquerda do conteúdo
-const CX2 = HALF_W;           // 800 px — borda direita  (= PANEL_W − BLEED)
-const CY1 = BLEED;            //  24 px — borda superior
-const CY2 = PANEL_H - BLEED;  // 1704 px — borda inferior
+const CX1 = BLEED;
+const CX2 = PANEL_W - BLEED;
+const CY1 = BLEED;
+const CY2 = PANEL_H - BLEED;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -90,40 +85,29 @@ async function renderPanel(
   const ctx     = canvas.getContext('2d')!;
   ctx.scale(scale, scale);
 
-  // 1. Preenche tudo com BG — sangria e margens internas ficam com a cor do banner
+  // 1. Preenche tudo com BG — sangria de 1cm fica com a cor do banner
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, PANEL_W, PANEL_H);
 
-  // 2. Corta o banner ao meio e posiciona no painel
-  //
-  //    Painel ESQUERDO:
-  //      srcX = 0           → metade esquerda do banner
-  //      dstX = 0           → cola começando no canto esquerdo do canvas
-  //      A sangria externa (esquerda) já está embutida no design do banner
-  //      A área interna restante (800→824px) fica com BG
-  //
-  //    Painel DIREITO:
-  //      srcX = HALF_W*sc   → metade direita do banner
-  //      dstX = BLEED (24)  → deixa 24px de BG à esquerda (sangria interna)
-  //      A sangria externa (direita) já está embutida nos últimos 24px do banner
-  const srcX = side === 'esquerda' ? 0             : HALF_W * scale;
-  const dstX = side === 'esquerda' ? 0             : BLEED;
+  // 2. Corta o banner ao meio e cola na área útil EXATA limitando pelass sangrias
+  const SRC_HALF_W = CANVAS_W / 2;
+  const srcX = side === 'esquerda' ? 0 : SRC_HALF_W * scale;
 
   ctx.drawImage(
     bannerImg,
-    srcX, 0, HALF_W * scale, MENU_H * scale, // fonte: metade do banner
-    dstX, BLEED, HALF_W, MENU_H,             // destino: zona de menu (y começa após sangria topo)
+    srcX, 0, SRC_HALF_W * scale, CANVAS_H * scale, // Pega a metade do Canvas fonte
+    BLEED, BLEED, USEFUL_W, MENU_H,                // Estampa exato na área útil: 970mm x 1100mm
   );
 
-  // 3. Imagem de logos
+  // 3. Imagem de logos (metade inferior)
   const logoY = BLEED + MENU_H;
   if (logoFile) {
     const url     = await fileToDataUrl(logoFile);
     const logoImg = await loadImage(url);
-    ctx.drawImage(logoImg, 0, logoY, PANEL_W, LOGO_H);
+    ctx.drawImage(logoImg, BLEED, logoY, USEFUL_W, LOGO_H); // Exato na área útil inferior
   } else {
     ctx.fillStyle    = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(0, logoY, PANEL_W, LOGO_H);
+    ctx.fillRect(BLEED, logoY, USEFUL_W, LOGO_H);
     ctx.fillStyle    = 'rgba(255,255,255,0.22)';
     ctx.font         = 'bold 18px Arial';
     ctx.textAlign    = 'center';
@@ -132,7 +116,6 @@ async function renderPanel(
   }
 
   // 4. Costura dourada discreta na junção menu → logos
-  //    Disfarça a emenda física entre as duas partes do painel
   const seamH  = 4;
   const seamY  = logoY - Math.floor(seamH / 2);
   const seamG  = ctx.createLinearGradient(CX1, 0, CX2, 0);
@@ -142,14 +125,13 @@ async function renderPanel(
   seamG.addColorStop(0.92, 'rgba(212,175,55,0.40)');
   seamG.addColorStop(1,   'rgba(212,175,55,0)');
   ctx.fillStyle = seamG;
-  ctx.fillRect(0, seamY, PANEL_W, seamH);
+  ctx.fillRect(BLEED, seamY, USEFUL_W, seamH); // Aplica apenas dentro da linha de corte lateral
 
   // 5. Marcas de corte nos 4 cantos do conteúdo útil
   drawCropMark(ctx, CX1, CY1, -1, -1); // superior-esquerdo
   drawCropMark(ctx, CX2, CY1,  1, -1); // superior-direito
   drawCropMark(ctx, CX1, CY2, -1,  1); // inferior-esquerdo
   drawCropMark(ctx, CX2, CY2,  1,  1); // inferior-direito
-
 
   return canvas;
 }

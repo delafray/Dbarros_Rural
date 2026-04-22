@@ -114,7 +114,7 @@ const GroupList = ({
                     fontWeight: 700,
                     lineHeight: 1.2,
                     fontFamily: FONT_REGULAR,
-                    flex: item.descricao ? 1 : '0 1 auto',
+                    flex: item.descricao ? 1 : '0 0 auto',
                     minWidth: 0,
                   }}
                 >
@@ -124,13 +124,13 @@ const GroupList = ({
                   <span
                     aria-hidden="true"
                     style={{
-                      flex: 1,
+                      flex: '1 99999 100%',
                       minWidth: 12,
                       marginLeft: 8,
                       marginRight: 8,
                       alignSelf: 'baseline',
                       paddingBottom: Math.max(1, Math.round(itemFs * 0.1)),
-                      borderBottom: `1px dotted ${GOLD}40`,
+                      borderBottom: '1.5px dotted rgba(184,204,224,0.8)',
                     }}
                   />
                 )}
@@ -327,7 +327,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
               <div
                 style={{
                   position: 'absolute',
-                  top: `calc(50% - 5px - ${empresaFs * 0.45 + 3}px)`,
+                  top: `calc(50% - 5px - ${empresaFs * 0.45 + 10}px)`,
                   left: 0,
                   right: 0,
                   transform: 'translateY(-100%)',

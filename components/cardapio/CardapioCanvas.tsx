@@ -1,5 +1,6 @@
 import React, { forwardRef, useMemo } from 'react';
-import { CardapioGroup, splitGroups, calcFontSize } from '../../utils/cardapioParser';
+import { CardapioGroup, splitGroups } from '../../utils/cardapioParser';
+import { findFitFontSize } from './CardapioRenderer';
 
 // ─── Canvas dimensions (proportional to 2.0m × 1.1m banner) ────────────────
 export const CANVAS_W = 1600;
@@ -189,11 +190,26 @@ const ColumnContent = ({
                     fontWeight: 700,
                     lineHeight: 1.2,
                     fontFamily: 'Arial, Helvetica, sans-serif',
-                    flex: 1,
+                    flex: '0 1 auto',
+                    minWidth: 0,
                   }}
                 >
                   {item.item}
                 </span>
+                {!item.descricao && item.valor && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      flex: 1,
+                      minWidth: 12,
+                      marginLeft: 8,
+                      marginRight: 8,
+                      alignSelf: 'baseline',
+                      paddingBottom: Math.max(1, Math.round(itemFs * 0.1)),
+                      borderBottom: '1.5px dotted rgba(184,204,224,0.8)',
+                    }}
+                  />
+                )}
                 <span
                   style={{
                     color: GOLD_BRIGHT,
@@ -241,7 +257,7 @@ interface CardapioCanvasProps {
 
 export const CardapioCanvas = forwardRef<HTMLDivElement, CardapioCanvasProps>(
   ({ titulo = '', empresa = '', grupos }, ref) => {
-    const [leftGrupos, rightGrupos] = useMemo(() => splitGroups(grupos), [grupos]);
+    const [leftGrupos, rightGrupos] = useMemo(() => splitGroups(grupos, 75), [grupos]);
 
     const totalItens = useMemo(
       () => grupos.reduce((s, g) => s + g.itens.length, 0),
@@ -250,7 +266,9 @@ export const CardapioCanvas = forwardRef<HTMLDivElement, CardapioCanvasProps>(
 
     const headerH = useMemo(() => calcHeaderH(totalItens), [totalItens]);
     const availH  = CANVAS_H - headerH - COL_PADDING_V * 2 - 8;
-    const fs      = useMemo(() => calcFontSize(grupos, availH), [grupos, availH]);
+    // Mesma largura usada no renderer (coluna esquerda)
+    const FIT_COL_W = (CANVAS_W / 2) - (COL_PADDING_H + 20) - Math.round(COL_PADDING_H * 1.6);
+    const fs      = useMemo(() => findFitFontSize(grupos, availH, FIT_COL_W), [grupos, availH, FIT_COL_W]);
 
     return (
       <div

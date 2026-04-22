@@ -8,9 +8,11 @@
  */
 
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
-export const CANVAS_W = 810;
-export const CANVAS_H = 1071;
-export const BLEED_PX = 90; // 30mm × 3px/mm
+// Ajustado a pedido: A4 EXATO sem sangrias extras (antigamente 810x1071 com 90px bleed).
+// Proporção final agora: 210mm * 3px = 630px. 297mm * 3px = 891px.
+export const CANVAS_W = 630;
+export const CANVAS_H = 891;
+export const BLEED_PX = 0; // 0mm × 3px/mm (Sem sangria)
 
 export const SAFE_L = BLEED_PX;
 export const SAFE_T = BLEED_PX;
