@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { cardapioService, Cardapio } from '../services/cardapioService';
+import { exportCardapiosCsv } from '../services/cardapiosExportService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -32,6 +33,18 @@ const Cardapios: React.FC = () => {
   const handleGerarA3 = () => {
     if (selectedIds.length === 0) return;
     navigate('/a3-preview-cardapios', { state: { selectedIds } });
+  };
+
+  const [isExporting, setIsExporting] = useState(false);
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      await exportCardapiosCsv();
+    } catch (e: any) {
+      alert(e.message || 'Erro ao exportar');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const load = async () => {
@@ -67,6 +80,15 @@ const Cardapios: React.FC = () => {
 
   const headerActions = (
     <div className="flex items-center gap-3">
+      <button
+        onClick={handleExportExcel}
+        disabled={isExporting}
+        title="Exporta todos os itens (A4 + banner) com códigos e marcação de duplicados"
+        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
+      >
+        <ExcelIcon className="w-4 h-4" />
+        {isExporting ? 'Exportando...' : 'Exportar Excel'}
+      </button>
       {selectedIds.length > 0 && (
         <button
           onClick={handleGerarA3}
@@ -225,6 +247,11 @@ const TrashIcon = (props: any) => (
 const PrintIcon = (props: any) => (
   <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+  </svg>
+);
+const ExcelIcon = (props: any) => (
+  <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 );
 

@@ -399,7 +399,7 @@ const Photos: React.FC = () => {
           )}
 
           {/* Mobile Sticky Bar */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-t border-slate-200 p-1.5 flex gap-1.5 shadow-[0_-8px_30px_rgb(0,0,0,0.12)]">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-t border-slate-200 px-1.5 pt-1.5 flex gap-1.5 shadow-[0_-8px_30px_rgb(0,0,0,0.12)]" style={{ paddingBottom: 'calc(6px + env(safe-area-inset-bottom))' }}>
             {(() => {
               const hasActiveFilters = selectedTagIds.length > 0 || selectedExportIds.size > 0 || searchTerm !== '' || ((user?.isAdmin || user?.isProjetista) && (selectedUserId !== 'all' || onlyMine));
               return (
@@ -419,7 +419,7 @@ const Photos: React.FC = () => {
             </Button>
           </div>
 
-          <div className="md:hidden h-20"></div>
+          <div className="md:hidden" style={{ height: 'calc(5rem + env(safe-area-inset-bottom))' }}></div>
           {data.loadingMore && <div className="py-8 text-center"><LoadingSpinner /></div>}
         </div>
 
