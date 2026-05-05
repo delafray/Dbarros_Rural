@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppDialog } from '../../context/DialogContext';
 
 export type DocModalState = {
-    tipo: 'proposta_comercial' | 'planta_baixa' | 'relatorio_pdf';
+    tipo: 'proposta_comercial' | 'planta_baixa' | 'relatorio_pdf' | 'relatorio_atendimentos';
     url: string;
     edicaoTitulo: string;
     isPdfBlob?: boolean;
@@ -17,11 +17,13 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
     const appDialog = useAppDialog();
     const label = docModal.tipo === 'proposta_comercial' ? 'Proposta Comercial'
         : docModal.tipo === 'planta_baixa' ? 'Planta Baixa'
+        : docModal.tipo === 'relatorio_atendimentos' ? 'Relatório de Atendimentos'
         : 'Relatório PDF';
     const url = docModal.url;
     const nomeEdicao = docModal.edicaoTitulo.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
     const prefix = docModal.tipo === 'proposta_comercial' ? 'PROPOSTA_COMERCIAL'
         : docModal.tipo === 'planta_baixa' ? 'PLANTA_BAIXA'
+        : docModal.tipo === 'relatorio_atendimentos' ? 'RELATORIO_ATENDIMENTOS'
         : 'RELATORIO_PDF';
     // Extracted extension logic
     let tempExt = 'pdf';

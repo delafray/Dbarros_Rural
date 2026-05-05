@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { generateAtendimentosReport } from '../services/atendimentosReportService';
+import { DocModal, DocModalState } from '../components/dashboard/DocModal';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ClienteSelectorWidget, ClienteComContato } from '../components/ClienteSelectorWidget';
 import { ImportAtendimentosModal } from '../components/ImportAtendimentosModal';
@@ -646,6 +648,8 @@ const Atendimentos: React.FC = () => {
     const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
     const [clientes, setClientes] = useState<ClienteOption[]>([]);
     const [loading, setLoading] = useState(true);
+    const [generatingReport, setGeneratingReport] = useState(false);
+    const [docModal, setDocModal] = useState<DocModalState>(null);
     const [edicaoTitulo, setEdicaoTitulo] = useState('');
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
@@ -780,20 +784,52 @@ const Atendimentos: React.FC = () => {
         return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
     };
 
+    const handleGenerateReport = async () => {
+        setGeneratingReport(true);
+        try {
+            const url = await generateAtendimentosReport(filtered, edicaoTitulo);
+            setDocModal({ tipo: 'relatorio_atendimentos', url, edicaoTitulo, isPdfBlob: true });
+        } finally {
+            setGeneratingReport(false);
+        }
+    };
+
     const headerActions = (
-        <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-white hover:shadow-sm rounded-xl transition-all"
-        >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Voltar
-        </button>
+        <>
+            <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-white hover:shadow-sm rounded-xl transition-all"
+            >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Voltar
+            </button>
+            <button
+                onClick={handleGenerateReport}
+                disabled={generatingReport || atendimentos.length === 0}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#1F497D] hover:bg-blue-800 disabled:opacity-50 rounded-xl transition-all shadow-sm"
+            >
+                {generatingReport ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                )}
+                {generatingReport ? 'Gerando...' : 'Gerar Relatório'}
+            </button>
+        </>
     );
 
     return (
         <Layout title={`Atendimentos :: ${edicaoTitulo}`} headerActions={headerActions}>
+            {/* DocModal do relatório */}
+            {docModal && <DocModal docModal={docModal} onClose={() => setDocModal(null)} />}
+
             {/* Popups */}
             {(showForm || editingAtend) && (
                 <AtendimentoForm
