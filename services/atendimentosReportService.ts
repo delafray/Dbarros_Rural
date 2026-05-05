@@ -39,10 +39,10 @@ function sortAtendimentos(list: Atendimento[]): Atendimento[] {
         const pA = a.probabilidade === null ? -1 : a.probabilidade;
         const pB = b.probabilidade === null ? -1 : b.probabilidade;
         if (pA !== pB) return pB - pA;
-        // Mesmo %, ordena por data de registro (mais antigo primeiro)
+        // Mesmo %, ordena por data de registro (mais recente primeiro)
         const tA = a.ultima_obs_at ? new Date(a.ultima_obs_at).getTime() : 0;
         const tB = b.ultima_obs_at ? new Date(b.ultima_obs_at).getTime() : 0;
-        return tA - tB;
+        return tB - tA;
     });
 }
 
