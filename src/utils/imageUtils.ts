@@ -1,7 +1,3 @@
-import { jsPDF } from 'jspdf';
-import { Photo, Tag, TagCategory } from '../../types';
-import { api } from '../../services/api';
-
 export const MAX_DIMENSION = 1280;
 export const THUMB_SIZE = 300;
 export const QUALITY = 0.8;

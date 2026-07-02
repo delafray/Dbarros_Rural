@@ -1,5 +1,4 @@
 import { supabase } from './supabaseClient';
-import JSZip from 'jszip';
 
 // ── Auto-discovery de migrations via Vite glob ────────────────────────────────
 // Qualquer novo arquivo .sql em supabase/migrations/ e incluido automaticamente.
@@ -957,6 +956,8 @@ export const backupService = {
 
     /** Backup completo: SQL + Storage → ZIP com progresso */
     async downloadFull(onProgress?: BackupProgressCallback): Promise<void> {
+        // Import dinâmico: JSZip só é carregado quando o backup é executado
+        const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
         const dateStr = new Date().toISOString().slice(0, 10);
 

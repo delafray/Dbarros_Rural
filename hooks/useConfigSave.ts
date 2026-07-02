@@ -82,7 +82,12 @@ export function useConfigSave({
       .from("planilha_vendas_estandes")
       .select("stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados, area_m2, total_override")
       .eq("config_id", configId);
-    if (error || !estandes) return null;
+    // Falha na consulta BLOQUEIA o save: prosseguir sem validar poderia
+    // deletar estandes com dados de venda no syncEstandes.
+    if (error) {
+      return `Não foi possível validar os estandes existentes (${error.message}). Verifique a conexão e tente novamente.`;
+    }
+    if (!estandes) return null;
 
     const validStandNrs = new Set<string>();
     for (const cat of categorias) {
@@ -150,9 +155,14 @@ export function useConfigSave({
     if (err) { await appDialog.alert({ title: 'Validacao', message: err, type: 'warning' }); return; }
     try {
       setSaving(true);
-      const renames = savedTags
+      // O pareamento oldTag→newTag é POSICIONAL. Se o número de categorias mudou
+      // (inserção/remoção no meio), os índices deslocam e renomeariam refs erradas —
+      // nesse caso é mais seguro não renomear nada. Também ignora quando o "novo"
+      // tag já existia (indica reordenação, não rename).
+      const renames = savedTags.length !== categorias.length ? [] : savedTags
         .map((oldTag, i) => ({ oldTag, newTag: categorias[i]?.tag }))
-        .filter(({ oldTag, newTag }) => oldTag && newTag && oldTag !== newTag);
+        .filter(({ oldTag, newTag }) =>
+          oldTag && newTag && oldTag !== newTag && !savedTags.includes(newTag));
       if (renames.length > 0) {
         await Promise.all(renames.map(({ oldTag, newTag }) => imagensService.updateOrigemRef(edicaoId, oldTag, newTag)));
       }

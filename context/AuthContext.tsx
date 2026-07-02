@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { authService, User } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { STORAGE_KEYS } from '../utils/constants';
@@ -104,13 +104,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.href = '#/login';
     };
 
-    const login = async (identifier: string, password: string) => {
+    const login = useCallback(async (identifier: string, password: string) => {
         await authService.login(identifier, password);
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
-    };
+    }, []);
 
-    const loginWithBiometrics = async (email?: string) => {
+    const loginWithBiometrics = useCallback(async (email?: string) => {
         try {
             const userData = await authService.signInWithPasskey(email);
             setUser(userData);
@@ -118,21 +118,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error('Biometric login error:', error);
             throw error;
         }
-    };
+    }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         await authService.logout();
         setUser(null);
-    };
+    }, []);
 
-    const register = async (name: string, email: string, password: string, isAdmin: boolean) => {
+    const register = useCallback(async (name: string, email: string, password: string, isAdmin: boolean) => {
         await authService.register(name, email, password, isAdmin);
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
-    };
+    }, []);
+
+    // Memoiza o value para não re-renderizar todos os consumidores a cada render do provider
+    const value = useMemo(
+        () => ({ user, login, loginWithBiometrics, logout, register, isLoading }),
+        [user, isLoading, login, loginWithBiometrics, logout, register]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, login, loginWithBiometrics, logout, register, isLoading }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );

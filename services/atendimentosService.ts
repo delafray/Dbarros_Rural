@@ -397,7 +397,8 @@ export const atendimentosService = {
         }));
 
         if (histories.length > 0) {
-            await supabase.from('atendimentos_historico').insert(histories);
+            const { error: histError } = await supabase.from('atendimentos_historico').insert(histories);
+            if (histError) throw new Error(`Atendimentos importados, mas falha ao gravar o histórico: ${histError.message}`);
         }
     },
 };

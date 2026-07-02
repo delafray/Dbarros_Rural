@@ -64,11 +64,12 @@ function mapDbUserToUser(row: DbUser): User {
 
 /**
  * Remove caracteres que poderiam quebrar o parser de filtros do PostgREST
- * dentro de uma chamada `.or()` (vírgula, parênteses, aspas, backslash).
+ * dentro de uma chamada `.or()` (vírgula, parênteses, aspas, backslash) e os
+ * curingas `%` e `*`, que permitiriam casar com qualquer usuário via `ilike`.
  * Mantém letras, números, @, _, -, ponto e espaço — suficiente para emails e nomes.
  */
 function sanitizeFilterValue(value: string): string {
-    return value.replace(/[,'()"\\\n\r\t]/g, '');
+    return value.replace(/[,'()"\\\n\r\t%*]/g, '');
 }
 
 /**
@@ -277,8 +278,11 @@ export const authService = {
         const username = `${base}-${seq}`;
         const name = username;
         const email = `${username}@temp.local`;
-        const password = Math.random().toString(36).slice(2, 10)
-            + Math.random().toString(36).slice(2, 5).toUpperCase();
+        // Gera senha com CSPRNG (Math.random é previsível e inadequado para senhas)
+        const passwordChars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        const randomBytes = new Uint8Array(12);
+        crypto.getRandomValues(randomBytes);
+        const password = Array.from(randomBytes, b => passwordChars[b % passwordChars.length]).join('');
 
         // Cria o usuário base com flag visitor via RPC existente
         await this.register(name, email, password, false, true, false, false);

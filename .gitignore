@@ -25,3 +25,13 @@ dist-ssr
 
 # Backups
 backup/
+
+# Artefatos de trabalho local (não são código do app)
+tsc.log
+tsc_errors.log
+diff.txt
+output_*.txt
+DIREITA.png
+ESQUERDA.png
+_manual_/
+BAR 52X/
