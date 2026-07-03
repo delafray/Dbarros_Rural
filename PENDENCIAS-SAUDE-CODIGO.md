@@ -55,7 +55,7 @@ precache PWA 4,1→1,9 MB, modulePreload filtrado, LazyErrorBoundary (deploy no 
 - **N17** Hooks sem cleanup/cancelamento (replicar o padrão já aplicado): `useConfigData` (crítico — 14 setStates), `useControleData` (1º effect), `src/hooks/usePhotosData`, `usePlanilhaStatusModal` (race troca dados do estande errado), `useConfigOpcionais` (setTimeout), fetches externos BrasilAPI/ViaCEP do CadastroCliente sem abort.
 - **N18** `pages/Tags.tsx`: `try/finally` sem catch (erro invisível), `saving` pode travar em true, duplo clique cria tag duplicada.
 - **N19** Precache do PWA (4,1 MB) inclui chunks lazy — adicionar `assets/backupService-*.js`, `jspdf`, `html2canvas`, `canvg`, `jszip` ao `globIgnores` do workbox (economia ~466 KB gzip por instalação).
-- **N20** `index.html`: import map do esm.sh (react/react-dom/react-router) provavelmente vestígio de scaffold — remover junto com a migração do Tailwind CDN (mesma tarefa, exige teste visual).
+- **N20** ✅ FEITO 02/07 (branch `tailwind-bundled`): Tailwind agora compilado no build (86KB/13,5KB gzip); CDN bloqueante e importmap esm.sh removidos do index.html. Validação: `scripts/check-tailwind-coverage.mjs` (todas as 1.006 classes do código presentes no CSS) + screenshot headless do login. Obs: classes `animate-in`/`fade-in` no código são de plugin (`tailwindcss-animate`) que nunca existiu no CDN — continuam mortas como sempre foram; instalar o plugin se quiser as animações. Com isso o item 1 do backlog antigo (Tailwind CDN) também está resolvido; falta só a CSP (N11).
 - **N21** Acúmulo de float em totais monetários (`TempPlanilha.tsx:~125`, `usePlanilhaData.ts:~249`, `useDashboardExportPDF.ts:~68`) — arredondar acumuladores para centavos.
 - **N22** Sistema duplo de alertas: `Photos/Tags/Users` ainda usam AlertModal local em vez do `useAppDialog`; `TodosEventos` duplica o DocModal inline.
 - **N23** Datas: duas formatações diferentes na MESMA página (Atendimentos) — reforça o item 4 do backlog (`utils/dateUtils.ts`).
@@ -114,8 +114,8 @@ precache PWA 4,1→1,9 MB, modulePreload filtrado, LazyErrorBoundary (deploy no 
 
 | # | Item | Onde | Observação |
 |---|---|---|---|
-| 1 | Tailwind via CDN → bundle do Vite | `index.html` | PWA offline pode abrir SEM estilo com cache frio. Exige teste visual completo. |
-| 2 | `React.lazy` nas rotas | `App.tsx` | Nenhuma rota tem code splitting. Fazer junto com a remoção do cardápio. |
+| 1 | ~~Tailwind via CDN → bundle~~ | ✅ FEITO 02/07 | Ver N20: compilado, validado por cobertura de classes + screenshot. |
+| 2 | ~~`React.lazy` nas rotas~~ | ✅ FEITO 02/07 | Bundle inicial 671→115 KB, com LazyErrorBoundary. |
 | 3 | Rename de categorias por identidade (não por posição) | `hooks/useConfigSave.ts` + `CategoriaSetup` | Apliquei guardas que evitam corrupção, mas o conserto definitivo exige um `id` estável por categoria. |
 | 4 | Timezone misto em datas | `eventosService.ts:77`, `Atendimentos.tsx:93` | ISO é lido como UTC, DD/MM como local — ordenação e "vencido 3h antes". Criar `utils/dateUtils.ts`. Muda datas exibidas — testar com calma. |
 | 5 | ~~`formatBRL()` compartilhado~~ | ✅ FEITO 02/07 | `utils/formatCurrency.ts` criado; 7 implementações inline substituídas. |
