@@ -21,15 +21,11 @@
    - RPC `regenerate_estandes` existe e o `generateEstandes()` do código já foi trocado para usá-la ✅
    - Teste automatizado em `scripts/test-migrations-20260702.mjs` (rodar: `node scripts/test-migrations-20260702.mjs`)
 
-3b. **🔴 NOVA — CONFIRMADO vazamento na tabela `users`**: teste ao vivo em 02/07/2026 provou que
-   **qualquer pessoa SEM login lê a tabela `users`, incluindo a coluna `temp_password_plain`**
-   (a policy é `TO public`, por isso o diagnóstico de `anon` veio vazio). Enquanto não corrigir,
-   a senha de qualquer visitante temporário criado fica pública.
-   Correção pronta em `supabase/migrations/20260702000002_restrict_anon_users_columns.sql`, MAS a ordem importa:
-   1. Mergear a branch `correcoes-saude-codigo` e fazer o deploy (o login novo busca só as colunas mínimas antes de autenticar)
-   2. SÓ DEPOIS aplicar a migration `20260702000002` (aplicar antes do deploy QUEBRA O LOGIN em produção)
-   3. Rodar `node scripts/test-migrations-20260702.mjs` — os 3 testes devem passar
-   Mitigação imediata enquanto isso: evitar criar visitantes temporários, ou apagar o valor de `temp_password_plain` logo após repassar a senha.
+3b. ~~Vazamento na tabela `users`~~ ✅ **CORRIGIDO em 02/07/2026** (sequência completa executada):
+   - Branch mergeada em `main` e deployada (verificado no bundle publicado em dbarros-rural.vercel.app)
+   - Migration `20260702000002` aplicada: `anon` só lê `id, email, name, is_active, expires_at`
+   - Teste final: **3/3 PASS** (`node scripts/test-migrations-20260702.mjs`) + consulta pré-auth do login confirmada funcionando
+   - `temp_password_plain` não é mais legível sem autenticação
 
 4. **Regenerar `database.types.ts`** (elimina os 4 erros atuais de tsc e vários `as any`):
    ```bash
@@ -40,7 +36,7 @@
 5. **Decidir sobre `temp_password_plain`** (senha em texto claro na tabela `users`).
    Recomendação: mostrar a senha UMA vez na criação para o admin copiar, e apagar a coluna. É decisão de produto — precisa de você.
 
-6. **Revisar e mergear a branch `correcoes-saude-codigo`** — testar login, criação de visitante temporário, salvar configuração de vendas, remover atendimento e gerar backup antes de ir para produção.
+6. ~~Revisar e mergear a branch~~ ✅ **MERGEADA E DEPLOYADA em 02/07/2026.** Recomendado ainda: fazer um teste manual de fumaça no app (login, criar visitante temporário, salvar configuração de vendas, gerar planilha, backup) — o build e as consultas foram verificados, mas os fluxos de UI não foram clicados por humano.
 
 ---
 
