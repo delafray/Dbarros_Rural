@@ -93,20 +93,15 @@ export const planilhaVendasService = {
             }
         });
 
-        const { error: deleteError } = await supabase
-            .from('planilha_vendas_estandes')
-            .delete()
-            .eq('config_id', configId);
-
-        if (deleteError) throw deleteError;
-
-        const { data, error } = await supabase
-            .from('planilha_vendas_estandes')
-            .insert(estandes)
-            .select();
+        // RPC transacional (migration 20260702000001): DELETE + INSERT em uma
+        // única transação — falha no meio não apaga mais os estandes existentes.
+        const { data, error } = await (supabase as any).rpc('regenerate_estandes', {
+            p_config_id: configId,
+            p_stand_nrs: estandes.map(e => e.stand_nr),
+        });
 
         if (error) throw error;
-        return data;
+        return (data ?? []) as PlanilhaEstande[];
     },
 
     /**

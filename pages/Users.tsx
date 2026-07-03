@@ -5,7 +5,7 @@ import { AlertModal, AlertType } from '../components/AlertModal';
 import { useAuth } from '../context/AuthContext';
 import { authService, User } from '../services/authService';
 import { exportService } from '../services/api/exportService';
-import { backupService, BackupProgressCallback } from '../services/backupService';
+import type { BackupProgressCallback } from '../services/backupService';
 import { supabase } from '../services/supabaseClient';
 
 const Users: React.FC = () => {
@@ -197,6 +197,9 @@ const Users: React.FC = () => {
         setBackupProgress({ phase: 'db', label: 'Iniciando backup completo...', pct: 0 });
 
         try {
+            // Import dinâmico: o backupService embute o código-fonte do projeto
+            // (import.meta.glob eager) — carregá-lo aqui tira ~2 MB do bundle inicial
+            const { backupService } = await import('../services/backupService');
             await backupService.downloadFull((info) => {
                 setBackupProgress(info);
             });

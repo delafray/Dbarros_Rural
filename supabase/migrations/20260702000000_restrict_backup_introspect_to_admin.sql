@@ -1,0 +1,113 @@
+-- ⚠️ PENDENTE DE APLICAÇÃO — revisar e executar no SQL Editor do Supabase (ou `supabase db push`).
+--
+-- SEGURANÇA: backup_introspect() estava executável por QUALQUER usuário autenticado
+-- (inclusive visitantes temporários), expondo o schema completo, DDL de todas as
+-- funções e as expressões de todas as policies RLS.
+-- Esta migration recria a função com uma checagem de admin no início.
+-- O único chamador no app é o backup em Users.tsx (tela de admin) — nada quebra.
+
+CREATE OR REPLACE FUNCTION public.backup_introspect()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+AS $fn$
+BEGIN
+  IF NOT COALESCE(public.is_admin(), false) THEN
+    RAISE EXCEPTION 'Acesso negado: backup_introspect é restrito a administradores';
+  END IF;
+
+  RETURN (
+    SELECT json_build_object(
+
+      -- Tabelas e colunas do schema public
+      'tables', (
+        SELECT json_agg(
+          json_build_object(
+            'name', t.table_name,
+            'columns', (
+              SELECT json_agg(
+                json_build_object(
+                  'name', c.column_name,
+                  'udt',  c.udt_name,
+                  'nullable', (c.is_nullable = 'YES'),
+                  'has_default', (c.column_default IS NOT NULL)
+                ) ORDER BY c.ordinal_position
+              )
+              FROM information_schema.columns c
+              WHERE c.table_schema = 'public' AND c.table_name = t.table_name
+            )
+          ) ORDER BY t.table_name
+        )
+        FROM information_schema.tables t
+        WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+      ),
+
+      -- Dependencias de FK (para ordenacao topologica no restore)
+      'fk_deps', (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'from_table', fd.from_table,
+              'to_table',   fd.to_table
+            )
+          ),
+          '[]'::json
+        )
+        FROM (
+          SELECT DISTINCT kcu.table_name AS from_table, ccu.table_name AS to_table
+          FROM information_schema.key_column_usage kcu
+          JOIN information_schema.referential_constraints rc
+            ON  kcu.constraint_name   = rc.constraint_name
+            AND kcu.constraint_schema = rc.constraint_schema
+          JOIN information_schema.constraint_column_usage ccu
+            ON  rc.unique_constraint_name   = ccu.constraint_name
+            AND rc.unique_constraint_schema = ccu.constraint_schema
+          WHERE kcu.table_schema = 'public'
+            AND ccu.table_schema = 'public'
+            AND kcu.table_name  != ccu.table_name
+        ) fd
+      ),
+
+      -- Definicoes completas de todas as funcoes (CREATE OR REPLACE FUNCTION)
+      'functions', (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'name', p.proname,
+              'def',  pg_get_functiondef(p.oid)
+            ) ORDER BY p.proname
+          ),
+          '[]'::json
+        )
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace = n.oid
+        WHERE n.nspname = 'public'
+      ),
+
+      -- Politicas RLS de todas as tabelas do schema public
+      'policies', (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'tablename',  pol.tablename,
+              'policyname', pol.policyname,
+              'permissive', pol.permissive,
+              'cmd',        pol.cmd,
+              'roles',      pol.roles,
+              'qual',       pol.qual,
+              'with_check', pol.with_check
+            ) ORDER BY pol.tablename, pol.policyname
+          ),
+          '[]'::json
+        )
+        FROM pg_policies pol
+        WHERE pol.schemaname = 'public'
+      )
+
+    )
+  );
+END;
+$fn$;
+
+GRANT EXECUTE ON FUNCTION public.backup_introspect() TO authenticated;

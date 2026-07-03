@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { jsPDF } from 'jspdf';
 import { Tag } from '../../types';
 import { api } from '../../services/api';
 import { loadImage } from '../utils/imageUtils';
@@ -48,6 +47,8 @@ export const usePdfExport = ({
             return;
         }
 
+        // Import dinâmico: jsPDF (~335 KB) só é carregado quando o usuário exporta
+        const { jsPDF } = await import('jspdf');
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();

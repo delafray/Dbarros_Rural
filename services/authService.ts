@@ -64,11 +64,12 @@ function mapDbUserToUser(row: DbUser): User {
 
 /**
  * Remove caracteres que poderiam quebrar o parser de filtros do PostgREST
- * dentro de uma chamada `.or()` (vírgula, parênteses, aspas, backslash).
+ * dentro de uma chamada `.or()` (vírgula, parênteses, aspas, backslash) e os
+ * curingas `%` e `*`, que permitiriam casar com qualquer usuário via `ilike`.
  * Mantém letras, números, @, _, -, ponto e espaço — suficiente para emails e nomes.
  */
 function sanitizeFilterValue(value: string): string {
-    return value.replace(/[,'()"\\\n\r\t]/g, '');
+    return value.replace(/[,'()"\\\n\r\t%*]/g, '');
 }
 
 /**
@@ -144,9 +145,12 @@ export const authService = {
         // Sanitiza o identificador para evitar injeção via filtro PostgREST
         const safeId = sanitizeFilterValue(identifier.trim());
 
+        // Pré-auth (role anon): busca APENAS as colunas mínimas para resolver o
+        // email e validar status. O acesso anônimo à tabela users é restrito a
+        // estas colunas via GRANT (migration 20260702000002) — nunca ler '*' aqui.
         const { data: profile, error: profileError } = await (supabase as any)
             .from('users')
-            .select('*')
+            .select('id, email, name, is_active, expires_at')
             .or(`email.ilike.${safeId},name.ilike.${safeId}`)
             .limit(1)
             .maybeSingle();
@@ -167,7 +171,18 @@ export const authService = {
 
         if (authError) throw new Error(`Falha na autenticação: ${authError.message}`);
 
-        return mapDbUserToUser(profile as DbUser);
+        // Pós-auth (role authenticated): agora sim busca o perfil completo
+        const { data: fullProfile, error: fullError } = await (supabase as any)
+            .from('users')
+            .select('*')
+            .eq('id', profile.id)
+            .single();
+
+        if (fullError || !fullProfile) {
+            throw new Error(`Autenticado, mas erro ao carregar o perfil: ${fullError?.message || 'perfil não encontrado'}`);
+        }
+
+        return mapDbUserToUser(fullProfile as DbUser);
     },
 
     async logout(): Promise<void> {
@@ -277,8 +292,11 @@ export const authService = {
         const username = `${base}-${seq}`;
         const name = username;
         const email = `${username}@temp.local`;
-        const password = Math.random().toString(36).slice(2, 10)
-            + Math.random().toString(36).slice(2, 5).toUpperCase();
+        // Gera senha com CSPRNG (Math.random é previsível e inadequado para senhas)
+        const passwordChars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        const randomBytes = new Uint8Array(12);
+        crypto.getRandomValues(randomBytes);
+        const password = Array.from(randomBytes, b => passwordChars[b % passwordChars.length]).join('');
 
         // Cria o usuário base com flag visitor via RPC existente
         await this.register(name, email, password, false, true, false, false);

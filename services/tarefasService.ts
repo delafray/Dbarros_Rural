@@ -83,13 +83,14 @@ export const tarefasService = {
         if (error) throw error;
 
         // Histórico inicial
-        await supabase.from('tarefas_historico').insert({
+        const { error: histError } = await supabase.from('tarefas_historico').insert({
             tarefa_id: inserted.id,
             descricao: 'Tarefa criada.',
             status_anterior: null,
             status_novo: data.status,
             user_id: user?.id || null,
         });
+        if (histError) throw new Error(`Tarefa criada, mas falha ao gravar o histórico: ${histError.message}`);
 
         return inserted as any as Tarefa;
     },
