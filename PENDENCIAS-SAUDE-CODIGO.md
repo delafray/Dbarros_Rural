@@ -8,8 +8,11 @@
 
 ## 🔴 SÓ VOCÊ PODE FAZER — ações no painel do Supabase (urgente)
 
-1. **Revogar o token administrativo** `sbp_a5ab...` que está no `.env.local` (linha `SUPABASE_ACCESS_TOKEN`).
-   Painel Supabase → Account → Access Tokens → Revoke. Se precisar do CLI, gere outro e guarde **fora** da pasta do projeto.
+1. **Revogar o token administrativo** `sbp_a5ab...` — ✅ já foi REMOVIDO do `.env.local` (02/07/2026),
+   mas o token continua VÁLIDO até ser revogado na conta (não dá para revogar via SQL — ele pertence
+   à conta Supabase, não ao banco do projeto). Um clique resolve:
+   **https://supabase.com/dashboard/account/tokens** → achar o token → Revoke.
+   Se um dia precisar do CLI, gere outro na mesma página e guarde fora da pasta do projeto.
 
 2. **Verificar policy `anon` na tabela `users`** — Supabase Studio → Table Editor → `users` → RLS Policies.
    O login consulta `users` **antes** de autenticar (`authService.ts:147`), então provavelmente existe uma policy para `anon`.
