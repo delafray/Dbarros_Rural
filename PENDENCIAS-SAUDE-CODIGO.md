@@ -37,13 +37,13 @@ precache PWA 4,1→1,9 MB, modulePreload filtrado, LazyErrorBoundary (deploy no 
 
 ### 🟠 Novos — segurança/dados (precisam de migration ou verificação no Studio)
 
-- **N5** `rename_opcional_item()` é SECURITY DEFINER com GRANT para qualquer autenticado — um visitante pode renomear itens opcionais de todos os eventos (migration `20260227160000`).
+- **N5** ⏳ Migration **PRONTA** em `supabase/migrations/20260702000003_block_visitors_rename_opcional.sql` — falta colar no SQL Editor (bloqueia visitantes; não trava projetistas).
 - **N6** Visitantes leem `cpf_responsavel` dos clientes — a policy de leitura (`20260228_visitor_read_clientes`) é anterior à coluna de CPF (`20260316`). LGPD.
 - **N7** `atendimentos_historico` não aparece na migration de isolamento master (`20260310000001`) — verificar no Studio se a tabela tem RLS/policy própria.
 - **N8** Senha mínima de 4 caracteres (`pages/Users.tsx:337` `minLength={4}`) — subir para 8+ (e no painel do Supabase Auth).
 - **N9** `TEMP_PASSWORD_HASH` hardcoded no `backupService.ts:~365` (bcrypt de senha conhecida "GaleriaRestore2024!").
 - **N10** `__GIT_COMMITS__` embutido no bundle público (`vite.config.ts`) — expõe histórico de commits a qualquer visitante do site. É usado pelo backup; avaliar trade-off.
-- **N11** Sem headers de segurança no `vercel.json` (CSP, HSTS, X-Frame-Options) e scripts externos sem SRI.
+- **N11** ✅ parcial (02/07): nosniff, X-Frame-Options, HSTS, Referrer-Policy e Permissions-Policy no ar (verificados). Faltam CSP e SRI — fazer junto com a migração do Tailwind CDN (N20), pois a CSP depende de quais origens externas sobram.
 
 ### 🟡 Novos — correções fáceis e seguras (candidatas à próxima rodada "faça o que for seguro")
 
