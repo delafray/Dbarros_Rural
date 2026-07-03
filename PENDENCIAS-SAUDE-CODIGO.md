@@ -50,14 +50,14 @@
 | 1 | Tailwind via CDN → bundle do Vite | `index.html` | PWA offline pode abrir SEM estilo com cache frio. Exige teste visual completo. |
 | 2 | `React.lazy` nas rotas | `App.tsx` | Nenhuma rota tem code splitting. Fazer junto com a remoção do cardápio. |
 | 3 | Rename de categorias por identidade (não por posição) | `hooks/useConfigSave.ts` + `CategoriaSetup` | Apliquei guardas que evitam corrupção, mas o conserto definitivo exige um `id` estável por categoria. |
-| 4 | Timezone misto em datas | `eventosService.ts:77`, `Atendimentos.tsx:93` | ISO é lido como UTC, DD/MM como local — ordenação e "vencido 3h antes". Criar `utils/dateUtils.ts`. |
-| 5 | `formatBRL()` compartilhado | criar `utils/formatCurrency.ts` | Moeda formatada inline em 8 lugares diferentes. |
-| 6 | Estados de erro nos hooks de dados | `usePlanilhaData`, `useControleData`, `useConfigData` | Erro de carregamento hoje = tela vazia sem mensagem ("a planilha sumiu"). |
-| 7 | Race condition ao trocar edição | `hooks/usePlanilhaData.ts:36` | useEffect sem abort/cleanup pode misturar dados de duas edições. |
-| 8 | Revert otimista das observações | `hooks/usePlanilhaEditing.ts:88` | Único campo que não reverte em falha de save. |
+| 4 | Timezone misto em datas | `eventosService.ts:77`, `Atendimentos.tsx:93` | ISO é lido como UTC, DD/MM como local — ordenação e "vencido 3h antes". Criar `utils/dateUtils.ts`. Muda datas exibidas — testar com calma. |
+| 5 | ~~`formatBRL()` compartilhado~~ | ✅ FEITO 02/07 | `utils/formatCurrency.ts` criado; 7 implementações inline substituídas. |
+| 6 | ~~Estados de erro nos hooks de dados~~ | ✅ FEITO 02/07 | Os 3 hooks agora expõem `error`; páginas mostram mensagem + botão recarregar. |
+| 7 | ~~Race condition ao trocar edição~~ | ✅ FEITO 02/07 | Cancelamento nos useEffect de `usePlanilhaData` e `useControleData`. |
+| 8 | ~~Revert otimista das observações~~ | ✅ Verificado: já mostrava erro via `showSaveError` — falso positivo do agente, sem mudança necessária. |
 | 9 | Refatorar `CadastroCliente.tsx` (1.224 linhas) | `pages/` | Maior arquivo do core, importa `supabase` direto ignorando `clientesService`. Seguir o padrão do ControleImagens. O CLAUDE.md lista arquivos já refatorados — atualizar a fila. |
 | 10 | Ligar `strict` no tsconfig gradualmente | `tsconfig.json` | 208 `any` em 52 arquivos; zero flags de tipo ativas. |
-| 11 | Primeiro teste automatizado | — | Zero testes. Começar por `utils/masks.ts` (CPF/CNPJ). Deletar `services/__mocks__/mockService.ts` (órfão). |
+| 11 | Primeiro teste automatizado | — | Zero testes. Começar por `utils/masks.ts` (CPF/CNPJ). ~~mockService órfão~~ deletado em 02/07. |
 | 12 | Soft delete / auditoria nas entidades principais | services | Hoje deletar evento/edição apaga tudo em cascata sem recuperação. |
 | 13 | CORS `*` na Edge Function de passkey | `supabase/functions/passkey-auth/index.ts:12` | Restringir ao domínio de produção. |
 | 14 | Campo `is_master` dedicado | migration | Hoje `can_manage_tags` = master por acidente semântico. |
