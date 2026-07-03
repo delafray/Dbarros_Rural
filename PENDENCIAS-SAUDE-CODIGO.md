@@ -16,9 +16,20 @@
    Se existir e ela liberar todas as colunas, **qualquer pessoa sem login pode ler `temp_password_plain` (senhas em texto claro!)**.
    Correção ideal: reestruturar o login para autenticar primeiro (`signInWithPassword`) e só depois buscar o perfil.
 
-3. **Aplicar as 2 migrations preparadas** (revisar antes, no SQL Editor ou `supabase db push`):
-   - `supabase/migrations/20260702000000_restrict_backup_introspect_to_admin.sql` — restringe `backup_introspect()` a admins (hoje qualquer visitante logado obtém o mapa completo da segurança do banco).
-   - `supabase/migrations/20260702000001_rpc_regenerate_estandes.sql` — torna a regeneração de estandes transacional (hoje um DELETE+INSERT sem transação pode apagar todos os estandes se a rede falhar no meio). **Depois de aplicar**, trocar o `generateEstandes()` em `services/planilhaVendasService.ts` para usar a RPC (instrução no cabeçalho da migration).
+3. ~~Aplicar as 2 migrations preparadas~~ ✅ **APLICADAS em 02/07/2026** e testadas ao vivo:
+   - `backup_introspect()` agora nega acesso a não-admins (testado com chave anon → "Acesso negado") ✅
+   - RPC `regenerate_estandes` existe e o `generateEstandes()` do código já foi trocado para usá-la ✅
+   - Teste automatizado em `scripts/test-migrations-20260702.mjs` (rodar: `node scripts/test-migrations-20260702.mjs`)
+
+3b. **🔴 NOVA — CONFIRMADO vazamento na tabela `users`**: teste ao vivo em 02/07/2026 provou que
+   **qualquer pessoa SEM login lê a tabela `users`, incluindo a coluna `temp_password_plain`**
+   (a policy é `TO public`, por isso o diagnóstico de `anon` veio vazio). Enquanto não corrigir,
+   a senha de qualquer visitante temporário criado fica pública.
+   Correção pronta em `supabase/migrations/20260702000002_restrict_anon_users_columns.sql`, MAS a ordem importa:
+   1. Mergear a branch `correcoes-saude-codigo` e fazer o deploy (o login novo busca só as colunas mínimas antes de autenticar)
+   2. SÓ DEPOIS aplicar a migration `20260702000002` (aplicar antes do deploy QUEBRA O LOGIN em produção)
+   3. Rodar `node scripts/test-migrations-20260702.mjs` — os 3 testes devem passar
+   Mitigação imediata enquanto isso: evitar criar visitantes temporários, ou apagar o valor de `temp_password_plain` logo após repassar a senha.
 
 4. **Regenerar `database.types.ts`** (elimina os 4 erros atuais de tsc e vários `as any`):
    ```bash

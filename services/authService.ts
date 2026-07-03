@@ -145,9 +145,12 @@ export const authService = {
         // Sanitiza o identificador para evitar injeção via filtro PostgREST
         const safeId = sanitizeFilterValue(identifier.trim());
 
+        // Pré-auth (role anon): busca APENAS as colunas mínimas para resolver o
+        // email e validar status. O acesso anônimo à tabela users é restrito a
+        // estas colunas via GRANT (migration 20260702000002) — nunca ler '*' aqui.
         const { data: profile, error: profileError } = await (supabase as any)
             .from('users')
-            .select('*')
+            .select('id, email, name, is_active, expires_at')
             .or(`email.ilike.${safeId},name.ilike.${safeId}`)
             .limit(1)
             .maybeSingle();
@@ -168,7 +171,18 @@ export const authService = {
 
         if (authError) throw new Error(`Falha na autenticação: ${authError.message}`);
 
-        return mapDbUserToUser(profile as DbUser);
+        // Pós-auth (role authenticated): agora sim busca o perfil completo
+        const { data: fullProfile, error: fullError } = await (supabase as any)
+            .from('users')
+            .select('*')
+            .eq('id', profile.id)
+            .single();
+
+        if (fullError || !fullProfile) {
+            throw new Error(`Autenticado, mas erro ao carregar o perfil: ${fullError?.message || 'perfil não encontrado'}`);
+        }
+
+        return mapDbUserToUser(fullProfile as DbUser);
     },
 
     async logout(): Promise<void> {
