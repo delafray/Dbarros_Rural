@@ -57,13 +57,13 @@
 | 8 | ~~Revert otimista das observações~~ | ✅ Verificado: já mostrava erro via `showSaveError` — falso positivo do agente, sem mudança necessária. |
 | 9 | Refatorar `CadastroCliente.tsx` (1.224 linhas) | `pages/` | Maior arquivo do core, importa `supabase` direto ignorando `clientesService`. Seguir o padrão do ControleImagens. O CLAUDE.md lista arquivos já refatorados — atualizar a fila. |
 | 10 | Ligar `strict` no tsconfig gradualmente | `tsconfig.json` | 208 `any` em 52 arquivos; zero flags de tipo ativas. |
-| 11 | Primeiro teste automatizado | — | Zero testes. Começar por `utils/masks.ts` (CPF/CNPJ). ~~mockService órfão~~ deletado em 02/07. |
+| 11 | ~~Primeiro teste automatizado~~ | ✅ FEITO 02/07 | Vitest instalado, `npm test` roda 23 testes (masks CPF/CNPJ + formatCurrency). Próximo alvo de teste: `atendimentosReportService`. |
 | 12 | Soft delete / auditoria nas entidades principais | services | Hoje deletar evento/edição apaga tudo em cascata sem recuperação. |
 | 13 | CORS `*` na Edge Function de passkey | `supabase/functions/passkey-auth/index.ts:12` | Restringir ao domínio de produção. |
 | 14 | Campo `is_master` dedicado | migration | Hoje `can_manage_tags` = master por acidente semântico. |
-| 15 | Storage órfão em `edicaoDocsService` | `edicaoDocsService.ts` | Upload/remove sem verificação deixa arquivos órfãos no Storage. |
+| 15 | ~~Storage órfão em `edicaoDocsService`~~ | ✅ FEITO 02/07 | Erros verificados em todos os passos + rollback best-effort do upload. Delete de tags do photoService também corrigido. |
 | 16 | Paginação/select específico nas queries | `clientesService`, `eventosService`, `planilhaVendasService`, `photoService` | `select('*')` sem limit — vai doer quando os dados crescerem. |
-| 17 | `GEMINI_API_KEY` no `define` do Vite | `vite.config.ts:85-86` | Hoje é placeholder, mas se um dia colocar chave real ela vaza no bundle. Remover o `define` se não usa Gemini. |
+| 17 | ~~`GEMINI_API_KEY` no `define` do Vite~~ | ✅ FEITO 02/07 | Define removido — nenhum código usava; a brecha de vazamento no bundle não existe mais. |
 
 ## 🍽️ Cardápio (gambiarra assumida — quando decidir remover)
 
