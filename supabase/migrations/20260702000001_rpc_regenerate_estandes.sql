@@ -1,4 +1,4 @@
--- ⚠️ PENDENTE DE APLICAÇÃO — revisar e executar no SQL Editor do Supabase (ou `supabase db push`).
+-- ✅ APLICADA EM PRODUÇÃO em 02/07/2026; generateEstandes() já usa esta RPC.
 --
 -- INTEGRIDADE: generateEstandes() no client faz DELETE + INSERT em duas chamadas
 -- separadas. Se o INSERT falhar após o DELETE (rede, timeout), TODOS os estandes

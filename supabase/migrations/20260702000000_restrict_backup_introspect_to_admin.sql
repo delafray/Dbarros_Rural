@@ -1,4 +1,5 @@
--- ⚠️ PENDENTE DE APLICAÇÃO — revisar e executar no SQL Editor do Supabase (ou `supabase db push`).
+-- ✅ APLICADA EM PRODUÇÃO em 02/07/2026. Verificada por teste ao vivo:
+-- chamada com role anon retorna "Acesso negado".
 --
 -- SEGURANÇA: backup_introspect() estava executável por QUALQUER usuário autenticado
 -- (inclusive visitantes temporários), expondo o schema completo, DDL de todas as

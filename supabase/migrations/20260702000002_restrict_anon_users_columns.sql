@@ -1,6 +1,5 @@
--- ⚠️⚠️ NÃO APLICAR AINDA — só depois que a branch correcoes-saude-codigo estiver
--- MERGEADA E DEPLOYADA em produção. O código antigo do login faz select('*') na
--- tabela users antes de autenticar; aplicar isto antes do deploy QUEBRA O LOGIN.
+-- ✅ APLICADA EM PRODUÇÃO em 02/07/2026 (após deploy do login com colunas mínimas).
+-- Verificada por teste ao vivo: anon não lê mais temp_password_plain.
 --
 -- SEGURANÇA (confirmado por teste em 02/07/2026): a tabela users é legível pelo
 -- role anon (policy TO public), incluindo a coluna temp_password_plain — ou seja,
