@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useAppDialog } from '../context/DialogContext';
 import { itensOpcionaisService, ItemOpcional } from '../services/itensOpcionaisService';
+import { formatBRL } from '../utils/formatCurrency';
 
 type TipoPadrao = 'imagem' | 'logo' | null;
 
@@ -99,8 +100,7 @@ const ItensOpcionais: React.FC = () => {
         }
     };
 
-    const formatMoney = (value: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    const formatMoney = formatBRL;
 
     return (
         <Layout

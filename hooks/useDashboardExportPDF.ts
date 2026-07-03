@@ -4,6 +4,7 @@ import { planilhaVendasService, CategoriaSetup } from '../services/planilhaVenda
 import { itensOpcionaisService } from '../services/itensOpcionaisService';
 import { clientesService } from '../services/clientesService';
 import { EventoEdicao } from '../services/eventosService';
+import { formatBRLNumber } from '../utils/formatCurrency';
 
 // Tipagem baseada no que o Dashboard usa
 export type EdicaoComDocsPDF = EventoEdicao & {
@@ -184,8 +185,7 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
             const GREEN_X: [number, number, number] = [22, 163, 74];
             const CYAN_S: [number, number, number] = [6, 148, 162];
 
-            const fmtMoney = (v: number) =>
-                'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const fmtMoney = (v: number) => 'R$ ' + formatBRLNumber(v);
 
             const TITLE_H = 10;
             const RES_H1 = 7;

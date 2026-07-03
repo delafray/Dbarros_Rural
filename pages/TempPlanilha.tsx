@@ -17,12 +17,12 @@ import { usePlanilhaData } from "../hooks/usePlanilhaData";
 import { usePlanilhaRealtime } from "../hooks/usePlanilhaRealtime";
 import { usePlanilhaEditing } from "../hooks/usePlanilhaEditing";
 import { usePlanilhaStatusModal } from "../hooks/usePlanilhaStatusModal";
+import { formatBRL } from "../utils/formatCurrency";
 
 const naturalSort = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 
-const formatMoney = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
+const formatMoney = formatBRL;
 
 const PlanilhaVendas: React.FC = () => {
   const { edicaoId } = useParams<{ edicaoId: string }>();
@@ -34,7 +34,7 @@ const PlanilhaVendas: React.FC = () => {
   // ─── Data ───────────────────────────────────────────────────
   const data = usePlanilhaData(edicaoId, navigate);
   const {
-    loading, config, edicao, rows, setRows, clientes, clienteMap, imagensConfig,
+    loading, error, config, edicao, rows, setRows, clientes, clienteMap, imagensConfig,
     statusMap, setStatusMap, recebimentosMap, setRecebimentosMap,
     categorias, opcionaisAtivos, comboLabels, comboNamesDisplay,
     atendimentoMap, getCategoriaOfRow, calculateRow, getComputedStatus, getImagensDoStand,
@@ -144,6 +144,21 @@ const PlanilhaVendas: React.FC = () => {
     return (
       <Layout title="Planilha">
         <div className="p-8 text-center">Carregando dados da planilha...</div>
+      </Layout>
+    );
+
+  if (error)
+    return (
+      <Layout title="Planilha">
+        <div className="p-8 text-center">
+          <p className="text-red-600 font-semibold mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800"
+          >
+            Recarregar
+          </button>
+        </div>
       </Layout>
     );
 

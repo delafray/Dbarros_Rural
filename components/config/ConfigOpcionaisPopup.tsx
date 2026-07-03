@@ -1,5 +1,6 @@
 import React from 'react';
 import { ItemOpcional } from '../../services/itensOpcionaisService';
+import { formatBRLNumber } from '../../utils/formatCurrency';
 
 interface Props {
   opcionaisDisponiveis: ItemOpcional[];
@@ -46,7 +47,7 @@ const ConfigOpcionaisPopup: React.FC<Props> = ({
                     )}
                   </div>
                   <span className="text-xs text-slate-400 font-mono">
-                    R$ {Number(item.preco_base).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {formatBRLNumber(Number(item.preco_base))}
                   </span>
                 </label>
               );

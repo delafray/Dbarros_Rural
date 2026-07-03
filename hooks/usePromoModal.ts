@@ -23,7 +23,10 @@ export const usePromoModal = () => {
                 u.isVisitor && u.isActive !== false &&
                 (!u.expiresAt || new Date(u.expiresAt) >= new Date())
             ));
-        }).catch(() => { });
+        }).catch((err) => {
+            // Sem a lista, o admin pode criar promotores duplicados sem saber
+            console.error('Erro ao carregar visitantes existentes:', err);
+        });
     }, []);
 
     const handleOpenPromoModal = (e: React.MouseEvent, edicao: any) => {

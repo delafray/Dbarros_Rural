@@ -12,6 +12,7 @@ import { useConfigImagens } from "../hooks/useConfigImagens";
 import { useConfigSave } from "../hooks/useConfigSave";
 import ConfigImagensModal from "../components/config/ConfigImagensModal";
 import ConfigOpcionaisPopup from "../components/config/ConfigOpcionaisPopup";
+import { formatBRLNumber } from "../utils/formatCurrency";
 
 const ConfiguracaoVendas: React.FC = () => {
   const { edicaoId } = useParams<{ edicaoId: string }>();
@@ -28,7 +29,7 @@ const ConfiguracaoVendas: React.FC = () => {
   // ─── Data + Categories ──────────────────────────────────────
   const data = useConfigData(edicaoId, markDirty);
   const {
-    categorias, setCategorias, numCombos, comboNames, loading, saving, setSaving,
+    categorias, setCategorias, numCombos, comboNames, loading, error, saving, setSaving,
     configId, setConfigId, savedCounts, setSavedCounts, planilhaExiste, setPlanilhaExiste,
     totalStands, setTotalStands, savedTags, setSavedTags, alCategoriesWithData,
     opcionaisDisponiveis, opcionaisSelecionados, setOpcionaisSelecionados,
@@ -75,6 +76,22 @@ const ConfiguracaoVendas: React.FC = () => {
     return (
       <Layout title="Configuração">
         <div className="p-8 text-center text-slate-500">Carregando...</div>
+      </Layout>
+    );
+
+  // Bloqueia a tela: sem a config carregada, salvar criaria uma configuração duplicada
+  if (error)
+    return (
+      <Layout title="Configuração">
+        <div className="p-8 text-center">
+          <p className="text-red-600 font-semibold mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800"
+          >
+            Recarregar
+          </button>
+        </div>
       </Layout>
     );
 
@@ -306,7 +323,7 @@ const ConfiguracaoVendas: React.FC = () => {
                           {emUso && <span className="ml-2 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 align-middle">🔒 em uso</span>}
                         </td>
                         <td className="px-3 py-0.5 text-right text-slate-400 font-mono text-[11px]">
-                          R$ {Number(item.preco_base).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          R$ {formatBRLNumber(Number(item.preco_base))}
                         </td>
                         <td className="px-3 py-0.5 text-right">
                           <CurrencyField
