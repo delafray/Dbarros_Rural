@@ -174,4 +174,50 @@ describe('calculateRowTotals', () => {
         expect(t.precoBase).toBe(0);
         expect(t.totalVenda).toBe(500);
     });
+
+    // ── Casos de borda apontados pela revisão adversarial ──────────────
+
+    it('opcionais_selecionados null do banco não quebra', () => {
+        const row = { ...rowBase, opcionais_selecionados: null };
+        const t = calculateRowTotals(row, catFixa, opcionais, {});
+        expect(t.totalOpcionais).toBe(0);
+        expect(t.subTotal).toBe(20000);
+    });
+
+    it('total_override = 0 explícito é respeitado (zero ≠ null)', () => {
+        const cat = { tag: 'AL', prefix: 'AL', tipo_precificacao: 'area_livre' as const, preco_m2: 150 };
+        const row = { ...rowBase, stand_nr: 'AL 01', area_m2: 100, total_override: 0 };
+        expect(getPrecoForCombo(cat, row, 'STAND PADRÃO')).toBe(0);
+    });
+
+    it('produto área × preço com sub-centavo arredonda para centavos', () => {
+        const cat = { tag: 'AL', prefix: 'AL', tipo_precificacao: 'area_livre' as const, preco_m2: 150.33 };
+        const row = { ...rowBase, stand_nr: 'AL 01', tipo_venda: 'STAND PADRÃO', area_m2: 10.3 };
+        const t = calculateRowTotals(row, cat, [], {});
+        // 10.3 × 150.33 = 1548.399 → subtotal arredondado para 1548.40
+        expect(t.subTotal).toBe(1548.4);
+    });
+});
+
+describe('casos de borda extras', () => {
+    it('categoria só com tag (sem prefix) identifica o stand', () => {
+        const cats = [{ tag: 'MERCH' }];
+        expect(getCategoriaOfStandNr('MERCH 02', cats)?.tag).toBe('MERCH');
+    });
+
+    it('stand_nr exatamente igual ao prefixo (sem número)', () => {
+        const cats = [{ tag: 'AL', prefix: 'AL' }];
+        expect(getCategoriaOfStandNr('AL', cats)?.tag).toBe('AL');
+    });
+
+    it('COMBO 10 (dois dígitos) indexa corretamente', () => {
+        const cat = { tag: 'X', combos: [1, 2, 3, 4, 5, 6, 7, 8, 9, 1000] };
+        expect(getPrecoForCombo(cat, { stand_nr: 'X 01', tipo_venda: 'COMBO 10' }, 'COMBO 10')).toBe(1000);
+    });
+
+    it('combo_overrides null não quebra área livre', () => {
+        const cat = { tag: 'AL', prefix: 'AL', tipo_precificacao: 'area_livre' as const, preco_m2: 100, combos_adicionais: [500] };
+        const row = { stand_nr: 'AL 01', tipo_venda: 'COMBO 01', area_m2: 10, combo_overrides: null };
+        expect(getPrecoForCombo(cat, row, 'COMBO 01')).toBe(1500);
+    });
 });

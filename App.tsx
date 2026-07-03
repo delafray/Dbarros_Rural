@@ -50,10 +50,34 @@ const RouteFallback = () => (
   <div className="flex justify-center items-center h-screen text-slate-500">Carregando...</div>
 );
 
+// Captura falha de import() dos chunks lazy (ex: deploy novo no meio da sessão
+// com cache antigo limpo). Sem isso, a falha desmonta a árvore = tela branca.
+class LazyErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen gap-4 text-slate-600">
+          <p>Erro ao carregar. Pode haver uma nova versão do sistema disponível.</p>
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+            onClick={() => window.location.reload()}
+          >
+            Recarregar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const App: React.FC = () => {
   return (
     <HashRouter>
       <PresenceProvider>
+      <LazyErrorBoundary>
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -101,6 +125,7 @@ const App: React.FC = () => {
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
       </Suspense>
+      </LazyErrorBoundary>
       </PresenceProvider>
     </HashRouter>
   );

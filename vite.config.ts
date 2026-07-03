@@ -99,6 +99,13 @@ export default defineConfig(() => {
     },
     build: {
       chunkSizeWarningLimit: 1000,
+      // Não fazer modulepreload dos chunks pesados de export (jspdf etc.):
+      // o preload eager faria o browser requisitá-los em TODA abertura do app,
+      // anulando a exclusão deles do precache do PWA
+      modulePreload: {
+        resolveDependencies: (_url: string, deps: string[]) =>
+          deps.filter((d) => !/backupService|jspdf|html2canvas|canvg|jszip|pako|svg-pathdata|fast-png/.test(d)),
+      },
       rollupOptions: {
         output: {
           manualChunks(id) {
