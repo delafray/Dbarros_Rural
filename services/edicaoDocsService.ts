@@ -11,15 +11,18 @@ export const edicaoDocsService = {
         const column = tipo === 'proposta_comercial' ? 'proposta_comercial_path' : 'planta_baixa_path';
 
         // Delete old file first if it has a different path (e.g. different extension)
-        const { data: row } = await supabase
+        const { data: row, error: selectError } = await supabase
             .from('eventos_edicoes')
             .select(column)
             .eq('id', edicaoId)
             .single();
 
+        if (selectError) throw new Error(`Erro ao consultar documento atual: ${selectError.message}`);
+
         const oldPath = (row as any)?.[column] as string | null;
         if (oldPath && oldPath !== newPath) {
-            await supabase.storage.from(BUCKET).remove([oldPath]);
+            const { error: removeError } = await supabase.storage.from(BUCKET).remove([oldPath]);
+            if (removeError) throw new Error(`Erro ao remover arquivo anterior: ${removeError.message}`);
         }
 
         const { error } = await supabase.storage
@@ -33,7 +36,13 @@ export const edicaoDocsService = {
             .update({ [column]: newPath } as any)
             .eq('id', edicaoId);
 
-        if (dbError) throw new Error(`Erro ao salvar referencia: ${dbError.message}`);
+        if (dbError) {
+            // Rollback best-effort: sem a referência no banco o arquivo novo ficaria órfão
+            if (oldPath !== newPath) {
+                await supabase.storage.from(BUCKET).remove([newPath]).catch(() => {});
+            }
+            throw new Error(`Erro ao salvar referencia: ${dbError.message}`);
+        }
 
         return newPath;
     },
@@ -55,7 +64,9 @@ export const edicaoDocsService = {
 
         const currentPath = (row as any)?.[column] as string | null;
         if (currentPath) {
-            await supabase.storage.from(BUCKET).remove([currentPath]);
+            // Falha aqui aborta ANTES de limpar a referência — evita arquivo órfão no Storage
+            const { error: removeError } = await supabase.storage.from(BUCKET).remove([currentPath]);
+            if (removeError) throw new Error(`Erro ao remover arquivo do Storage: ${removeError.message}`);
         }
 
         const { error } = await supabase
