@@ -72,8 +72,8 @@ const Tags: React.FC = () => {
   }, [user]);
 
   const handleSaveConfig = async () => {
+    if (!user?.id) return; // guard ANTES do setSaving — early return deixava o botão travado
     setConfigSaving(true);
-    if (!user?.id) return;
     try {
       await api.updateSystemConfig(user.id, 'pdf_limit', String(pdfLimit));
       setLastSavedLimit(pdfLimit);
@@ -98,6 +98,9 @@ const Tags: React.FC = () => {
       setNewCatPeerIds([]);
       setIsCreateCatModalOpen(false);
       await fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('Erro', 'Erro ao criar categoria: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -143,12 +146,16 @@ const Tags: React.FC = () => {
     }
 
     if (!user?.id) return;
+    setSaving(true); // faltava: sem desabilitar o botão, duplo-clique criava tag duplicada
     try {
       await api.createTag(user.id, newTagName.trim(), selectedCatId, finalOrder);
       setNewTagName('');
       setNewTagOrder('');
       setIsCreateTagModalOpen(false);
       await fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('Erro', 'Erro ao criar tag: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -174,6 +181,9 @@ const Tags: React.FC = () => {
       setIsCollisionModalOpen(false);
       setPendingTagData(null);
       await fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('Erro', 'Erro ao registrar tag: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -191,6 +201,9 @@ const Tags: React.FC = () => {
       setIsEditTagModalOpen(false);
       setEditingTag(null);
       await fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('Erro', 'Erro ao atualizar tag: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }

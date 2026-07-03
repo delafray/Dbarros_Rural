@@ -1,33 +1,36 @@
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Users from './pages/Users';
+import Dashboard from './pages/Dashboard';
 import { useAuth } from './context/AuthContext';
 import { PresenceProvider } from './context/PresenceContext';
-import Photos from './pages/Photos';
-import Tags from './pages/Tags';
-import CadastroCliente from './pages/CadastroCliente';
 
-import Clientes from './pages/Clientes';
-import Eventos from './pages/Eventos';
-import CadastroEvento from './pages/CadastroEvento';
-import TempPlanilha from './pages/TempPlanilha';
-import ConfiguracaoVendas from './pages/ConfiguracaoVendas';
-import PlanilhaAreaLivre from './pages/PlanilhaAreaLivre';
-import ItensOpcionais from './pages/ItensOpcionais';
-import Dashboard from './pages/Dashboard';
-import Atendimentos from './pages/Atendimentos';
-import Tarefas from './pages/Tarefas';
-import ControleImagens from './pages/ControleImagens';
-import TodosEventos from './pages/TodosEventos';
-import Cardapios from './pages/Cardapios';
-import CardapioEditor from './pages/CardapioEditor';
-import CardapiosA4 from './pages/CardapiosA4';
-import CardapioA4Editor from './pages/CardapioA4Editor';
-import A3PreviewA4 from './pages/A3PreviewA4';
-import A3PreviewCardapios from './pages/A3PreviewCardapios';
-import PainelDuplo from './pages/PainelDuplo';
+// Code splitting: cada rota vira um chunk carregado sob demanda.
+// Login e Dashboard ficam estáticos (são as portas de entrada do app);
+// o resto só é baixado quando o usuário navega até lá.
+const Users = lazy(() => import('./pages/Users'));
+const Photos = lazy(() => import('./pages/Photos'));
+const Tags = lazy(() => import('./pages/Tags'));
+const CadastroCliente = lazy(() => import('./pages/CadastroCliente'));
+const Clientes = lazy(() => import('./pages/Clientes'));
+const Eventos = lazy(() => import('./pages/Eventos'));
+const CadastroEvento = lazy(() => import('./pages/CadastroEvento'));
+const TempPlanilha = lazy(() => import('./pages/TempPlanilha'));
+const ConfiguracaoVendas = lazy(() => import('./pages/ConfiguracaoVendas'));
+const PlanilhaAreaLivre = lazy(() => import('./pages/PlanilhaAreaLivre'));
+const ItensOpcionais = lazy(() => import('./pages/ItensOpcionais'));
+const Atendimentos = lazy(() => import('./pages/Atendimentos'));
+const Tarefas = lazy(() => import('./pages/Tarefas'));
+const ControleImagens = lazy(() => import('./pages/ControleImagens'));
+const TodosEventos = lazy(() => import('./pages/TodosEventos'));
+const Cardapios = lazy(() => import('./pages/Cardapios'));
+const CardapioEditor = lazy(() => import('./pages/CardapioEditor'));
+const CardapiosA4 = lazy(() => import('./pages/CardapiosA4'));
+const CardapioA4Editor = lazy(() => import('./pages/CardapioA4Editor'));
+const A3PreviewA4 = lazy(() => import('./pages/A3PreviewA4'));
+const A3PreviewCardapios = lazy(() => import('./pages/A3PreviewCardapios'));
+const PainelDuplo = lazy(() => import('./pages/PainelDuplo'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -43,10 +46,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   return user ? <>{children}</> : <Navigate to="/login" />;
 };
 
+const RouteFallback = () => (
+  <div className="flex justify-center items-center h-screen text-slate-500">Carregando...</div>
+);
+
 const App: React.FC = () => {
   return (
     <HashRouter>
       <PresenceProvider>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
@@ -92,6 +100,7 @@ const App: React.FC = () => {
 
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
+      </Suspense>
       </PresenceProvider>
     </HashRouter>
   );

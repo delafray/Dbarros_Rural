@@ -39,9 +39,12 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
     const nomeExibicao = atendimentosService.getNomeExibicao(atendimento);
 
     useEffect(() => {
+        let mounted = true;
         atendimentosService.getHistorico(atendimento.id)
-            .then(setHistorico)
-            .finally(() => setLoadingHistorico(false));
+            .then((data) => { if (mounted) setHistorico(data); })
+            .catch((err) => console.error('Erro ao carregar histórico:', err))
+            .finally(() => { if (mounted) setLoadingHistorico(false); });
+        return () => { mounted = false; };
     }, [atendimento.id]);
 
     const handleSave = async () => {
@@ -56,7 +59,7 @@ const ResolucaoAtendimentoModal: React.FC<ResolucaoAtendimentoModalProps> = ({ a
                     probabilidade: probabilidade,
                     data_retorno: finalDataRetorno,
                     resolvido: false,
-                    user_id: null,
+                    user_id: user?.id || null,
                 });
             } else {
                 await atendimentosService.cancelRetorno(atendimento.id, buildCancelText());

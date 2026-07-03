@@ -107,8 +107,10 @@ export const PresenceProvider: React.FC<{ children: ReactNode }> = ({ children }
         };
     }, [user?.id]);
 
+    const value = React.useMemo(() => ({ onlineUsers }), [onlineUsers]);
+
     return (
-        <PresenceContext.Provider value={{ onlineUsers }}>
+        <PresenceContext.Provider value={value}>
             {children}
         </PresenceContext.Provider>
     );

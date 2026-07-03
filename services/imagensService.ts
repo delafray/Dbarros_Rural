@@ -124,11 +124,14 @@ export const imagensService = {
     // ── Status por estande ───────────────────────────────────────
 
     async getStatusByConfig(configId: string): Promise<Record<string, StandImagemStatus>> {
-        const { data: estandes } = await supabase
+        const { data: estandes, error: estandesError } = await supabase
             .from('planilha_vendas_estandes')
             .select('id')
             .eq('config_id', configId);
 
+        // Sem checar o erro, uma falha de rede retornava {} e a UI mostrava
+        // todos os estandes como "sem status" silenciosamente
+        if (estandesError) throw estandesError;
         if (!estandes || estandes.length === 0) return {};
 
         const estandeIds = estandes.map((e) => e.id);
@@ -189,11 +192,13 @@ export const imagensService = {
     // ── Recebimentos individuais por item ────────────────────────
 
     async getRecebimentos(configId: string): Promise<RecebimentosMap> {
-        const { data: estandes } = await supabase
+        const { data: estandes, error: estandesError } = await supabase
             .from('planilha_vendas_estandes')
             .select('id')
             .eq('config_id', configId);
 
+        // Idem getStatusByConfig: falha silenciosa mostrava tudo como "não recebido"
+        if (estandesError) throw estandesError;
         if (!estandes || estandes.length === 0) return {};
 
         const ids = estandes.map((e) => e.id);

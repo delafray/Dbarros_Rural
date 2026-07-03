@@ -335,10 +335,10 @@ const Users: React.FC = () => {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required={!editingId}
-                                minLength={4}
+                                minLength={8}
                                 className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-600 focus:bg-white text-sm font-bold text-slate-800 p-3 outline-none transition-all"
                                 style={{ borderRadius: '0px' }}
-                                placeholder={editingId ? "Deixe em branco para manter a senha atual" : "Mínimo 4 caracteres"}
+                                placeholder={editingId ? "Deixe em branco para manter a senha atual" : "Mínimo 8 caracteres"}
                             />
                         </div>
                     </div>

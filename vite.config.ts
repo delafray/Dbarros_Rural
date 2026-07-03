@@ -63,7 +63,14 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-          globIgnores: ['esquerda.png', 'direita.png', 'dbarros.png', 'chancela.png'],
+          globIgnores: [
+            'esquerda.png', 'direita.png', 'dbarros.png', 'chancela.png',
+            // Chunks lazy: carregam sob demanda (backup/PDF); precachear tudo
+            // forçava ~466 KB gzip extras a cada instalação do PWA
+            'assets/backupService-*.js', 'assets/jspdf-*.js', 'assets/html2canvas-*.js',
+            'assets/canvg-*.js', 'assets/jszip-*.js', 'assets/pako-*.js',
+            'assets/svg-pathdata-*.js', 'assets/fast-png-*.js',
+          ],
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB
           runtimeCaching: [
             {

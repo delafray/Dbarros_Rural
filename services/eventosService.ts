@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { Database } from '../database.types';
+import { parseDataFlexivel } from '../utils/dateUtils';
 
 export type Evento = Database['public']['Tables']['eventos']['Row'];
 export type EventoEdicao = Database['public']['Tables']['eventos_edicoes']['Row'];
@@ -73,19 +74,11 @@ export const eventosService = {
 
         if (error) throw error;
 
-        // Ordenar por data_inicio crescente (evento mais proximo primeiro)
-        const parseDate = (d: string | null): number => {
-            if (!d) return Infinity; // sem data vai pro final
-            if (d.includes('/')) {
-                const parts = d.split('/'); // DD/MM/YYYY
-                if (parts.length >= 3) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
-            }
-            const ts = new Date(d).getTime();
-            return isNaN(ts) ? Infinity : ts;
-        };
-
+        // Ordenar por data_inicio crescente (evento mais proximo primeiro).
+        // parseDataFlexivel trata YYYY-MM-DD como data LOCAL (o parse antigo usava
+        // UTC para ISO e local para DD/MM, invertendo a ordem de datas iguais).
         const result = data as (EventoEdicao & { eventos: { nome: string } | null })[];
-        return result.sort((a, b) => parseDate(a.data_inicio) - parseDate(b.data_inicio));
+        return result.sort((a, b) => parseDataFlexivel(a.data_inicio) - parseDataFlexivel(b.data_inicio));
     },
 
     async getAllEdicoes() {

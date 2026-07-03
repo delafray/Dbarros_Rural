@@ -5,6 +5,8 @@ import { itensOpcionaisService } from '../services/itensOpcionaisService';
 import { clientesService } from '../services/clientesService';
 import { EventoEdicao } from '../services/eventosService';
 import { formatBRLNumber } from '../utils/formatCurrency';
+import { getCategoriaOfStandNr, calculateRowTotals, EstandeCalc, OpcionalCalc } from '../utils/planilhaCalc';
+import { addMonetario } from '../utils/money';
 
 // Tipagem baseada no que o Dashboard usa
 export type EdicaoComDocsPDF = EventoEdicao & {
@@ -42,39 +44,18 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
             const opcionaisAtivos = allOpcionais.filter(item => config.opcionais_ativos?.includes(item.id));
             const precosEdicao = (config.opcionais_precos as Record<string, number>) || {};
 
-            const getCategoria = (nr: string) => {
-                const nrLow = nr.toLowerCase();
-                const sorted2 = [...categorias].sort((a, b) =>
-                    (b.prefix || b.tag || '').length - (a.prefix || a.tag || '').length
-                );
-                return sorted2.find(c => {
-                    const id = (c.prefix || c.tag || '').toLowerCase().trim();
-                    return id && (nrLow === id || nrLow.startsWith(id + ' '));
-                });
-            };
+            // Delegado para utils/planilhaCalc.ts — a versão duplicada que existia
+            // aqui NÃO calculava categorias área-livre (PDF saía com preço zerado)
+            const getCategoria = (nr: string) => getCategoriaOfStandNr(nr, categorias) as CategoriaSetup | undefined;
 
             const calcRow = (row: { stand_nr: string; tipo_venda: string; opcionais_selecionados: unknown; desconto: number | null }) => {
                 const cat = getCategoria(row.stand_nr);
-                const tipo = row.tipo_venda;
-                let precoBase = 0;
-                if (cat && !tipo.includes('*')) {
-                    if (tipo === 'STAND PADRÃO') precoBase = cat.standBase || 0;
-                    else {
-                        const m = tipo.match(/COMBO (\d+)/);
-                        if (m) precoBase = (cat.combos as number[])?.[parseInt(m[1], 10) - 1] || 0;
-                    }
-                }
-                const sel = (row.opcionais_selecionados as Record<string, string>) || {};
-                let totalOpts = 0;
-                opcionaisAtivos.forEach(opt => {
-                    if (sel[opt.nome] === 'x') {
-                        const p = precosEdicao[opt.id] !== undefined ? Number(precosEdicao[opt.id]) : Number(opt.preco_base);
-                        totalOpts += p;
-                    }
-                });
-                const subTotal = precoBase + totalOpts;
-                const desconto = Number(row.desconto) || 0;
-                return { subTotal, desconto, totalVenda: subTotal - desconto };
+                return calculateRowTotals(
+                    row as unknown as EstandeCalc,
+                    cat,
+                    opcionaisAtivos as unknown as OpcionalCalc[],
+                    precosEdicao,
+                );
             };
 
             setPdfProgress(40);
@@ -122,9 +103,10 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
             let vendasCount = 0;
             sorted.forEach(row => {
                 const c = calcRow(row);
-                totals.subTotal += c.subTotal;
-                totals.desconto += c.desconto;
-                totals.totalVenda += c.totalVenda;
+                // Soma em centavos — floats acumulados geravam drift nos totais do PDF
+                totals.subTotal = addMonetario(totals.subTotal, c.subTotal);
+                totals.desconto = addMonetario(totals.desconto, c.desconto);
+                totals.totalVenda = addMonetario(totals.totalVenda, c.totalVenda);
                 const isSt = (getCategoria(row.stand_nr) as any)?.is_stand !== false;
                 if (row.tipo_venda !== 'DISPONÍVEL' && isSt) vendasCount++;
                 const base = row.tipo_venda.replace('*', '').trim();
