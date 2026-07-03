@@ -2,6 +2,25 @@
 
 ---
 
+## ✅ RODADA "HARDENING E TESTES" (02/07, madrugada) — concluída e deployada
+
+> Branch `hardening-e-testes`, validada por 3 agentes adversariais paralelos (nenhuma regressão),
+> 73 testes passando, deploy verificado no bundle publicado.
+
+**Feito:** N1 (datas montagem/desmontagem — `buildDayTimestamp` testado), N2 (autor no histórico),
+N3+extra (DialogContext: timer cancelado E promise do auto-dismiss agora resolve — `await alert` não trava mais),
+N8 (senha mín. 8), N12/N13 (erros de consulta), N14 (modern-screenshot removido, era só comentário),
+N15 (handleServiceError deletado), N16 (confirm() nativo → appDialog), N17 (cancelamento em
+useConfigData/useControleData/usePhotosData/usePlanilhaStatusModal), N18 (Tags.tsx), N19+N21.
+**Núcleo:** lógica de preços extraída para `utils/planilhaCalc.ts` (funções puras, 31 testes) — de brinde
+corrigiu o PDF do dashboard que saía com **preço ZERADO para área livre** (cópia divergente da lógica);
+`utils/money.ts` (soma em centavos, sem drift); `utils/dateUtils.ts` (date-only = local).
+**Performance:** React.lazy em todas as rotas exceto Login/Dashboard (bundle inicial 671→115 KB),
+precache PWA 4,1→1,9 MB, modulePreload filtrado, LazyErrorBoundary (deploy no meio da sessão ≠ tela branca).
+**Testes:** 23 → **73** (`npm test`). Preparado p/ refatoração: pages/hooks agora delegam para utils puros.
+
+---
+
 ## 🆕 TESTE CEGO #2 (02/07, à noite) — achados NOVOS, ainda não corrigidos
 
 > Segunda rodada de 6 agentes, avaliação cega (sem acesso a este arquivo). Verifiquei
@@ -11,10 +30,10 @@
 
 | # | Achado | Onde | Confirmação |
 |---|---|---|---|
-| N1 | **Datas de montagem/desmontagem malformadas**: `` `${value} T10:00:00Z` `` tem ESPAÇO antes do T → `Invalid Date`. Os 4 campos de montagem/desmontagem de edições provavelmente nunca salvam corretamente. | `pages/CadastroEvento.tsx:583,594,605,616` | ✅ verificado |
-| N2 | **Histórico de adiar/reagendar atendimento sempre sem autor**: `user_id: null` hardcoded (o `user` do useAuth está disponível no componente). Todo reagendamento aparece como "Sistema". | `components/ResolucaoAtendimentoModal.tsx:59` | ✅ verificado |
-| N3 | **Auto-dismiss do diálogo pode fechar o diálogo errado**: o `setTimeout` de fechar alerta não é cancelado; se o usuário fechar o alerta e abrir um confirm logo em seguida, o timer antigo fecha o confirm sozinho. | `context/DialogContext.tsx:41` | ✅ verificado |
-| N4 | **Edge function de biometria (passkey) com 3 falhas**: challenge do WebAuthn aceito do próprio cliente (anula anti-replay), endpoint `login-options` sem auth expõe userId por email, CORS `*` com service_role. Corrigir exige redesign + deploy via CLI (token). | `supabase/functions/passkey-auth/index.ts:84,124,148,12` | código confere; exige CLI |
+| N1 | ~~Datas de montagem/desmontagem malformadas~~ | ✅ CORRIGIDO 02/07 | `buildDayTimestamp` testado |
+| N2 | ~~Histórico sempre sem autor~~ | ✅ CORRIGIDO 02/07 | `user?.id` gravado |
+| N3 | ~~Auto-dismiss fecha diálogo errado~~ | ✅ CORRIGIDO 02/07 | + promise resolvida (await não trava) |
+| N4 | **Edge function de biometria (passkey) com 3 falhas**: challenge do WebAuthn aceito do próprio cliente (anula anti-replay), endpoint `login-options` sem auth expõe userId por email, CORS `*` com service_role. Corrigir exige redesign + deploy via CLI (token). | `supabase/functions/passkey-auth/index.ts:84,124,148,12` | ⏳ código confere; exige CLI |
 
 ### 🟠 Novos — segurança/dados (precisam de migration ou verificação no Studio)
 
