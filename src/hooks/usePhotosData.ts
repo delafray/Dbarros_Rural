@@ -21,7 +21,7 @@ export function usePhotosData({ userId, onlyMine }: UsePhotosDataParams) {
   const [pdfLimit, setPdfLimit] = useState<number>(30);
   const [displayCount, setDisplayCount] = useState(PHOTOS_PER_PAGE);
 
-  const fetchData = async () => {
+  const fetchData = async (isCancelled: () => boolean = () => false) => {
     setLoading(true);
     try {
       if (!userId) {
@@ -38,6 +38,10 @@ export function usePhotosData({ userId, onlyMine }: UsePhotosDataParams) {
         api.getSystemConfig('pdf_limit')
       ]);
 
+      // Descarta resposta antiga se userId/onlyMine mudou durante o fetch —
+      // sem isso a resposta mais lenta (stale) vencia e mostrava fotos erradas
+      if (isCancelled()) return;
+
       if (configLimit) {
         const parsedLimit = parseInt(configLimit);
         if (!isNaN(parsedLimit)) setPdfLimit(parsedLimit);
@@ -51,12 +55,14 @@ export function usePhotosData({ userId, onlyMine }: UsePhotosDataParams) {
     } catch (err) {
       console.error("Critical error in fetchData:", err);
     } finally {
-      setLoading(false);
+      if (!isCancelled()) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    let cancelled = false;
+    fetchData(() => cancelled);
+    return () => { cancelled = true; };
   }, [userId, onlyMine]);
 
   // Reset pagination count when filter changes (caller should pass filteredIds)

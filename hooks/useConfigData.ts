@@ -49,10 +49,14 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
   const [imagensConfig, setImagensConfig] = useState<ImagemConfig[]>([]);
 
   useEffect(() => {
-    if (edicaoId) loadData();
+    if (!edicaoId) return;
+    // Cancelamento: descarta resultados se o componente desmontar ou a edição mudar
+    let cancelled = false;
+    loadData(() => cancelled);
+    return () => { cancelled = true; };
   }, [edicaoId]);
 
-  const loadData = async () => {
+  const loadData = async (isCancelled: () => boolean = () => false) => {
     try {
       setLoading(true);
       setError(null);
@@ -61,6 +65,8 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
         itensOpcionaisService.getItens(),
         imagensService.getConfig(edicaoId!),
       ]);
+      if (isCancelled()) return;
+
       if (config) {
         setConfigId(config.id);
         const storedCats = (config.categorias_config as unknown as CategoriaSetup[]) || [];
@@ -115,10 +121,13 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
         mappedCats.forEach((cat) => { counts[cat.tag] = cat.count; });
         setSavedCounts(counts);
 
-        const { data: estandes } = await supabase
+        const { data: estandes, error: estandesError } = await supabase
           .from("planilha_vendas_estandes")
           .select("id, stand_nr, cliente_id, cliente_nome_livre, tipo_venda, opcionais_selecionados, area_m2, total_override")
           .eq("config_id", config.id);
+        // Falha aqui deixaria planilhaExiste=false com dados no banco — bloquear
+        if (estandesError) throw estandesError;
+        if (isCancelled()) return;
         if (estandes && estandes.length > 0) {
           setPlanilhaExiste(true);
           const standPrefixes = new Set(
@@ -159,9 +168,11 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
       console.error(err);
       // Bloquear a tela em erro é essencial aqui: sem a config carregada o form
       // mostra categorias padrão e um save criaria uma configuração duplicada.
-      setError("Não foi possível carregar a configuração. Verifique a conexão e recarregue a página.");
+      if (!isCancelled()) {
+        setError("Não foi possível carregar a configuração. Verifique a conexão e recarregue a página.");
+      }
     } finally {
-      setLoading(false);
+      if (!isCancelled()) setLoading(false);
     }
   };
 

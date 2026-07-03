@@ -56,11 +56,15 @@ export const edicaoDocsService = {
     async remove(edicaoId: string, tipo: DocTipo): Promise<void> {
         const column = tipo === 'proposta_comercial' ? 'proposta_comercial_path' : 'planta_baixa_path';
 
-        const { data: row } = await supabase
+        const { data: row, error: selectError } = await supabase
             .from('eventos_edicoes')
             .select(column)
             .eq('id', edicaoId)
             .single();
+
+        // Sem esta checagem, falha na consulta zerava a referência no banco
+        // deixando o arquivo órfão no Storage
+        if (selectError) throw new Error(`Erro ao consultar documento atual: ${selectError.message}`);
 
         const currentPath = (row as any)?.[column] as string | null;
         if (currentPath) {

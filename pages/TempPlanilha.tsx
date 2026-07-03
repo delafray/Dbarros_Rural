@@ -18,6 +18,7 @@ import { usePlanilhaRealtime } from "../hooks/usePlanilhaRealtime";
 import { usePlanilhaEditing } from "../hooks/usePlanilhaEditing";
 import { usePlanilhaStatusModal } from "../hooks/usePlanilhaStatusModal";
 import { formatBRL } from "../utils/formatCurrency";
+import { addMonetario } from "../utils/money";
 
 const naturalSort = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
@@ -32,7 +33,7 @@ const PlanilhaVendas: React.FC = () => {
   const appDialog = useAppDialog();
 
   // ─── Data ───────────────────────────────────────────────────
-  const data = usePlanilhaData(edicaoId, navigate);
+  const data = usePlanilhaData(edicaoId, navigate, appDialog);
   const {
     loading, error, config, edicao, rows, setRows, clientes, clienteMap, imagensConfig,
     statusMap, setStatusMap, recebimentosMap, setRecebimentosMap,
@@ -122,16 +123,18 @@ const PlanilhaVendas: React.FC = () => {
     return { comboXCounts, comboStarCounts, optCounts };
   }, [rows, comboLabels, opcionaisAtivos, getCategoriaOfRow]);
 
+  // Soma em centavos (addMonetario) — acumular floats direto gera drift de
+  // centavos nos totais da planilha (0.1+0.2 ≠ 0.3 em IEEE-754)
   const totals = useMemo(
     () =>
       rows.reduce(
         (acc, row) => {
           const c = calculateRow(row);
-          acc.subTotal += c.subTotal;
-          acc.desconto += c.desconto > 0 ? c.desconto : 0;
-          acc.totalVenda += c.totalVenda;
-          acc.valorPago += c.valorPago;
-          acc.pendente += c.pendente;
+          acc.subTotal = addMonetario(acc.subTotal, c.subTotal);
+          acc.desconto = addMonetario(acc.desconto, c.desconto > 0 ? c.desconto : 0);
+          acc.totalVenda = addMonetario(acc.totalVenda, c.totalVenda);
+          acc.valorPago = addMonetario(acc.valorPago, c.valorPago);
+          acc.pendente = addMonetario(acc.pendente, c.pendente);
           return acc;
         },
         { subTotal: 0, desconto: 0, totalVenda: 0, valorPago: 0, pendente: 0 },

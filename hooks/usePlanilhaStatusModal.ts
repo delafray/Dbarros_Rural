@@ -24,7 +24,10 @@ interface UsePlanilhaStatusModalParams {
   setStatusMap: React.Dispatch<React.SetStateAction<Record<string, StandImagemStatus>>>;
   setRecebimentosMap: React.Dispatch<React.SetStateAction<RecebimentosMap>>;
   getImagensDoStand: (row: PlanilhaEstande) => ImagemConfig[];
-  appDialog: { alert: (opts: { title: string; message: string; type: string }) => Promise<void> };
+  appDialog: {
+    alert: (opts: { title: string; message: string; type: string }) => Promise<void>;
+    confirm: (opts: { title: string; message: string; confirmText?: string; type?: string }) => Promise<boolean>;
+  };
 }
 
 export function usePlanilhaStatusModal({
@@ -46,11 +49,15 @@ export function usePlanilhaStatusModal({
 
   useEffect(() => {
     if (!statusModal?.rowId) { setModalRecebimentos({}); return; }
+    // Cancelamento: trocar rápido de estande descartava a resposta antiga por
+    // cima da nova — o modal podia exibir (e salvar) dados do estande errado
+    let cancelled = false;
     setModalRecebLoading(true);
     imagensService.getRecebimentosByEstande(statusModal.rowId)
-      .then(setModalRecebimentos)
+      .then((data) => { if (!cancelled) setModalRecebimentos(data); })
       .catch(console.error)
-      .finally(() => setModalRecebLoading(false));
+      .finally(() => { if (!cancelled) setModalRecebLoading(false); });
+    return () => { cancelled = true; };
   }, [statusModal?.rowId]);
 
   const handleToggleRecebimento = (configId: string) => {
@@ -78,9 +85,13 @@ export function usePlanilhaStatusModal({
     // Detecta regressão de status
     let clearTimestamps: Array<'pendente_em' | 'solicitado_em' | 'completo_em'> | undefined;
     if (newLevel < currentLevel) {
-      const confirmed = confirm(
-        `Atenção: você está voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serão apagadas. Confirma?`
-      );
+      // appDialog em vez de confirm() nativo: PWA standalone no iOS suprime/trava o nativo
+      const confirmed = await appDialog.confirm({
+        title: 'Voltar Status',
+        message: `Você está voltando de "${STATUS_LABELS[existingSt.status]}" para "${STATUS_LABELS[status]}".\n\nAs datas registradas nos status superiores serão apagadas. Confirma?`,
+        confirmText: 'Confirmar',
+        type: 'warning',
+      });
       if (!confirmed) return;
       clearTimestamps = (Object.keys(STATUS_ORDER) as StandStatus[])
         .filter((s) => STATUS_ORDER[s] > newLevel)

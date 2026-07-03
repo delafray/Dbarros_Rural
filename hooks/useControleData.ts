@@ -14,6 +14,7 @@ import {
   StandImagemStatus,
 } from "../services/imagensService";
 import { atendimentosService, Atendimento } from "../services/atendimentosService";
+import { getCategoriaOfStandNr } from "../utils/planilhaCalc";
 
 export function useControleData(initialEdicaoId: string) {
   // -- Edicoes
@@ -35,9 +36,11 @@ export function useControleData(initialEdicaoId: string) {
 
   // -- Carrega edicoes ativas no mount
   useEffect(() => {
+    let mounted = true;
     eventosService
       .getActiveEdicoes()
       .then((data) => {
+        if (!mounted) return;
         setEdicoes(data);
         if (data.length > 0) {
           if (initialEdicaoId && data.find((e) => e.id === initialEdicaoId)) {
@@ -51,7 +54,11 @@ export function useControleData(initialEdicaoId: string) {
           }
         }
       })
-      .catch((err) => console.error("Erro ao carregar edicoes:", err));
+      .catch((err) => {
+        console.error("Erro ao carregar edicoes:", err);
+        if (mounted) setError("Não foi possível carregar as edições. Verifique a conexão.");
+      });
+    return () => { mounted = false; };
   }, []);
 
   // -- Carrega dados da edicao selecionada
@@ -111,20 +118,10 @@ export function useControleData(initialEdicaoId: string) {
     [config],
   );
 
+  // Delegado para utils/planilhaCalc.ts (função pura testada)
   const getCategoriaOfRow = useCallback(
-    (row: PlanilhaEstande): CategoriaSetup | undefined => {
-      const nr = row.stand_nr.toLowerCase();
-      const sorted = [...categorias].sort((a, b) => {
-        const idA = (a.prefix || a.tag || "").length;
-        const idB = (b.prefix || b.tag || "").length;
-        return idB - idA;
-      });
-      return sorted.find((c) => {
-        const id = (c.prefix || c.tag || "").toLowerCase().trim();
-        if (!id) return false;
-        return nr === id || nr.startsWith(`${id} `);
-      });
-    },
+    (row: PlanilhaEstande): CategoriaSetup | undefined =>
+      getCategoriaOfStandNr(row.stand_nr, categorias) as CategoriaSetup | undefined,
     [categorias],
   );
 

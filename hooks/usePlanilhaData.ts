@@ -18,8 +18,19 @@ import {
   RecebimentosMap,
   StandImagemStatus,
 } from "../services/imagensService";
+import {
+  getCategoriaOfStandNr,
+  getPrecoForCombo as calcPrecoForCombo,
+  calculateRowTotals,
+  EstandeCalc,
+  OpcionalCalc,
+} from "../utils/planilhaCalc";
 
-export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: string) => void) {
+export function usePlanilhaData(
+  edicaoId: string | undefined,
+  navigate: (path: string) => void,
+  appDialog?: { confirm: (opts: { title: string; message: string; confirmText?: string; type?: string }) => Promise<boolean> },
+) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<PlanilhaConfig | null>(null);
@@ -55,7 +66,16 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
       if (isCancelled()) return;
 
       if (!configData) {
-        if (confirm("Nenhuma configuração encontrada. Deseja configurar agora?")) {
+        // appDialog em vez de confirm() nativo (PWA standalone); mantém fallback
+        const wantsSetup = appDialog
+          ? await appDialog.confirm({
+              title: 'Configuração não encontrada',
+              message: 'Nenhuma configuração encontrada. Deseja configurar agora?',
+              confirmText: 'Configurar',
+              type: 'info',
+            })
+          : confirm("Nenhuma configuração encontrada. Deseja configurar agora?");
+        if (wantsSetup) {
           navigate(`/configuracao-vendas/${edicaoId}`);
         }
         return;
@@ -178,93 +198,31 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
     [imagensConfig],
   );
 
-  // Pre-sort categorias by prefix length (longest first) — once per change, not per row
-  const sortedCategorias = useMemo(
-    () =>
-      [...categorias].sort((a, b) => {
-        const idA = (a.prefix || a.tag || "").length;
-        const idB = (b.prefix || b.tag || "").length;
-        return idB - idA;
-      }),
+  // Lógica de precificação extraída para utils/planilhaCalc.ts (funções puras,
+  // testadas em utils/planilhaCalc.test.ts). Os callbacks abaixo só delegam.
+  const getCategoriaOfRow = useCallback(
+    (row: PlanilhaEstande): CategoriaSetup | undefined =>
+      getCategoriaOfStandNr(row.stand_nr, categorias) as CategoriaSetup | undefined,
     [categorias],
   );
 
-  const getCategoriaOfRow = useCallback(
-    (row: PlanilhaEstande): CategoriaSetup | undefined => {
-      const nr = row.stand_nr.toLowerCase();
-      return sortedCategorias.find((c) => {
-        const id = (c.prefix || c.tag || "").toLowerCase().trim();
-        if (!id) return false;
-        return nr === id || nr.startsWith(`${id} `);
-      });
-    },
-    [sortedCategorias],
-  );
-
   const getPrecoForCombo = useCallback(
-    (cat: CategoriaSetup | undefined, row: PlanilhaEstande, tipoVenda: string): number => {
-      if (!cat || tipoVenda.includes("*")) return 0;
-      const tipo = tipoVenda.replace("*", "").trim();
-
-      if (cat.tipo_precificacao === 'area_livre') {
-        if (tipo === "STAND PADRÃO") {
-          if (row.total_override != null) return Number(row.total_override);
-          if (row.area_m2 != null) {
-            const pm2 = row.preco_m2_override ?? cat.preco_m2 ?? 0;
-            return Number(row.area_m2) * Number(pm2);
-          }
-          return 0;
-        }
-        const match = tipo.match(/COMBO (\d+)/);
-        if (match) {
-          const comboOverrides = (row.combo_overrides as Record<string, number>) || {};
-          if (comboOverrides[tipo] != null) return comboOverrides[tipo];
-          const idx = parseInt(match[1], 10) - 1;
-          const base = row.total_override ??
-            (row.area_m2 != null ? Number(row.area_m2) * Number(row.preco_m2_override ?? cat.preco_m2 ?? 0) : 0);
-          const adicional = Array.isArray(cat.combos_adicionais) ? (cat.combos_adicionais[idx] || 0) : 0;
-          return base + adicional;
-        }
-        return 0;
-      }
-
-      if (tipo === "STAND PADRÃO") return cat.standBase || 0;
-      const match = tipo.match(/COMBO (\d+)/);
-      if (match) {
-        const idx = parseInt(match[1], 10) - 1;
-        if (Array.isArray(cat.combos)) return (cat.combos as number[])[idx] || 0;
-      }
-      return 0;
-    },
+    (cat: CategoriaSetup | undefined, row: PlanilhaEstande, tipoVenda: string): number =>
+      calcPrecoForCombo(cat, row as unknown as EstandeCalc, tipoVenda),
     [],
   );
 
   const calculateRow = useCallback(
     (row: PlanilhaEstande) => {
       const cat = getCategoriaOfRow(row);
-      const precoBase = getPrecoForCombo(cat, row, row.tipo_venda);
-
-      const selecoes = (row.opcionais_selecionados as Record<string, string>) || {};
-      let totalOpcionais = 0;
-      opcionaisAtivos.forEach((opt) => {
-        if (selecoes[opt.nome] === "x") {
-          const preco =
-            precosEdicao[opt.id] !== undefined
-              ? Number(precosEdicao[opt.id])
-              : Number(opt.preco_base);
-          totalOpcionais += preco;
-        }
-      });
-
-      const subTotal = precoBase + totalOpcionais;
-      const desconto = Number(row.desconto) || 0;
-      const totalVenda = subTotal - desconto;
-      const valorPago = Number(row.valor_pago) || 0;
-      const pendente = totalVenda - valorPago;
-
-      return { precoBase, totalOpcionais, subTotal, desconto, totalVenda, valorPago, pendente };
+      return calculateRowTotals(
+        row as unknown as EstandeCalc,
+        cat,
+        opcionaisAtivos as unknown as OpcionalCalc[],
+        precosEdicao,
+      );
     },
-    [getCategoriaOfRow, getPrecoForCombo, opcionaisAtivos, precosEdicao],
+    [getCategoriaOfRow, opcionaisAtivos, precosEdicao],
   );
 
   const getComputedStatus = useCallback(
