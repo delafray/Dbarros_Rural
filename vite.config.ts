@@ -78,11 +78,6 @@ export default defineConfig(() => {
               handler: 'CacheFirst',
               options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
             },
-            {
-              urlPattern: /^https:\/\/cdn\.tailwindcss\.com\/.*/i,
-              handler: 'StaleWhileRevalidate',
-              options: { cacheName: 'tailwind-cache' },
-            },
           ],
         },
       }),
