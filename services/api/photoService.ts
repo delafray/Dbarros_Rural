@@ -230,7 +230,11 @@ export const photoService = {
         const finalTagIds = data.tagIds ?? [];
 
         if (data.tagIds !== undefined) {
-            await (supabase.from('photo_tags' as any) as any).delete().eq('photo_id', id);
+            // Falha no delete precisa abortar: inserir por cima duplicaria as tags
+            const { error: deleteTagsError } = await (supabase.from('photo_tags' as any) as any)
+                .delete()
+                .eq('photo_id', id);
+            if (deleteTagsError) throw new Error(`Failed to clear photo tags: ${deleteTagsError.message}`);
 
             if (finalTagIds.length > 0) {
                 const photoTagsData = finalTagIds.map(tagId => ({ photo_id: id, tag_id: tagId }));

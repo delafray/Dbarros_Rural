@@ -1,6 +1,6 @@
 import path from 'path';
 import { execSync } from 'child_process';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -34,8 +34,7 @@ function getGitCommits(): { hash: string; date: string; author: string; subject:
   }
 }
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
   const gitCommits = getGitCommits();
   return {
     server: {
@@ -82,8 +81,8 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      // GEMINI_API_KEY removido do define: nenhum código usa e injetar chave de
+      // API no bundle do cliente a exporia publicamente.
       '__GIT_COMMITS__': JSON.stringify(gitCommits),
     },
     resolve: {
