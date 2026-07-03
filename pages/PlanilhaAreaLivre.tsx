@@ -12,10 +12,10 @@ import { clientesService, ClienteComContatos } from "../services/clientesService
 import { supabase } from "../services/supabaseClient";
 import CurrencyField from "../components/CurrencyField";
 import { useDirtyState } from "../hooks/useDirtyState";
+import { formatBRL } from "../utils/formatCurrency";
 
 // ── Helpers ──────────────────────────────────────────────────
-const formatMoney = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const formatMoney = formatBRL;
 
 // ── Componente de campo numérico (m²) ────────────────────────
 const M2Field: React.FC<{

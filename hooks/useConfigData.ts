@@ -28,6 +28,7 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
   const [numCombos, setNumCombos] = useState(3);
   const [comboNames, setComboNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
   const [savedCounts, setSavedCounts] = useState<Record<string, number>>({});
@@ -54,6 +55,7 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [config, allOpcionais, imagens] = await Promise.all([
         planilhaVendasService.getConfig(edicaoId!),
         itensOpcionaisService.getItens(),
@@ -155,6 +157,9 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
       setImagensConfig(imagens || []);
     } catch (err) {
       console.error(err);
+      // Bloquear a tela em erro é essencial aqui: sem a config carregada o form
+      // mostra categorias padrão e um save criaria uma configuração duplicada.
+      setError("Não foi possível carregar a configuração. Verifique a conexão e recarregue a página.");
     } finally {
       setLoading(false);
     }
@@ -243,7 +248,7 @@ export function useConfigData(edicaoId: string | undefined, markDirty: () => voi
     .filter(Boolean) as ItemOpcional[];
 
   return {
-    categorias, setCategorias, numCombos, comboNames, loading, saving, setSaving,
+    categorias, setCategorias, numCombos, comboNames, loading, error, saving, setSaving,
     configId, setConfigId, savedCounts, setSavedCounts, planilhaExiste, setPlanilhaExiste,
     totalStands, setTotalStands, savedTags, setSavedTags, alCategoriesWithData,
     opcionaisDisponiveis, opcionaisSelecionados, setOpcionaisSelecionados,

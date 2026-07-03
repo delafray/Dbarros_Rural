@@ -76,9 +76,12 @@ function HistoricoPopup({ atendimento, onClose, onSaved, isVisitor = false }: Hi
     const nomeExibicao = atendimentosService.getNomeExibicao(atendimento);
 
     useEffect(() => {
+        let mounted = true;
         atendimentosService.getHistorico(atendimento.id)
-            .then(setHistorico)
-            .finally(() => setLoading(false));
+            .then((data) => { if (mounted) setHistorico(data); })
+            .catch((err) => console.error('Erro ao carregar histórico:', err))
+            .finally(() => { if (mounted) setLoading(false); });
+        return () => { mounted = false; };
     }, [atendimento.id]);
 
     const handleSave = async () => {

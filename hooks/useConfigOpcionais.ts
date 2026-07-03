@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ItemOpcional } from "../services/itensOpcionaisService";
 import { supabase } from "../services/supabaseClient";
+import { formatBRLNumber } from "../utils/formatCurrency";
 
 interface UseConfigOpcionaisParams {
   configId: string | null;
@@ -75,7 +76,7 @@ export function useConfigOpcionais({
     const item = opcionaisDisponiveis.find((o) => o.id === id);
     const nomeDisplay = opcionaisNomes[id] || item?.nome || id;
     const novoPreco = opcionaisPrecos[id] ?? Number(item?.preco_base ?? 0);
-    const precoFmt = novoPreco.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+    const precoFmt = formatBRLNumber(novoPreco);
 
     if (opcionaisUsados.has(nomeDisplay)) {
       const ok = await appDialog.confirm({

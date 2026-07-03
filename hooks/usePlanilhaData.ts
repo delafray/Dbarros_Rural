@@ -21,6 +21,7 @@ import {
 
 export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: string) => void) {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<PlanilhaConfig | null>(null);
   const [edicao, setEdicao] = useState<
     (EventoEdicao & { eventos: { nome: string } | null }) | null
@@ -34,16 +35,24 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
   const [recebimentosMap, setRecebimentosMap] = useState<RecebimentosMap>({});
 
   useEffect(() => {
-    if (edicaoId) loadData();
+    if (!edicaoId) return;
+    // Cancelamento: se o usuário trocar de edição com o fetch em voo, os
+    // resultados da edição anterior são descartados (evita misturar dados).
+    let cancelled = false;
+    loadData(() => cancelled);
+    return () => { cancelled = true; };
   }, [edicaoId]);
 
-  const loadData = async () => {
+  const loadData = async (isCancelled: () => boolean = () => false) => {
     try {
       setLoading(true);
+      setError(null);
       const [configData, edicaoData] = await Promise.all([
         planilhaVendasService.getConfig(edicaoId!),
         eventosService.getEdicaoById(edicaoId!),
       ]);
+
+      if (isCancelled()) return;
 
       if (!configData) {
         if (confirm("Nenhuma configuração encontrada. Deseja configurar agora?")) {
@@ -63,6 +72,8 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
           atendimentosService.getByEdicao(edicaoId!),
         ]);
 
+      if (isCancelled()) return;
+
       setConfig(configData);
       setEdicao(edicaoData);
       setRows(estandes);
@@ -74,8 +85,11 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
       setRecebimentosMap(recData || {});
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
+      if (!isCancelled()) {
+        setError("Não foi possível carregar a planilha. Verifique a conexão e tente novamente.");
+      }
     } finally {
-      setLoading(false);
+      if (!isCancelled()) setLoading(false);
     }
   };
 
@@ -285,6 +299,7 @@ export function usePlanilhaData(edicaoId: string | undefined, navigate: (path: s
 
   return {
     loading,
+    error,
     config,
     edicao,
     rows,

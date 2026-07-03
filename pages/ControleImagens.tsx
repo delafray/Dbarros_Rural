@@ -106,6 +106,16 @@ const ControleImagens: React.FC = () => {
       <div className="overflow-x-auto bg-white shadow-xl border border-slate-200 rounded-lg">
         {data.loading ? (
           <div className="p-8 text-center text-slate-400 text-sm">Carregando dados...</div>
+        ) : data.error ? (
+          <div className="p-8 text-center text-sm">
+            <p className="text-red-600 font-semibold mb-3">{data.error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800"
+            >
+              Recarregar
+            </button>
+          </div>
         ) : !data.selectedEdicaoId ? (
           <div className="p-8 text-center text-slate-400 text-sm">Selecione uma edicao acima.</div>
         ) : !data.config ? (

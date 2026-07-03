@@ -31,6 +31,7 @@ export function useControleData(initialEdicaoId: string) {
   const [recebimentos, setRecebimentos] = useState<RecebimentosMap>({});
   const [statusMap, setStatusMap] = useState<Record<string, StandImagemStatus>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // -- Carrega edicoes ativas no mount
   useEffect(() => {
@@ -56,11 +57,15 @@ export function useControleData(initialEdicaoId: string) {
   // -- Carrega dados da edicao selecionada
   useEffect(() => {
     if (!selectedEdicaoId) return;
-    loadEdicao(selectedEdicaoId);
+    // Cancelamento: trocar de edição com fetch em voo descarta o resultado antigo
+    let cancelled = false;
+    loadEdicao(selectedEdicaoId, () => cancelled);
+    return () => { cancelled = true; };
   }, [selectedEdicaoId]);
 
-  const loadEdicao = async (edicaoId: string) => {
+  const loadEdicao = async (edicaoId: string, isCancelled: () => boolean = () => false) => {
     setLoading(true);
+    setError(null);
     setEstandes([]);
     setRecebimentos({});
     setStatusMap({});
@@ -71,6 +76,8 @@ export function useControleData(initialEdicaoId: string) {
         imagensService.getConfig(edicaoId),
         atendimentosService.getByEdicao(edicaoId),
       ]);
+
+      if (isCancelled()) return;
 
       setConfig(configData);
       setClientes(listaClientes);
@@ -83,14 +90,18 @@ export function useControleData(initialEdicaoId: string) {
           imagensService.getRecebimentos(configData.id),
           imagensService.getStatusByConfig(configData.id),
         ]);
+        if (isCancelled()) return;
         setEstandes(estandesData);
         setRecebimentos(recData);
         setStatusMap(statusData);
       }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
+      if (!isCancelled()) {
+        setError("Não foi possível carregar os dados da edição. Verifique a conexão e tente novamente.");
+      }
     } finally {
-      setLoading(false);
+      if (!isCancelled()) setLoading(false);
     }
   };
 
@@ -209,6 +220,7 @@ export function useControleData(initialEdicaoId: string) {
     statusMap,
     setStatusMap,
     loading,
+    error,
     categorias,
     getCategoriaOfRow,
     isApplicable,
