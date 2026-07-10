@@ -30,6 +30,8 @@ export interface FontesA3 {
   item: number;
   descricao: number;
   preco: number;
+  /** Afastamento extra do topo das páginas, em mm (0 = padrão) */
+  topoMm: number;
 }
 
 export const FONTES_A3_PADRAO: FontesA3 = {
@@ -39,6 +41,7 @@ export const FONTES_A3_PADRAO: FontesA3 = {
   item: 12.5,
   descricao: 9.5,
   preco: 13,
+  topoMm: 0,
 };
 
 export function resolveFontes(f?: Partial<FontesA3> | null): FontesA3 {
@@ -46,7 +49,11 @@ export function resolveFontes(f?: Partial<FontesA3> | null): FontesA3 {
   const out = { ...FONTES_A3_PADRAO };
   (Object.keys(FONTES_A3_PADRAO) as (keyof FontesA3)[]).forEach((k) => {
     const v = f[k];
-    if (typeof v === 'number' && v > 0) out[k] = v;
+    if (typeof v === 'number' && v >= 0) out[k] = v;
+  });
+  // Fontes precisam ser positivas (topoMm pode ser 0)
+  (['empresa', 'titulo', 'categoria', 'item', 'descricao', 'preco'] as const).forEach((k) => {
+    if (out[k] <= 0) out[k] = FONTES_A3_PADRAO[k];
   });
   return out;
 }

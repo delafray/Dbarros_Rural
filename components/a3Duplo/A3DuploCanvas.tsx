@@ -217,6 +217,11 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
 
   type RefBucket = { blockEl: HTMLDivElement | null; groupEls: (HTMLDivElement | null)[] };
   const measurementRefs = useRef<Record<number, { full: RefBucket[]; compact: RefBucket[] }>>({});
+  // Últimas medições — permite re-distribuir (ex: afastamento do topo) sem re-medir
+  const lastMeasurements = useRef<MeasurementMatrix | null>(null);
+
+  const topoMm = fontes.topoMm ?? 0;
+  const pageContentH = CONTENT_H_PX - topoMm * MM_TO_PX;
 
   // Re-mede tudo e re-distribui (usado quando as fontes mudam)
   const remeasure = () => {
@@ -311,10 +316,19 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
       });
     }
 
-    const result = calcularLayout(menus, measurements, CONTENT_H_PX);
+    lastMeasurements.current = measurements;
+    const result = calcularLayout(menus, measurements, pageContentH);
     setLayout(result);
     setPhase('ready');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, menus, fontes]);
+
+  // Afastamento do topo só muda a altura útil — re-distribui sem re-medir
+  useEffect(() => {
+    if (phase !== 'ready' || !lastMeasurements.current) return;
+    setLayout(calcularLayout(menus, lastMeasurements.current, pageContentH));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topoMm]);
 
   const handlePrint = () => window.print();
 
@@ -520,6 +534,31 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
                 className="w-full accent-indigo-600"
               />
             </div>
+
+            {/* Afastar do topo — empurra o conteúdo p/ baixo p/ centralizar melhor */}
+            <div className="border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Afastar do topo</span>
+                <span className={`text-xs font-mono ${topoMm > 0 ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
+                  {topoMm} mm
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={60}
+                step={1}
+                value={topoMm}
+                onChange={(e) => {
+                  setFontes((prev) => ({ ...prev, topoMm: Number(e.target.value) }));
+                  setFontesSalvas(false);
+                }}
+                className="w-full accent-indigo-600"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Empurra o conteúdo para baixo (0 = padrão). Salva junto com as fontes.
+              </p>
+            </div>
           </div>
 
           {/* ── Páginas lado a lado ─────────────────────────────────────── */}
@@ -553,6 +592,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
                             }
                           : {}),
                         padding: `${PAGE_PAD_MM}mm`,
+                        paddingTop: `${PAGE_PAD_MM + topoMm}mm`,
                         margin: '0 auto',
                         boxSizing: 'border-box',
                         display: 'flex',
