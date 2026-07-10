@@ -8,6 +8,8 @@ export interface A3DuploMenuData {
   titulo?: string;
   empresa: string;
   itens: CardapioGroup[];
+  /** Marcado na listagem: vai fixo no início da primeira página */
+  destaque?: boolean;
 }
 
 // ─── Constantes de página A3 ────────────────────────────────────────────────
@@ -29,10 +31,10 @@ const SCALE_STEPS: number[] = (() => {
 const SPACING_STEPS = [1.0, 0.85, 0.7, 0.55];
 const SPACING_COMPACT = 0.5; // usado na medição auxiliar
 
-// Empresa fixada no início da primeira página (ignora ordem/balanceamento)
-const PINNED_EMPRESA = 'BAR';
+// Empresa fixada no início da primeira página (ignora ordem/balanceamento).
+// Vem do flag "destaque" marcado na listagem (antes era hardcoded 'BAR').
 function isPinned(menu: A3DuploMenuData): boolean {
-  return (menu.empresa || '').trim().toUpperCase() === PINNED_EMPRESA;
+  return !!menu.destaque;
 }
 
 function resolveH(full: number, compact: number, spacing: number): number {

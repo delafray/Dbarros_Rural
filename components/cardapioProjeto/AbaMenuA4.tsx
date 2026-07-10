@@ -15,6 +15,7 @@ export const AbaMenuA4: React.FC<AbaMenuA4Props> = ({ projeto }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [settingDestaqueId, setSettingDestaqueId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -24,6 +25,20 @@ export const AbaMenuA4: React.FC<AbaMenuA4Props> = ({ projeto }) => {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [projeto.id]);
+
+  // Marcação única: o destaque abre a primeira página do A3 Duplo
+  const handleDestaque = async (menu: any) => {
+    try {
+      setSettingDestaqueId(menu.id);
+      const novoId = menu.destaque ? null : menu.id;
+      await menuA4Service.definirDestaque(projeto.id, novoId);
+      setMenus((prev) => prev.map((x) => ({ ...x, destaque: x.id === novoId })));
+    } catch (e: any) {
+      setError(e.message || 'Erro ao definir destaque');
+    } finally {
+      setSettingDestaqueId(null);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -114,6 +129,7 @@ export const AbaMenuA4: React.FC<AbaMenuA4Props> = ({ projeto }) => {
                     onChange={toggleAll}
                   />
                 </th>
+                <th className="px-4 py-3 w-14 text-center" title="O marcado abre a primeira página do A3 Duplo">1º A3</th>
                 <th className="px-4 py-3">Empresa / Título</th>
                 <th className="px-4 py-3 text-center">Categorias</th>
                 <th className="px-4 py-3 text-center">Itens</th>
@@ -137,6 +153,18 @@ export const AbaMenuA4: React.FC<AbaMenuA4Props> = ({ projeto }) => {
                       checked={selectedIds.includes(menu.id)}
                       onChange={() => toggleSelect(menu.id)}
                     />
+                  </td>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => handleDestaque(menu)}
+                      disabled={settingDestaqueId !== null}
+                      className={`p-1 rounded-lg transition-colors disabled:opacity-50 ${
+                        menu.destaque ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-300 hover:text-amber-400 hover:bg-amber-50'
+                      }`}
+                      title={menu.destaque ? 'Primeiro na 1ª página do A3 Duplo (clique para desmarcar)' : 'Marcar como primeiro do A3 Duplo'}
+                    >
+                      <StarIcon className="w-5 h-5" filled={menu.destaque} />
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-bold text-slate-800">{menu.empresa}</p>
@@ -202,5 +230,10 @@ const PageIcon  = (p: any) => <svg {...p} fill="none" viewBox="0 0 24 24" stroke
 const EditIcon  = (p: any) => <svg {...p} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>;
 const TrashIcon = (p: any) => <svg {...p} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>;
 const PrintIcon = (p: any) => <svg {...p} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>;
+const StarIcon = ({ filled, ...props }: any) => (
+  <svg {...props} fill={filled ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+  </svg>
+);
 
 export default AbaMenuA4;
