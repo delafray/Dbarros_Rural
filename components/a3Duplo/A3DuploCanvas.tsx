@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import Layout from '../Layout';
 import { CardapioGroup } from '../../utils/cardapioParser';
+import { CardapioTema, resolveTema, withAlpha } from '../../utils/cardapioTema';
 
 export interface A3DuploMenuData {
   id?: string;
@@ -40,10 +41,6 @@ function resolveH(full: number, compact: number, spacing: number): number {
   return full * (1 - t) + compact * t;
 }
 
-const GOLD = '#D4AF37';
-const GOLD_BRIGHT = '#FFE066';
-const BG_DARK = '#011464';
-
 function colWidthPx(numCols: number): number {
   const gapTotal = (numCols - 1) * COL_GAP_MM * MM_TO_PX;
   return (CONTENT_W_PX - gapTotal) / numCols;
@@ -77,6 +74,7 @@ interface LayoutResult {
 
 // ─── Componente EmpresaBlock ────────────────────────────────────────────────
 interface EmpresaBlockProps {
+  t: CardapioTema;
   empresa: string;
   titulo?: string;
   grupos: CardapioGroup[];
@@ -89,7 +87,7 @@ interface EmpresaBlockProps {
 }
 
 const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
-  empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
+  t, empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
 }) => {
   return (
     <div
@@ -104,7 +102,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
         {titulo && !isContinuacao && (
           <div style={{
             fontSize: `${15 * scale}px`,
-            color: GOLD_BRIGHT,
+            color: t.corDouradoClaro,
             textTransform: 'uppercase',
             marginBottom: '2px',
             fontWeight: 'bold',
@@ -112,10 +110,10 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
         )}
         <div style={{
           fontSize: `${26 * scale}px`,
-          color: GOLD_BRIGHT,
+          color: t.corDouradoClaro,
           fontFamily: '"Arial Black", Impact, sans-serif',
           textTransform: 'uppercase',
-          textShadow: `0 0 10px ${GOLD}55`,
+          textShadow: `0 0 10px ${t.corDourado}55`,
           lineHeight: 1.05,
         }}>
           {empresa}{isContinuacao ? ' ›' : ''}
@@ -124,7 +122,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
           margin: '6px auto',
           width: '60%',
           height: '2px',
-          background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`,
+          background: `linear-gradient(90deg, transparent, ${t.corDourado}, transparent)`,
           opacity: 0.8,
         }} />
       </div>
@@ -138,7 +136,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
             <h3 style={{
               fontSize: `${15 * scale}px`,
               fontWeight: 900,
-              color: GOLD_BRIGHT,
+              color: t.corDouradoClaro,
               marginTop: 0,
               marginBottom: `${6 * scale * spacing}px`,
               textTransform: 'uppercase',
@@ -155,13 +153,13 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                 marginBottom: `${5 * scale * spacing}px`,
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <span style={{ fontSize: `${12.5 * scale}px`, color: '#FFFFFF', fontWeight: 600 }}>
+                  <span style={{ fontSize: `${12.5 * scale}px`, color: t.corTexto, fontWeight: 600 }}>
                     {item.item}
                   </span>
                   {item.descricao && (
                     <span style={{
                       fontSize: `${9.5 * scale}px`,
-                      color: '#b8cce0',
+                      color: t.corTextoSuave,
                       marginTop: '2px',
                       fontStyle: 'italic',
                       maxWidth: '85%',
@@ -173,13 +171,13 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                     flex: 1,
                     minWidth: '12px',
                     margin: '0 8px',
-                    borderBottom: '1px dotted rgba(184,204,224,0.55)',
+                    borderBottom: `1px dotted ${withAlpha(t.corTextoSuave, 0.55)}`,
                     alignSelf: 'baseline',
                   }} />
                 )}
                 <span style={{
                   fontSize: `${13 * scale}px`,
-                  color: GOLD_BRIGHT,
+                  color: t.corDouradoClaro,
                   fontWeight: 900,
                   fontFamily: '"Arial Black", Impact, sans-serif',
                   whiteSpace: 'nowrap',
@@ -390,9 +388,12 @@ function calcularLayout(
 // ─── Componente exportado ───────────────────────────────────────────────────
 export interface A3DuploCanvasProps {
   menus: A3DuploMenuData[];
+  /** Tema do projeto (só cores — impressão A3 não usa imagem de fundo) */
+  tema?: Partial<CardapioTema> | null;
 }
 
-export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
+export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null }) => {
+  const t = resolveTema(tema);
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
   const [layout, setLayout] = useState<LayoutResult | null>(null);
 
@@ -459,7 +460,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
             left: 0;
             top: 0;
             width: 100%;
-            background: ${BG_DARK} !important;
+            background: ${t.corFundo} !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -494,6 +495,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
                   {menus.map((menu, idx) => (
                     <EmpresaBlock
                       key={`m-${n}-${variant}-${idx}`}
+                      t={t}
                       empresa={menu.empresa}
                       titulo={menu.titulo}
                       grupos={menu.itens || []}
@@ -536,7 +538,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
               <span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="flex flex-col gap-12 print-area" style={{ background: BG_DARK }}>
+            <div className="flex flex-col gap-12 print-area" style={{ background: t.corFundo }}>
               {layout.paginas.map((pagina, pi) => (
                 <div
                   key={pi}
@@ -544,7 +546,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
                   style={{
                     width: `${A3_W_MM}mm`,
                     height: `${A3_H_MM}mm`,
-                    backgroundColor: BG_DARK,
+                    backgroundColor: t.corFundo,
                     padding: `${PAGE_PAD_MM}mm`,
                     margin: '0 auto',
                     boxSizing: 'border-box',
@@ -569,6 +571,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
                         return (
                           <EmpresaBlock
                             key={`${pi}-${ci}-${bi}`}
+                            t={t}
                             empresa={menu.empresa}
                             titulo={menu.titulo}
                             grupos={bloco.grupos}

@@ -27,45 +27,56 @@ import {
 
 import {
   CANVAS_W, CANVAS_H, BLEED_PX,
-  SAFE_L, SAFE_T, SAFE_W, SAFE_H, SAFE_R, SAFE_B,
-  GOLD, GOLD_BRIGHT, TEXT_WHITE, TEXT_GRAY,
+  SAFE_L, SAFE_T, SAFE_W, SAFE_H,
   FONT_REGULAR, FONT_BLACK,
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
   TWO_COL_ITEM_THRESHOLD,
   calcHeaderH, calcEmpresaFs
 } from './cardapioA4Config';
 
+import {
+  CardapioTema,
+  resolveTema,
+  withAlpha,
+  screwColors,
+} from '../../utils/cardapioTema';
+
 function useSingleColumn(totalItens: number): boolean {
   return totalItens <= TWO_COL_ITEM_THRESHOLD;
 }
 
 // ─── Screw decoration ─────────────────────────────────────────────────────────
-const Screw = ({ style }: { style: React.CSSProperties }) => (
-  <div
-    style={{
-      position: 'absolute',
-      width: SCREW_SIZE,
-      height: SCREW_SIZE,
-      borderRadius: '50%',
-      background: `radial-gradient(circle at 36% 36%, #f8e878 0%, ${GOLD} 55%, #7a5f00 100%)`,
-      boxShadow: '0 2px 6px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,220,0.3)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10,
-      ...style,
-    }}
-  >
-    <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#1a0e00', opacity: 0.65 }} />
-  </div>
-);
+const Screw = ({ t, style }: { t: CardapioTema; style: React.CSSProperties }) => {
+  const { hi, lo } = screwColors(t);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        width: SCREW_SIZE,
+        height: SCREW_SIZE,
+        borderRadius: '50%',
+        background: `radial-gradient(circle at 36% 36%, ${hi} 0%, ${t.corDourado} 55%, ${lo} 100%)`,
+        boxShadow: '0 2px 6px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,220,0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10,
+        ...style,
+      }}
+    >
+      <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#1a0e00', opacity: 0.65 }} />
+    </div>
+  );
+};
 
 // ─── Content renderer ─────────────────────────────────────────────────────────
 const GroupList = ({
+  t,
   grupos,
   fs,
   singleCol,
 }: {
+  t: CardapioTema;
   grupos: CardapioGroup[];
   fs: number;
   singleCol: boolean;
@@ -82,7 +93,7 @@ const GroupList = ({
           {/* Category header */}
           <div
             style={{
-              color: GOLD_BRIGHT,
+              color: t.corDouradoClaro,
               fontSize: catFs,
               fontWeight: 900,
               letterSpacing: 1,
@@ -90,7 +101,7 @@ const GroupList = ({
               lineHeight: 1.08,
               marginBottom: fs * 0.22,
               fontFamily: FONT_BLACK,
-              textShadow: `0 0 12px ${GOLD_BRIGHT}45`,
+              textShadow: `0 0 12px ${t.corDouradoClaro}45`,
             }}
           >
             {group.categoria}
@@ -109,7 +120,7 @@ const GroupList = ({
               >
                 <span
                   style={{
-                    color: TEXT_WHITE,
+                    color: t.corTexto,
                     fontSize: itemFs,
                     fontWeight: 700,
                     lineHeight: 1.2,
@@ -130,13 +141,13 @@ const GroupList = ({
                       marginRight: 8,
                       alignSelf: 'baseline',
                       paddingBottom: Math.max(1, Math.round(itemFs * 0.1)),
-                      borderBottom: '1.5px dotted rgba(184,204,224,0.8)',
+                      borderBottom: `1.5px dotted ${withAlpha(t.corTextoSuave, 0.8)}`,
                     }}
                   />
                 )}
                 <span
                   style={{
-                    color: GOLD_BRIGHT,
+                    color: t.corDouradoClaro,
                     fontSize: priceFs,
                     fontWeight: 900,
                     whiteSpace: 'nowrap',
@@ -151,7 +162,7 @@ const GroupList = ({
               {item.descricao && (
                 <div
                   style={{
-                    color: TEXT_GRAY,
+                    color: t.corTextoSuave,
                     fontSize: descFs,
                     lineHeight: 1.35,
                     marginTop: fs * 0.06,
@@ -183,10 +194,18 @@ interface CardapioA4CanvasProps {
   grupos: CardapioGroup[];
   /** Hide preview-only overlays (bleed indicators, sangria label) during PNG export */
   exporting?: boolean;
+  /** Tema do projeto (null/omitido = visual padrão) */
+  tema?: Partial<CardapioTema> | null;
+  /** Imagem de fundo do projeto (null = cor sólida do tema) */
+  fundoUrl?: string | null;
+  /** Chancela custom do projeto (null = /chancela.png) */
+  chancelaUrl?: string | null;
 }
 
 export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps>(
-  ({ titulo = '', empresa = '', grupos, exporting = false }, ref) => {
+  ({ titulo = '', empresa = '', grupos, exporting = false, tema = null, fundoUrl = null, chancelaUrl = null }, ref) => {
+    const t = useMemo(() => resolveTema(tema), [tema]);
+
     const totalItens = useMemo(
       () => grupos.reduce((s, g) => s + g.itens.length, 0),
       [grupos]
@@ -231,7 +250,16 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
           height: CANVAS_H,
           position: 'relative',
           overflow: 'hidden',
-          background: '#011464',
+          backgroundColor: t.corFundo,
+          // Mesmo enquadramento do export canvas (coverRect = cover + center)
+          ...(fundoUrl
+            ? {
+                backgroundImage: `url(${fundoUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center center',
+                backgroundRepeat: 'no-repeat',
+              }
+            : {}),
           fontFamily: FONT_REGULAR,
           flexShrink: 0,
         }}
@@ -255,7 +283,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
             width: SAFE_W,
             height: 3,
             opacity: 0.8,
-            background: `linear-gradient(90deg, transparent, ${GOLD} 20%, ${GOLD} 80%, transparent)`,
+            background: `linear-gradient(90deg, transparent, ${t.corDourado} 20%, ${t.corDourado} 80%, transparent)`,
           }}
         />
 
@@ -268,15 +296,15 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
             width: SAFE_W,
             height: 3,
             opacity: 0.8,
-            background: `linear-gradient(90deg, transparent, ${GOLD} 20%, ${GOLD} 80%, transparent)`,
+            background: `linear-gradient(90deg, transparent, ${t.corDourado} 20%, ${t.corDourado} 80%, transparent)`,
           }}
         />
 
         {/* Corner screws */}
-        <Screw style={{ top: screwOff, left: screwOff }} />
-        <Screw style={{ top: screwOff, right: screwOff }} />
-        <Screw style={{ bottom: screwOff, left: screwOff }} />
-        <Screw style={{ bottom: screwOff, right: screwOff }} />
+        <Screw t={t} style={{ top: screwOff, left: screwOff }} />
+        <Screw t={t} style={{ top: screwOff, right: screwOff }} />
+        <Screw t={t} style={{ bottom: screwOff, left: screwOff }} />
+        <Screw t={t} style={{ bottom: screwOff, right: screwOff }} />
 
         {/* ── Safe area content ───────────────────────────────────────── */}
         <div
@@ -307,14 +335,14 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                 left: 0,
                 right: 0,
                 transform: 'translateY(-50%)',
-                color: GOLD_BRIGHT,
+                color: t.corDouradoClaro,
                 fontSize: empresaFs,
                 fontWeight: 900,
                 letterSpacing: Math.max(2, 7 - empresa.length * 0.14),
                 textTransform: 'uppercase',
                 lineHeight: 0.9,
                 fontFamily: FONT_BLACK,
-                textShadow: `0 0 35px ${GOLD}60, 0 3px 10px rgba(0,0,0,0.6)`,
+                textShadow: `0 0 35px ${t.corDourado}60, 0 3px 10px rgba(0,0,0,0.6)`,
                 whiteSpace: 'nowrap',
                 textAlign: 'center',
               }}
@@ -331,7 +359,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                   left: 0,
                   right: 0,
                   transform: 'translateY(-100%)',
-                  color: GOLD_BRIGHT,
+                  color: t.corDouradoClaro,
                   fontSize: tituloFs,
                   fontWeight: 700,
                   letterSpacing: Math.max(3, tituloFs * 0.28),
@@ -354,7 +382,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                 transform: 'translateX(-50%)',
                 width: underlineW,
                 height: 1.5,
-                background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`,
+                background: `linear-gradient(90deg, transparent, ${t.corDourado}, transparent)`,
                 opacity: 0.7,
               }}
             />
@@ -372,7 +400,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                   overflow: 'hidden',
                 }}
               >
-                <GroupList grupos={leftGrupos} fs={fs} singleCol />
+                <GroupList t={t} grupos={leftGrupos} fs={fs} singleCol />
               </div>
             ) : (
               /* ── Two columns ───────────────────────────────────── */
@@ -385,7 +413,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                     overflow: 'hidden',
                   }}
                 >
-                  <GroupList grupos={leftGrupos} fs={fs} singleCol={false} />
+                  <GroupList t={t} grupos={leftGrupos} fs={fs} singleCol={false} />
                 </div>
 
                 {/* Gold divider */}
@@ -394,7 +422,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                     width: DIVIDER_W,
                     flexShrink: 0,
                     margin: '4px 0 8px',
-                    background: `linear-gradient(180deg, rgba(212,175,55,0) 0%, ${GOLD} 5%, ${GOLD} 95%, rgba(212,175,55,0) 100%)`,
+                    background: `linear-gradient(180deg, ${withAlpha(t.corDourado, 0)} 0%, ${t.corDourado} 5%, ${t.corDourado} 95%, ${withAlpha(t.corDourado, 0)} 100%)`,
                   }}
                 />
 
@@ -406,7 +434,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                     overflow: 'hidden',
                   }}
                 >
-                  <GroupList grupos={rightGrupos} fs={fs} singleCol={false} />
+                  <GroupList t={t} grupos={rightGrupos} fs={fs} singleCol={false} />
                 </div>
               </>
             )}
@@ -421,11 +449,11 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
               alignItems: 'center',
               justifyContent: 'center',
               marginTop: 2,
-              borderTop: `1px solid ${GOLD}18`,
+              borderTop: `1px solid ${t.corDourado}18`,
             }}
           >
             <img
-              src="/chancela.png"
+              src={chancelaUrl || '/chancela.png'}
               alt="Chancela do evento"
               style={{
                 width: SAFE_W,
