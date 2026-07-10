@@ -349,9 +349,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
             top: 0;
             width: 100%;
             display: block !important;
-            /* Com fundo-imagem cadastrado, não pinta a cor sólida por baixo —
-               camada extra só aumentava o tamanho do PDF */
-            background: ${fundoUrl ? 'transparent' : t.corFundo} !important;
+            background: ${t.corFundo} !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -573,17 +571,18 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
               <div className="zoom-wrap" style={{ zoom }}>
                 <div
                   className="flex flex-row items-start gap-10 print-area"
-                  style={{ background: fundoUrl ? 'transparent' : t.corFundo, width: 'fit-content' }}
+                  style={{ background: t.corFundo, width: 'fit-content' }}
                 >
                   {layout.paginas.map((pagina, pi) => (
                     <div
                       key={pi}
                       className="shadow-2xl page-a3"
                       style={{
+                        width: `${A3_W_MM}mm`,
+                        height: `${A3_H_MM}mm`,
+                        backgroundColor: t.corFundo,
                         // Fundo custom do projeto — cover em cada página (sai na
-                        // impressão graças ao print-color-adjust: exact do @media print).
-                        // Com imagem, a cor sólida NÃO é pintada por baixo (evita
-                        // camada extra que só aumentava o tamanho do PDF).
+                        // impressão graças ao print-color-adjust: exact do @media print)
                         ...(fundoUrl
                           ? {
                               backgroundImage: `url(${fundoUrl})`,
@@ -591,7 +590,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
                               backgroundPosition: 'center center',
                               backgroundRepeat: 'no-repeat',
                             }
-                          : { backgroundColor: t.corFundo }),
+                          : {}),
                         padding: `${PAGE_PAD_MM}mm`,
                         paddingTop: `${PAGE_PAD_MM + topoMm}mm`,
                         margin: '0 auto',
