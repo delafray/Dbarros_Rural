@@ -22,6 +22,7 @@ import {
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
   TWO_COL_ITEM_THRESHOLD,
   calcHeaderH, calcEmpresaFs,
+  FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
 
 import {
@@ -32,6 +33,11 @@ import {
   screwColors,
   coverRect,
 } from '../../utils/cardapioTema';
+
+/** Opções do A4: tema/fundo/chancela do projeto + fontes do menu */
+export type A4RenderOptions = CardapioRenderOptions & {
+  fontesA4?: Partial<FontesA4> | null;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -140,6 +146,7 @@ function drawScrew(ctx: CanvasRenderingContext2D, T: CardapioTema, cx: number, c
 function drawHeader(
   ctx: CanvasRenderingContext2D,
   T: CardapioTema,
+  F: FontesA4,
   titulo: string,
   empresa: string,
   headerH: number,
@@ -148,8 +155,8 @@ function drawHeader(
 ) {
   const cx        = SAFE_L + SAFE_W / 2;
   const midY      = headerTop + headerH / 2 - 5;
-  const empresaFs = calcEmpresaFs(empresa, totalItens);
-  const tituloFs  = Math.max(10, Math.floor(headerH * 0.115));
+  const empresaFs = calcEmpresaFs(empresa, totalItens) * F.empresa;
+  const tituloFs  = Math.max(10, Math.floor(headerH * 0.115)) * F.titulo;
   const underlineW = Math.max(80, Math.min(SAFE_W * 0.62, empresa.length * 18));
 
   ctx.textAlign    = 'center';
@@ -207,6 +214,7 @@ function drawDottedLink(
 function drawColumn(
   ctx: CanvasRenderingContext2D,
   T: CardapioTema,
+  F: FontesA4,
   grupos: CardapioGroup[],
   colX: number,
   startY: number,
@@ -214,10 +222,10 @@ function drawColumn(
   fs: number,
   singleCol: boolean
 ) {
-  const catFs   = fs * 1.52;
-  const itemFs  = fs;
-  const priceFs = Math.max(fs * 1.18, 11);
-  const descFs  = fs * 0.68;
+  const catFs   = fs * 1.52 * F.categoria;
+  const itemFs  = fs * F.item;
+  const priceFs = Math.max(fs * 1.18 * F.preco, 11);
+  const descFs  = fs * 0.68 * F.descricao;
 
   let y = startY;
 
@@ -363,7 +371,7 @@ export async function renderMenuA4ToDataURL(
   empresa: string,
   grupos: CardapioGroup[],
   scale = 1,
-  opts: CardapioRenderOptions = {}
+  opts: A4RenderOptions = {}
 ): Promise<string> {
   const W = CANVAS_W * scale;
   const H = CANVAS_H * scale;
@@ -380,6 +388,7 @@ export async function renderMenuA4ToDataURL(
   }
 
   const T = resolveTema(opts.tema);
+  const F = resolveFontesA4(opts.fontesA4);
 
   // Fundo custom do projeto (se falhar, segue com cor sólida)
   let fundoImg: HTMLImageElement | null = null;
@@ -394,18 +403,18 @@ export async function renderMenuA4ToDataURL(
   // Layout metrics — espelha CardapioA4Canvas
   const totalItens = grupos.reduce((s, g) => s + g.itens.length, 0);
   const singleCol  = totalItens <= TWO_COL_ITEM_THRESHOLD;
-  const [leftGrupos, rightGrupos] = singleCol ? [grupos, []] : splitGroups(grupos);
+  const [leftGrupos, rightGrupos] = singleCol ? [grupos, []] : splitGroups(grupos, undefined, F);
 
   const headerH = calcHeaderH(totalItens);
   const availH  = SAFE_H - headerH - COL_PAD_V * 2 - FOOTER_H - 10;
 
   let fs: number;
   if (singleCol) {
-    const totalWeight = grupos.reduce((s, g) => s + getGroupWeight(g), 0);
+    const totalWeight = grupos.reduce((s, g) => s + getGroupWeight(g, undefined, F), 0);
     const ideal = totalWeight > 0 ? (availH * 0.98) / totalWeight : 26;
     fs = Math.max(8, Math.min(26, ideal));
   } else {
-    fs = Math.min(calcFontSize(grupos, availH * 0.52), 20);
+    fs = Math.min(calcFontSize(grupos, availH * 0.52, undefined, F), 20);
   }
 
   // ── Draw ──────────────────────────────────────────────────────────
@@ -424,12 +433,12 @@ export async function renderMenuA4ToDataURL(
   const contentTop = headerTop + headerH;
   const footerTop  = SAFE_T + SAFE_H - FOOTER_H;
 
-  drawHeader(ctx, T, titulo, empresa, headerH, totalItens, headerTop);
+  drawHeader(ctx, T, F, titulo, empresa, headerH, totalItens, headerTop);
 
   if (singleCol) {
     const colX = SAFE_L + COL_PAD_H;
     const colW = SAFE_W - COL_PAD_H * 2;
-    drawColumn(ctx, T, leftGrupos, colX, contentTop, colW, fs, true);
+    drawColumn(ctx, T, F, leftGrupos, colX, contentTop, colW, fs, true);
   } else {
     // 2 colunas com divider central
     const midX = SAFE_L + SAFE_W / 2;
@@ -440,8 +449,8 @@ export async function renderMenuA4ToDataURL(
     const rightColX = midX + innerPad;
     const rightColW = (SAFE_L + SAFE_W - COL_PAD_H) - rightColX;
 
-    drawColumn(ctx, T, leftGrupos,  leftColX,  contentTop, leftColW,  fs, false);
-    drawColumn(ctx, T, rightGrupos, rightColX, contentTop, rightColW, fs, false);
+    drawColumn(ctx, T, F, leftGrupos,  leftColX,  contentTop, leftColW,  fs, false);
+    drawColumn(ctx, T, F, rightGrupos, rightColX, contentTop, rightColW, fs, false);
 
     // Gold divider entre as colunas
     const divX  = midX - DIVIDER_W / 2;
@@ -470,7 +479,7 @@ export async function exportMenuA4(
   filename: string,
   scale = 1,
   onProgress?: (status: string) => void,
-  opts: CardapioRenderOptions = {}
+  opts: A4RenderOptions = {}
 ): Promise<void> {
   onProgress?.('Desenhando menu A4...');
   const dataUrl = await renderMenuA4ToDataURL(titulo, empresa, grupos, scale, opts);

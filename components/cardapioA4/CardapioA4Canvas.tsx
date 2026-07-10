@@ -31,7 +31,8 @@ import {
   FONT_REGULAR, FONT_BLACK,
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
   TWO_COL_ITEM_THRESHOLD,
-  calcHeaderH, calcEmpresaFs
+  calcHeaderH, calcEmpresaFs,
+  FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
 
 import {
@@ -72,19 +73,21 @@ const Screw = ({ t, style }: { t: CardapioTema; style: React.CSSProperties }) =>
 // ─── Content renderer ─────────────────────────────────────────────────────────
 const GroupList = ({
   t,
+  f,
   grupos,
   fs,
   singleCol,
 }: {
   t: CardapioTema;
+  f: FontesA4;
   grupos: CardapioGroup[];
   fs: number;
   singleCol: boolean;
 }) => {
-  const catFs    = fs * 1.52;
-  const itemFs   = fs;
-  const priceFs  = Math.max(fs * 1.18, 11);
-  const descFs   = fs * 0.68;
+  const catFs    = fs * 1.52 * f.categoria;
+  const itemFs   = fs * f.item;
+  const priceFs  = Math.max(fs * 1.18 * f.preco, 11);
+  const descFs   = fs * 0.68 * f.descricao;
 
   return (
     <>
@@ -200,11 +203,14 @@ interface CardapioA4CanvasProps {
   fundoUrl?: string | null;
   /** Chancela custom do projeto (null = /chancela.png) */
   chancelaUrl?: string | null;
+  /** Multiplicadores de fonte do menu (null = padrão) */
+  fontes?: Partial<FontesA4> | null;
 }
 
 export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps>(
-  ({ titulo = '', empresa = '', grupos, exporting = false, tema = null, fundoUrl = null, chancelaUrl = null }, ref) => {
+  ({ titulo = '', empresa = '', grupos, exporting = false, tema = null, fundoUrl = null, chancelaUrl = null, fontes = null }, ref) => {
     const t = useMemo(() => resolveTema(tema), [tema]);
+    const f = useMemo(() => resolveFontesA4(fontes), [fontes]);
 
     const totalItens = useMemo(
       () => grupos.reduce((s, g) => s + g.itens.length, 0),
@@ -214,13 +220,16 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
     const singleCol = useSingleColumn(totalItens);
 
     const [leftGrupos, rightGrupos] = useMemo(
-      () => (singleCol ? [grupos, []] : splitGroups(grupos)),
-      [grupos, singleCol]
+      () => (singleCol ? [grupos, []] : splitGroups(grupos, undefined, f)),
+      [grupos, singleCol, f]
     );
 
     const headerH   = useMemo(() => calcHeaderH(totalItens), [totalItens]);
-    const empresaFs = useMemo(() => calcEmpresaFs(empresa, totalItens), [empresa, totalItens]);
-    const tituloFs  = Math.max(10, Math.floor(headerH * 0.115));
+    const empresaFs = useMemo(
+      () => calcEmpresaFs(empresa, totalItens) * f.empresa,
+      [empresa, totalItens, f.empresa]
+    );
+    const tituloFs  = Math.max(10, Math.floor(headerH * 0.115)) * f.titulo;
     const underlineW = Math.max(80, Math.min(SAFE_W * 0.62, empresa.length * 18));
 
     const availH = SAFE_H - headerH - COL_PAD_V * 2 - FOOTER_H - 10;
@@ -231,14 +240,14 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
       if (singleCol) {
         // Single col: full width (~574px), text rarely wraps — fill 98% of space
         // Cap at 26px keeps short menus elegant without going enormous
-        const totalWeight = grupos.reduce((s, g) => s + getGroupWeight(g), 0);
+        const totalWeight = grupos.reduce((s, g) => s + getGroupWeight(g, undefined, f), 0);
         const ideal = totalWeight > 0 ? (availH * 0.98) / totalWeight : 26;
         return Math.max(8, Math.min(26, ideal));
       } else {
         // Two narrow columns (~263px each) — text wraps more
-        return Math.min(calcFontSize(grupos, availH * 0.52), 20);
+        return Math.min(calcFontSize(grupos, availH * 0.52, undefined, f), 20);
       }
-    }, [grupos, singleCol, availH]);
+    }, [grupos, singleCol, availH, f]);
 
     const screwOff = BLEED_PX + SCREW_INSET;
 
@@ -400,7 +409,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                   overflow: 'hidden',
                 }}
               >
-                <GroupList t={t} grupos={leftGrupos} fs={fs} singleCol />
+                <GroupList t={t} f={f} grupos={leftGrupos} fs={fs} singleCol />
               </div>
             ) : (
               /* ── Two columns ───────────────────────────────────── */
@@ -413,7 +422,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                     overflow: 'hidden',
                   }}
                 >
-                  <GroupList t={t} grupos={leftGrupos} fs={fs} singleCol={false} />
+                  <GroupList t={t} f={f} grupos={leftGrupos} fs={fs} singleCol={false} />
                 </div>
 
                 {/* Gold divider */}
@@ -434,7 +443,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                     overflow: 'hidden',
                   }}
                 >
-                  <GroupList t={t} grupos={rightGrupos} fs={fs} singleCol={false} />
+                  <GroupList t={t} f={f} grupos={rightGrupos} fs={fs} singleCol={false} />
                 </div>
               </>
             )}

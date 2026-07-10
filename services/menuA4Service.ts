@@ -7,6 +7,8 @@ interface MenuA4Payload {
   conteudo_raw: string;
   itens: CardapioGroup[];
   projeto_id?: string | null;
+  /** Multiplicadores de fonte deste menu (Partial<FontesA4>); null = padrão */
+  fontes?: Record<string, number> | null;
 }
 
 export const menuA4Service = {
