@@ -20,6 +20,43 @@ export interface A3DuploMenuData {
   destaque?: boolean;
 }
 
+// ─── Fontes ajustáveis do A3 (px na escala 100%) ────────────────────────────
+// O usuário ajusta no preview; a distribuição re-mede e re-calcula, reduzindo
+// a escala global se necessário para respeitar as novas proporções.
+export interface FontesA3 {
+  empresa: number;
+  titulo: number;
+  categoria: number;
+  item: number;
+  descricao: number;
+  preco: number;
+}
+
+export const FONTES_A3_PADRAO: FontesA3 = {
+  empresa: 26,
+  titulo: 15,
+  categoria: 15,
+  item: 12.5,
+  descricao: 9.5,
+  preco: 13,
+};
+
+export function resolveFontes(f?: Partial<FontesA3> | null): FontesA3 {
+  if (!f) return { ...FONTES_A3_PADRAO };
+  const out = { ...FONTES_A3_PADRAO };
+  (Object.keys(FONTES_A3_PADRAO) as (keyof FontesA3)[]).forEach((k) => {
+    const v = f[k];
+    if (typeof v === 'number' && v > 0) out[k] = v;
+  });
+  return out;
+}
+
+export function fontesSaoPadrao(f: FontesA3): boolean {
+  return (Object.keys(FONTES_A3_PADRAO) as (keyof FontesA3)[]).every(
+    (k) => f[k] === FONTES_A3_PADRAO[k]
+  );
+}
+
 // ─── Passos de busca ────────────────────────────────────────────────────────
 export const COL_CHOICES = [2, 3, 4];
 export const SCALE_STEPS: number[] = (() => {

@@ -186,6 +186,39 @@ describe('calcularLayout (distribuição do A3 Duplo)', () => {
     expect(layout.spacing).toBe(1.0);
   });
 
+  it('fontes maiores (blocos mais altos) reduzem a escala global para caber', () => {
+    for (const seed of SEEDS.slice(0, 20)) {
+      const rng = mulberry32(seed);
+      const menus = gerarMenus(rng);
+      const base = medirFake(menus);
+
+      // Simula o usuário aumentando fontes: todos os blocos ficam 30% mais altos
+      const maior: MeasurementMatrix = {};
+      for (const n of COL_CHOICES) {
+        maior[n] = base[n].map((m) => ({
+          headerH_full: m.headerH_full * 1.3,
+          headerH_compact: m.headerH_compact * 1.3,
+          groupsH_full: m.groupsH_full.map((h) => h * 1.3),
+          groupsH_compact: m.groupsH_compact.map((h) => h * 1.3),
+          blockH_full: m.blockH_full * 1.3,
+          blockH_compact: m.blockH_compact * 1.3,
+        }));
+      }
+
+      const layoutBase = calcularLayout(menus, base, PAGE_H);
+      const layoutMaior = calcularLayout(menus, maior, PAGE_H);
+      if (layoutBase.fallback || layoutMaior.fallback) continue;
+
+      // A escala nunca aumenta; e o novo layout continua sem estourar
+      expect(layoutMaior.scale, `seed ${seed}`).toBeLessThanOrEqual(layoutBase.scale);
+      for (const pagina of alturasColunas(layoutMaior, menus, maior)) {
+        for (const alturaCol of pagina) {
+          expect(alturaCol, `seed ${seed}`).toBeLessThanOrEqual(PAGE_H + 0.001);
+        }
+      }
+    }
+  });
+
   it('conteúdo impossível cai no fallback sinalizado (estouro)', () => {
     // Uma única categoria mais alta que a página mesmo compacta a 50%
     const menus: A3DuploMenuData[] = [{

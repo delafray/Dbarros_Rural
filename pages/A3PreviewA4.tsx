@@ -50,7 +50,21 @@ export const A3PreviewA4: React.FC = () => {
     );
   }
 
-  return <A3DuploCanvas menus={menus} tema={projeto?.tema ?? null} fundoUrl={projeto?.fundo_a3_url ?? null} />;
+  return (
+    <A3DuploCanvas
+      menus={menus}
+      tema={projeto?.tema ?? null}
+      fundoUrl={projeto?.fundo_a3_url ?? null}
+      fontesIniciais={projeto?.fontes_a3 ?? null}
+      onSalvarFontes={
+        projetoId
+          ? async (fontes) => {
+              await cardapioProjetosService.atualizar(projetoId, { fontes_a3: fontes });
+            }
+          : undefined
+      }
+    />
+  );
 };
 
 export default A3PreviewA4;

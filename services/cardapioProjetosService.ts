@@ -2,6 +2,7 @@
 // @ts-nocheck - table 'cardapio_projetos' not yet in generated types (database.types.ts)
 import { supabase } from './supabaseClient';
 import type { CardapioTema } from '../utils/cardapioTema';
+import type { FontesA3 } from '../components/a3Duplo/a3DuploLayout';
 
 export interface CardapioProjeto {
   id: string;
@@ -12,6 +13,8 @@ export interface CardapioProjeto {
   fundo_a4_url: string | null;
   fundo_a3_url: string | null;
   chancela_url: string | null;
+  /** Tamanhos de fonte custom do A3 Duplo; null = padrão */
+  fontes_a3: Partial<FontesA3> | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +27,7 @@ export interface CardapioProjetoInput {
   fundo_a4_url?: string | null;
   fundo_a3_url?: string | null;
   chancela_url?: string | null;
+  fontes_a3?: Partial<FontesA3> | null;
 }
 
 export type CardapioAssetTipo = 'fundo-banner' | 'fundo-a4' | 'fundo-a3' | 'chancela';

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Layout from '../Layout';
 import { CardapioGroup } from '../../utils/cardapioParser';
 import { CardapioTema, resolveTema, withAlpha } from '../../utils/cardapioTema';
@@ -10,6 +10,10 @@ import {
   ColumnContent,
   LayoutResult,
   calcularLayout,
+  FontesA3,
+  FONTES_A3_PADRAO,
+  resolveFontes,
+  fontesSaoPadrao,
 } from './a3DuploLayout';
 
 // Re-export para os consumidores existentes (pages/A3Preview*)
@@ -33,6 +37,7 @@ function colWidthPx(numCols: number): number {
 // ─── Componente EmpresaBlock ────────────────────────────────────────────────
 interface EmpresaBlockProps {
   t: CardapioTema;
+  fontes: FontesA3;
   empresa: string;
   titulo?: string;
   grupos: CardapioGroup[];
@@ -45,7 +50,7 @@ interface EmpresaBlockProps {
 }
 
 const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
-  t, empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
+  t, fontes, empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
 }) => {
   return (
     <div
@@ -59,7 +64,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
       <div style={{ textAlign: 'center', marginBottom: `${10 * scale * spacing}px` }}>
         {titulo && !isContinuacao && (
           <div style={{
-            fontSize: `${15 * scale}px`,
+            fontSize: `${fontes.titulo * scale}px`,
             color: t.corDouradoClaro,
             textTransform: 'uppercase',
             marginBottom: '2px',
@@ -67,7 +72,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
           }}>{titulo}</div>
         )}
         <div style={{
-          fontSize: `${26 * scale}px`,
+          fontSize: `${fontes.empresa * scale}px`,
           color: t.corDouradoClaro,
           fontFamily: '"Arial Black", Impact, sans-serif',
           textTransform: 'uppercase',
@@ -92,7 +97,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
             style={{ breakInside: 'avoid' }}
           >
             <h3 style={{
-              fontSize: `${15 * scale}px`,
+              fontSize: `${fontes.categoria * scale}px`,
               fontWeight: 900,
               color: t.corDouradoClaro,
               marginTop: 0,
@@ -111,12 +116,12 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                 marginBottom: `${5 * scale * spacing}px`,
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <span style={{ fontSize: `${12.5 * scale}px`, color: t.corTexto, fontWeight: 600 }}>
+                  <span style={{ fontSize: `${fontes.item * scale}px`, color: t.corTexto, fontWeight: 600 }}>
                     {item.item}
                   </span>
                   {item.descricao && (
                     <span style={{
-                      fontSize: `${9.5 * scale}px`,
+                      fontSize: `${fontes.descricao * scale}px`,
                       color: t.corTextoSuave,
                       marginTop: '2px',
                       fontStyle: 'italic',
@@ -134,7 +139,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                   }} />
                 )}
                 <span style={{
-                  fontSize: `${13 * scale}px`,
+                  fontSize: `${fontes.preco * scale}px`,
                   color: t.corDouradoClaro,
                   fontWeight: 900,
                   fontFamily: '"Arial Black", Impact, sans-serif',
@@ -149,6 +154,20 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
   );
 };
 
+// ─── Painel de controle de fontes ───────────────────────────────────────────
+const CAMPOS_FONTE: { key: keyof FontesA3; label: string }[] = [
+  { key: 'empresa',   label: 'Empresa' },
+  { key: 'titulo',    label: 'Título' },
+  { key: 'categoria', label: 'Categoria' },
+  { key: 'item',      label: 'Item' },
+  { key: 'descricao', label: 'Descrição' },
+  { key: 'preco',     label: 'Preço' },
+];
+
+const FONTE_MIN = 6;
+const FONTE_MAX = 40;
+const FONTE_STEP = 0.5;
+
 // ─── Componente exportado ───────────────────────────────────────────────────
 export interface A3DuploCanvasProps {
   menus: A3DuploMenuData[];
@@ -156,15 +175,69 @@ export interface A3DuploCanvasProps {
   tema?: Partial<CardapioTema> | null;
   /** Imagem de fundo das páginas A3 (cover); null = cor sólida do tema */
   fundoUrl?: string | null;
+  /** Fontes salvas no projeto (null = padrão) */
+  fontesIniciais?: Partial<FontesA3> | null;
+  /** Persiste as fontes no projeto (null = voltar ao padrão). Ausente = sem botão salvar */
+  onSalvarFontes?: (fontes: FontesA3 | null) => Promise<void>;
 }
 
-export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null, fundoUrl = null }) => {
+export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
+  menus, tema = null, fundoUrl = null, fontesIniciais = null, onSalvarFontes,
+}) => {
   const t = resolveTema(tema);
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
   const [layout, setLayout] = useState<LayoutResult | null>(null);
+  const [fontes, setFontes] = useState<FontesA3>(() => resolveFontes(fontesIniciais));
+  const [zoom, setZoom] = useState(0.45);
+  const [isSavingFontes, setIsSavingFontes] = useState(false);
+  const [fontesSalvas, setFontesSalvas] = useState(false);
 
   type RefBucket = { blockEl: HTMLDivElement | null; groupEls: (HTMLDivElement | null)[] };
   const measurementRefs = useRef<Record<number, { full: RefBucket[]; compact: RefBucket[] }>>({});
+
+  // Re-mede tudo e re-distribui (usado quando as fontes mudam)
+  const remeasure = () => {
+    measurementRefs.current = {};
+    setLayout(null);
+    setPhase('measuring');
+  };
+
+  // Fontes salvas do projeto podem chegar depois do mount (fetch assíncrono)
+  const fontesIniciaisJson = JSON.stringify(fontesIniciais ?? null);
+  useEffect(() => {
+    setFontes(resolveFontes(fontesIniciais));
+    remeasure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fontesIniciaisJson]);
+
+  const changeFonte = (key: keyof FontesA3, delta: number) => {
+    setFontes((prev) => ({
+      ...prev,
+      [key]: Math.min(FONTE_MAX, Math.max(FONTE_MIN, Math.round((prev[key] + delta) * 2) / 2)),
+    }));
+    setFontesSalvas(false);
+    remeasure();
+  };
+
+  const handleVoltarPadrao = () => {
+    setFontes({ ...FONTES_A3_PADRAO });
+    setFontesSalvas(false);
+    remeasure();
+  };
+
+  const handleSalvarFontes = async () => {
+    if (!onSalvarFontes) return;
+    try {
+      setIsSavingFontes(true);
+      await onSalvarFontes(fontesSaoPadrao(fontes) ? null : fontes);
+      setFontesSalvas(true);
+      setTimeout(() => setFontesSalvas(false), 3000);
+    } catch (e: any) {
+      alert('Erro ao salvar fontes: ' + (e?.message || e));
+    } finally {
+      setIsSavingFontes(false);
+    }
+  };
 
   if (Object.keys(measurementRefs.current).length === 0 && menus.length > 0) {
     const fresh: Record<number, { full: RefBucket[]; compact: RefBucket[] }> = {};
@@ -207,7 +280,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null
     const result = calcularLayout(menus, measurements, CONTENT_H_PX);
     setLayout(result);
     setPhase('ready');
-  }, [phase, menus]);
+  }, [phase, menus, fontes]);
 
   const handlePrint = () => window.print();
 
@@ -221,11 +294,13 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
+          .zoom-wrap { zoom: 1 !important; }
           .print-area {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
+            display: block !important;
             background: ${t.corFundo} !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -262,6 +337,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null
                     <EmpresaBlock
                       key={`m-${n}-${variant}-${idx}`}
                       t={t}
+                      fontes={fontes}
                       empresa={menu.empresa}
                       titulo={menu.titulo}
                       grupos={menu.itens || []}
@@ -298,72 +374,159 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null
           )
         }
       >
-        <div className="p-6 overflow-auto bg-slate-200 flex justify-center pb-24">
-          {!layout ? (
-            <div className="flex justify-center py-20">
-              <span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-12 print-area" style={{ background: t.corFundo }}>
-              {layout.paginas.map((pagina, pi) => (
-                <div
-                  key={pi}
-                  className="shadow-2xl page-a3"
-                  style={{
-                    width: `${A3_W_MM}mm`,
-                    height: `${A3_H_MM}mm`,
-                    backgroundColor: t.corFundo,
-                    // Fundo custom do projeto — cover em cada página (sai na
-                    // impressão graças ao print-color-adjust: exact do @media print)
-                    ...(fundoUrl
-                      ? {
-                          backgroundImage: `url(${fundoUrl})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center center',
-                          backgroundRepeat: 'no-repeat',
-                        }
-                      : {}),
-                    padding: `${PAGE_PAD_MM}mm`,
-                    margin: '0 auto',
-                    boxSizing: 'border-box',
-                    display: 'flex',
-                    gap: `${COL_GAP_MM}mm`,
-                    fontFamily: 'Arial, Helvetica, sans-serif',
-                    overflow: 'hidden',
-                  }}
+        <div className="flex gap-4 p-4 bg-slate-200 min-h-full items-start">
+          {/* ── Painel de fontes (não sai na impressão) ─────────────────── */}
+          <div className="no-print w-60 flex-shrink-0 sticky top-4 bg-white rounded-xl border border-slate-200 shadow-lg p-4 flex flex-col gap-3">
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              Fontes (px)
+            </p>
+            <p className="text-[11px] text-slate-400 -mt-2">
+              Ao ajustar, a distribuição é recalculada — a escala global se adapta para tudo caber.
+            </p>
+
+            {CAMPOS_FONTE.map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-slate-700 flex-1">{label}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => changeFonte(key, -FONTE_STEP)}
+                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm"
+                    title={`Diminuir ${label}`}
+                  >
+                    −
+                  </button>
+                  <span
+                    className={`w-11 text-center text-sm font-mono ${
+                      fontes[key] !== FONTES_A3_PADRAO[key] ? 'text-indigo-600 font-bold' : 'text-slate-500'
+                    }`}
+                    title={`Padrão: ${FONTES_A3_PADRAO[key]}px`}
+                  >
+                    {fontes[key]}
+                  </span>
+                  <button
+                    onClick={() => changeFonte(key, FONTE_STEP)}
+                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm"
+                    title={`Aumentar ${label}`}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
+              {onSalvarFontes && (
+                <button
+                  onClick={handleSalvarFontes}
+                  disabled={isSavingFontes}
+                  className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm px-3 py-2 rounded-lg shadow transition-all"
                 >
-                  {pagina.map((coluna, ci) => (
+                  {isSavingFontes ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : null}
+                  {isSavingFontes ? 'Salvando...' : fontesSalvas ? '✓ Salvo!' : 'Salvar no projeto'}
+                </button>
+              )}
+              <button
+                onClick={handleVoltarPadrao}
+                className="w-full text-sm font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5"
+              >
+                Voltar ao padrão
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zoom</span>
+                <span className="text-xs text-slate-400 font-mono">{Math.round(zoom * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0.25}
+                max={1}
+                step={0.05}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-indigo-600"
+              />
+            </div>
+          </div>
+
+          {/* ── Páginas lado a lado ─────────────────────────────────────── */}
+          <div className="flex-1 overflow-auto pb-24">
+            {!layout ? (
+              <div className="flex justify-center py-20">
+                <span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="zoom-wrap" style={{ zoom }}>
+                <div
+                  className="flex flex-row items-start gap-10 print-area"
+                  style={{ background: t.corFundo, width: 'fit-content' }}
+                >
+                  {layout.paginas.map((pagina, pi) => (
                     <div
-                      key={ci}
+                      key={pi}
+                      className="shadow-2xl page-a3"
                       style={{
-                        flex: 1,
+                        width: `${A3_W_MM}mm`,
+                        height: `${A3_H_MM}mm`,
+                        backgroundColor: t.corFundo,
+                        // Fundo custom do projeto — cover em cada página (sai na
+                        // impressão graças ao print-color-adjust: exact do @media print)
+                        ...(fundoUrl
+                          ? {
+                              backgroundImage: `url(${fundoUrl})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center center',
+                              backgroundRepeat: 'no-repeat',
+                            }
+                          : {}),
+                        padding: `${PAGE_PAD_MM}mm`,
+                        margin: '0 auto',
+                        boxSizing: 'border-box',
                         display: 'flex',
-                        flexDirection: 'column',
-                        minWidth: 0,
+                        gap: `${COL_GAP_MM}mm`,
+                        fontFamily: 'Arial, Helvetica, sans-serif',
+                        overflow: 'hidden',
+                        flexShrink: 0,
                       }}
                     >
-                      {coluna.map((bloco, bi) => {
-                        const menu = menus[bloco.menuIdx];
-                        return (
-                          <EmpresaBlock
-                            key={`${pi}-${ci}-${bi}`}
-                            t={t}
-                            empresa={menu.empresa}
-                            titulo={menu.titulo}
-                            grupos={bloco.grupos}
-                            scale={layout.scale}
-                            spacing={layout.spacing}
-                            widthPx={colWidthPx(layout.numColunas)}
-                            isContinuacao={bloco.isContinuacao}
-                          />
-                        );
-                      })}
+                      {pagina.map((coluna, ci) => (
+                        <div
+                          key={ci}
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minWidth: 0,
+                          }}
+                        >
+                          {coluna.map((bloco, bi) => {
+                            const menu = menus[bloco.menuIdx];
+                            return (
+                              <EmpresaBlock
+                                key={`${pi}-${ci}-${bi}`}
+                                t={t}
+                                fontes={fontes}
+                                empresa={menu.empresa}
+                                titulo={menu.titulo}
+                                grupos={bloco.grupos}
+                                scale={layout.scale}
+                                spacing={layout.spacing}
+                                widthPx={colWidthPx(layout.numColunas)}
+                                isContinuacao={bloco.isContinuacao}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </Layout>
     </>
