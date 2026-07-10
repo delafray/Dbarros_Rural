@@ -2,15 +2,18 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import Layout from '../Layout';
 import { CardapioGroup } from '../../utils/cardapioParser';
 import { CardapioTema, resolveTema, withAlpha } from '../../utils/cardapioTema';
+import {
+  A3DuploMenuData,
+  COL_CHOICES,
+  SPACING_COMPACT,
+  MeasurementMatrix,
+  ColumnContent,
+  LayoutResult,
+  calcularLayout,
+} from './a3DuploLayout';
 
-export interface A3DuploMenuData {
-  id?: string;
-  titulo?: string;
-  empresa: string;
-  itens: CardapioGroup[];
-  /** Marcado na listagem: vai fixo no início da primeira página */
-  destaque?: boolean;
-}
+// Re-export para os consumidores existentes (pages/A3Preview*)
+export type { A3DuploMenuData };
 
 // ─── Constantes de página A3 ────────────────────────────────────────────────
 const MM_TO_PX = 96 / 25.4;
@@ -22,56 +25,9 @@ const COL_GAP_MM = 10;
 const CONTENT_W_PX = (A3_W_MM - 2 * PAGE_PAD_MM) * MM_TO_PX;
 const CONTENT_H_PX = (A3_H_MM - 2 * PAGE_PAD_MM) * MM_TO_PX;
 
-const COL_CHOICES = [2, 3, 4];
-const SCALE_STEPS: number[] = (() => {
-  const arr: number[] = [];
-  for (let s = 1.0; s >= 0.5 - 1e-9; s -= 0.05) arr.push(Math.round(s * 100) / 100);
-  return arr;
-})();
-const SPACING_STEPS = [1.0, 0.85, 0.7, 0.55];
-const SPACING_COMPACT = 0.5; // usado na medição auxiliar
-
-// Empresa fixada no início da primeira página (ignora ordem/balanceamento).
-// Vem do flag "destaque" marcado na listagem (antes era hardcoded 'BAR').
-function isPinned(menu: A3DuploMenuData): boolean {
-  return !!menu.destaque;
-}
-
-function resolveH(full: number, compact: number, spacing: number): number {
-  // Interpolação linear entre spacing=1.0 (full) e spacing=0.5 (compact)
-  const t = (1 - spacing) / (1 - SPACING_COMPACT);
-  return full * (1 - t) + compact * t;
-}
-
 function colWidthPx(numCols: number): number {
   const gapTotal = (numCols - 1) * COL_GAP_MM * MM_TO_PX;
   return (CONTENT_W_PX - gapTotal) / numCols;
-}
-
-// ─── Tipos internos ─────────────────────────────────────────────────────────
-interface EmpresaMeasurement {
-  blockH_full: number;
-  blockH_compact: number;
-  headerH_full: number;
-  headerH_compact: number;
-  groupsH_full: number[];
-  groupsH_compact: number[];
-}
-
-type MeasurementMatrix = Record<number, EmpresaMeasurement[]>;
-
-interface ColumnContent {
-  menuIdx: number;
-  grupos: CardapioGroup[];
-  isContinuacao: boolean;
-}
-
-interface LayoutResult {
-  scale: number;
-  spacing: number;
-  numColunas: number;
-  paginas: ColumnContent[][][];
-  fallback?: boolean;
 }
 
 // ─── Componente EmpresaBlock ────────────────────────────────────────────────
@@ -192,200 +148,6 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
     </div>
   );
 };
-
-// ─── Algoritmo de distribuição ──────────────────────────────────────────────
-
-type Chunk = { menuIdx: number; grupos: CardapioGroup[]; isContinuacao: boolean; h: number };
-type EmpresaChunked = { idx: number; chunks: Chunk[]; altTotal: number };
-
-function quebrarEmpresa(
-  menu: A3DuploMenuData,
-  idx: number,
-  meas: EmpresaMeasurement,
-  scale: number,
-  spacing: number,
-  pageH: number
-): Chunk[] | null {
-  const blockH = resolveH(meas.blockH_full, meas.blockH_compact, spacing) * scale;
-  const grupos = menu.itens || [];
-
-  if (blockH <= pageH) {
-    return [{ menuIdx: idx, grupos, isContinuacao: false, h: blockH }];
-  }
-
-  const chunks: Chunk[] = [];
-  const headerH = resolveH(meas.headerH_full, meas.headerH_compact, spacing) * scale;
-  let currentGrupos: CardapioGroup[] = [];
-  let currentH = headerH;
-
-  for (let gi = 0; gi < grupos.length; gi++) {
-    const gh = resolveH(meas.groupsH_full[gi] || 0, meas.groupsH_compact[gi] || 0, spacing) * scale;
-    if (headerH + gh > pageH) return null;
-
-    if (currentH + gh > pageH && currentGrupos.length > 0) {
-      chunks.push({
-        menuIdx: idx,
-        grupos: currentGrupos,
-        isContinuacao: chunks.length > 0,
-        h: currentH,
-      });
-      currentGrupos = [];
-      currentH = headerH;
-    }
-    currentGrupos.push(grupos[gi]);
-    currentH += gh;
-  }
-  if (currentGrupos.length > 0) {
-    chunks.push({
-      menuIdx: idx,
-      grupos: currentGrupos,
-      isContinuacao: chunks.length > 0,
-      h: currentH,
-    });
-  }
-  return chunks;
-}
-
-function tentarLayout(
-  menus: A3DuploMenuData[],
-  meas: EmpresaMeasurement[],
-  scale: number,
-  spacing: number,
-  numCols: number,
-  pageH: number
-): ColumnContent[][][] | null {
-  const empresas: EmpresaChunked[] = [];
-  for (let i = 0; i < menus.length; i++) {
-    const chunks = quebrarEmpresa(menus[i], i, meas[i], scale, spacing, pageH);
-    if (!chunks) return null;
-    if (chunks.length > numCols) return null;
-    const altTotal = chunks.reduce((s, c) => s + c.h, 0);
-    empresas.push({ idx: i, chunks, altTotal });
-  }
-
-  // Separa empresas pinadas (ex: BAR) das demais. Pinadas vão 100% na página 0.
-  const pinned = empresas.filter((e) => isPinned(menus[e.idx]));
-  const others = empresas.filter((e) => !isPinned(menus[e.idx]));
-  others.sort((a, b) => b.altTotal - a.altTotal);
-
-  const pagEmpresas: EmpresaChunked[][] = [[], []];
-  const pagAlturas = [0, 0];
-  for (const p of pinned) {
-    pagEmpresas[0].push(p);
-    pagAlturas[0] += p.altTotal;
-  }
-  for (const e of others) {
-    const p = pagAlturas[0] <= pagAlturas[1] ? 0 : 1;
-    pagEmpresas[p].push(e);
-    pagAlturas[p] += e.altTotal;
-  }
-
-  const paginas: ColumnContent[][][] = [];
-  for (let pi = 0; pi < pagEmpresas.length; pi++) {
-    const empresasDaPag = pagEmpresas[pi];
-    // pinadas ficam no início; demais, ordenadas desc
-    const pinadasDaPag = empresasDaPag.filter((e) => isPinned(menus[e.idx]));
-    const othersDaPag = empresasDaPag.filter((e) => !isPinned(menus[e.idx]));
-    othersDaPag.sort((a, b) => b.altTotal - a.altTotal);
-
-    const colunas: ColumnContent[][] = Array.from({ length: numCols }, () => []);
-    const alturasCol = new Array(numCols).fill(0);
-
-    let falhou = false;
-
-    // Aloca pinadas nas colunas iniciais em sequência
-    let proximaCol = 0;
-    for (const emp of pinadasDaPag) {
-      const k = emp.chunks.length;
-      if (proximaCol + k > numCols) { falhou = true; break; }
-      for (let j = 0; j < k; j++) {
-        if (alturasCol[proximaCol + j] + emp.chunks[j].h > pageH) { falhou = true; break; }
-      }
-      if (falhou) break;
-      for (let j = 0; j < k; j++) {
-        const c = emp.chunks[j];
-        colunas[proximaCol + j].push({
-          menuIdx: c.menuIdx, grupos: c.grupos, isContinuacao: c.isContinuacao,
-        });
-        alturasCol[proximaCol + j] += c.h;
-      }
-      proximaCol += k;
-    }
-    if (falhou) return null;
-
-    for (const emp of othersDaPag) {
-      if (emp.chunks.length === 1) {
-        const c = emp.chunks[0];
-        let bestCol = -1;
-        let bestH = Infinity;
-        for (let ci = 0; ci < numCols; ci++) {
-          if (alturasCol[ci] + c.h <= pageH && alturasCol[ci] < bestH) {
-            bestH = alturasCol[ci];
-            bestCol = ci;
-          }
-        }
-        if (bestCol === -1) { falhou = true; break; }
-        colunas[bestCol].push({ menuIdx: c.menuIdx, grupos: c.grupos, isContinuacao: c.isContinuacao });
-        alturasCol[bestCol] += c.h;
-      } else {
-        const k = emp.chunks.length;
-        let startBest = -1;
-        let maxFreeBest = -Infinity;
-        for (let start = 0; start + k <= numCols; start++) {
-          let ok = true;
-          let freeSum = 0;
-          for (let j = 0; j < k; j++) {
-            if (alturasCol[start + j] + emp.chunks[j].h > pageH) { ok = false; break; }
-            freeSum += (pageH - alturasCol[start + j]);
-          }
-          if (ok && freeSum > maxFreeBest) {
-            maxFreeBest = freeSum;
-            startBest = start;
-          }
-        }
-        if (startBest === -1) { falhou = true; break; }
-        for (let j = 0; j < k; j++) {
-          const c = emp.chunks[j];
-          colunas[startBest + j].push({
-            menuIdx: c.menuIdx, grupos: c.grupos, isContinuacao: c.isContinuacao,
-          });
-          alturasCol[startBest + j] += c.h;
-        }
-      }
-    }
-    if (falhou) return null;
-    paginas.push(colunas);
-  }
-  return paginas;
-}
-
-function calcularLayout(
-  menus: A3DuploMenuData[],
-  measurements: MeasurementMatrix,
-  pageH: number
-): LayoutResult {
-  // Ordem: maximiza fonte; se não couber, compacta espaçamento; só depois aumenta colunas; por último reduz fonte.
-  for (const scale of SCALE_STEPS) {
-    for (const spacing of SPACING_STEPS) {
-      for (const numCols of COL_CHOICES) {
-        const meas = measurements[numCols];
-        if (!meas) continue;
-        const result = tentarLayout(menus, meas, scale, spacing, numCols, pageH);
-        if (result) return { scale, spacing, numColunas: numCols, paginas: result };
-      }
-    }
-  }
-  const scale = SCALE_STEPS[SCALE_STEPS.length - 1];
-  const spacing = SPACING_STEPS[SPACING_STEPS.length - 1];
-  const numCols = 4;
-  const paginas: ColumnContent[][][] = [0, 1].map(() => Array.from({ length: numCols }, () => [] as ColumnContent[]));
-  menus.forEach((menu, idx) => {
-    const pIdx = idx < Math.ceil(menus.length / 2) ? 0 : 1;
-    const cIdx = idx % numCols;
-    paginas[pIdx][cIdx].push({ menuIdx: idx, grupos: menu.itens || [], isContinuacao: false });
-  });
-  return { scale, spacing, numColunas: numCols, paginas, fallback: true };
-}
 
 // ─── Componente exportado ───────────────────────────────────────────────────
 export interface A3DuploCanvasProps {
