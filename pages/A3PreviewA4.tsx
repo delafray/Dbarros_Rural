@@ -56,10 +56,10 @@ export const A3PreviewA4: React.FC = () => {
       tema={projeto?.tema ?? null}
       fundoUrl={projeto?.fundo_a3_url ?? null}
       fontesIniciais={projeto?.fontes_a3 ?? null}
-      onSalvarFontes={
+      onSalvarAjustes={
         projetoId
-          ? async (fontes) => {
-              await cardapioProjetosService.atualizar(projetoId, { fontes_a3: fontes });
+          ? async ({ fontes, tema }) => {
+              await cardapioProjetosService.atualizar(projetoId, { fontes_a3: fontes, tema });
             }
           : undefined
       }

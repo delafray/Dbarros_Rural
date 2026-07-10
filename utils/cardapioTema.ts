@@ -47,6 +47,13 @@ export function resolveTema(tema?: Partial<CardapioTema> | null): CardapioTema {
   return out;
 }
 
+/** true se todas as cores são as do visual padrão (tema pode ser salvo como null). */
+export function temaEhPadrao(t: CardapioTema): boolean {
+  return (Object.keys(TEMA_PADRAO) as (keyof CardapioTema)[]).every(
+    (k) => t[k].toLowerCase() === TEMA_PADRAO[k].toLowerCase()
+  );
+}
+
 function parseHex(hex: string): { r: number; g: number; b: number } {
   let h = hex.replace('#', '').trim();
   if (h.length === 3) h = h.split('').map((c) => c + c).join('');

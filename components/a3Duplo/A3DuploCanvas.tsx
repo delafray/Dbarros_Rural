@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../Layout';
 import { CardapioGroup } from '../../utils/cardapioParser';
-import { CardapioTema, resolveTema, withAlpha } from '../../utils/cardapioTema';
+import { CardapioTema, TEMA_PADRAO, resolveTema, temaEhPadrao, withAlpha } from '../../utils/cardapioTema';
 import {
   A3DuploMenuData,
   COL_CHOICES,
@@ -176,6 +176,14 @@ const FONTE_MIN = 6;
 const FONTE_MAX = 40;
 const FONTE_STEP = 0.5;
 
+const CAMPOS_COR: { key: keyof CardapioTema; label: string }[] = [
+  { key: 'corFundo',        label: 'Fundo' },
+  { key: 'corDourado',      label: 'Destaque' },
+  { key: 'corDouradoClaro', label: 'Destaque claro' },
+  { key: 'corTexto',        label: 'Texto' },
+  { key: 'corTextoSuave',   label: 'Texto suave' },
+];
+
 // ─── Componente exportado ───────────────────────────────────────────────────
 export interface A3DuploCanvasProps {
   menus: A3DuploMenuData[];
@@ -185,21 +193,27 @@ export interface A3DuploCanvasProps {
   fundoUrl?: string | null;
   /** Fontes salvas no projeto (null = padrão) */
   fontesIniciais?: Partial<FontesA3> | null;
-  /** Persiste as fontes no projeto (null = voltar ao padrão). Ausente = sem botão salvar */
-  onSalvarFontes?: (fontes: FontesA3 | null) => Promise<void>;
+  /** Persiste fontes + cores do tema no projeto (null = padrão). Ausente = sem botão salvar */
+  onSalvarAjustes?: (ajustes: {
+    fontes: FontesA3 | null;
+    tema: Partial<CardapioTema> | null;
+  }) => Promise<void>;
 }
 
 export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
-  menus, tema = null, fundoUrl = null, fontesIniciais = null, onSalvarFontes,
+  menus, tema = null, fundoUrl = null, fontesIniciais = null, onSalvarAjustes,
 }) => {
-  const t = resolveTema(tema);
   const navigate = useNavigate();
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
   const [layout, setLayout] = useState<LayoutResult | null>(null);
   const [fontes, setFontes] = useState<FontesA3>(() => resolveFontes(fontesIniciais));
+  // Cores editáveis (interligadas com o tema do projeto — valem p/ banner e A4 ao salvar)
+  const [temaEdit, setTemaEdit] = useState<CardapioTema>(() => resolveTema(tema));
   const [zoom, setZoom] = useState(0.45);
   const [isSavingFontes, setIsSavingFontes] = useState(false);
   const [fontesSalvas, setFontesSalvas] = useState(false);
+
+  const t = temaEdit;
 
   type RefBucket = { blockEl: HTMLDivElement | null; groupEls: (HTMLDivElement | null)[] };
   const measurementRefs = useRef<Record<number, { full: RefBucket[]; compact: RefBucket[] }>>({});
@@ -211,13 +225,20 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
     setPhase('measuring');
   };
 
-  // Fontes salvas do projeto podem chegar depois do mount (fetch assíncrono)
+  // Fontes/tema salvos do projeto podem chegar depois do mount (fetch assíncrono)
   const fontesIniciaisJson = JSON.stringify(fontesIniciais ?? null);
   useEffect(() => {
     setFontes(resolveFontes(fontesIniciais));
     remeasure();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fontesIniciaisJson]);
+
+  const temaJson = JSON.stringify(tema ?? null);
+  useEffect(() => {
+    setTemaEdit(resolveTema(tema));
+    // cores não afetam alturas — sem re-medição
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temaJson]);
 
   const changeFonte = (key: keyof FontesA3, delta: number) => {
     setFontes((prev) => ({
@@ -230,19 +251,23 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
 
   const handleVoltarPadrao = () => {
     setFontes({ ...FONTES_A3_PADRAO });
+    setTemaEdit({ ...TEMA_PADRAO });
     setFontesSalvas(false);
     remeasure();
   };
 
-  const handleSalvarFontes = async () => {
-    if (!onSalvarFontes) return;
+  const handleSalvarAjustes = async () => {
+    if (!onSalvarAjustes) return;
     try {
       setIsSavingFontes(true);
-      await onSalvarFontes(fontesSaoPadrao(fontes) ? null : fontes);
+      await onSalvarAjustes({
+        fontes: fontesSaoPadrao(fontes) ? null : fontes,
+        tema: temaEhPadrao(temaEdit) ? null : temaEdit,
+      });
       setFontesSalvas(true);
       setTimeout(() => setFontesSalvas(false), 3000);
     } catch (e: any) {
-      alert('Erro ao salvar fontes: ' + (e?.message || e));
+      alert('Erro ao salvar ajustes: ' + (e?.message || e));
     } finally {
       setIsSavingFontes(false);
     }
@@ -432,10 +457,37 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
               </div>
             ))}
 
+            {/* Cores do tema — interligadas com o projeto (valem p/ banner e A4) */}
             <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
-              {onSalvarFontes && (
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Cores do tema
+              </p>
+              <p className="text-[11px] text-slate-400 -mt-1">
+                Cores do projeto — ao salvar, valem também para o banner e o A4.
+              </p>
+              {CAMPOS_COR.map(({ key, label }) => (
+                <label key={key} className="flex items-center justify-between gap-2 cursor-pointer">
+                  <span className="text-sm font-semibold text-slate-700">{label}</span>
+                  <span className="flex items-center gap-1.5">
+                    <code className="text-[10px] text-slate-400 uppercase">{temaEdit[key]}</code>
+                    <input
+                      type="color"
+                      value={temaEdit[key]}
+                      onChange={(e) => {
+                        setTemaEdit((prev) => ({ ...prev, [key]: e.target.value }));
+                        setFontesSalvas(false);
+                      }}
+                      className="w-8 h-7 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
+                    />
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
+              {onSalvarAjustes && (
                 <button
-                  onClick={handleSalvarFontes}
+                  onClick={handleSalvarAjustes}
                   disabled={isSavingFontes}
                   className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm px-3 py-2 rounded-lg shadow transition-all"
                 >
