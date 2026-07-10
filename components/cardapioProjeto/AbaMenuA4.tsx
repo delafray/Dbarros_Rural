@@ -62,15 +62,15 @@ export const AbaMenuA4: React.FC<AbaMenuA4Props> = ({ projeto }) => {
     <div>
       {/* Toolbar da aba */}
       <div className="flex items-center justify-end gap-3 mb-4">
-        {selectedIds.length > 0 && (
-          <button
-            onClick={handleGerarA3}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all animate-in fade-in zoom-in"
-          >
-            <PrintIcon className="w-4 h-4" />
-            Gerar A3 Duplo ({selectedIds.length})
-          </button>
-        )}
+        <button
+          onClick={handleGerarA3}
+          disabled={selectedIds.length === 0}
+          title={selectedIds.length === 0 ? 'Selecione ao menos um menu na lista' : undefined}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
+        >
+          <PrintIcon className="w-4 h-4" />
+          Gerar A3 Duplo{selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}
+        </button>
         <button
           onClick={() => navigate(`/cardapios/projeto/${projeto.id}/a4/novo`)}
           className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
