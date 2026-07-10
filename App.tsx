@@ -24,13 +24,12 @@ const Atendimentos = lazy(() => import('./pages/Atendimentos'));
 const Tarefas = lazy(() => import('./pages/Tarefas'));
 const ControleImagens = lazy(() => import('./pages/ControleImagens'));
 const TodosEventos = lazy(() => import('./pages/TodosEventos'));
-const Cardapios = lazy(() => import('./pages/Cardapios'));
+const CardapioProjetos = lazy(() => import('./pages/CardapioProjetos'));
+const CardapioProjeto = lazy(() => import('./pages/CardapioProjeto'));
 const CardapioEditor = lazy(() => import('./pages/CardapioEditor'));
-const CardapiosA4 = lazy(() => import('./pages/CardapiosA4'));
 const CardapioA4Editor = lazy(() => import('./pages/CardapioA4Editor'));
 const A3PreviewA4 = lazy(() => import('./pages/A3PreviewA4'));
 const A3PreviewCardapios = lazy(() => import('./pages/A3PreviewCardapios'));
-const PainelDuplo = lazy(() => import('./pages/PainelDuplo'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -107,20 +106,18 @@ const App: React.FC = () => {
 
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
 
-        {/* Módulo Cardápios Banner */}
-        <Route path="/cardapios" element={<ProtectedRoute><Cardapios /></ProtectedRoute>} />
-        <Route path="/cardapios/novo" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
-        <Route path="/cardapios/:id" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
+        {/* Módulo Cardápios — projetos por evento, com abas (Menu A4 | Banner | Painel Duplo | Configuração) */}
+        <Route path="/cardapios" element={<ProtectedRoute><CardapioProjetos /></ProtectedRoute>} />
+        <Route path="/cardapios/projeto/:projetoId" element={<ProtectedRoute><CardapioProjeto /></ProtectedRoute>} />
+        <Route path="/cardapios/projeto/:projetoId/banner/novo" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
+        <Route path="/cardapios/projeto/:projetoId/banner/:id" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
+        <Route path="/cardapios/projeto/:projetoId/a4/novo" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
+        <Route path="/cardapios/projeto/:projetoId/a4/:id" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
         <Route path="/a3-preview-cardapios" element={<ProtectedRoute><A3PreviewCardapios /></ProtectedRoute>} />
-
-        {/* Módulo Menu A4 */}
-        <Route path="/cardapios-a4" element={<ProtectedRoute><CardapiosA4 /></ProtectedRoute>} />
-        <Route path="/cardapios-a4/novo" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
-        <Route path="/cardapios-a4/:id" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
         <Route path="/a3-preview-a4" element={<ProtectedRoute><A3PreviewA4 /></ProtectedRoute>} />
-
-        {/* Módulo Painel Duplo */}
-        <Route path="/painel-duplo" element={<ProtectedRoute><PainelDuplo /></ProtectedRoute>} />
+        {/* Rotas antigas (bookmarks/PWA) → lista de projetos */}
+        <Route path="/cardapios-a4/*" element={<Navigate to="/cardapios" replace />} />
+        <Route path="/painel-duplo" element={<Navigate to="/cardapios" replace />} />
 
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>

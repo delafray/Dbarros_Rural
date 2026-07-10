@@ -18,12 +18,26 @@ import {
 import {
   CANVAS_W, CANVAS_H, BLEED_PX,
   SAFE_L, SAFE_T, SAFE_W, SAFE_H,
-  GOLD, GOLD_BRIGHT, TEXT_WHITE, TEXT_GRAY,
   FONT_REGULAR, FONT_BLACK,
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
   TWO_COL_ITEM_THRESHOLD,
   calcHeaderH, calcEmpresaFs,
+  FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
+
+import {
+  CardapioTema,
+  CardapioRenderOptions,
+  resolveTema,
+  withAlpha,
+  screwColors,
+  coverRect,
+} from '../../utils/cardapioTema';
+
+/** Opções do A4: tema/fundo/chancela do projeto + fontes do menu */
+export type A4RenderOptions = CardapioRenderOptions & {
+  fontesA4?: Partial<FontesA4> | null;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -61,9 +75,22 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 // ─── Drawing primitives ──────────────────────────────────────────────────────
 
-function drawBackground(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = '#011464';
+function drawBackground(
+  ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
+  fundoImg?: HTMLImageElement | null
+) {
+  ctx.fillStyle = T.corFundo;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  if (fundoImg) {
+    const imgW = fundoImg.naturalWidth  || fundoImg.width;
+    const imgH = fundoImg.naturalHeight || fundoImg.height;
+    if (imgW > 0 && imgH > 0) {
+      const { dx, dy, dw, dh } = coverRect(imgW, imgH, CANVAS_W, CANVAS_H);
+      ctx.drawImage(fundoImg, dx, dy, dw, dh);
+    }
+  }
 
   // Vignette — matches radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(0,0,0,0.26) 100%)
   const cx = CANVAS_W / 2;
@@ -76,26 +103,27 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 }
 
-function drawAccentLine(ctx: CanvasRenderingContext2D, y: number) {
+function drawAccentLine(ctx: CanvasRenderingContext2D, T: CardapioTema, y: number) {
   const g = ctx.createLinearGradient(SAFE_L, y, SAFE_L + SAFE_W, y);
-  g.addColorStop(0,   'rgba(212,175,55,0)');
-  g.addColorStop(0.2, GOLD);
-  g.addColorStop(0.8, GOLD);
-  g.addColorStop(1,   'rgba(212,175,55,0)');
+  g.addColorStop(0,   withAlpha(T.corDourado, 0));
+  g.addColorStop(0.2, T.corDourado);
+  g.addColorStop(0.8, T.corDourado);
+  g.addColorStop(1,   withAlpha(T.corDourado, 0));
   ctx.globalAlpha = 0.8;
   ctx.fillStyle = g;
   ctx.fillRect(SAFE_L, y, SAFE_W, 3);
   ctx.globalAlpha = 1;
 }
 
-function drawScrew(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+function drawScrew(ctx: CanvasRenderingContext2D, T: CardapioTema, cx: number, cy: number) {
   const r = SCREW_SIZE / 2;
   const hlX = cx - r * 0.28;
   const hlY = cy - r * 0.28;
+  const { hi, lo } = screwColors(T);
   const rg = ctx.createRadialGradient(hlX, hlY, 0, cx, cy, r);
-  rg.addColorStop(0,    '#f8e878');
-  rg.addColorStop(0.55, GOLD);
-  rg.addColorStop(1,    '#7a5f00');
+  rg.addColorStop(0,    hi);
+  rg.addColorStop(0.55, T.corDourado);
+  rg.addColorStop(1,    lo);
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = rg;
@@ -117,6 +145,8 @@ function drawScrew(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
 
 function drawHeader(
   ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
+  F: FontesA4,
   titulo: string,
   empresa: string,
   headerH: number,
@@ -125,8 +155,8 @@ function drawHeader(
 ) {
   const cx        = SAFE_L + SAFE_W / 2;
   const midY      = headerTop + headerH / 2 - 5;
-  const empresaFs = calcEmpresaFs(empresa, totalItens);
-  const tituloFs  = Math.max(10, Math.floor(headerH * 0.115));
+  const empresaFs = calcEmpresaFs(empresa, totalItens) * F.empresa;
+  const tituloFs  = Math.max(10, Math.floor(headerH * 0.115)) * F.titulo;
   const underlineW = Math.max(80, Math.min(SAFE_W * 0.62, empresa.length * 18));
 
   ctx.textAlign    = 'center';
@@ -134,9 +164,9 @@ function drawHeader(
 
   // Empresa com glow dourado
   ctx.font        = `900 ${empresaFs}px ${FONT_BLACK}`;
-  ctx.shadowColor = `${GOLD}60`;
+  ctx.shadowColor = `${T.corDourado}60`;
   ctx.shadowBlur  = 35;
-  ctx.fillStyle   = GOLD_BRIGHT;
+  ctx.fillStyle   = T.corDouradoClaro;
   ctx.fillText(empresa, cx, midY);
   ctx.shadowBlur  = 0;
 
@@ -145,7 +175,7 @@ function drawHeader(
     const titleY = midY - empresaFs * 0.45 - 10 - tituloFs / 2;
     ctx.font        = `700 ${tituloFs}px ${FONT_REGULAR}`;
     ctx.globalAlpha = 0.88;
-    ctx.fillStyle   = GOLD_BRIGHT;
+    ctx.fillStyle   = T.corDouradoClaro;
     ctx.fillText(titulo, cx, titleY);
     ctx.globalAlpha = 1;
   }
@@ -153,9 +183,9 @@ function drawHeader(
   // Underline gold abaixo do empresa
   const underY = midY + empresaFs * 0.45 + Math.max(4, headerH * 0.04);
   const ug = ctx.createLinearGradient(cx - underlineW / 2, underY, cx + underlineW / 2, underY);
-  ug.addColorStop(0,   'rgba(212,175,55,0)');
-  ug.addColorStop(0.5, GOLD);
-  ug.addColorStop(1,   'rgba(212,175,55,0)');
+  ug.addColorStop(0,   withAlpha(T.corDourado, 0));
+  ug.addColorStop(0.5, T.corDourado);
+  ug.addColorStop(1,   withAlpha(T.corDourado, 0));
   ctx.globalAlpha = 0.7;
   ctx.fillStyle = ug;
   ctx.fillRect(cx - underlineW / 2, underY, underlineW, 1.5);
@@ -164,6 +194,7 @@ function drawHeader(
 
 function drawDottedLink(
   ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
   x1: number,
   x2: number,
   y: number
@@ -171,7 +202,7 @@ function drawDottedLink(
   if (x2 <= x1) return;
   ctx.save();
   ctx.setLineDash([1.5, 3]);
-  ctx.strokeStyle = 'rgba(184,204,224,0.8)';
+  ctx.strokeStyle = withAlpha(T.corTextoSuave, 0.8);
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(x1, y);
@@ -182,6 +213,8 @@ function drawDottedLink(
 
 function drawColumn(
   ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
+  F: FontesA4,
   grupos: CardapioGroup[],
   colX: number,
   startY: number,
@@ -189,10 +222,10 @@ function drawColumn(
   fs: number,
   singleCol: boolean
 ) {
-  const catFs   = fs * 1.52;
-  const itemFs  = fs;
-  const priceFs = Math.max(fs * 1.18, 11);
-  const descFs  = fs * 0.68;
+  const catFs   = fs * 1.52 * F.categoria;
+  const itemFs  = fs * F.item;
+  const priceFs = Math.max(fs * 1.18 * F.preco, 11);
+  const descFs  = fs * 0.68 * F.descricao;
 
   let y = startY;
 
@@ -201,9 +234,9 @@ function drawColumn(
     ctx.font         = `900 ${catFs}px ${FONT_BLACK}`;
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.shadowColor  = `${GOLD_BRIGHT}45`;
+    ctx.shadowColor  = `${T.corDouradoClaro}45`;
     ctx.shadowBlur   = 12;
-    ctx.fillStyle    = GOLD_BRIGHT;
+    ctx.fillStyle    = T.corDouradoClaro;
     const catBaseline = y + catFs * 1.05;
     ctx.fillText(group.categoria, colX, catBaseline);
     ctx.shadowBlur = 0;
@@ -220,7 +253,7 @@ function drawColumn(
 
       // Nome do item (pode quebrar se tiver descricao; senão fica em 1 linha)
       ctx.font         = `700 ${itemFs}px ${FONT_REGULAR}`;
-      ctx.fillStyle    = TEXT_WHITE;
+      ctx.fillStyle    = T.corTexto;
       ctx.textBaseline = 'alphabetic';
       const nameBaseY = y + itemFs * 1.05;
 
@@ -239,13 +272,13 @@ function drawColumn(
           ? nameMaxW
           : ctx.measureText(nameLines[0]).width;
         const linkY = nameBaseY + Math.max(1, Math.round(itemFs * 0.1));
-        drawDottedLink(ctx, colX + nameSpanW + 8, colX + colW - priceW - 8, linkY);
+        drawDottedLink(ctx, T, colX + nameSpanW + 8, colX + colW - priceW - 8, linkY);
       }
 
       // Preço — alinhado à direita no baseline da primeira linha do nome
       if (item.valor) {
         ctx.font         = `900 ${priceFs}px ${FONT_BLACK}`;
-        ctx.fillStyle    = GOLD_BRIGHT;
+        ctx.fillStyle    = T.corDouradoClaro;
         ctx.textAlign    = 'right';
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(item.valor, colX + colW, nameBaseY);
@@ -257,7 +290,7 @@ function drawColumn(
       // Descrição (se houver)
       if (item.descricao) {
         ctx.font         = `italic ${descFs}px ${FONT_REGULAR}`;
-        ctx.fillStyle    = TEXT_GRAY;
+        ctx.fillStyle    = T.corTextoSuave;
         ctx.textBaseline = 'alphabetic';
         ctx.globalAlpha  = 0.88;
 
@@ -284,14 +317,16 @@ function drawColumn(
 
 async function drawFooterChancela(
   ctx: CanvasRenderingContext2D,
-  footerTop: number
+  T: CardapioTema,
+  footerTop: number,
+  chancelaUrl: string
 ) {
   // Linha de separação superior (sutil)
-  ctx.fillStyle = `${GOLD}18`;
+  ctx.fillStyle = `${T.corDourado}18`;
   ctx.fillRect(SAFE_L, footerTop, SAFE_W, 1);
 
   try {
-    const img = await loadImage('/chancela.png');
+    const img = await loadImage(chancelaUrl);
     const boxW = SAFE_W;
     const boxH = FOOTER_H;
     const imgW = img.naturalWidth  || img.width;
@@ -305,7 +340,7 @@ async function drawFooterChancela(
       ctx.drawImage(img, dx, dy, dw, dh);
     }
   } catch (e) {
-    console.warn('[CardapioA4Renderer] chancela.png não carregou:', e);
+    console.warn('[CardapioA4Renderer] chancela não carregou:', e);
   }
 }
 
@@ -335,7 +370,8 @@ export async function renderMenuA4ToDataURL(
   titulo: string,
   empresa: string,
   grupos: CardapioGroup[],
-  scale = 1
+  scale = 1,
+  opts: A4RenderOptions = {}
 ): Promise<string> {
   const W = CANVAS_W * scale;
   const H = CANVAS_H * scale;
@@ -351,45 +387,58 @@ export async function renderMenuA4ToDataURL(
     await document.fonts.ready;
   }
 
+  const T = resolveTema(opts.tema);
+  const F = resolveFontesA4(opts.fontesA4);
+
+  // Fundo custom do projeto (se falhar, segue com cor sólida)
+  let fundoImg: HTMLImageElement | null = null;
+  if (opts.fundoUrl) {
+    try {
+      fundoImg = await loadImage(opts.fundoUrl);
+    } catch (e) {
+      console.warn('[CardapioA4Renderer] fundo não carregou:', e);
+    }
+  }
+
   // Layout metrics — espelha CardapioA4Canvas
   const totalItens = grupos.reduce((s, g) => s + g.itens.length, 0);
   const singleCol  = totalItens <= TWO_COL_ITEM_THRESHOLD;
-  const [leftGrupos, rightGrupos] = singleCol ? [grupos, []] : splitGroups(grupos);
+  const [leftGrupos, rightGrupos] = singleCol ? [grupos, []] : splitGroups(grupos, undefined, F);
 
   const headerH = calcHeaderH(totalItens);
   const availH  = SAFE_H - headerH - COL_PAD_V * 2 - FOOTER_H - 10;
 
   let fs: number;
   if (singleCol) {
-    const totalWeight = grupos.reduce((s, g) => s + getGroupWeight(g), 0);
+    const totalWeight = grupos.reduce((s, g) => s + getGroupWeight(g, undefined, F), 0);
     const ideal = totalWeight > 0 ? (availH * 0.98) / totalWeight : 26;
     fs = Math.max(8, Math.min(26, ideal));
   } else {
-    fs = Math.min(calcFontSize(grupos, availH * 0.52), 20);
+    fs = Math.min(calcFontSize(grupos, availH * 0.52, undefined, F), 20);
   }
 
   // ── Draw ──────────────────────────────────────────────────────────
-  drawBackground(ctx);
+  drawBackground(ctx, T, fundoImg);
 
-  drawAccentLine(ctx, SAFE_T + 8);
-  drawAccentLine(ctx, CANVAS_H - BLEED_PX - 8 - 3);
+  drawAccentLine(ctx, T, SAFE_T + 8);
+  drawAccentLine(ctx, T, CANVAS_H - BLEED_PX - 8 - 3);
 
   const screwOff = BLEED_PX + SCREW_INSET + SCREW_SIZE / 2;
-  drawScrew(ctx, screwOff, screwOff);
-  drawScrew(ctx, CANVAS_W - screwOff, screwOff);
-  drawScrew(ctx, screwOff, CANVAS_H - screwOff);
-  drawScrew(ctx, CANVAS_W - screwOff, CANVAS_H - screwOff);
+  drawScrew(ctx, T, screwOff, screwOff);
+  drawScrew(ctx, T, CANVAS_W - screwOff, screwOff);
+  drawScrew(ctx, T, screwOff, CANVAS_H - screwOff);
+  drawScrew(ctx, T, CANVAS_W - screwOff, CANVAS_H - screwOff);
 
   const headerTop  = SAFE_T + COL_PAD_V;
   const contentTop = headerTop + headerH;
   const footerTop  = SAFE_T + SAFE_H - FOOTER_H;
 
-  drawHeader(ctx, titulo, empresa, headerH, totalItens, headerTop);
+  drawHeader(ctx, T, F, titulo, empresa, headerH, totalItens, headerTop);
 
   if (singleCol) {
     const colX = SAFE_L + COL_PAD_H;
     const colW = SAFE_W - COL_PAD_H * 2;
-    drawColumn(ctx, leftGrupos, colX, contentTop, colW, fs, true);
+    drawColumn(ctx, T, F, leftGrupos, colX, contentTop, colW, fs, true);
   } else {
     // 2 colunas com divider central
     const midX = SAFE_L + SAFE_W / 2;
@@ -400,23 +449,23 @@ export async function renderMenuA4ToDataURL(
     const rightColX = midX + innerPad;
     const rightColW = (SAFE_L + SAFE_W - COL_PAD_H) - rightColX;
 
-    drawColumn(ctx, leftGrupos,  leftColX,  contentTop, leftColW,  fs, false);
-    drawColumn(ctx, rightGrupos, rightColX, contentTop, rightColW, fs, false);
+    drawColumn(ctx, T, F, leftGrupos,  leftColX,  contentTop, leftColW,  fs, false);
+    drawColumn(ctx, T, F, rightGrupos, rightColX, contentTop, rightColW, fs, false);
 
     // Gold divider entre as colunas
     const divX  = midX - DIVIDER_W / 2;
     const divTop = contentTop + 4;
     const divBot = footerTop - 8;
     const dg = ctx.createLinearGradient(0, divTop, 0, divBot);
-    dg.addColorStop(0,    'rgba(212,175,55,0)');
-    dg.addColorStop(0.05, GOLD);
-    dg.addColorStop(0.95, GOLD);
-    dg.addColorStop(1,    'rgba(212,175,55,0)');
+    dg.addColorStop(0,    withAlpha(T.corDourado, 0));
+    dg.addColorStop(0.05, T.corDourado);
+    dg.addColorStop(0.95, T.corDourado);
+    dg.addColorStop(1,    withAlpha(T.corDourado, 0));
     ctx.fillStyle = dg;
     ctx.fillRect(divX, divTop, DIVIDER_W, divBot - divTop);
   }
 
-  await drawFooterChancela(ctx, footerTop);
+  await drawFooterChancela(ctx, T, footerTop, opts.chancelaUrl || '/chancela.png');
 
   drawCropMarks(ctx);
 
@@ -429,10 +478,11 @@ export async function exportMenuA4(
   grupos: CardapioGroup[],
   filename: string,
   scale = 1,
-  onProgress?: (status: string) => void
+  onProgress?: (status: string) => void,
+  opts: A4RenderOptions = {}
 ): Promise<void> {
   onProgress?.('Desenhando menu A4...');
-  const dataUrl = await renderMenuA4ToDataURL(titulo, empresa, grupos, scale);
+  const dataUrl = await renderMenuA4ToDataURL(titulo, empresa, grupos, scale, opts);
 
   onProgress?.('Preparando download...');
   const link = document.createElement('a');

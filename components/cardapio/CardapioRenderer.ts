@@ -8,20 +8,22 @@
 import {
   CardapioGroup,
   splitGroups,
-  calcFontSize,
 } from '../../utils/cardapioParser';
+import {
+  CardapioTema,
+  CardapioRenderOptions,
+  resolveTema,
+  withAlpha,
+  screwColors,
+  coverRect,
+} from '../../utils/cardapioTema';
 
 // ─── Layout constants (must match CardapioCanvas.tsx visually) ───────────────
 export const CANVAS_W = 1600;
 export const CANVAS_H = 880;
 
-const GOLD       = '#D4AF37';
-const GOLD_BRIGHT = '#FFE066';
-const TEXT_WHITE  = '#FFFFFF';
-const TEXT_GRAY   = '#b8cce0';
 const COL_PAD_H   = 44;
 const COL_PAD_V   = 14;
-const DIVIDER_W   = 3;
 const SCREW_SIZE  = 28;
 const SCREW_INSET = 20;
 const APPROX_COL_W = (CANVAS_W / 2) - COL_PAD_H - Math.round(COL_PAD_H * 0.7);
@@ -63,11 +65,34 @@ function wrapText(
   return lines.length ? lines : [''];
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 // ─── Drawing primitives ───────────────────────────────────────────────────────
 
-function drawBackground(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = '#011464';
+function drawBackground(
+  ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
+  fundoImg?: HTMLImageElement | null
+) {
+  ctx.fillStyle = T.corFundo;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  if (fundoImg) {
+    const imgW = fundoImg.naturalWidth  || fundoImg.width;
+    const imgH = fundoImg.naturalHeight || fundoImg.height;
+    if (imgW > 0 && imgH > 0) {
+      const { dx, dy, dw, dh } = coverRect(imgW, imgH, CANVAS_W, CANVAS_H);
+      ctx.drawImage(fundoImg, dx, dy, dw, dh);
+    }
+  }
 
   // Subtle vignette for depth
   const vig = ctx.createRadialGradient(
@@ -80,13 +105,13 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 }
 
-function drawAccentLines(ctx: CanvasRenderingContext2D) {
+function drawAccentLines(ctx: CanvasRenderingContext2D, T: CardapioTema) {
   const makeGrad = (y: number) => {
     const g = ctx.createLinearGradient(0, y, CANVAS_W, y);
-    g.addColorStop(0,   'rgba(212,175,55,0)');
-    g.addColorStop(0.2,  GOLD);
-    g.addColorStop(0.8,  GOLD);
-    g.addColorStop(1,   'rgba(212,175,55,0)');
+    g.addColorStop(0,   withAlpha(T.corDourado, 0));
+    g.addColorStop(0.2,  T.corDourado);
+    g.addColorStop(0.8,  T.corDourado);
+    g.addColorStop(1,   withAlpha(T.corDourado, 0));
     return g;
   };
   ctx.globalAlpha = 0.8;
@@ -95,12 +120,13 @@ function drawAccentLines(ctx: CanvasRenderingContext2D) {
   ctx.globalAlpha = 1;
 }
 
-function drawScrew(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+function drawScrew(ctx: CanvasRenderingContext2D, T: CardapioTema, cx: number, cy: number) {
   const r = SCREW_SIZE / 2;
+  const { hi, lo } = screwColors(T);
   const rg = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
-  rg.addColorStop(0,   '#f8e878');
-  rg.addColorStop(0.55, GOLD);
-  rg.addColorStop(1,   '#7a5f00');
+  rg.addColorStop(0,   hi);
+  rg.addColorStop(0.55, T.corDourado);
+  rg.addColorStop(1,   lo);
 
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -198,6 +224,7 @@ export function findFitFontSize(
 
 function drawDottedLink(
   ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
   x1: number,
   x2: number,
   y: number
@@ -205,7 +232,7 @@ function drawDottedLink(
   if (x2 <= x1) return;
   ctx.save();
   ctx.setLineDash([1.5, 3]);
-  ctx.strokeStyle = 'rgba(184,204,224,0.8)';
+  ctx.strokeStyle = withAlpha(T.corTextoSuave, 0.8);
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(x1, y);
@@ -214,25 +241,13 @@ function drawDottedLink(
   ctx.restore();
 }
 
-function drawDivider(ctx: CanvasRenderingContext2D, headerH: number) {
-  const x = CANVAS_W / 2;
-  const yStart = headerH + 4;
-  const yEnd   = CANVAS_H - 12;
-  const g = ctx.createLinearGradient(0, yStart, 0, yEnd);
-  g.addColorStop(0,    'rgba(212,175,55,0)');
-  g.addColorStop(0.08,  GOLD);
-  g.addColorStop(0.92,  GOLD);
-  g.addColorStop(1,    'rgba(212,175,55,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(x - DIVIDER_W / 2, yStart, DIVIDER_W, yEnd - yStart);
-}
-
 /**
  * Draw titulo + empresa centered within the horizontal slice [colX, colX+colW].
  * Called once per side so each half is independent after center cut.
  */
 function drawHalfHeader(
   ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
   titulo: string,
   empresa: string,
   headerH: number,
@@ -257,7 +272,7 @@ function drawHalfHeader(
     const titleY   = headerH * 0.24;
 
     ctx.font        = `700 ${tituloFs}px Arial, Helvetica, sans-serif`;
-    ctx.fillStyle   = GOLD_BRIGHT;
+    ctx.fillStyle   = T.corDouradoClaro;
     ctx.globalAlpha = 0.88;
     ctx.fillText(titulo, cx, titleY);
     ctx.globalAlpha = 1;
@@ -269,9 +284,9 @@ function drawHalfHeader(
 
     // Empresa with glow
     ctx.font        = `900 ${empresaFs}px "Arial Black", Impact, Helvetica, sans-serif`;
-    ctx.shadowColor = `${GOLD}55`;
+    ctx.shadowColor = `${T.corDourado}55`;
     ctx.shadowBlur  = 28;
-    ctx.fillStyle   = GOLD_BRIGHT;
+    ctx.fillStyle   = T.corDouradoClaro;
     ctx.fillText(empresa, cx, empresaY);
     ctx.shadowBlur  = 0;
 
@@ -279,9 +294,9 @@ function drawHalfHeader(
     const underW = Math.max(100, Math.min(colW * 0.75, empresa.length * 22));
     const underY = empresaY + empresaFs * 0.56 + 6;
     const ug = ctx.createLinearGradient(cx - underW / 2, 0, cx + underW / 2, 0);
-    ug.addColorStop(0, 'rgba(212,175,55,0)');
-    ug.addColorStop(0.5, GOLD);
-    ug.addColorStop(1, 'rgba(212,175,55,0)');
+    ug.addColorStop(0, withAlpha(T.corDourado, 0));
+    ug.addColorStop(0.5, T.corDourado);
+    ug.addColorStop(1, withAlpha(T.corDourado, 0));
     ctx.globalAlpha = 0.72;
     ctx.fillStyle   = ug;
     ctx.fillRect(cx - underW / 2, underY, underW, 2);
@@ -293,9 +308,9 @@ function drawHalfHeader(
 
   // Empresa with glow
   ctx.font        = `900 ${empresaFs}px "Arial Black", Impact, Helvetica, sans-serif`;
-  ctx.shadowColor = `${GOLD}55`;
+  ctx.shadowColor = `${T.corDourado}55`;
   ctx.shadowBlur  = 28;
-  ctx.fillStyle   = GOLD_BRIGHT;
+  ctx.fillStyle   = T.corDouradoClaro;
   ctx.fillText(empresa, cx, empresaY);
   ctx.shadowBlur  = 0;
 
@@ -303,9 +318,9 @@ function drawHalfHeader(
   const underW = Math.max(100, Math.min(colW * 0.75, empresa.length * 22));
   const underY = empresaY + empresaFs * 0.56 + 6;
   const ug = ctx.createLinearGradient(cx - underW / 2, 0, cx + underW / 2, 0);
-  ug.addColorStop(0, 'rgba(212,175,55,0)');
-  ug.addColorStop(0.5, GOLD);
-  ug.addColorStop(1, 'rgba(212,175,55,0)');
+  ug.addColorStop(0, withAlpha(T.corDourado, 0));
+  ug.addColorStop(0.5, T.corDourado);
+  ug.addColorStop(1, withAlpha(T.corDourado, 0));
   ctx.globalAlpha = 0.72;
   ctx.fillStyle   = ug;
   ctx.fillRect(cx - underW / 2, underY, underW, 2);
@@ -315,6 +330,7 @@ function drawHalfHeader(
 
 function drawColumn(
   ctx: CanvasRenderingContext2D,
+  T: CardapioTema,
   grupos: CardapioGroup[],
   colX: number,
   startY: number,
@@ -333,9 +349,9 @@ function drawColumn(
     ctx.font        = `900 ${catFs}px "Arial Black", Arial, Helvetica, sans-serif`;
     ctx.textAlign   = 'left';
     ctx.textBaseline = 'top';
-    ctx.shadowColor = `${GOLD_BRIGHT}50`;
+    ctx.shadowColor = `${T.corDouradoClaro}50`;
     ctx.shadowBlur  = 8;
-    ctx.fillStyle   = GOLD_BRIGHT;
+    ctx.fillStyle   = T.corDouradoClaro;
     ctx.fillText(group.categoria, colX, y, colW);
     ctx.shadowBlur  = 0;
     y += catFs * 1.15 + fs * 0.30;
@@ -349,7 +365,7 @@ function drawColumn(
 
       // Item name (may wrap)
       ctx.font        = `700 ${itemFs}px Arial, Helvetica, sans-serif`;
-      ctx.fillStyle   = TEXT_WHITE;
+      ctx.fillStyle   = T.corTexto;
       ctx.textBaseline = 'alphabetic';
       const itemBaseY = y + itemFs * 0.85; // baseline position
 
@@ -365,6 +381,7 @@ function drawColumn(
         const linkY = itemBaseY + Math.max(1, Math.round(itemFs * 0.1));
         drawDottedLink(
           ctx,
+          T,
           colX + firstLineW + 8,
           colX + colW - priceW - 8,
           linkY
@@ -373,10 +390,10 @@ function drawColumn(
 
       // Price — right-aligned, baseline aligned with name's first line
       ctx.font        = `900 ${priceFs}px "Arial Black", Arial, Helvetica, sans-serif`;
-      ctx.fillStyle   = GOLD_BRIGHT;
+      ctx.fillStyle   = T.corDouradoClaro;
       ctx.textAlign   = 'right';
       ctx.textBaseline = 'alphabetic';
-      ctx.shadowColor = `${GOLD}40`;
+      ctx.shadowColor = `${T.corDourado}40`;
       ctx.shadowBlur  = 5;
       ctx.fillText(item.valor, colX + colW, itemBaseY);
       ctx.shadowBlur  = 0;
@@ -389,7 +406,7 @@ function drawColumn(
       // Description (may wrap)
       if (item.descricao) {
         ctx.font        = `italic ${descFs}px Arial, Helvetica, sans-serif`;
-        ctx.fillStyle   = TEXT_GRAY;
+        ctx.fillStyle   = T.corTextoSuave;
         ctx.textBaseline = 'top';
         ctx.globalAlpha = 0.9;
 
@@ -413,12 +430,14 @@ function drawColumn(
 /**
  * Render the cardápio to a PNG data URL using Canvas2D.
  * @param scale  1 = 1600×880px | 2 = 3200×1760px | 4 = 6400×3520px
+ * @param opts   tema/fundo do projeto (omitido = visual padrão)
  */
 export async function renderCardapioToDataURL(
   titulo: string,
   empresa: string,
   grupos: CardapioGroup[],
-  scale = 1
+  scale = 1,
+  opts: CardapioRenderOptions = {}
 ): Promise<string> {
   const W = CANVAS_W * scale;
   const H = CANVAS_H * scale;
@@ -431,6 +450,18 @@ export async function renderCardapioToDataURL(
   // Scale all drawing calls uniformly
   ctx.scale(scale, scale);
 
+  const T = resolveTema(opts.tema);
+
+  // Fundo custom do projeto (se falhar, segue com cor sólida)
+  let fundoImg: HTMLImageElement | null = null;
+  if (opts.fundoUrl) {
+    try {
+      fundoImg = await loadImage(opts.fundoUrl);
+    } catch (e) {
+      console.warn('[CardapioRenderer] fundo não carregou:', e);
+    }
+  }
+
   const totalItens = grupos.reduce((s, g) => s + g.itens.length, 0);
   const headerH    = calcHeaderH(totalItens);
   const availH     = CANVAS_H - headerH - COL_PAD_V * 2 - 8;
@@ -439,14 +470,14 @@ export async function renderCardapioToDataURL(
   const fs         = findFitFontSize(grupos, availH, FIT_COL_W);
 
   // ── Draw layers ──────────────────────────────────────────────────────
-  drawBackground(ctx);
-  drawAccentLines(ctx);
+  drawBackground(ctx, T, fundoImg);
+  drawAccentLines(ctx, T);
 
   const sr = SCREW_SIZE / 2;
-  drawScrew(ctx, SCREW_INSET + sr + 15, SCREW_INSET + sr);                   // top-left
-  drawScrew(ctx, CANVAS_W - SCREW_INSET - sr - 10, SCREW_INSET + sr);         // top-right (shifted left)
-  drawScrew(ctx, SCREW_INSET + sr + 15, CANVAS_H - SCREW_INSET - sr);         // bottom-left
-  drawScrew(ctx, CANVAS_W - SCREW_INSET - sr - 10, CANVAS_H - SCREW_INSET - sr); // bottom-right (shifted left)
+  drawScrew(ctx, T, SCREW_INSET + sr + 15, SCREW_INSET + sr);                   // top-left
+  drawScrew(ctx, T, CANVAS_W - SCREW_INSET - sr - 10, SCREW_INSET + sr);         // top-right (shifted left)
+  drawScrew(ctx, T, SCREW_INSET + sr + 15, CANVAS_H - SCREW_INSET - sr);         // bottom-left
+  drawScrew(ctx, T, CANVAS_W - SCREW_INSET - sr - 10, CANVAS_H - SCREW_INSET - sr); // bottom-right (shifted left)
 
   // Divisor central removido — cada painel é cortado ao meio independentemente
 
@@ -469,12 +500,12 @@ export async function renderCardapioToDataURL(
   const rightTextW = rightColW + 20;
 
   // ── Per-half headers (replicated so each side survives a center cut) ──
-  drawHalfHeader(ctx, titulo, empresa, headerH, totalItens, leftColX,  leftColW);
-  drawHalfHeader(ctx, titulo, empresa, headerH, totalItens, rightColX, rightColW); // header centered as before
+  drawHalfHeader(ctx, T, titulo, empresa, headerH, totalItens, leftColX,  leftColW);
+  drawHalfHeader(ctx, T, titulo, empresa, headerH, totalItens, rightColX, rightColW); // header centered as before
 
   // ── Column content ────────────────────────────────────────────────────
-  drawColumn(ctx, leftGrupos,  leftColX,  colStartY, leftColW,  fs);
-  drawColumn(ctx, rightGrupos, rightTextX, colStartY, rightTextW, fs); // items -20px left, prices unchanged
+  drawColumn(ctx, T, leftGrupos,  leftColX,  colStartY, leftColW,  fs);
+  drawColumn(ctx, T, rightGrupos, rightTextX, colStartY, rightTextW, fs); // items -20px left, prices unchanged
 
 
   return canvas.toDataURL('image/png');
@@ -489,10 +520,11 @@ export async function exportCardapioRenderer(
   grupos: CardapioGroup[],
   filename: string,
   scale = 1,
-  onProgress?: (status: string) => void
+  onProgress?: (status: string) => void,
+  opts: CardapioRenderOptions = {}
 ): Promise<void> {
   onProgress?.('Desenhando cardápio...');
-  const dataUrl = await renderCardapioToDataURL(titulo, empresa, grupos, scale);
+  const dataUrl = await renderCardapioToDataURL(titulo, empresa, grupos, scale, opts);
 
   onProgress?.('Preparando download...');
   const link = document.createElement('a');

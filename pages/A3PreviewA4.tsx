@@ -2,18 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { menuA4Service } from '../services/menuA4Service';
+import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
 import { A3DuploCanvas, A3DuploMenuData } from '../components/a3Duplo/A3DuploCanvas';
 
 export const A3PreviewA4: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { selectedIds } = (location.state as { selectedIds?: string[] }) || {};
+  const { selectedIds, projetoId } =
+    (location.state as { selectedIds?: string[]; projetoId?: string }) || {};
 
   const [menus, setMenus] = useState<A3DuploMenuData[] | null>(null);
+  const [projeto, setProjeto] = useState<CardapioProjeto | null>(null);
 
   useEffect(() => {
     if (!selectedIds || selectedIds.length === 0) {
-      navigate('/cardapios-a4');
+      navigate('/cardapios');
       return;
     }
     const loadMenus = async () => {
@@ -28,6 +31,15 @@ export const A3PreviewA4: React.FC = () => {
     loadMenus();
   }, [selectedIds, navigate]);
 
+  // Tema e fundo A3 do projeto — falha silenciosa → visual padrão
+  useEffect(() => {
+    if (!projetoId) return;
+    cardapioProjetosService
+      .buscar(projetoId)
+      .then(setProjeto)
+      .catch(() => setProjeto(null));
+  }, [projetoId]);
+
   if (!menus) {
     return (
       <Layout title="Carregando...">
@@ -38,7 +50,27 @@ export const A3PreviewA4: React.FC = () => {
     );
   }
 
-  return <A3DuploCanvas menus={menus} />;
+  return (
+    <A3DuploCanvas
+      menus={menus}
+      tema={projeto?.tema ?? null}
+      fundoUrl={projeto?.fundo_a3_url ?? null}
+      fontesIniciais={projeto?.fontes_a3 ?? null}
+      onSalvarAjustes={
+        projetoId
+          ? async ({ fontes, tema }) => {
+              const atualizado = await cardapioProjetosService.atualizar(projetoId, {
+                fontes_a3: fontes,
+                tema,
+              });
+              // mantém a cópia em memória fresca (evita "voltar ao padrão"
+              // fantasma se a tela remontar depois do salvamento)
+              setProjeto(atualizado);
+            }
+          : undefined
+      }
+    />
+  );
 };
 
 export default A3PreviewA4;

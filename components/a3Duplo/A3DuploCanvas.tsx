@@ -1,13 +1,24 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../Layout';
 import { CardapioGroup } from '../../utils/cardapioParser';
+import { CardapioTema, TEMA_PADRAO, resolveTema, temaEhPadrao, withAlpha } from '../../utils/cardapioTema';
+import {
+  A3DuploMenuData,
+  COL_CHOICES,
+  SPACING_COMPACT,
+  MeasurementMatrix,
+  ColumnContent,
+  LayoutResult,
+  calcularLayout,
+  FontesA3,
+  FONTES_A3_PADRAO,
+  resolveFontes,
+  fontesSaoPadrao,
+} from './a3DuploLayout';
 
-export interface A3DuploMenuData {
-  id?: string;
-  titulo?: string;
-  empresa: string;
-  itens: CardapioGroup[];
-}
+// Re-export para os consumidores existentes (pages/A3Preview*)
+export type { A3DuploMenuData };
 
 // ─── Constantes de página A3 ────────────────────────────────────────────────
 const MM_TO_PX = 96 / 25.4;
@@ -19,64 +30,15 @@ const COL_GAP_MM = 10;
 const CONTENT_W_PX = (A3_W_MM - 2 * PAGE_PAD_MM) * MM_TO_PX;
 const CONTENT_H_PX = (A3_H_MM - 2 * PAGE_PAD_MM) * MM_TO_PX;
 
-const COL_CHOICES = [2, 3, 4];
-const SCALE_STEPS: number[] = (() => {
-  const arr: number[] = [];
-  for (let s = 1.0; s >= 0.5 - 1e-9; s -= 0.05) arr.push(Math.round(s * 100) / 100);
-  return arr;
-})();
-const SPACING_STEPS = [1.0, 0.85, 0.7, 0.55];
-const SPACING_COMPACT = 0.5; // usado na medição auxiliar
-
-// Empresa fixada no início da primeira página (ignora ordem/balanceamento)
-const PINNED_EMPRESA = 'BAR';
-function isPinned(menu: A3DuploMenuData): boolean {
-  return (menu.empresa || '').trim().toUpperCase() === PINNED_EMPRESA;
-}
-
-function resolveH(full: number, compact: number, spacing: number): number {
-  // Interpolação linear entre spacing=1.0 (full) e spacing=0.5 (compact)
-  const t = (1 - spacing) / (1 - SPACING_COMPACT);
-  return full * (1 - t) + compact * t;
-}
-
-const GOLD = '#D4AF37';
-const GOLD_BRIGHT = '#FFE066';
-const BG_DARK = '#011464';
-
 function colWidthPx(numCols: number): number {
   const gapTotal = (numCols - 1) * COL_GAP_MM * MM_TO_PX;
   return (CONTENT_W_PX - gapTotal) / numCols;
 }
 
-// ─── Tipos internos ─────────────────────────────────────────────────────────
-interface EmpresaMeasurement {
-  blockH_full: number;
-  blockH_compact: number;
-  headerH_full: number;
-  headerH_compact: number;
-  groupsH_full: number[];
-  groupsH_compact: number[];
-}
-
-type MeasurementMatrix = Record<number, EmpresaMeasurement[]>;
-
-interface ColumnContent {
-  menuIdx: number;
-  grupos: CardapioGroup[];
-  isContinuacao: boolean;
-}
-
-interface LayoutResult {
-  scale: number;
-  spacing: number;
-  numColunas: number;
-  paginas: ColumnContent[][][];
-  fallback?: boolean;
-}
-
 // ─── Componente EmpresaBlock ────────────────────────────────────────────────
 interface EmpresaBlockProps {
+  t: CardapioTema;
+  fontes: FontesA3;
   empresa: string;
   titulo?: string;
   grupos: CardapioGroup[];
@@ -89,7 +51,7 @@ interface EmpresaBlockProps {
 }
 
 const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
-  empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
+  t, fontes, empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
 }) => {
   return (
     <div
@@ -103,19 +65,19 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
       <div style={{ textAlign: 'center', marginBottom: `${10 * scale * spacing}px` }}>
         {titulo && !isContinuacao && (
           <div style={{
-            fontSize: `${15 * scale}px`,
-            color: GOLD_BRIGHT,
+            fontSize: `${fontes.titulo * scale}px`,
+            color: t.corDouradoClaro,
             textTransform: 'uppercase',
             marginBottom: '2px',
             fontWeight: 'bold',
           }}>{titulo}</div>
         )}
         <div style={{
-          fontSize: `${26 * scale}px`,
-          color: GOLD_BRIGHT,
+          fontSize: `${fontes.empresa * scale}px`,
+          color: t.corDouradoClaro,
           fontFamily: '"Arial Black", Impact, sans-serif',
           textTransform: 'uppercase',
-          textShadow: `0 0 10px ${GOLD}55`,
+          textShadow: `0 0 10px ${t.corDourado}55`,
           lineHeight: 1.05,
         }}>
           {empresa}{isContinuacao ? ' ›' : ''}
@@ -124,7 +86,7 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
           margin: '6px auto',
           width: '60%',
           height: '2px',
-          background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`,
+          background: `linear-gradient(90deg, transparent, ${t.corDourado}, transparent)`,
           opacity: 0.8,
         }} />
       </div>
@@ -136,9 +98,9 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
             style={{ breakInside: 'avoid' }}
           >
             <h3 style={{
-              fontSize: `${15 * scale}px`,
+              fontSize: `${fontes.categoria * scale}px`,
               fontWeight: 900,
-              color: GOLD_BRIGHT,
+              color: t.corDouradoClaro,
               marginTop: 0,
               marginBottom: `${6 * scale * spacing}px`,
               textTransform: 'uppercase',
@@ -148,42 +110,49 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
               {grupo.categoria}
             </h3>
             {grupo.itens.map((item: any, ii: number) => (
-              <div key={ii} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-                marginBottom: `${5 * scale * spacing}px`,
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <span style={{ fontSize: `${12.5 * scale}px`, color: '#FFFFFF', fontWeight: 600 }}>
+              <div key={ii} style={{ marginBottom: `${5 * scale * spacing}px` }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                }}>
+                  <span style={{
+                    fontSize: `${fontes.item * scale}px`,
+                    color: t.corTexto,
+                    fontWeight: 600,
+                    minWidth: 0,
+                  }}>
                     {item.item}
                   </span>
-                  {item.descricao && (
+                  {item.valor && (
                     <span style={{
-                      fontSize: `${9.5 * scale}px`,
-                      color: '#b8cce0',
-                      marginTop: '2px',
-                      fontStyle: 'italic',
-                      maxWidth: '85%',
-                    }}>{item.descricao}</span>
+                      flex: 1,
+                      minWidth: '12px',
+                      margin: '0 8px',
+                      borderBottom: `1px dotted ${withAlpha(t.corTextoSuave, 0.55)}`,
+                      alignSelf: 'baseline',
+                    }} />
                   )}
-                </div>
-                {item.valor && (
                   <span style={{
-                    flex: 1,
-                    minWidth: '12px',
-                    margin: '0 8px',
-                    borderBottom: '1px dotted rgba(184,204,224,0.55)',
-                    alignSelf: 'baseline',
-                  }} />
+                    fontSize: `${fontes.preco * scale}px`,
+                    color: t.corDouradoClaro,
+                    fontWeight: 900,
+                    fontFamily: '"Arial Black", Impact, sans-serif',
+                    whiteSpace: 'nowrap',
+                  }}>{item.valor}</span>
+                </div>
+                {/* Descrição abaixo da linha, largura total da coluna — só
+                    quebra quando realmente falta espaço (antes: maxWidth 85%
+                    de uma coluna auto-dimensionada forçava quebra sempre) */}
+                {item.descricao && (
+                  <div style={{
+                    fontSize: `${fontes.descricao * scale}px`,
+                    color: t.corTextoSuave,
+                    marginTop: '2px',
+                    fontStyle: 'italic',
+                    lineHeight: 1.3,
+                  }}>{item.descricao}</div>
                 )}
-                <span style={{
-                  fontSize: `${13 * scale}px`,
-                  color: GOLD_BRIGHT,
-                  fontWeight: 900,
-                  fontFamily: '"Arial Black", Impact, sans-serif',
-                  whiteSpace: 'nowrap',
-                }}>{item.valor}</span>
               </div>
             ))}
           </div>
@@ -193,211 +162,121 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
   );
 };
 
-// ─── Algoritmo de distribuição ──────────────────────────────────────────────
+// ─── Painel de controle de fontes ───────────────────────────────────────────
+const CAMPOS_FONTE: { key: keyof FontesA3; label: string }[] = [
+  { key: 'empresa',   label: 'Empresa' },
+  { key: 'titulo',    label: 'Título' },
+  { key: 'categoria', label: 'Categoria' },
+  { key: 'item',      label: 'Item' },
+  { key: 'descricao', label: 'Descrição' },
+  { key: 'preco',     label: 'Preço' },
+];
 
-type Chunk = { menuIdx: number; grupos: CardapioGroup[]; isContinuacao: boolean; h: number };
-type EmpresaChunked = { idx: number; chunks: Chunk[]; altTotal: number };
+const FONTE_MIN = 6;
+const FONTE_MAX = 40;
+const FONTE_STEP = 0.5;
 
-function quebrarEmpresa(
-  menu: A3DuploMenuData,
-  idx: number,
-  meas: EmpresaMeasurement,
-  scale: number,
-  spacing: number,
-  pageH: number
-): Chunk[] | null {
-  const blockH = resolveH(meas.blockH_full, meas.blockH_compact, spacing) * scale;
-  const grupos = menu.itens || [];
-
-  if (blockH <= pageH) {
-    return [{ menuIdx: idx, grupos, isContinuacao: false, h: blockH }];
-  }
-
-  const chunks: Chunk[] = [];
-  const headerH = resolveH(meas.headerH_full, meas.headerH_compact, spacing) * scale;
-  let currentGrupos: CardapioGroup[] = [];
-  let currentH = headerH;
-
-  for (let gi = 0; gi < grupos.length; gi++) {
-    const gh = resolveH(meas.groupsH_full[gi] || 0, meas.groupsH_compact[gi] || 0, spacing) * scale;
-    if (headerH + gh > pageH) return null;
-
-    if (currentH + gh > pageH && currentGrupos.length > 0) {
-      chunks.push({
-        menuIdx: idx,
-        grupos: currentGrupos,
-        isContinuacao: chunks.length > 0,
-        h: currentH,
-      });
-      currentGrupos = [];
-      currentH = headerH;
-    }
-    currentGrupos.push(grupos[gi]);
-    currentH += gh;
-  }
-  if (currentGrupos.length > 0) {
-    chunks.push({
-      menuIdx: idx,
-      grupos: currentGrupos,
-      isContinuacao: chunks.length > 0,
-      h: currentH,
-    });
-  }
-  return chunks;
-}
-
-function tentarLayout(
-  menus: A3DuploMenuData[],
-  meas: EmpresaMeasurement[],
-  scale: number,
-  spacing: number,
-  numCols: number,
-  pageH: number
-): ColumnContent[][][] | null {
-  const empresas: EmpresaChunked[] = [];
-  for (let i = 0; i < menus.length; i++) {
-    const chunks = quebrarEmpresa(menus[i], i, meas[i], scale, spacing, pageH);
-    if (!chunks) return null;
-    if (chunks.length > numCols) return null;
-    const altTotal = chunks.reduce((s, c) => s + c.h, 0);
-    empresas.push({ idx: i, chunks, altTotal });
-  }
-
-  // Separa empresas pinadas (ex: BAR) das demais. Pinadas vão 100% na página 0.
-  const pinned = empresas.filter((e) => isPinned(menus[e.idx]));
-  const others = empresas.filter((e) => !isPinned(menus[e.idx]));
-  others.sort((a, b) => b.altTotal - a.altTotal);
-
-  const pagEmpresas: EmpresaChunked[][] = [[], []];
-  const pagAlturas = [0, 0];
-  for (const p of pinned) {
-    pagEmpresas[0].push(p);
-    pagAlturas[0] += p.altTotal;
-  }
-  for (const e of others) {
-    const p = pagAlturas[0] <= pagAlturas[1] ? 0 : 1;
-    pagEmpresas[p].push(e);
-    pagAlturas[p] += e.altTotal;
-  }
-
-  const paginas: ColumnContent[][][] = [];
-  for (let pi = 0; pi < pagEmpresas.length; pi++) {
-    const empresasDaPag = pagEmpresas[pi];
-    // pinadas ficam no início; demais, ordenadas desc
-    const pinadasDaPag = empresasDaPag.filter((e) => isPinned(menus[e.idx]));
-    const othersDaPag = empresasDaPag.filter((e) => !isPinned(menus[e.idx]));
-    othersDaPag.sort((a, b) => b.altTotal - a.altTotal);
-
-    const colunas: ColumnContent[][] = Array.from({ length: numCols }, () => []);
-    const alturasCol = new Array(numCols).fill(0);
-
-    let falhou = false;
-
-    // Aloca pinadas nas colunas iniciais em sequência
-    let proximaCol = 0;
-    for (const emp of pinadasDaPag) {
-      const k = emp.chunks.length;
-      if (proximaCol + k > numCols) { falhou = true; break; }
-      for (let j = 0; j < k; j++) {
-        if (alturasCol[proximaCol + j] + emp.chunks[j].h > pageH) { falhou = true; break; }
-      }
-      if (falhou) break;
-      for (let j = 0; j < k; j++) {
-        const c = emp.chunks[j];
-        colunas[proximaCol + j].push({
-          menuIdx: c.menuIdx, grupos: c.grupos, isContinuacao: c.isContinuacao,
-        });
-        alturasCol[proximaCol + j] += c.h;
-      }
-      proximaCol += k;
-    }
-    if (falhou) return null;
-
-    for (const emp of othersDaPag) {
-      if (emp.chunks.length === 1) {
-        const c = emp.chunks[0];
-        let bestCol = -1;
-        let bestH = Infinity;
-        for (let ci = 0; ci < numCols; ci++) {
-          if (alturasCol[ci] + c.h <= pageH && alturasCol[ci] < bestH) {
-            bestH = alturasCol[ci];
-            bestCol = ci;
-          }
-        }
-        if (bestCol === -1) { falhou = true; break; }
-        colunas[bestCol].push({ menuIdx: c.menuIdx, grupos: c.grupos, isContinuacao: c.isContinuacao });
-        alturasCol[bestCol] += c.h;
-      } else {
-        const k = emp.chunks.length;
-        let startBest = -1;
-        let maxFreeBest = -Infinity;
-        for (let start = 0; start + k <= numCols; start++) {
-          let ok = true;
-          let freeSum = 0;
-          for (let j = 0; j < k; j++) {
-            if (alturasCol[start + j] + emp.chunks[j].h > pageH) { ok = false; break; }
-            freeSum += (pageH - alturasCol[start + j]);
-          }
-          if (ok && freeSum > maxFreeBest) {
-            maxFreeBest = freeSum;
-            startBest = start;
-          }
-        }
-        if (startBest === -1) { falhou = true; break; }
-        for (let j = 0; j < k; j++) {
-          const c = emp.chunks[j];
-          colunas[startBest + j].push({
-            menuIdx: c.menuIdx, grupos: c.grupos, isContinuacao: c.isContinuacao,
-          });
-          alturasCol[startBest + j] += c.h;
-        }
-      }
-    }
-    if (falhou) return null;
-    paginas.push(colunas);
-  }
-  return paginas;
-}
-
-function calcularLayout(
-  menus: A3DuploMenuData[],
-  measurements: MeasurementMatrix,
-  pageH: number
-): LayoutResult {
-  // Ordem: maximiza fonte; se não couber, compacta espaçamento; só depois aumenta colunas; por último reduz fonte.
-  for (const scale of SCALE_STEPS) {
-    for (const spacing of SPACING_STEPS) {
-      for (const numCols of COL_CHOICES) {
-        const meas = measurements[numCols];
-        if (!meas) continue;
-        const result = tentarLayout(menus, meas, scale, spacing, numCols, pageH);
-        if (result) return { scale, spacing, numColunas: numCols, paginas: result };
-      }
-    }
-  }
-  const scale = SCALE_STEPS[SCALE_STEPS.length - 1];
-  const spacing = SPACING_STEPS[SPACING_STEPS.length - 1];
-  const numCols = 4;
-  const paginas: ColumnContent[][][] = [0, 1].map(() => Array.from({ length: numCols }, () => [] as ColumnContent[]));
-  menus.forEach((menu, idx) => {
-    const pIdx = idx < Math.ceil(menus.length / 2) ? 0 : 1;
-    const cIdx = idx % numCols;
-    paginas[pIdx][cIdx].push({ menuIdx: idx, grupos: menu.itens || [], isContinuacao: false });
-  });
-  return { scale, spacing, numColunas: numCols, paginas, fallback: true };
-}
+const CAMPOS_COR: { key: keyof CardapioTema; label: string }[] = [
+  { key: 'corFundo',        label: 'Fundo' },
+  { key: 'corDourado',      label: 'Destaque' },
+  { key: 'corDouradoClaro', label: 'Destaque claro' },
+  { key: 'corTexto',        label: 'Texto' },
+  { key: 'corTextoSuave',   label: 'Texto suave' },
+];
 
 // ─── Componente exportado ───────────────────────────────────────────────────
 export interface A3DuploCanvasProps {
   menus: A3DuploMenuData[];
+  /** Tema do projeto (cores) */
+  tema?: Partial<CardapioTema> | null;
+  /** Imagem de fundo das páginas A3 (cover); null = cor sólida do tema */
+  fundoUrl?: string | null;
+  /** Fontes salvas no projeto (null = padrão) */
+  fontesIniciais?: Partial<FontesA3> | null;
+  /** Persiste fontes + cores do tema no projeto (null = padrão). Ausente = sem botão salvar */
+  onSalvarAjustes?: (ajustes: {
+    fontes: FontesA3 | null;
+    tema: Partial<CardapioTema> | null;
+  }) => Promise<void>;
 }
 
-export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
+export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
+  menus, tema = null, fundoUrl = null, fontesIniciais = null, onSalvarAjustes,
+}) => {
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
   const [layout, setLayout] = useState<LayoutResult | null>(null);
+  const [fontes, setFontes] = useState<FontesA3>(() => resolveFontes(fontesIniciais));
+  // Cores editáveis (interligadas com o tema do projeto — valem p/ banner e A4 ao salvar)
+  const [temaEdit, setTemaEdit] = useState<CardapioTema>(() => resolveTema(tema));
+  const [zoom, setZoom] = useState(0.45);
+  const [isSavingFontes, setIsSavingFontes] = useState(false);
+  const [fontesSalvas, setFontesSalvas] = useState(false);
+
+  const t = temaEdit;
 
   type RefBucket = { blockEl: HTMLDivElement | null; groupEls: (HTMLDivElement | null)[] };
   const measurementRefs = useRef<Record<number, { full: RefBucket[]; compact: RefBucket[] }>>({});
+  // Últimas medições — permite re-distribuir (ex: afastamento do topo) sem re-medir
+  const lastMeasurements = useRef<MeasurementMatrix | null>(null);
+
+  const topoMm = fontes.topoMm ?? 0;
+  const pageContentH = CONTENT_H_PX - topoMm * MM_TO_PX;
+
+  // Re-mede tudo e re-distribui (usado quando as fontes mudam)
+  const remeasure = () => {
+    measurementRefs.current = {};
+    setLayout(null);
+    setPhase('measuring');
+  };
+
+  // Fontes/tema salvos do projeto podem chegar depois do mount (fetch assíncrono)
+  const fontesIniciaisJson = JSON.stringify(fontesIniciais ?? null);
+  useEffect(() => {
+    setFontes(resolveFontes(fontesIniciais));
+    remeasure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fontesIniciaisJson]);
+
+  const temaJson = JSON.stringify(tema ?? null);
+  useEffect(() => {
+    setTemaEdit(resolveTema(tema));
+    // cores não afetam alturas — sem re-medição
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temaJson]);
+
+  const changeFonte = (key: keyof FontesA3, delta: number) => {
+    setFontes((prev) => ({
+      ...prev,
+      [key]: Math.min(FONTE_MAX, Math.max(FONTE_MIN, Math.round((prev[key] + delta) * 2) / 2)),
+    }));
+    setFontesSalvas(false);
+    remeasure();
+  };
+
+  const handleVoltarPadrao = () => {
+    setFontes({ ...FONTES_A3_PADRAO });
+    setTemaEdit({ ...TEMA_PADRAO });
+    setFontesSalvas(false);
+    remeasure();
+  };
+
+  const handleSalvarAjustes = async () => {
+    if (!onSalvarAjustes) return;
+    try {
+      setIsSavingFontes(true);
+      await onSalvarAjustes({
+        fontes: fontesSaoPadrao(fontes) ? null : fontes,
+        tema: temaEhPadrao(temaEdit) ? null : temaEdit,
+      });
+      setFontesSalvas(true);
+      setTimeout(() => setFontesSalvas(false), 3000);
+    } catch (e: any) {
+      alert('Erro ao salvar ajustes: ' + (e?.message || e));
+    } finally {
+      setIsSavingFontes(false);
+    }
+  };
 
   if (Object.keys(measurementRefs.current).length === 0 && menus.length > 0) {
     const fresh: Record<number, { full: RefBucket[]; compact: RefBucket[] }> = {};
@@ -437,10 +316,19 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
       });
     }
 
-    const result = calcularLayout(menus, measurements, CONTENT_H_PX);
+    lastMeasurements.current = measurements;
+    const result = calcularLayout(menus, measurements, pageContentH);
     setLayout(result);
     setPhase('ready');
-  }, [phase, menus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, menus, fontes]);
+
+  // Afastamento do topo só muda a altura útil — re-distribui sem re-medir
+  useEffect(() => {
+    if (phase !== 'ready' || !lastMeasurements.current) return;
+    setLayout(calcularLayout(menus, lastMeasurements.current, pageContentH));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topoMm]);
 
   const handlePrint = () => window.print();
 
@@ -454,12 +342,14 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
+          .zoom-wrap { zoom: 1 !important; }
           .print-area {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
-            background: ${BG_DARK} !important;
+            display: block !important;
+            background: ${t.corFundo} !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -494,6 +384,8 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
                   {menus.map((menu, idx) => (
                     <EmpresaBlock
                       key={`m-${n}-${variant}-${idx}`}
+                      t={t}
+                      fontes={fontes}
                       empresa={menu.empresa}
                       titulo={menu.titulo}
                       grupos={menu.itens || []}
@@ -520,71 +412,231 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus }) => {
       <Layout
         title={statusTxt}
         headerActions={
-          layout && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-600 font-bold text-sm px-4 py-2.5 rounded-lg border border-slate-200 shadow transition-all"
+              title="Voltar para o projeto"
             >
-              🖨️ Imprimir / Salvar PDF Vetorial
+              ← Voltar
             </button>
-          )
+            {layout && (
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+              >
+                🖨️ Imprimir / Salvar PDF Vetorial
+              </button>
+            )}
+          </div>
         }
       >
-        <div className="p-6 overflow-auto bg-slate-200 flex justify-center pb-24">
-          {!layout ? (
-            <div className="flex justify-center py-20">
-              <span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex gap-4 p-4 bg-slate-200 min-h-full items-start">
+          {/* ── Painel de fontes (não sai na impressão) ─────────────────── */}
+          <div className="no-print w-60 flex-shrink-0 sticky top-4 bg-white rounded-xl border border-slate-200 shadow-lg p-4 flex flex-col gap-3">
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              Fontes (px)
+            </p>
+            <p className="text-[11px] text-slate-400 -mt-2">
+              Ao ajustar, a distribuição é recalculada — a escala global se adapta para tudo caber.
+            </p>
+
+            {CAMPOS_FONTE.map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-slate-700 flex-1">{label}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => changeFonte(key, -FONTE_STEP)}
+                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm"
+                    title={`Diminuir ${label}`}
+                  >
+                    −
+                  </button>
+                  <span
+                    className={`w-11 text-center text-sm font-mono ${
+                      fontes[key] !== FONTES_A3_PADRAO[key] ? 'text-indigo-600 font-bold' : 'text-slate-500'
+                    }`}
+                    title={`Padrão: ${FONTES_A3_PADRAO[key]}px`}
+                  >
+                    {fontes[key]}
+                  </span>
+                  <button
+                    onClick={() => changeFonte(key, FONTE_STEP)}
+                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm"
+                    title={`Aumentar ${label}`}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Cores do tema — interligadas com o projeto (valem p/ banner e A4) */}
+            <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Cores do tema
+              </p>
+              <p className="text-[11px] text-slate-400 -mt-1">
+                Cores do projeto — ao salvar, valem também para o banner e o A4.
+              </p>
+              {CAMPOS_COR.map(({ key, label }) => (
+                <label key={key} className="flex items-center justify-between gap-2 cursor-pointer">
+                  <span className="text-sm font-semibold text-slate-700">{label}</span>
+                  <span className="flex items-center gap-1.5">
+                    <code className="text-[10px] text-slate-400 uppercase">{temaEdit[key]}</code>
+                    <input
+                      type="color"
+                      value={temaEdit[key]}
+                      onChange={(e) => {
+                        setTemaEdit((prev) => ({ ...prev, [key]: e.target.value }));
+                        setFontesSalvas(false);
+                      }}
+                      className="w-8 h-7 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
+                    />
+                  </span>
+                </label>
+              ))}
             </div>
-          ) : (
-            <div className="flex flex-col gap-12 print-area" style={{ background: BG_DARK }}>
-              {layout.paginas.map((pagina, pi) => (
-                <div
-                  key={pi}
-                  className="shadow-2xl page-a3"
-                  style={{
-                    width: `${A3_W_MM}mm`,
-                    height: `${A3_H_MM}mm`,
-                    backgroundColor: BG_DARK,
-                    padding: `${PAGE_PAD_MM}mm`,
-                    margin: '0 auto',
-                    boxSizing: 'border-box',
-                    display: 'flex',
-                    gap: `${COL_GAP_MM}mm`,
-                    fontFamily: 'Arial, Helvetica, sans-serif',
-                    overflow: 'hidden',
-                  }}
+
+            <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
+              {onSalvarAjustes && (
+                <button
+                  onClick={handleSalvarAjustes}
+                  disabled={isSavingFontes}
+                  className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm px-3 py-2 rounded-lg shadow transition-all"
                 >
-                  {pagina.map((coluna, ci) => (
+                  {isSavingFontes ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : null}
+                  {isSavingFontes ? 'Salvando...' : fontesSalvas ? '✓ Salvo!' : 'Salvar no projeto'}
+                </button>
+              )}
+              <button
+                onClick={handleVoltarPadrao}
+                className="w-full text-sm font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5"
+              >
+                Voltar ao padrão
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zoom</span>
+                <span className="text-xs text-slate-400 font-mono">{Math.round(zoom * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0.25}
+                max={1}
+                step={0.05}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-indigo-600"
+              />
+            </div>
+
+            {/* Afastar do topo — empurra o conteúdo p/ baixo p/ centralizar melhor */}
+            <div className="border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Afastar do topo</span>
+                <span className={`text-xs font-mono ${topoMm > 0 ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
+                  {topoMm} mm
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={60}
+                step={1}
+                value={topoMm}
+                onChange={(e) => {
+                  setFontes((prev) => ({ ...prev, topoMm: Number(e.target.value) }));
+                  setFontesSalvas(false);
+                }}
+                className="w-full accent-indigo-600"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Empurra o conteúdo para baixo (0 = padrão). Salva junto com as fontes.
+              </p>
+            </div>
+          </div>
+
+          {/* ── Páginas lado a lado ─────────────────────────────────────── */}
+          <div className="flex-1 overflow-auto pb-24">
+            {!layout ? (
+              <div className="flex justify-center py-20">
+                <span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="zoom-wrap" style={{ zoom }}>
+                <div
+                  className="flex flex-row items-start gap-10 print-area"
+                  style={{ background: t.corFundo, width: 'fit-content' }}
+                >
+                  {layout.paginas.map((pagina, pi) => (
                     <div
-                      key={ci}
+                      key={pi}
+                      className="shadow-2xl page-a3"
                       style={{
-                        flex: 1,
+                        width: `${A3_W_MM}mm`,
+                        height: `${A3_H_MM}mm`,
+                        backgroundColor: t.corFundo,
+                        // Fundo custom do projeto — cover em cada página (sai na
+                        // impressão graças ao print-color-adjust: exact do @media print)
+                        ...(fundoUrl
+                          ? {
+                              backgroundImage: `url(${fundoUrl})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center center',
+                              backgroundRepeat: 'no-repeat',
+                            }
+                          : {}),
+                        padding: `${PAGE_PAD_MM}mm`,
+                        paddingTop: `${PAGE_PAD_MM + topoMm}mm`,
+                        margin: '0 auto',
+                        boxSizing: 'border-box',
                         display: 'flex',
-                        flexDirection: 'column',
-                        minWidth: 0,
+                        gap: `${COL_GAP_MM}mm`,
+                        fontFamily: 'Arial, Helvetica, sans-serif',
+                        overflow: 'hidden',
+                        flexShrink: 0,
                       }}
                     >
-                      {coluna.map((bloco, bi) => {
-                        const menu = menus[bloco.menuIdx];
-                        return (
-                          <EmpresaBlock
-                            key={`${pi}-${ci}-${bi}`}
-                            empresa={menu.empresa}
-                            titulo={menu.titulo}
-                            grupos={bloco.grupos}
-                            scale={layout.scale}
-                            spacing={layout.spacing}
-                            widthPx={colWidthPx(layout.numColunas)}
-                            isContinuacao={bloco.isContinuacao}
-                          />
-                        );
-                      })}
+                      {pagina.map((coluna, ci) => (
+                        <div
+                          key={ci}
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minWidth: 0,
+                          }}
+                        >
+                          {coluna.map((bloco, bi) => {
+                            const menu = menus[bloco.menuIdx];
+                            return (
+                              <EmpresaBlock
+                                key={`${pi}-${ci}-${bi}`}
+                                t={t}
+                                fontes={fontes}
+                                empresa={menu.empresa}
+                                titulo={menu.titulo}
+                                grupos={bloco.grupos}
+                                scale={layout.scale}
+                                spacing={layout.spacing}
+                                widthPx={colWidthPx(layout.numColunas)}
+                                isContinuacao={bloco.isContinuacao}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </Layout>
     </>

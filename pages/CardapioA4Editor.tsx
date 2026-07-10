@@ -1,18 +1,54 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { CardapioA4Canvas } from '../components/cardapioA4/CardapioA4Canvas';
-import { CANVAS_W, CANVAS_H } from '../components/cardapioA4/cardapioA4Config';
+import {
+  CANVAS_W, CANVAS_H,
+  FontesA4, FONTES_A4_PADRAO, resolveFontesA4, fontesA4SaoPadrao,
+} from '../components/cardapioA4/cardapioA4Config';
 import { exportMenuA4, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
 import { parseCardapioText, CardapioGroup } from '../utils/cardapioParser';
+import { CardapioRenderOptions } from '../utils/cardapioTema';
 import { menuA4Service } from '../services/menuA4Service';
+import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
 
 const isEditMode_check = (id?: string) => !!id;
 
+const CAMPOS_FONTES_A4: { key: keyof FontesA4; label: string }[] = [
+  { key: 'empresa',   label: 'Empresa' },
+  { key: 'titulo',    label: 'Título' },
+  { key: 'categoria', label: 'Categoria' },
+  { key: 'item',      label: 'Item' },
+  { key: 'descricao', label: 'Descrição' },
+  { key: 'preco',     label: 'Preço' },
+];
+const FONTE_A4_STEP = 0.05;
+const FONTE_A4_MIN = 0.5;
+const FONTE_A4_MAX = 2;
+
 export const CardapioA4Editor: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { projetoId, id } = useParams<{ projetoId: string; id: string }>();
   const navigate = useNavigate();
   const isEditMode = isEditMode_check(id);
+
+  // ── Projeto (tema/fundo/chancela) ────────────────────────────────────────
+  const [projeto, setProjeto] = useState<CardapioProjeto | null>(null);
+  useEffect(() => {
+    if (!projetoId) return;
+    cardapioProjetosService
+      .buscar(projetoId)
+      .then(setProjeto)
+      .catch(() => setProjeto(null)); // sem projeto → visual padrão
+  }, [projetoId]);
+
+  const renderOpts = useMemo<CardapioRenderOptions>(
+    () => ({
+      tema: projeto?.tema ?? null,
+      fundoUrl: projeto?.fundo_a4_url ?? null,
+      chancelaUrl: projeto?.chancela_url ?? null,
+    }),
+    [projeto]
+  );
 
   const canvasRef            = useRef<HTMLDivElement>(null);
   const exportMenuRef        = useRef<HTMLDivElement>(null);
@@ -29,6 +65,8 @@ export const CardapioA4Editor: React.FC = () => {
   const [error,        setError]        = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [isLoading,    setIsLoading]    = useState(isEditMode);
+  // Fontes individuais DESTE menu (multiplicadores; salvas junto no Salvar)
+  const [fontesA4, setFontesA4] = useState<FontesA4>({ ...FONTES_A4_PADRAO });
 
   // ── Load existing (edit mode) ────────────────────────────────────────────
   useEffect(() => {
@@ -41,6 +79,7 @@ export const CardapioA4Editor: React.FC = () => {
         setTitulo(c.titulo);
         setEmpresa(c.empresa);
         setGrupos(c.itens as CardapioGroup[]);
+        setFontesA4(resolveFontesA4(c.fontes));
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
@@ -86,12 +125,19 @@ export const CardapioA4Editor: React.FC = () => {
     }
     try {
       setIsSaving(true); setError(null);
-      const payload = { titulo, empresa, conteudo_raw: rawText, itens: grupos };
+      const payload = {
+        titulo,
+        empresa,
+        conteudo_raw: rawText,
+        itens: grupos,
+        projeto_id: projetoId ?? null,
+        fontes: fontesA4SaoPadrao(fontesA4) ? null : fontesA4,
+      };
       if (isEditMode && id) {
         await menuA4Service.atualizar(id, payload);
       } else {
         const saved = await menuA4Service.salvar(payload);
-        navigate(`/cardapios-a4/${saved.id}`, { replace: true });
+        navigate(`/cardapios/projeto/${projetoId}/a4/${saved.id}`, { replace: true });
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -109,7 +155,10 @@ export const CardapioA4Editor: React.FC = () => {
     try {
       setIsExporting(true); setError(null);
       const filename = `menu-a4-${empresa.toLowerCase().replace(/\s+/g, '-') || 'menu'}`;
-      await exportMenuA4(titulo, empresa, grupos, filename, scale, setExportStatus);
+      await exportMenuA4(titulo, empresa, grupos, filename, scale, setExportStatus, {
+        ...renderOpts,
+        fontesA4,
+      });
     } catch (e: any) {
       setError(e.message || 'Erro ao exportar');
     } finally {
@@ -236,6 +285,56 @@ export const CardapioA4Editor: React.FC = () => {
             )}
           </div>
 
+          {/* Fontes individuais deste menu */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-slate-600">Fontes deste menu</p>
+              <button
+                onClick={() => setFontesA4({ ...FONTES_A4_PADRAO })}
+                className="text-[11px] font-semibold text-slate-400 hover:text-slate-600"
+                title="Restaura os tamanhos automáticos"
+              >
+                Voltar ao padrão
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Ajuste em % sobre o tamanho automático — o encaixe recalcula para caber na página.
+              Salvo junto com o menu ao clicar em Salvar.
+            </p>
+            {CAMPOS_FONTES_A4.map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-700 flex-1">{label}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setFontesA4((prev) => ({
+                      ...prev,
+                      [key]: Math.max(FONTE_A4_MIN, Math.round((prev[key] - FONTE_A4_STEP) * 100) / 100),
+                    }))}
+                    className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs"
+                  >
+                    −
+                  </button>
+                  <span
+                    className={`w-11 text-center text-xs font-mono ${
+                      fontesA4[key] !== 1 ? 'text-indigo-600 font-bold' : 'text-slate-500'
+                    }`}
+                  >
+                    {Math.round(fontesA4[key] * 100)}%
+                  </span>
+                  <button
+                    onClick={() => setFontesA4((prev) => ({
+                      ...prev,
+                      [key]: Math.min(FONTE_A4_MAX, Math.round((prev[key] + FONTE_A4_STEP) * 100) / 100),
+                    }))}
+                    className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Bleed legend */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
             <p className="text-xs font-bold text-slate-600 mb-2">Legenda do preview</p>
@@ -269,6 +368,10 @@ export const CardapioA4Editor: React.FC = () => {
                   empresa={empresa}
                   grupos={grupos}
                   exporting={isExporting}
+                  tema={renderOpts.tema}
+                  fundoUrl={renderOpts.fundoUrl}
+                  chancelaUrl={renderOpts.chancelaUrl}
+                  fontes={fontesA4}
                 />
               </div>
             )}

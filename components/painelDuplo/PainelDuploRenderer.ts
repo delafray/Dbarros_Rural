@@ -14,13 +14,18 @@
 import { CANVAS_W, CANVAS_H } from '../cardapio/CardapioCanvas';
 import { renderCardapioToDataURL } from '../cardapio/CardapioRenderer';
 import { CardapioGroup } from '../../utils/cardapioParser';
+import {
+  CardapioTema,
+  CardapioRenderOptions,
+  resolveTema,
+  withAlpha,
+} from '../../utils/cardapioTema';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const BLEED    = 8;                     // 10 mm * 0.8 px/mm
 const USEFUL_W = 776;                   // 970 mm * 0.8 px/mm
 const MENU_H   = 880;                   // 1100 mm * 0.8 px/mm (top half)
 const LOGO_H   = 800;                   // 1000 mm * 0.8 px/mm (bottom half)
-const BG       = '#011464';             // mesmo fundo do banner
 
 // Canvas completo de cada painel (scale=1)
 const PANEL_W = USEFUL_W + (BLEED * 2); // 792 px => 990 mm
@@ -78,6 +83,7 @@ async function renderPanel(
   logoFile: File | null,
   side: 'esquerda' | 'direita',
   scale: number,
+  T: CardapioTema,
 ): Promise<HTMLCanvasElement> {
   const canvas  = document.createElement('canvas');
   canvas.width  = PANEL_W * scale;
@@ -85,8 +91,8 @@ async function renderPanel(
   const ctx     = canvas.getContext('2d')!;
   ctx.scale(scale, scale);
 
-  // 1. Preenche tudo com BG — sangria de 1cm fica com a cor do banner
-  ctx.fillStyle = BG;
+  // 1. Preenche tudo com a cor de fundo — sangria de 1cm fica com a cor do banner
+  ctx.fillStyle = T.corFundo;
   ctx.fillRect(0, 0, PANEL_W, PANEL_H);
 
   // 2. Corta o banner ao meio e cola na área útil EXATA limitando pelass sangrias
@@ -119,11 +125,11 @@ async function renderPanel(
   const seamH  = 4;
   const seamY  = logoY - Math.floor(seamH / 2);
   const seamG  = ctx.createLinearGradient(CX1, 0, CX2, 0);
-  seamG.addColorStop(0,   'rgba(212,175,55,0)');
-  seamG.addColorStop(0.08, 'rgba(212,175,55,0.40)');
-  seamG.addColorStop(0.5,  'rgba(212,175,55,0.48)');
-  seamG.addColorStop(0.92, 'rgba(212,175,55,0.40)');
-  seamG.addColorStop(1,   'rgba(212,175,55,0)');
+  seamG.addColorStop(0,   withAlpha(T.corDourado, 0));
+  seamG.addColorStop(0.08, withAlpha(T.corDourado, 0.40));
+  seamG.addColorStop(0.5,  withAlpha(T.corDourado, 0.48));
+  seamG.addColorStop(0.92, withAlpha(T.corDourado, 0.40));
+  seamG.addColorStop(1,   withAlpha(T.corDourado, 0));
   ctx.fillStyle = seamG;
   ctx.fillRect(BLEED, seamY, USEFUL_W, seamH); // Aplica apenas dentro da linha de corte lateral
 
@@ -144,13 +150,15 @@ export async function renderPainelPreview(
   grupos: CardapioGroup[],
   logoEsq: File | null,
   logoDir: File | null,
+  opts: CardapioRenderOptions = {},
 ): Promise<[string, string]> {
-  const bannerUrl = await renderCardapioToDataURL(titulo, empresa, grupos, 1);
+  const T = resolveTema(opts.tema);
+  const bannerUrl = await renderCardapioToDataURL(titulo, empresa, grupos, 1, opts);
   const bannerImg = await loadImage(bannerUrl);
 
   const [leftCanvas, rightCanvas] = await Promise.all([
-    renderPanel(bannerImg, logoEsq, 'esquerda', 1),
-    renderPanel(bannerImg, logoDir, 'direita',  1),
+    renderPanel(bannerImg, logoEsq, 'esquerda', 1, T),
+    renderPanel(bannerImg, logoDir, 'direita',  1, T),
   ]);
 
   return [
@@ -167,21 +175,23 @@ export async function exportPainelDuplo(
   logoDir: File | null,
   scale: number,
   onProgress?: (msg: string) => void,
+  opts: CardapioRenderOptions = {},
 ): Promise<void> {
   const slug = empresa.toLowerCase().replace(/\s+/g, '-') || 'painel';
+  const T = resolveTema(opts.tema);
 
   onProgress?.('Renderizando banner...');
-  const bannerUrl = await renderCardapioToDataURL(titulo, empresa, grupos, scale);
+  const bannerUrl = await renderCardapioToDataURL(titulo, empresa, grupos, scale, opts);
   const bannerImg = await loadImage(bannerUrl);
 
   onProgress?.('Montando painel esquerdo...');
-  const leftCanvas = await renderPanel(bannerImg, logoEsq, 'esquerda', scale);
+  const leftCanvas = await renderPanel(bannerImg, logoEsq, 'esquerda', scale, T);
   triggerDownload(leftCanvas.toDataURL('image/png'), `painel-esquerdo-${slug}.png`);
 
   await new Promise((r) => setTimeout(r, 600));
 
   onProgress?.('Montando painel direito...');
-  const rightCanvas = await renderPanel(bannerImg, logoDir, 'direita', scale);
+  const rightCanvas = await renderPanel(bannerImg, logoDir, 'direita', scale, T);
   triggerDownload(rightCanvas.toDataURL('image/png'), `painel-direito-${slug}.png`);
 
   onProgress?.('Concluído!');
