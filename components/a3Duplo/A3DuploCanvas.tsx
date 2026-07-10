@@ -110,42 +110,49 @@ const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
               {grupo.categoria}
             </h3>
             {grupo.itens.map((item: any, ii: number) => (
-              <div key={ii} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-                marginBottom: `${5 * scale * spacing}px`,
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <span style={{ fontSize: `${fontes.item * scale}px`, color: t.corTexto, fontWeight: 600 }}>
+              <div key={ii} style={{ marginBottom: `${5 * scale * spacing}px` }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                }}>
+                  <span style={{
+                    fontSize: `${fontes.item * scale}px`,
+                    color: t.corTexto,
+                    fontWeight: 600,
+                    minWidth: 0,
+                  }}>
                     {item.item}
                   </span>
-                  {item.descricao && (
+                  {item.valor && (
                     <span style={{
-                      fontSize: `${fontes.descricao * scale}px`,
-                      color: t.corTextoSuave,
-                      marginTop: '2px',
-                      fontStyle: 'italic',
-                      maxWidth: '85%',
-                    }}>{item.descricao}</span>
+                      flex: 1,
+                      minWidth: '12px',
+                      margin: '0 8px',
+                      borderBottom: `1px dotted ${withAlpha(t.corTextoSuave, 0.55)}`,
+                      alignSelf: 'baseline',
+                    }} />
                   )}
-                </div>
-                {item.valor && (
                   <span style={{
-                    flex: 1,
-                    minWidth: '12px',
-                    margin: '0 8px',
-                    borderBottom: `1px dotted ${withAlpha(t.corTextoSuave, 0.55)}`,
-                    alignSelf: 'baseline',
-                  }} />
+                    fontSize: `${fontes.preco * scale}px`,
+                    color: t.corDouradoClaro,
+                    fontWeight: 900,
+                    fontFamily: '"Arial Black", Impact, sans-serif',
+                    whiteSpace: 'nowrap',
+                  }}>{item.valor}</span>
+                </div>
+                {/* Descrição abaixo da linha, largura total da coluna — só
+                    quebra quando realmente falta espaço (antes: maxWidth 85%
+                    de uma coluna auto-dimensionada forçava quebra sempre) */}
+                {item.descricao && (
+                  <div style={{
+                    fontSize: `${fontes.descricao * scale}px`,
+                    color: t.corTextoSuave,
+                    marginTop: '2px',
+                    fontStyle: 'italic',
+                    lineHeight: 1.3,
+                  }}>{item.descricao}</div>
                 )}
-                <span style={{
-                  fontSize: `${fontes.preco * scale}px`,
-                  color: t.corDouradoClaro,
-                  fontWeight: 900,
-                  fontFamily: '"Arial Black", Impact, sans-serif',
-                  whiteSpace: 'nowrap',
-                }}>{item.valor}</span>
               </div>
             ))}
           </div>
