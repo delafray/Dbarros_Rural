@@ -388,11 +388,13 @@ function calcularLayout(
 // ─── Componente exportado ───────────────────────────────────────────────────
 export interface A3DuploCanvasProps {
   menus: A3DuploMenuData[];
-  /** Tema do projeto (só cores — impressão A3 não usa imagem de fundo) */
+  /** Tema do projeto (cores) */
   tema?: Partial<CardapioTema> | null;
+  /** Imagem de fundo das páginas A3 (cover); null = cor sólida do tema */
+  fundoUrl?: string | null;
 }
 
-export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null }) => {
+export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null, fundoUrl = null }) => {
   const t = resolveTema(tema);
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
   const [layout, setLayout] = useState<LayoutResult | null>(null);
@@ -547,6 +549,16 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({ menus, tema = null
                     width: `${A3_W_MM}mm`,
                     height: `${A3_H_MM}mm`,
                     backgroundColor: t.corFundo,
+                    // Fundo custom do projeto — cover em cada página (sai na
+                    // impressão graças ao print-color-adjust: exact do @media print)
+                    ...(fundoUrl
+                      ? {
+                          backgroundImage: `url(${fundoUrl})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center center',
+                          backgroundRepeat: 'no-repeat',
+                        }
+                      : {}),
                     padding: `${PAGE_PAD_MM}mm`,
                     margin: '0 auto',
                     boxSizing: 'border-box',

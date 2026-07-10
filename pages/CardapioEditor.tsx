@@ -35,7 +35,7 @@ const CardapioEditor: React.FC = () => {
   }, [projetoId]);
 
   const renderOpts = useMemo<CardapioRenderOptions>(
-    () => ({ tema: projeto?.tema ?? null, fundoUrl: projeto?.fundo_url ?? null }),
+    () => ({ tema: projeto?.tema ?? null, fundoUrl: projeto?.fundo_banner_url ?? null }),
     [projeto]
   );
 

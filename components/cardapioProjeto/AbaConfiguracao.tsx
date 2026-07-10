@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   cardapioProjetosService,
   CardapioProjeto,
+  CardapioAssetTipo,
 } from '../../services/cardapioProjetosService';
 import {
   CardapioTema,
@@ -38,6 +39,60 @@ const CAMPOS_TEMA: { key: keyof CardapioTema; label: string; hint: string }[] = 
   { key: 'corTextoSuave',   label: 'Texto suave',     hint: 'Descrições e pontilhados' },
 ];
 
+// ─── Campo de upload de imagem reutilizável ───────────────────────────────────
+interface ImagemUploadFieldProps {
+  titulo: string;
+  hint: string;
+  url: string | null;
+  uploading: boolean;
+  previewClass: string; // controla proporção/enquadramento da miniatura
+  onFile: (file: File | null) => void;
+  onRemove: () => void;
+}
+
+const ImagemUploadField: React.FC<ImagemUploadFieldProps> = ({
+  titulo, hint, url, uploading, previewClass, onFile, onRemove,
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">{titulo}</p>
+      <p className="text-xs text-slate-400 mb-2">{hint}</p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          onFile(e.target.files?.[0] ?? null);
+          e.target.value = ''; // permite re-selecionar o mesmo arquivo
+        }}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex-1 py-2.5 px-4 rounded-lg border-2 border-dashed border-slate-300 hover:border-amber-400 text-sm font-medium text-slate-500 hover:text-amber-600 transition-all disabled:opacity-50"
+        >
+          {uploading ? 'Enviando...' : url ? 'Trocar imagem' : 'Enviar imagem'}
+        </button>
+        {url && (
+          <button
+            onClick={onRemove}
+            className="text-xs font-bold px-3 py-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500"
+          >
+            Remover
+          </button>
+        )}
+      </div>
+      {url && (
+        <img src={url} alt={titulo} className={`mt-2 w-full rounded-lg border border-slate-200 ${previewClass}`} />
+      )}
+    </div>
+  );
+};
+
+// ─── Aba de Configuração ──────────────────────────────────────────────────────
 interface AbaConfiguracaoProps {
   projeto: CardapioProjeto;
   onProjetoChange: (projeto: CardapioProjeto) => void;
@@ -47,16 +102,15 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
   const [nome, setNome] = useState(projeto.nome);
   const [edicaoId, setEdicaoId] = useState<string | null>(projeto.edicao_id);
   const [tema, setTema] = useState<CardapioTema>(resolveTema(projeto.tema));
-  const [fundoUrl, setFundoUrl] = useState<string | null>(projeto.fundo_url);
+  const [fundoBannerUrl, setFundoBannerUrl] = useState<string | null>(projeto.fundo_banner_url);
+  const [fundoA4Url, setFundoA4Url] = useState<string | null>(projeto.fundo_a4_url);
+  const [fundoA3Url, setFundoA3Url] = useState<string | null>(projeto.fundo_a3_url);
   const [chancelaUrl, setChancelaUrl] = useState<string | null>(projeto.chancela_url);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState<'fundo' | 'chancela' | null>(null);
-
-  const fundoInputRef = useRef<HTMLInputElement>(null);
-  const chancelaInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState<CardapioAssetTipo | null>(null);
 
   // ── Mini-preview do tema (usa o mesmo renderer do banner) ─────────────────
   const [previewUrl, setPreviewUrl] = useState('');
@@ -64,13 +118,13 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
     const t = setTimeout(() => {
       renderCardapioToDataURL('CHURRASCO BBQ', 'EXEMPLO', PREVIEW_GRUPOS, 1, {
         tema,
-        fundoUrl,
+        fundoUrl: fundoBannerUrl,
       })
         .then(setPreviewUrl)
         .catch(() => {});
     }, 250);
     return () => clearTimeout(t);
-  }, [tema, fundoUrl]);
+  }, [tema, fundoBannerUrl]);
 
   const isTemaPadrao = useMemo(
     () =>
@@ -80,14 +134,20 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
     [tema]
   );
 
-  const handleUpload = async (tipo: 'fundo' | 'chancela', file: File | null) => {
+  const setterPorTipo: Record<CardapioAssetTipo, (url: string | null) => void> = {
+    'fundo-banner': setFundoBannerUrl,
+    'fundo-a4': setFundoA4Url,
+    'fundo-a3': setFundoA3Url,
+    'chancela': setChancelaUrl,
+  };
+
+  const handleUpload = async (tipo: CardapioAssetTipo, file: File | null) => {
     if (!file) return;
     try {
       setUploading(tipo);
       setError(null);
       const url = await cardapioProjetosService.uploadAsset(file, tipo);
-      if (tipo === 'fundo') setFundoUrl(url);
-      else setChancelaUrl(url);
+      setterPorTipo[tipo](url);
     } catch (e: any) {
       setError(e.message || 'Erro no upload');
     } finally {
@@ -97,7 +157,9 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
 
   const handleRestaurarPadrao = () => {
     setTema({ ...TEMA_PADRAO });
-    setFundoUrl(null);
+    setFundoBannerUrl(null);
+    setFundoA4Url(null);
+    setFundoA3Url(null);
     setChancelaUrl(null);
   };
 
@@ -113,7 +175,9 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
         nome: nome.trim(),
         edicao_id: edicaoId,
         tema: isTemaPadrao ? null : tema,
-        fundo_url: fundoUrl,
+        fundo_banner_url: fundoBannerUrl,
+        fundo_a4_url: fundoA4Url,
+        fundo_a3_url: fundoA3Url,
         chancela_url: chancelaUrl,
       });
       onProjetoChange(atualizado);
@@ -183,87 +247,51 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
           </div>
         </div>
 
-        {/* Imagens */}
+        {/* Fundos por formato */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-4">
-          <div>
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Imagem de fundo
-            </p>
-            <p className="text-xs text-slate-400 mb-2">
-              Aplicada no banner e no menu A4 (modo cover). Recomendado: até ~3000px e 4MB.
-            </p>
-            <input
-              ref={fundoInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => handleUpload('fundo', e.target.files?.[0] ?? null)}
-            />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fundoInputRef.current?.click()}
-                disabled={uploading === 'fundo'}
-                className="flex-1 py-2.5 px-4 rounded-lg border-2 border-dashed border-slate-300 hover:border-amber-400 text-sm font-medium text-slate-500 hover:text-amber-600 transition-all disabled:opacity-50"
-              >
-                {uploading === 'fundo' ? 'Enviando...' : fundoUrl ? 'Trocar imagem' : 'Enviar imagem de fundo'}
-              </button>
-              {fundoUrl && (
-                <button
-                  onClick={() => setFundoUrl(null)}
-                  className="text-xs font-bold px-3 py-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500"
-                >
-                  Remover
-                </button>
-              )}
-            </div>
-            {fundoUrl && (
-              <img
-                src={fundoUrl}
-                alt="Fundo do projeto"
-                className="mt-2 w-full h-24 object-cover rounded-lg border border-slate-200"
-              />
-            )}
-          </div>
+          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider -mb-1">
+            Imagens de fundo (por formato)
+          </p>
+          <ImagemUploadField
+            titulo="Fundo do Banner"
+            hint="Paisagem 1600×880 (2m × 1,10m) — também usado no Painel Duplo. Até ~3000px / 4MB."
+            url={fundoBannerUrl}
+            uploading={uploading === 'fundo-banner'}
+            previewClass="h-20 object-cover"
+            onFile={(f) => handleUpload('fundo-banner', f)}
+            onRemove={() => setFundoBannerUrl(null)}
+          />
+          <ImagemUploadField
+            titulo="Fundo do Menu A4"
+            hint="Retrato 210×297mm (A4). Aplicado em modo cover no preview e no PNG."
+            url={fundoA4Url}
+            uploading={uploading === 'fundo-a4'}
+            previewClass="h-28 object-cover"
+            onFile={(f) => handleUpload('fundo-a4', f)}
+            onRemove={() => setFundoA4Url(null)}
+          />
+          <ImagemUploadField
+            titulo="Fundo do A3 Duplo"
+            hint="Retrato 297×420mm (A3). Sai na impressão/PDF das páginas A3."
+            url={fundoA3Url}
+            uploading={uploading === 'fundo-a3'}
+            previewClass="h-28 object-cover"
+            onFile={(f) => handleUpload('fundo-a3', f)}
+            onRemove={() => setFundoA3Url(null)}
+          />
+        </div>
 
-          <div>
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Chancela do rodapé (A4)
-            </p>
-            <p className="text-xs text-slate-400 mb-2">
-              Sem imagem, o A4 usa a chancela padrão do sistema.
-            </p>
-            <input
-              ref={chancelaInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => handleUpload('chancela', e.target.files?.[0] ?? null)}
-            />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => chancelaInputRef.current?.click()}
-                disabled={uploading === 'chancela'}
-                className="flex-1 py-2.5 px-4 rounded-lg border-2 border-dashed border-slate-300 hover:border-amber-400 text-sm font-medium text-slate-500 hover:text-amber-600 transition-all disabled:opacity-50"
-              >
-                {uploading === 'chancela' ? 'Enviando...' : chancelaUrl ? 'Trocar chancela' : 'Enviar chancela custom'}
-              </button>
-              {chancelaUrl && (
-                <button
-                  onClick={() => setChancelaUrl(null)}
-                  className="text-xs font-bold px-3 py-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500"
-                >
-                  Remover
-                </button>
-              )}
-            </div>
-            {chancelaUrl && (
-              <img
-                src={chancelaUrl}
-                alt="Chancela do projeto"
-                className="mt-2 w-full h-16 object-contain rounded-lg border border-slate-200 bg-slate-50"
-              />
-            )}
-          </div>
+        {/* Chancela */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+          <ImagemUploadField
+            titulo="Chancela do rodapé (A4)"
+            hint="Sem imagem, o A4 usa a chancela padrão do sistema."
+            url={chancelaUrl}
+            uploading={uploading === 'chancela'}
+            previewClass="h-16 object-contain bg-slate-50"
+            onFile={(f) => handleUpload('chancela', f)}
+            onRemove={() => setChancelaUrl(null)}
+          />
         </div>
 
         {/* Ações */}
@@ -306,7 +334,7 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
           )}
         </div>
         <p className="text-xs text-slate-400 text-center">
-          As alterações se aplicam aos menus A4, banners e painéis deste projeto após salvar.
+          O preview usa o fundo do Banner. Os fundos de A4 e A3 aparecem nos próprios editores/previews. Alterações valem após salvar.
         </p>
       </div>
     </div>

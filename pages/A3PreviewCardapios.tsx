@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { cardapioService } from '../services/cardapioService';
-import { cardapioProjetosService } from '../services/cardapioProjetosService';
-import { CardapioTema } from '../utils/cardapioTema';
+import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
 import { A3DuploCanvas, A3DuploMenuData } from '../components/a3Duplo/A3DuploCanvas';
 
 export const A3PreviewCardapios: React.FC = () => {
@@ -13,7 +12,7 @@ export const A3PreviewCardapios: React.FC = () => {
     (location.state as { selectedIds?: string[]; projetoId?: string }) || {};
 
   const [menus, setMenus] = useState<A3DuploMenuData[] | null>(null);
-  const [tema, setTema] = useState<Partial<CardapioTema> | null>(null);
+  const [projeto, setProjeto] = useState<CardapioProjeto | null>(null);
 
   useEffect(() => {
     if (!selectedIds || selectedIds.length === 0) {
@@ -32,13 +31,13 @@ export const A3PreviewCardapios: React.FC = () => {
     loadMenus();
   }, [selectedIds, navigate]);
 
-  // Tema do projeto (só cores no A3) — falha silenciosa → visual padrão
+  // Tema e fundo A3 do projeto — falha silenciosa → visual padrão
   useEffect(() => {
     if (!projetoId) return;
     cardapioProjetosService
       .buscar(projetoId)
-      .then((p) => setTema(p?.tema ?? null))
-      .catch(() => setTema(null));
+      .then(setProjeto)
+      .catch(() => setProjeto(null));
   }, [projetoId]);
 
   if (!menus) {
@@ -51,7 +50,7 @@ export const A3PreviewCardapios: React.FC = () => {
     );
   }
 
-  return <A3DuploCanvas menus={menus} tema={tema} />;
+  return <A3DuploCanvas menus={menus} tema={projeto?.tema ?? null} fundoUrl={projeto?.fundo_a3_url ?? null} />;
 };
 
 export default A3PreviewCardapios;

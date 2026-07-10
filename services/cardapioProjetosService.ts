@@ -8,7 +8,9 @@ export interface CardapioProjeto {
   nome: string;
   edicao_id: string | null;
   tema: Partial<CardapioTema> | null;
-  fundo_url: string | null;
+  fundo_banner_url: string | null;
+  fundo_a4_url: string | null;
+  fundo_a3_url: string | null;
   chancela_url: string | null;
   created_at: string;
   updated_at: string;
@@ -18,9 +20,13 @@ export interface CardapioProjetoInput {
   nome: string;
   edicao_id?: string | null;
   tema?: Partial<CardapioTema> | null;
-  fundo_url?: string | null;
+  fundo_banner_url?: string | null;
+  fundo_a4_url?: string | null;
+  fundo_a3_url?: string | null;
   chancela_url?: string | null;
 }
+
+export type CardapioAssetTipo = 'fundo-banner' | 'fundo-a4' | 'fundo-a3' | 'chancela';
 
 export interface CardapioProjetoComContagens extends CardapioProjeto {
   totalBanners: number;
@@ -114,7 +120,7 @@ export const cardapioProjetosService = {
    * Sobe fundo/chancela para o bucket público cardapio-assets e devolve a
    * URL pública (mesmo padrão de photoService.uploadPhotoFile).
    */
-  async uploadAsset(file: File, tipo: 'fundo' | 'chancela'): Promise<string> {
+  async uploadAsset(file: File, tipo: CardapioAssetTipo): Promise<string> {
     const fileExt = file.name.split('.').pop();
     const randomSuffix = Math.random().toString(36).substring(2, 7);
     const filePath = `${tipo}/${Date.now()}_${randomSuffix}.${fileExt}`;

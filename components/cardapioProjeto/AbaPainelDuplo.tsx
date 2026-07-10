@@ -49,8 +49,8 @@ export const AbaPainelDuplo: React.FC<AbaPainelDuploProps> = ({ projeto }) => {
 
   // Tema/fundo do projeto aplicados no banner renderizado
   const renderOpts = useMemo<CardapioRenderOptions>(
-    () => ({ tema: projeto.tema, fundoUrl: projeto.fundo_url }),
-    [projeto.tema, projeto.fundo_url]
+    () => ({ tema: projeto.tema, fundoUrl: projeto.fundo_banner_url }),
+    [projeto.tema, projeto.fundo_banner_url]
   );
 
   // ── Load banner list (do projeto) ───────────────────────────────────────────

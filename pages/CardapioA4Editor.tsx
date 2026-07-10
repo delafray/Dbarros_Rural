@@ -29,7 +29,7 @@ export const CardapioA4Editor: React.FC = () => {
   const renderOpts = useMemo<CardapioRenderOptions>(
     () => ({
       tema: projeto?.tema ?? null,
-      fundoUrl: projeto?.fundo_url ?? null,
+      fundoUrl: projeto?.fundo_a4_url ?? null,
       chancelaUrl: projeto?.chancela_url ?? null,
     }),
     [projeto]

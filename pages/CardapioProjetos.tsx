@@ -129,7 +129,7 @@ const CardapioProjetos: React.FC = () => {
                   <td className="px-4 py-3 text-center text-slate-600">{p.totalA4}</td>
                   <td className="px-4 py-3 text-center text-slate-600">{p.totalBanners}</td>
                   <td className="px-4 py-3 text-center">
-                    {p.tema || p.fundo_url || p.chancela_url ? (
+                    {p.tema || p.fundo_banner_url || p.fundo_a4_url || p.fundo_a3_url || p.chancela_url ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
                         <span
                           className="w-2.5 h-2.5 rounded-full border border-white shadow"

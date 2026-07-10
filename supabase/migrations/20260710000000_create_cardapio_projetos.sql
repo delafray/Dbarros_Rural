@@ -9,14 +9,17 @@
 
 -- 1. Tabela de projetos --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.cardapio_projetos (
-    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    nome         text NOT NULL,
-    edicao_id    uuid REFERENCES public.eventos_edicoes(id) ON DELETE SET NULL,
-    tema         jsonb,            -- Partial<CardapioTema>; null = visual padrão
-    fundo_url    text,             -- imagem de fundo (bucket cardapio-assets)
-    chancela_url text,             -- chancela/rodapé do A4; null = /chancela.png
-    created_at   timestamptz DEFAULT now(),
-    updated_at   timestamptz DEFAULT now()
+    id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome             text NOT NULL,
+    edicao_id        uuid REFERENCES public.eventos_edicoes(id) ON DELETE SET NULL,
+    tema             jsonb,        -- Partial<CardapioTema>; null = visual padrão
+    -- Fundos independentes por formato (bucket cardapio-assets); null = cor sólida
+    fundo_banner_url text,         -- banner 1600×880 (também usado no painel duplo)
+    fundo_a4_url     text,         -- menu A4 retrato
+    fundo_a3_url     text,         -- páginas A3 duplo retrato
+    chancela_url     text,         -- chancela/rodapé do A4; null = /chancela.png
+    created_at       timestamptz DEFAULT now(),
+    updated_at       timestamptz DEFAULT now()
 );
 
 ALTER TABLE public.cardapio_projetos ENABLE ROW LEVEL SECURITY;
