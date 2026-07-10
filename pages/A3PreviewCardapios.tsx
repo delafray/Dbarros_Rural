@@ -59,7 +59,13 @@ export const A3PreviewCardapios: React.FC = () => {
       onSalvarAjustes={
         projetoId
           ? async ({ fontes, tema }) => {
-              await cardapioProjetosService.atualizar(projetoId, { fontes_a3: fontes, tema });
+              const atualizado = await cardapioProjetosService.atualizar(projetoId, {
+                fontes_a3: fontes,
+                tema,
+              });
+              // mantém a cópia em memória fresca (evita "voltar ao padrão"
+              // fantasma se a tela remontar depois do salvamento)
+              setProjeto(atualizado);
             }
           : undefined
       }
