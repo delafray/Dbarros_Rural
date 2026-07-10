@@ -6,14 +6,18 @@ interface MenuA4Payload {
   empresa: string;
   conteudo_raw: string;
   itens: CardapioGroup[];
+  projeto_id?: string | null;
 }
 
 export const menuA4Service = {
-  async listar() {
-    const { data, error } = await (supabase as any)
+  async listar(projetoId?: string) {
+    let query = (supabase as any)
       .from('menus_a4')
       .select('*')
       .order('created_at', { ascending: false });
+    if (projetoId) query = query.eq('projeto_id', projetoId);
+
+    const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
   },

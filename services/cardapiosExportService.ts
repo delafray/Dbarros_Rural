@@ -12,6 +12,11 @@ import type { CardapioGroup } from '../utils/cardapioParser';
 
 type Origem = 'A4' | 'Banner';
 
+export interface ExportProjetoRef {
+  id: string;
+  nome: string;
+}
+
 interface RawItem {
   origem: Origem;
   empresa: string;
@@ -73,10 +78,10 @@ function flatten(
 }
 
 /** Carrega tudo, dedupa, atribui códigos e gera o CSV string. */
-async function buildCsv(): Promise<string> {
+async function buildCsv(projeto?: ExportProjetoRef): Promise<string> {
   const [banners, a4s] = await Promise.all([
-    cardapioService.listar(),
-    menuA4Service.listar(),
+    cardapioService.listar(projeto?.id),
+    menuA4Service.listar(projeto?.id),
   ]);
 
   const raw: RawItem[] = [
@@ -114,6 +119,7 @@ async function buildCsv(): Promise<string> {
 
   const header = [
     'Código',
+    'Projeto',
     'Origem',
     'Empresa',
     'Título',
@@ -125,11 +131,13 @@ async function buildCsv(): Promise<string> {
     'Duplicado',
   ];
 
+  const projetoNome = projeto?.nome ?? '';
   const lines: string[] = [header.map(csvEscape).join(';')];
   for (const r of rows) {
     lines.push(
       [
         r.codigo,
+        projetoNome,
         r.origem,
         r.empresa,
         r.titulo,
@@ -148,17 +156,21 @@ async function buildCsv(): Promise<string> {
   return '\uFEFF' + lines.join('\r\n');
 }
 
-/** Gera o CSV e dispara o download no browser. */
-export async function exportCardapiosCsv(): Promise<void> {
-  const csv = await buildCsv();
+/**
+ * Gera o CSV e dispara o download no browser.
+ * Com `projeto`, exporta só os itens daquele projeto (e inclui o nome no arquivo).
+ */
+export async function exportCardapiosCsv(projeto?: ExportProjetoRef): Promise<void> {
+  const csv = await buildCsv(projeto);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
 
   const now = new Date();
   const stamp = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const slug = projeto ? `${normalizeName(projeto.nome).replace(/[^a-z0-9]+/g, '-')}_` : '';
   const link = document.createElement('a');
   link.href = url;
-  link.download = `cardapios_${stamp}.csv`;
+  link.download = `cardapios_${slug}${stamp}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
