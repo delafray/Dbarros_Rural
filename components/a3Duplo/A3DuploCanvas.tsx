@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../Layout';
 import { CardapioGroup } from '../../utils/cardapioParser';
 import { CardapioTema, resolveTema, withAlpha } from '../../utils/cardapioTema';
@@ -185,6 +186,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
   menus, tema = null, fundoUrl = null, fontesIniciais = null, onSalvarFontes,
 }) => {
   const t = resolveTema(tema);
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
   const [layout, setLayout] = useState<LayoutResult | null>(null);
   const [fontes, setFontes] = useState<FontesA3>(() => resolveFontes(fontesIniciais));
@@ -364,14 +366,23 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
       <Layout
         title={statusTxt}
         headerActions={
-          layout && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-600 font-bold text-sm px-4 py-2.5 rounded-lg border border-slate-200 shadow transition-all"
+              title="Voltar para o projeto"
             >
-              🖨️ Imprimir / Salvar PDF Vetorial
+              ← Voltar
             </button>
-          )
+            {layout && (
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+              >
+                🖨️ Imprimir / Salvar PDF Vetorial
+              </button>
+            )}
+          </div>
         }
       >
         <div className="flex gap-4 p-4 bg-slate-200 min-h-full items-start">
