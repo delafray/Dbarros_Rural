@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { CANVAS_W, CANVAS_H } from '../components/cardapio/CardapioCanvas';
@@ -8,7 +8,9 @@ import {
   RENDER_SCALES,
 } from '../components/cardapio/CardapioRenderer';
 import { parseCardapioText, CardapioGroup } from '../utils/cardapioParser';
+import { CardapioRenderOptions } from '../utils/cardapioTema';
 import { cardapioService } from '../services/cardapioService';
+import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
 
 const PLACEHOLDER = `CHURRASCO BBQ
 MASMORRA
@@ -19,8 +21,23 @@ BURGERS PREMIUM\tBurger Triplo Bacon\tR$ 55,00\t150g blend bovino/suíno, creme 
 
 const CardapioEditor: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { projetoId, id } = useParams<{ projetoId: string; id: string }>();
   const isEditMode = Boolean(id);
+
+  // ── Projeto (tema/fundo) ─────────────────────────────────────────────────
+  const [projeto, setProjeto] = useState<CardapioProjeto | null>(null);
+  useEffect(() => {
+    if (!projetoId) return;
+    cardapioProjetosService
+      .buscar(projetoId)
+      .then(setProjeto)
+      .catch(() => setProjeto(null)); // sem projeto → visual padrão
+  }, [projetoId]);
+
+  const renderOpts = useMemo<CardapioRenderOptions>(
+    () => ({ tema: projeto?.tema ?? null, fundoUrl: projeto?.fundo_url ?? null }),
+    [projeto]
+  );
 
   // previewContainerRef — used to measure available width for scaling the img
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -108,13 +125,13 @@ const CardapioEditor: React.FC = () => {
     }
     setIsRendering(true);
     const timer = setTimeout(() => {
-      renderCardapioToDataURL(titulo, empresa, grupos, 1)
+      renderCardapioToDataURL(titulo, empresa, grupos, 1, renderOpts)
         .then(setPreviewUrl)
         .catch(() => {})
         .finally(() => setIsRendering(false));
     }, 280);
     return () => clearTimeout(timer);
-  }, [titulo, empresa, grupos]);
+  }, [titulo, empresa, grupos, renderOpts]);
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -125,12 +142,18 @@ const CardapioEditor: React.FC = () => {
     try {
       setIsSaving(true);
       setError(null);
-      const payload = { titulo, empresa, conteudo_raw: rawText, itens: grupos };
+      const payload = {
+        titulo,
+        empresa,
+        conteudo_raw: rawText,
+        itens: grupos,
+        projeto_id: projetoId ?? null,
+      };
       if (isEditMode && id) {
         await cardapioService.atualizar(id, payload);
       } else {
         const saved = await cardapioService.salvar(payload);
-        navigate(`/cardapios/${saved.id}`, { replace: true });
+        navigate(`/cardapios/projeto/${projetoId}/banner/${saved.id}`, { replace: true });
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -149,7 +172,7 @@ const CardapioEditor: React.FC = () => {
       setIsExporting(true);
       setError(null);
       const filename = `cardapio-${empresa.toLowerCase().replace(/\s+/g, '-') || 'menu'}`;
-      await exportCardapioRenderer(titulo, empresa, grupos, filename, scale, setExportStatus);
+      await exportCardapioRenderer(titulo, empresa, grupos, filename, scale, setExportStatus, renderOpts);
     } catch (e: any) {
       setError(e.message || 'Erro ao exportar');
     } finally {

@@ -1,18 +1,39 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { CardapioA4Canvas } from '../components/cardapioA4/CardapioA4Canvas';
 import { CANVAS_W, CANVAS_H } from '../components/cardapioA4/cardapioA4Config';
 import { exportMenuA4, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
 import { parseCardapioText, CardapioGroup } from '../utils/cardapioParser';
+import { CardapioRenderOptions } from '../utils/cardapioTema';
 import { menuA4Service } from '../services/menuA4Service';
+import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
 
 const isEditMode_check = (id?: string) => !!id;
 
 export const CardapioA4Editor: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { projetoId, id } = useParams<{ projetoId: string; id: string }>();
   const navigate = useNavigate();
   const isEditMode = isEditMode_check(id);
+
+  // ── Projeto (tema/fundo/chancela) ────────────────────────────────────────
+  const [projeto, setProjeto] = useState<CardapioProjeto | null>(null);
+  useEffect(() => {
+    if (!projetoId) return;
+    cardapioProjetosService
+      .buscar(projetoId)
+      .then(setProjeto)
+      .catch(() => setProjeto(null)); // sem projeto → visual padrão
+  }, [projetoId]);
+
+  const renderOpts = useMemo<CardapioRenderOptions>(
+    () => ({
+      tema: projeto?.tema ?? null,
+      fundoUrl: projeto?.fundo_url ?? null,
+      chancelaUrl: projeto?.chancela_url ?? null,
+    }),
+    [projeto]
+  );
 
   const canvasRef            = useRef<HTMLDivElement>(null);
   const exportMenuRef        = useRef<HTMLDivElement>(null);
@@ -86,12 +107,18 @@ export const CardapioA4Editor: React.FC = () => {
     }
     try {
       setIsSaving(true); setError(null);
-      const payload = { titulo, empresa, conteudo_raw: rawText, itens: grupos };
+      const payload = {
+        titulo,
+        empresa,
+        conteudo_raw: rawText,
+        itens: grupos,
+        projeto_id: projetoId ?? null,
+      };
       if (isEditMode && id) {
         await menuA4Service.atualizar(id, payload);
       } else {
         const saved = await menuA4Service.salvar(payload);
-        navigate(`/cardapios-a4/${saved.id}`, { replace: true });
+        navigate(`/cardapios/projeto/${projetoId}/a4/${saved.id}`, { replace: true });
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -109,7 +136,7 @@ export const CardapioA4Editor: React.FC = () => {
     try {
       setIsExporting(true); setError(null);
       const filename = `menu-a4-${empresa.toLowerCase().replace(/\s+/g, '-') || 'menu'}`;
-      await exportMenuA4(titulo, empresa, grupos, filename, scale, setExportStatus);
+      await exportMenuA4(titulo, empresa, grupos, filename, scale, setExportStatus, renderOpts);
     } catch (e: any) {
       setError(e.message || 'Erro ao exportar');
     } finally {
@@ -269,6 +296,9 @@ export const CardapioA4Editor: React.FC = () => {
                   empresa={empresa}
                   grupos={grupos}
                   exporting={isExporting}
+                  tema={renderOpts.tema}
+                  fundoUrl={renderOpts.fundoUrl}
+                  chancelaUrl={renderOpts.chancelaUrl}
                 />
               </div>
             )}

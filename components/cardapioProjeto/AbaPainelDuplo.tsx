@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import Layout from '../components/Layout';
-import { cardapioService, Cardapio } from '../services/cardapioService';
-import { CardapioGroup } from '../utils/cardapioParser';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cardapioService, Cardapio } from '../../services/cardapioService';
+import { CardapioProjeto } from '../../services/cardapioProjetosService';
+import { CardapioGroup } from '../../utils/cardapioParser';
+import { CardapioRenderOptions } from '../../utils/cardapioTema';
 import {
   exportPainelDuplo,
   renderPainelPreview,
   PANEL_W,
   PANEL_H,
-} from '../components/painelDuplo/PainelDuploRenderer';
+} from '../painelDuplo/PainelDuploRenderer';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -16,7 +17,11 @@ const EXPORT_SCALES = [
   { label: 'Alta (4×)',     scale: 4, desc: '~200dpi — pronto para gráfica' },
 ];
 
-const PainelDuplo: React.FC = () => {
+interface AbaPainelDuploProps {
+  projeto: CardapioProjeto;
+}
+
+export const AbaPainelDuplo: React.FC<AbaPainelDuploProps> = ({ projeto }) => {
   // ── Banner list ─────────────────────────────────────────────────────────────
   const [cardapios,  setCardapios]  = useState<Cardapio[]>([]);
   const [isLoading,  setIsLoading]  = useState(true);
@@ -42,14 +47,22 @@ const PainelDuplo: React.FC = () => {
   const [showScaleMenu, setShowScaleMenu] = useState(false);
   const scaleMenuRef = useRef<HTMLDivElement>(null);
 
-  // ── Load banner list ────────────────────────────────────────────────────────
+  // Tema/fundo do projeto aplicados no banner renderizado
+  const renderOpts = useMemo<CardapioRenderOptions>(
+    () => ({ tema: projeto.tema, fundoUrl: projeto.fundo_url }),
+    [projeto.tema, projeto.fundo_url]
+  );
+
+  // ── Load banner list (do projeto) ───────────────────────────────────────────
   useEffect(() => {
+    setIsLoading(true);
+    setSelected(null);
     cardapioService
-      .listar()
+      .listar(projeto.id)
       .then(setCardapios)
       .catch((e) => setListError(e.message))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [projeto.id]);
 
   // ── Auto-load esquerda.png / direita.png from public/ folder ────────────
   // Place the files at: public/esquerda.png and public/direita.png
@@ -89,7 +102,7 @@ const PainelDuplo: React.FC = () => {
       try {
         const grupos = selected.itens as CardapioGroup[];
         const [esq, dir] = await renderPainelPreview(
-          selected.titulo, selected.empresa, grupos, logoEsq, logoDir,
+          selected.titulo, selected.empresa, grupos, logoEsq, logoDir, renderOpts,
         );
         setPreviewEsq(esq);
         setPreviewDir(dir);
@@ -100,7 +113,7 @@ const PainelDuplo: React.FC = () => {
       }
     }, 320);
     return () => clearTimeout(t);
-  }, [selected, logoEsq, logoDir]);
+  }, [selected, logoEsq, logoDir, renderOpts]);
 
   // ── Export handler ──────────────────────────────────────────────────────────
   const handleExport = useCallback(async (scale: number) => {
@@ -116,6 +129,7 @@ const PainelDuplo: React.FC = () => {
         logoDir,
         scale,
         setExportStatus,
+        renderOpts,
       );
     } catch (e: any) {
       alert('Erro ao exportar: ' + e.message);
@@ -123,7 +137,7 @@ const PainelDuplo: React.FC = () => {
       setIsExporting(false);
       setExportStatus('');
     }
-  }, [selected, logoEsq, logoDir]);
+  }, [selected, logoEsq, logoDir, renderOpts]);
 
   // ── Preview scale for display ───────────────────────────────────────────────
   // Show panels at ~35% of their base pixel size
@@ -131,51 +145,53 @@ const PainelDuplo: React.FC = () => {
   const previewW = Math.round(PANEL_W * PREVIEW_SCALE);
   const previewH = Math.round(PANEL_H * PREVIEW_SCALE);
 
-  // ── Header actions ──────────────────────────────────────────────────────────
-  const headerActions = selected ? (
-    <div ref={scaleMenuRef} className="relative">
-      <button
-        onClick={() => setShowScaleMenu((v) => !v)}
-        disabled={isExporting}
-        className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-300 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
-      >
-        {isExporting ? (
-          <>
-            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            {exportStatus || 'Exportando...'}
-          </>
-        ) : (
-          <>
-            <DownloadIcon className="w-4 h-4" />
-            Exportar Painéis
-            <ChevronIcon className={`w-3 h-3 transition-transform ${showScaleMenu ? 'rotate-180' : ''}`} />
-          </>
-        )}
-      </button>
-
-      {showScaleMenu && !isExporting && (
-        <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-[220px] overflow-hidden">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2.5 pb-1">
-            Qualidade de exportação
-          </p>
-          {EXPORT_SCALES.map(({ label, scale, desc }) => (
+  return (
+    <div>
+      {/* Toolbar da aba */}
+      {selected && (
+        <div className="flex items-center justify-end mb-4">
+          <div ref={scaleMenuRef} className="relative">
             <button
-              key={scale}
-              onClick={() => handleExport(scale)}
-              className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors border-t border-slate-100 first:border-0"
+              onClick={() => setShowScaleMenu((v) => !v)}
+              disabled={isExporting}
+              className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-300 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
             >
-              <p className="text-sm font-bold text-slate-700">{label}</p>
-              <p className="text-xs text-slate-400">{desc}</p>
+              {isExporting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  {exportStatus || 'Exportando...'}
+                </>
+              ) : (
+                <>
+                  <DownloadIcon className="w-4 h-4" />
+                  Exportar Painéis
+                  <ChevronIcon className={`w-3 h-3 transition-transform ${showScaleMenu ? 'rotate-180' : ''}`} />
+                </>
+              )}
             </button>
-          ))}
+
+            {showScaleMenu && !isExporting && (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-[220px] overflow-hidden">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2.5 pb-1">
+                  Qualidade de exportação
+                </p>
+                {EXPORT_SCALES.map(({ label, scale, desc }) => (
+                  <button
+                    key={scale}
+                    onClick={() => handleExport(scale)}
+                    className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors border-t border-slate-100 first:border-0"
+                  >
+                    <p className="text-sm font-bold text-slate-700">{label}</p>
+                    <p className="text-xs text-slate-400">{desc}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </div>
-  ) : null;
 
-  return (
-    <Layout title="Painel Duplo" headerActions={headerActions}>
-      <div className="flex gap-6 h-full min-h-0 p-4">
+      <div className="flex gap-6">
 
         {/* ── Left: banner list ──────────────────────────────────────────────── */}
         <div className="w-72 flex-shrink-0 flex flex-col gap-3">
@@ -190,7 +206,7 @@ const PainelDuplo: React.FC = () => {
           ) : listError ? (
             <p className="text-sm text-red-500 px-1">{listError}</p>
           ) : cardapios.length === 0 ? (
-            <p className="text-sm text-slate-400 px-1">Nenhum cardápio salvo.</p>
+            <p className="text-sm text-slate-400 px-1">Nenhum cardápio banner neste projeto.</p>
           ) : (
             <div className="flex flex-col gap-1.5 overflow-y-auto">
               {cardapios.map((c) => (
@@ -218,7 +234,7 @@ const PainelDuplo: React.FC = () => {
 
         {/* ── Right: uploads + preview ───────────────────────────────────────── */}
         {!selected ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
             <PanelIcon className="w-16 h-16 opacity-20" />
             <p className="text-sm font-medium">← Selecione um cardápio para montar os painéis</p>
           </div>
@@ -353,7 +369,7 @@ const PainelDuplo: React.FC = () => {
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 };
 
@@ -389,4 +405,4 @@ const PanelIcon = (props: any) => (
   </svg>
 );
 
-export default PainelDuplo;
+export default AbaPainelDuplo;

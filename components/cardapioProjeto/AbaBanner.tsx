@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
-import { cardapioService, Cardapio } from '../services/cardapioService';
-import { exportCardapiosCsv } from '../services/cardapiosExportService';
+import { cardapioService, Cardapio } from '../../services/cardapioService';
+import { CardapioProjeto } from '../../services/cardapioProjetosService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const Cardapios: React.FC = () => {
+interface AbaBannerProps {
+  projeto: CardapioProjeto;
+}
+
+export const AbaBanner: React.FC<AbaBannerProps> = ({ projeto }) => {
   const navigate = useNavigate();
   const [cardapios, setCardapios] = useState<Cardapio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -15,8 +18,16 @@ const Cardapios: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const toggleSelect = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  useEffect(() => {
+    setIsLoading(true);
+    cardapioService
+      .listar(projeto.id)
+      .then(setCardapios)
+      .catch((e) => setError(e.message || 'Erro ao carregar cardápios'))
+      .finally(() => setIsLoading(false));
+  }, [projeto.id]);
+
+  const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
@@ -32,37 +43,8 @@ const Cardapios: React.FC = () => {
 
   const handleGerarA3 = () => {
     if (selectedIds.length === 0) return;
-    navigate('/a3-preview-cardapios', { state: { selectedIds } });
+    navigate('/a3-preview-cardapios', { state: { selectedIds, projetoId: projeto.id } });
   };
-
-  const [isExporting, setIsExporting] = useState(false);
-  const handleExportExcel = async () => {
-    try {
-      setIsExporting(true);
-      await exportCardapiosCsv();
-    } catch (e: any) {
-      alert(e.message || 'Erro ao exportar');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const load = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await cardapioService.listar();
-      setCardapios(data);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar cardápios');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const handleDelete = async (id: string) => {
     try {
@@ -78,40 +60,28 @@ const Cardapios: React.FC = () => {
     }
   };
 
-  const headerActions = (
-    <div className="flex items-center gap-3">
-      <button
-        onClick={handleExportExcel}
-        disabled={isExporting}
-        title="Exporta todos os itens (A4 + banner) com códigos e marcação de duplicados"
-        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
-      >
-        <ExcelIcon className="w-4 h-4" />
-        {isExporting ? 'Exportando...' : 'Exportar Excel'}
-      </button>
-      {selectedIds.length > 0 && (
-        <button
-          onClick={handleGerarA3}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all animate-in fade-in zoom-in"
-        >
-          <PrintIcon className="w-4 h-4" />
-          Gerar A3 Duplo ({selectedIds.length})
-        </button>
-      )}
-      <button
-        onClick={() => navigate('/cardapios/novo')}
-        className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-        Novo Cardápio
-      </button>
-    </div>
-  );
-
   return (
-    <Layout title="Cardápios" headerActions={headerActions}>
+    <div>
+      {/* Toolbar da aba */}
+      <div className="flex items-center justify-end gap-3 mb-4">
+        {selectedIds.length > 0 && (
+          <button
+            onClick={handleGerarA3}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all animate-in fade-in zoom-in"
+          >
+            <PrintIcon className="w-4 h-4" />
+            Gerar A3 Duplo ({selectedIds.length})
+          </button>
+        )}
+        <button
+          onClick={() => navigate(`/cardapios/projeto/${projeto.id}/banner/novo`)}
+          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
+        >
+          <PlusIcon className="w-4 h-4" />
+          Novo Cardápio
+        </button>
+      </div>
+
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
           {error}
@@ -125,9 +95,9 @@ const Cardapios: React.FC = () => {
       ) : cardapios.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4 text-slate-400">
           <MenuBoardIcon className="w-16 h-16 opacity-20" />
-          <p className="text-lg font-semibold">Nenhum cardápio cadastrado</p>
+          <p className="text-lg font-semibold">Nenhum cardápio banner neste projeto</p>
           <button
-            onClick={() => navigate('/cardapios/novo')}
+            onClick={() => navigate(`/cardapios/projeto/${projeto.id}/banner/novo`)}
             className="mt-2 bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow transition-all"
           >
             Criar primeiro cardápio
@@ -160,14 +130,14 @@ const Cardapios: React.FC = () => {
                   className={`transition-colors cursor-pointer ${
                     selectedIds.includes(c.id) ? 'bg-indigo-50/50' : 'hover:bg-slate-50'
                   }`}
-                  onClick={() => navigate(`/cardapios/${c.id}`)}
+                  onClick={() => navigate(`/cardapios/projeto/${projeto.id}/banner/${c.id}`)}
                 >
                   <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       checked={selectedIds.includes(c.id)}
-                      onChange={(e) => toggleSelect(c.id, e as any)}
+                      onChange={() => toggleSelect(c.id)}
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -186,7 +156,7 @@ const Cardapios: React.FC = () => {
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => navigate(`/cardapios/${c.id}`)}
+                        onClick={() => navigate(`/cardapios/projeto/${projeto.id}/banner/${c.id}`)}
                         className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
                         title="Editar"
                       >
@@ -225,7 +195,7 @@ const Cardapios: React.FC = () => {
           </table>
         </div>
       )}
-    </Layout>
+    </div>
   );
 };
 
@@ -249,10 +219,10 @@ const PrintIcon = (props: any) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
   </svg>
 );
-const ExcelIcon = (props: any) => (
-  <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+const PlusIcon = (props: any) => (
+  <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
   </svg>
 );
 
-export default Cardapios;
+export default AbaBanner;

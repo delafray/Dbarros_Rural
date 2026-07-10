@@ -2,14 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { cardapioService } from '../services/cardapioService';
+import { cardapioProjetosService } from '../services/cardapioProjetosService';
+import { CardapioTema } from '../utils/cardapioTema';
 import { A3DuploCanvas, A3DuploMenuData } from '../components/a3Duplo/A3DuploCanvas';
 
 export const A3PreviewCardapios: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { selectedIds } = (location.state as { selectedIds?: string[] }) || {};
+  const { selectedIds, projetoId } =
+    (location.state as { selectedIds?: string[]; projetoId?: string }) || {};
 
   const [menus, setMenus] = useState<A3DuploMenuData[] | null>(null);
+  const [tema, setTema] = useState<Partial<CardapioTema> | null>(null);
 
   useEffect(() => {
     if (!selectedIds || selectedIds.length === 0) {
@@ -28,6 +32,15 @@ export const A3PreviewCardapios: React.FC = () => {
     loadMenus();
   }, [selectedIds, navigate]);
 
+  // Tema do projeto (só cores no A3) — falha silenciosa → visual padrão
+  useEffect(() => {
+    if (!projetoId) return;
+    cardapioProjetosService
+      .buscar(projetoId)
+      .then((p) => setTema(p?.tema ?? null))
+      .catch(() => setTema(null));
+  }, [projetoId]);
+
   if (!menus) {
     return (
       <Layout title="Carregando...">
@@ -38,7 +51,7 @@ export const A3PreviewCardapios: React.FC = () => {
     );
   }
 
-  return <A3DuploCanvas menus={menus} />;
+  return <A3DuploCanvas menus={menus} tema={tema} />;
 };
 
 export default A3PreviewCardapios;
