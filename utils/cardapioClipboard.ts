@@ -11,10 +11,15 @@
  * intercepta o paste e reconstrói o texto a partir do HTML.
  *
  * Os DOIS formatos continuam funcionando: se o clipboard não tiver <table>,
- * retornamos null e o paste normal (texto com Tabs) acontece.
+ * retornamos null e o paste normal (texto puro com Tabs) acontece.
  */
 
-const QUEBRA = '0001'; // marcador interno de quebra de bloco
+const SELETOR_BLOCOS = 'p, div, h1, h2, h3, h4, h5, h6, li';
+
+/** Texto limpo de um nó (espaços colapsados). */
+function textoDe(el: Element | HTMLElement): string {
+  return (el.textContent || '').replace(/\s+/g, ' ').trim();
+}
 
 /**
  * Converte o HTML colado em texto do cardápio.
@@ -30,25 +35,27 @@ export function tabelaHtmlParaTexto(html: string): string | null {
   const lines: string[] = [];
 
   // 1) Linhas de texto ANTES da primeira tabela (segmento + empresa):
-  //    insere um marcador no fim de cada bloco e extrai o texto sem tags.
+  //    re-parseia só esse trecho e coleta os blocos-folha na ordem.
   const idxTable = html.search(/<table/i);
-  const before = html
-    .slice(0, idxTable)
-    .replace(/<(\/p|\/div|\/h[1-6]|\/li|br[^>]*)>/gi, `$&${QUEBRA}`);
-  const div = document.createElement('div');
-  div.innerHTML = before;
-  const preLines = (div.textContent || '')
-    .split(QUEBRA)
-    .map((l) => l.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-  lines.push(...preLines);
+  const antes = new DOMParser().parseFromString(html.slice(0, idxTable), 'text/html');
+  const blocos = antes.body.querySelectorAll(SELETOR_BLOCOS);
+  if (blocos.length > 0) {
+    blocos.forEach((b) => {
+      // só blocos-folha (sem sub-blocos), para não duplicar texto aninhado
+      if (!b.querySelector(SELETOR_BLOCOS)) {
+        const t = textoDe(b);
+        if (t) lines.push(t);
+      }
+    });
+  } else {
+    const t = textoDe(antes.body);
+    if (t) lines.push(t);
+  }
 
   // 2) Linhas das tabelas: cada <tr> vira colunas separadas por Tab.
   tables.forEach((table) => {
     table.querySelectorAll('tr').forEach((tr) => {
-      const cells = Array.from(tr.children).map((cell) =>
-        (cell.textContent || '').replace(/\s+/g, ' ').trim()
-      );
+      const cells = Array.from(tr.children).map((cell) => textoDe(cell));
       if (cells.some((c) => c.length > 0)) {
         lines.push(cells.join('\t'));
       }
