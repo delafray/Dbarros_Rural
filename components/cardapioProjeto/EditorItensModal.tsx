@@ -141,13 +141,15 @@ export const EditorItensModal: React.FC<EditorItensModalProps> = ({
   };
 
   return (
+    // Overlay rolável: o modal cresce à vontade e é a CAMADA que rola —
+    // barrinha na lateral da tela e rodinha do mouse descendo até o rodapé
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4"
+      style={{ overflowY: 'auto' }}
       onClick={onFechar}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col"
-        style={{ maxHeight: '88vh' }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col my-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
@@ -161,11 +163,8 @@ export const EditorItensModal: React.FC<EditorItensModalProps> = ({
           <button onClick={onFechar} className="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none">×</button>
         </div>
 
-        {/* Corpo rolável */}
-        <div
-          className="flex-1 p-5 flex flex-col gap-4"
-          style={{ minHeight: 0, overflowY: 'auto' }}
-        >
+        {/* Corpo — altura natural; quem rola é o overlay */}
+        <div className="p-5 flex flex-col gap-4">
           {/* Título + Empresa */}
           <div className="grid grid-cols-2 gap-3">
             <div>
