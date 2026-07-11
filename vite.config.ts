@@ -65,6 +65,8 @@ export default defineConfig(() => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           globIgnores: [
             'esquerda.png', 'direita.png', 'dbarros.png', 'chancela.png',
+            // Fontes do PDF vetorial do A3 — carregadas sob demanda no export
+            'fonts/*.ttf',
             // Chunks lazy: carregam sob demanda (backup/PDF); precachear tudo
             // forçava ~466 KB gzip extras a cada instalação do PWA
             'assets/backupService-*.js', 'assets/jspdf-*.js', 'assets/html2canvas-*.js',

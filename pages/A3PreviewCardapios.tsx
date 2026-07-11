@@ -55,6 +55,7 @@ export const A3PreviewCardapios: React.FC = () => {
       menus={menus}
       tema={projeto?.tema ?? null}
       fundoUrl={projeto?.fundo_a3_url ?? null}
+      nomeProjeto={projeto?.nome ?? null}
       fontesIniciais={projeto?.fontes_a3 ?? null}
       onSalvarAjustes={
         projetoId

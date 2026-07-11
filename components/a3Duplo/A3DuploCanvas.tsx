@@ -191,6 +191,8 @@ export interface A3DuploCanvasProps {
   tema?: Partial<CardapioTema> | null;
   /** Imagem de fundo das páginas A3 (cover); null = cor sólida do tema */
   fundoUrl?: string | null;
+  /** Nome do projeto/evento — usado no nome do arquivo PDF */
+  nomeProjeto?: string | null;
   /** Fontes salvas no projeto (null = padrão) */
   fontesIniciais?: Partial<FontesA3> | null;
   /** Persiste fontes + cores do tema no projeto (null = padrão). Ausente = sem botão salvar */
@@ -201,7 +203,7 @@ export interface A3DuploCanvasProps {
 }
 
 export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
-  menus, tema = null, fundoUrl = null, fontesIniciais = null, onSalvarAjustes,
+  menus, tema = null, fundoUrl = null, nomeProjeto = null, fontesIniciais = null, onSalvarAjustes,
 }) => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
@@ -212,6 +214,11 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
   const [zoom, setZoom] = useState(0.45);
   const [isSavingFontes, setIsSavingFontes] = useState(false);
   const [fontesSalvas, setFontesSalvas] = useState(false);
+
+  // ── PDF vetorial gerado pelo sistema (independe do diálogo de impressão) ──
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfNome, setPdfNome] = useState('cardapio-a3.pdf');
 
   const t = temaEdit;
 
@@ -332,6 +339,44 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
 
   const handlePrint = () => window.print();
 
+  const handleGerarPdf = async () => {
+    if (!layout) return;
+    try {
+      setIsGeneratingPdf(true);
+      // Chunk separado: jsPDF + fontes só carregam quando o usuário gera o PDF
+      const { gerarPdfA3, nomeArquivoPdfA3 } = await import('./A3PdfExporter');
+      const blob = await gerarPdfA3({
+        menus,
+        layout,
+        fontes,
+        tema: t,
+        fundoUrl,
+      });
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      setPdfNome(nomeArquivoPdfA3(nomeProjeto, menus.length));
+      setPdfUrl(URL.createObjectURL(blob));
+    } catch (e: any) {
+      alert('Erro ao gerar o PDF: ' + (e?.message || e));
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleSalvarPdf = () => {
+    if (!pdfUrl) return;
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = pdfNome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleFecharPdf = () => {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(null);
+  };
+
   const statusTxt = layout
     ? `Preview A3 Duplo — ${menus.length} empresa${menus.length === 1 ? '' : 's'} · ${layout.numColunas} col · fonte ${(layout.scale * 100).toFixed(0)}% · espaço ${(layout.spacing * 100).toFixed(0)}%${layout.fallback ? ' (estouro!)' : ''}`
     : 'Calculando layout…';
@@ -423,9 +468,27 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
             {layout && (
               <button
                 onClick={handlePrint}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+                className="flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-600 font-bold text-sm px-4 py-2.5 rounded-lg border border-slate-200 shadow transition-all"
+                title="Fallback: diálogo de impressão do navegador"
               >
-                🖨️ Imprimir / Salvar PDF Vetorial
+                🖨️ Imprimir
+              </button>
+            )}
+            {layout && (
+              <button
+                onClick={handleGerarPdf}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+                title="PDF vetorial gerado pelo sistema — sempre com texto vetorial, independente do navegador"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Gerando PDF...
+                  </>
+                ) : (
+                  <>📄 Gerar PDF Vetorial</>
+                )}
               </button>
             )}
           </div>
@@ -639,6 +702,57 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
           </div>
         </div>
       </Layout>
+
+      {/* ── Modal do PDF gerado ─────────────────────────────────────────── */}
+      {pdfUrl && (
+        <div
+          className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={handleFecharPdf}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-3xl">📄</span>
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">PDF vetorial pronto!</h2>
+                <p className="text-xs text-slate-400">
+                  Texto 100% vetorial com fontes embutidas — zoom infinito sem serrilhado.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 mb-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                Nome do arquivo
+              </p>
+              <p className="text-sm font-semibold text-slate-700 break-all">{pdfNome}</p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleSalvarPdf}
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow transition-all"
+              >
+                💾 Salvar
+              </button>
+              <button
+                onClick={() => window.open(pdfUrl, '_blank')}
+                className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm px-5 py-2.5 rounded-lg border border-slate-200 shadow-sm transition-all"
+              >
+                👁️ Visualizar no navegador
+              </button>
+              <button
+                onClick={handleFecharPdf}
+                className="w-full text-sm font-semibold text-slate-400 hover:text-slate-600 px-5 py-2"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
