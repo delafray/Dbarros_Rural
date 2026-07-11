@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Button } from '../UI';
 import { User } from '../../services/authService';
 import { TempUserModalProps } from './types';
@@ -37,6 +37,14 @@ export const TempUserModal: React.FC<TempUserModalProps> = ({
         onCreated,
         showAlert,
     });
+
+    // Abre sempre limpo — o código original resetava os estados no clique de
+    // "Gerar Temp."; isso garante o mesmo contrato mesmo se algum caminho de
+    // fechamento não passar pelo handleClose.
+    useEffect(() => {
+        if (isOpen) reset();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
     const handleClose = () => {
         reset();
