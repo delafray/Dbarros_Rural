@@ -1,14 +1,14 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../Layout';
-import { CardapioGroup } from '../../utils/cardapioParser';
-import { CardapioTema, TEMA_PADRAO, resolveTema, temaEhPadrao, withAlpha } from '../../utils/cardapioTema';
+import { CardapioTema, TEMA_PADRAO, resolveTema, temaEhPadrao } from '../../utils/cardapioTema';
+import EmpresaBlock from './EmpresaBlock';
+import A3ControlPanel from './A3ControlPanel';
 import {
   A3DuploMenuData,
   COL_CHOICES,
   SPACING_COMPACT,
   MeasurementMatrix,
-  ColumnContent,
   LayoutResult,
   calcularLayout,
   FontesA3,
@@ -35,154 +35,10 @@ function colWidthPx(numCols: number): number {
   return (CONTENT_W_PX - gapTotal) / numCols;
 }
 
-// ─── Componente EmpresaBlock ────────────────────────────────────────────────
-interface EmpresaBlockProps {
-  t: CardapioTema;
-  fontes: FontesA3;
-  empresa: string;
-  titulo?: string;
-  grupos: CardapioGroup[];
-  scale: number;
-  spacing?: number;
-  widthPx: number;
-  isContinuacao?: boolean;
-  containerRef?: (el: HTMLDivElement | null) => void;
-  groupRefCallback?: (el: HTMLDivElement | null, gi: number) => void;
-}
-
-const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
-  t, fontes, empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
-}) => {
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        width: widthPx,
-        marginBottom: `${15 * scale * spacing}px`,
-        breakInside: 'avoid',
-      }}
-    >
-      <div style={{ textAlign: 'center', marginBottom: `${10 * scale * spacing}px` }}>
-        {titulo && !isContinuacao && (
-          <div style={{
-            fontSize: `${fontes.titulo * scale}px`,
-            color: t.corDouradoClaro,
-            textTransform: 'uppercase',
-            marginBottom: '2px',
-            fontWeight: 'bold',
-          }}>{titulo}</div>
-        )}
-        <div style={{
-          fontSize: `${fontes.empresa * scale}px`,
-          color: t.corDouradoClaro,
-          fontFamily: '"Arial Black", Impact, sans-serif',
-          textTransform: 'uppercase',
-          textShadow: `0 0 10px ${t.corDourado}55`,
-          lineHeight: 1.05,
-        }}>
-          {empresa}{isContinuacao ? ' ›' : ''}
-        </div>
-        <div style={{
-          margin: '6px auto',
-          width: '60%',
-          height: '2px',
-          background: `linear-gradient(90deg, transparent, ${t.corDourado}, transparent)`,
-          opacity: 0.8,
-        }} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: `${12 * scale * spacing}px` }}>
-        {grupos.map((grupo, gi) => (
-          <div
-            key={gi}
-            ref={(el) => groupRefCallback?.(el, gi)}
-            style={{ breakInside: 'avoid' }}
-          >
-            <h3 style={{
-              fontSize: `${fontes.categoria * scale}px`,
-              fontWeight: 900,
-              color: t.corDouradoClaro,
-              marginTop: 0,
-              marginBottom: `${6 * scale * spacing}px`,
-              textTransform: 'uppercase',
-              fontFamily: '"Arial Black", Impact, sans-serif',
-              letterSpacing: '0.4px',
-            }}>
-              {grupo.categoria}
-            </h3>
-            {grupo.itens.map((item: any, ii: number) => (
-              <div key={ii} style={{ marginBottom: `${5 * scale * spacing}px` }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                }}>
-                  <span style={{
-                    fontSize: `${fontes.item * scale}px`,
-                    color: t.corTexto,
-                    fontWeight: 600,
-                    minWidth: 0,
-                  }}>
-                    {item.item}
-                  </span>
-                  {item.valor && (
-                    <span style={{
-                      flex: 1,
-                      minWidth: '12px',
-                      margin: '0 8px',
-                      borderBottom: `1px dotted ${withAlpha(t.corTextoSuave, 0.55)}`,
-                      alignSelf: 'baseline',
-                    }} />
-                  )}
-                  <span style={{
-                    fontSize: `${fontes.preco * scale}px`,
-                    color: t.corDouradoClaro,
-                    fontWeight: 900,
-                    fontFamily: '"Arial Black", Impact, sans-serif',
-                    whiteSpace: 'nowrap',
-                  }}>{item.valor}</span>
-                </div>
-                {/* Descrição abaixo da linha, largura total da coluna — só
-                    quebra quando realmente falta espaço (antes: maxWidth 85%
-                    de uma coluna auto-dimensionada forçava quebra sempre) */}
-                {item.descricao && (
-                  <div style={{
-                    fontSize: `${fontes.descricao * scale}px`,
-                    color: t.corTextoSuave,
-                    marginTop: '2px',
-                    fontStyle: 'italic',
-                    lineHeight: 1.3,
-                  }}>{item.descricao}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ─── Painel de controle de fontes ───────────────────────────────────────────
-const CAMPOS_FONTE: { key: keyof FontesA3; label: string }[] = [
-  { key: 'empresa',   label: 'Empresa' },
-  { key: 'titulo',    label: 'Título' },
-  { key: 'categoria', label: 'Categoria' },
-  { key: 'item',      label: 'Item' },
-  { key: 'descricao', label: 'Descrição' },
-  { key: 'preco',     label: 'Preço' },
-];
-
+// Limites do ajuste de fonte (o painel visual vive em A3ControlPanel)
 const FONTE_MIN = 6;
 const FONTE_MAX = 40;
 const FONTE_STEP = 0.5;
-
-const CAMPOS_COR: { key: keyof CardapioTema; label: string }[] = [
-  { key: 'corFundo',        label: 'Fundo' },
-  { key: 'corDourado',      label: 'Destaque' },
-  { key: 'corDouradoClaro', label: 'Destaque claro' },
-  { key: 'corTexto',        label: 'Texto' },
-  { key: 'corTextoSuave',   label: 'Texto suave' },
-];
 
 // ─── Componente exportado ───────────────────────────────────────────────────
 export interface A3DuploCanvasProps {
@@ -445,136 +301,29 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
         }
       >
         <div className="flex gap-4 p-4 bg-slate-200 min-h-full items-start">
-          {/* ── Painel de fontes (não sai na impressão) ─────────────────── */}
-          <div className="no-print w-60 flex-shrink-0 sticky top-4 bg-white rounded-xl border border-slate-200 shadow-lg p-4 flex flex-col gap-3">
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-              Fontes (px)
-            </p>
-            <p className="text-[11px] text-slate-400 -mt-2">
-              Ao ajustar, a distribuição é recalculada — a escala global se adapta para tudo caber.
-            </p>
-
-            {CAMPOS_FONTE.map(({ key, label }) => (
-              <div key={key} className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-slate-700 flex-1">{label}</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => changeFonte(key, -FONTE_STEP)}
-                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm"
-                    title={`Diminuir ${label}`}
-                  >
-                    −
-                  </button>
-                  <span
-                    className={`w-11 text-center text-sm font-mono ${
-                      fontes[key] !== FONTES_A3_PADRAO[key] ? 'text-indigo-600 font-bold' : 'text-slate-500'
-                    }`}
-                    title={`Padrão: ${FONTES_A3_PADRAO[key]}px`}
-                  >
-                    {fontes[key]}
-                  </span>
-                  <button
-                    onClick={() => changeFonte(key, FONTE_STEP)}
-                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm"
-                    title={`Aumentar ${label}`}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Cores do tema — interligadas com o projeto (valem p/ banner e A4) */}
-            <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                Cores do tema
-              </p>
-              <p className="text-[11px] text-slate-400 -mt-1">
-                Cores do projeto — ao salvar, valem também para o banner e o A4.
-              </p>
-              {CAMPOS_COR.map(({ key, label }) => (
-                <label key={key} className="flex items-center justify-between gap-2 cursor-pointer">
-                  <span className="text-sm font-semibold text-slate-700">{label}</span>
-                  <span className="flex items-center gap-1.5">
-                    <code className="text-[10px] text-slate-400 uppercase">{temaEdit[key]}</code>
-                    <input
-                      type="color"
-                      value={temaEdit[key]}
-                      onChange={(e) => {
-                        userEditouRef.current = true;
-                        setTemaEdit((prev) => ({ ...prev, [key]: e.target.value }));
-                        setFontesSalvas(false);
-                      }}
-                      className="w-8 h-7 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
-                    />
-                  </span>
-                </label>
-              ))}
-            </div>
-
-            <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
-              {onSalvarAjustes && (
-                <button
-                  onClick={handleSalvarAjustes}
-                  disabled={isSavingFontes}
-                  className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm px-3 py-2 rounded-lg shadow transition-all"
-                >
-                  {isSavingFontes ? (
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : null}
-                  {isSavingFontes ? 'Salvando...' : fontesSalvas ? '✓ Salvo!' : 'Salvar no projeto'}
-                </button>
-              )}
-              <button
-                onClick={handleVoltarPadrao}
-                className="w-full text-sm font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5"
-              >
-                Voltar ao padrão
-              </button>
-            </div>
-
-            <div className="border-t border-slate-100 pt-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zoom</span>
-                <span className="text-xs text-slate-400 font-mono">{Math.round(zoom * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0.25}
-                max={1}
-                step={0.05}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full accent-indigo-600"
-              />
-            </div>
-
-            {/* Afastar do topo — empurra o conteúdo p/ baixo p/ centralizar melhor */}
-            <div className="border-t border-slate-100 pt-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Afastar do topo</span>
-                <span className={`text-xs font-mono ${topoMm > 0 ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
-                  {topoMm} mm
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={60}
-                step={1}
-                value={topoMm}
-                onChange={(e) => {
-                  userEditouRef.current = true;
-                  setFontes((prev) => ({ ...prev, topoMm: Number(e.target.value) }));
-                  setFontesSalvas(false);
-                }}
-                className="w-full accent-indigo-600"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">
-                Empurra o conteúdo para baixo (0 = padrão). Salva junto com as fontes.
-              </p>
-            </div>
-          </div>
+          {/* ── Painel de ajustes (não sai na impressão) ─────────────── */}
+          <A3ControlPanel
+            fontes={fontes}
+            tema={temaEdit}
+            zoom={zoom}
+            mostrarSalvar={!!onSalvarAjustes}
+            isSaving={isSavingFontes}
+            salvo={fontesSalvas}
+            onChangeFonte={changeFonte}
+            onChangeCor={(key, value) => {
+              userEditouRef.current = true;
+              setTemaEdit((prev) => ({ ...prev, [key]: value }));
+              setFontesSalvas(false);
+            }}
+            onVoltarPadrao={handleVoltarPadrao}
+            onSalvar={handleSalvarAjustes}
+            onZoom={setZoom}
+            onTopo={(mm) => {
+              userEditouRef.current = true;
+              setFontes((prev) => ({ ...prev, topoMm: mm }));
+              setFontesSalvas(false);
+            }}
+          />
 
           {/* ── Páginas lado a lado ─────────────────────────────────────── */}
           <div className="flex-1 overflow-auto pb-24">
