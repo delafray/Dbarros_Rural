@@ -1,5 +1,16 @@
 # Plano de Refatoração — julho/2026
 
+> ## ✅ EXECUTADO em 11/07/2026 (branch `refactor-legibilidade-2026-07`, 11 commits)
+> Resultados (linhas antes → depois): CadastroCliente 1.327→242 · Atendimentos
+> 1.091→375 · Users 966→652 · Tarefas 688→232 · Tags 722→357 · Photos 734→476 ·
+> PlanilhaAreaLivre 767→630 · ClienteSelectorWidget 535→122 · A3DuploCanvas
+> 662→411 · CardapioCanvas (356 linhas mortas) deletado. Nenhuma página importa
+> mais `supabase` direto (exceto services). tsc/80 testes/build verdes em cada commit.
+> **Não executado:** `usePaginatedSearch` (Clientes/Eventos — risco/benefício
+> baixo, padrões divergem) e modal de edição de usuário permanente no Users
+> (10+ estados entrelaçados — próximo candidato). Itens "Menores" do fim do
+> documento continuam válidos para o futuro.
+
 > Gerado em 11/07/2026 a partir de avaliação por 8 agentes em 4 duplas (cada
 > dupla leu a mesma área de forma independente; ✔✔ = os dois leitores
 > apontaram o mesmo problema = alta confiança). Substitui a fila antiga do
