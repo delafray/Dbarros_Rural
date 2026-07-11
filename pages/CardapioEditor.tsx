@@ -9,6 +9,7 @@ import {
   RENDER_SCALES,
 } from '../components/cardapio/CardapioRenderer';
 import { parseCardapioText, gerarTextoCardapio, CardapioGroup } from '../utils/cardapioParser';
+import { tabelaHtmlParaTexto } from '../utils/cardapioClipboard';
 import { CardapioRenderOptions } from '../utils/cardapioTema';
 import { cardapioService } from '../services/cardapioService';
 import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
@@ -289,6 +290,16 @@ const CardapioEditor: React.FC = () => {
               id="cardapio-texto"
               value={rawText}
               onChange={(e) => handleTextChange(e.target.value)}
+              onPaste={(e) => {
+                // Tabela HTML no clipboard (chat de IA cujo texto puro vem sem
+                // Tabs)? Converte como o Excel faria. Texto puro com Tabs
+                // (Excel/ChatGPT) segue o caminho normal.
+                const texto = tabelaHtmlParaTexto(e.clipboardData.getData('text/html'));
+                if (texto) {
+                  e.preventDefault();
+                  handleTextChange(texto);
+                }
+              }}
               placeholder={PLACEHOLDER}
               className="w-full h-80 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 placeholder:text-slate-300"
               spellCheck={false}
