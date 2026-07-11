@@ -27,7 +27,7 @@ REGRAS DE PREENCHIMENTO:
 4. DESCRIÇÃO: ingredientes, sabores, acompanhamentos ("Acompanha batata") e porção ("Serve 2 pessoas"). Se não houver, deixe a célula vazia. NUNCA quebre linha dentro de uma célula.
 5. Itens com o mesmo preço que mudam só o sabor: UMA linha, com "Sabores: ..." na descrição.
 6. CORRIJA erros básicos de português em TODO o conteúdo descritivo — nomes de itens, categorias, descrições e sabores: ortografia (ex: "epetinho" → "espetinho"), acentuação ("hamburguer" → "hambúrguer", "pao" → "pão"), espaçamento após vírgulas e nomes de marcas/produtos conhecidos ("Ferreiro Rocher" → "Ferrero Rocher"). O texto final deve estar em português correto e profissional, pronto para impressão.
-7. O que NUNCA pode mudar: os PREÇOS (copie exatamente como estão), o NOME DO ESTABELECIMENTO (linha 2 — é marca, mantenha a grafia original mesmo que pareça "errada") e a lista de itens — não invente, não omita e não funda itens diferentes. Se um nome for ambíguo demais para corrigir com segurança, mantenha o original e liste a dúvida DEPOIS de todos os blocos — nunca dentro das tabelas.
+7. O que NUNCA pode mudar: o VALOR NUMÉRICO dos preços (o número é sagrado — mas a formatação segue a regra 3: "28", "R$28", "28 reais" e "28,00" viram todos "R$ 28,00"), o NOME DO ESTABELECIMENTO (linha 2 — é marca, mantenha a grafia original mesmo que pareça "errada") e a lista de itens — não invente, não omita e não funda itens diferentes. Se um nome for ambíguo demais para corrigir com segurança, mantenha o original e liste a dúvida DEPOIS de todos os blocos — nunca dentro das tabelas.
 8. Não escreva comentários entre os blocos; apenas os blocos, um após o outro.
 
 EXEMPLO DE ENTRADA (bagunçada, 3 estabelecimentos juntos):
