@@ -45,6 +45,17 @@ export const EditorItensModal: React.FC<EditorItensModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto]);
 
+  // Trava o scroll da página de fundo enquanto o modal está aberto
+  // (senão a rodinha do mouse rola a tela principal por trás)
+  useEffect(() => {
+    if (!aberto) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [aberto]);
+
   if (!aberto) return null;
 
   const setCategoria = (gi: number, nome: string) =>
@@ -135,7 +146,8 @@ export const EditorItensModal: React.FC<EditorItensModalProps> = ({
       onClick={onFechar}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[88vh] flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col"
+        style={{ maxHeight: '88vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
@@ -150,7 +162,10 @@ export const EditorItensModal: React.FC<EditorItensModalProps> = ({
         </div>
 
         {/* Corpo rolável */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-4">
+        <div
+          className="flex-1 p-5 flex flex-col gap-4"
+          style={{ minHeight: 0, overflowY: 'auto' }}
+        >
           {/* Título + Empresa */}
           <div className="grid grid-cols-2 gap-3">
             <div>
