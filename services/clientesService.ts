@@ -53,6 +53,31 @@ export type SaveClienteResult =
           contatos: Contato[];
       };
 
+// ============================================================
+// Tipos auxiliares usados pelo ClienteSelectorWidget
+// ============================================================
+
+/** Raw row retornado pelas queries do selector (antes de formatar contato principal) */
+export interface ClienteSelectorRow {
+    id: string;
+    tipo_pessoa: string;
+    nome_completo?: string | null;
+    razao_social?: string | null;
+    nome_fantasia?: string | null;
+    cpf?: string | null;
+    cnpj?: string | null;
+    contatos?: { id: string; nome: string; telefone: string | null; cargo: string | null; principal: boolean; email: string | null }[];
+}
+
+/** Payload para criação rápida de cliente PJ com contato principal */
+export interface CreateClienteRapidoInput {
+    nome: string;
+    contato: string;
+    cargo?: string;
+    telefone?: string;
+    email?: string;
+}
+
 export const clientesService = {
     async getClientes() {
         const { data, error } = await supabase
@@ -342,5 +367,80 @@ export const clientesService = {
             enderecos: enderecosResult,
             contatos: contatosResult,
         };
+    },
+
+    // ============================================================
+    // Funções usadas pelo ClienteSelectorWidget / useClienteSearch
+    // ============================================================
+
+    /** Retorna a contagem total de clientes cadastrados. */
+    async countClientes(): Promise<number> {
+        const { count } = await supabase
+            .from('clientes')
+            .select('*', { count: 'exact', head: true });
+        return count ?? 0;
+    },
+
+    /** Carrega uma página de clientes ordenada por created_at desc. */
+    async listClientesPage(page: number, pageSize: number): Promise<ClienteSelectorRow[]> {
+        const from = page * pageSize;
+        const { data, error } = await supabase
+            .from('clientes')
+            .select('*, contatos(id, nome, telefone, email, cargo, principal)')
+            .order('created_at', { ascending: false })
+            .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        return (data || []) as unknown as ClienteSelectorRow[];
+    },
+
+    /** Busca clientes no servidor via RPC full-text. */
+    async searchClientes(term: string): Promise<ClienteSelectorRow[]> {
+        const { data, error } = await (supabase.rpc('search_clientes', { search_term: term }) as any);
+        if (error) throw error;
+        return (data || []) as ClienteSelectorRow[];
+    },
+
+    /**
+     * Cria um cliente PJ rápido com um contato principal e devolve o registro
+     * completo (cliente + contatos) já pronto para formatar.
+     */
+    async createClienteRapido(input: CreateClienteRapidoInput): Promise<ClienteSelectorRow> {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { data: clientData, error: clientError } = await supabase
+            .from('clientes')
+            .insert({
+                tipo_pessoa: 'PJ',
+                razao_social: input.nome.trim(),
+                nome_fantasia: input.nome.trim(),
+                user_id: user?.id || null,
+            })
+            .select()
+            .single();
+
+        if (clientError) throw clientError;
+
+        const { error: contatoError } = await supabase
+            .from('contatos')
+            .insert({
+                cliente_id: clientData.id,
+                nome: input.contato.trim(),
+                cargo: input.cargo?.trim() || null,
+                telefone: input.telefone?.trim() || null,
+                email: input.email?.trim() || null,
+                principal: true,
+            });
+
+        if (contatoError) throw contatoError;
+
+        const { data: fullCliente, error: fetchError } = await supabase
+            .from('clientes')
+            .select('*, contatos(id, nome, telefone, email, cargo, principal)')
+            .eq('id', clientData.id)
+            .single();
+
+        if (fetchError) throw fetchError;
+        return fullCliente as unknown as ClienteSelectorRow;
     },
 };
