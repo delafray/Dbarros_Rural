@@ -11,8 +11,7 @@
  *   USEFUL_W = 776 px  =   970 mm
  */
 
-import { CANVAS_W, CANVAS_H } from '../cardapio/CardapioCanvas';
-import { renderCardapioToDataURL } from '../cardapio/CardapioRenderer';
+import { CANVAS_W, CANVAS_H, renderCardapioToDataURL } from '../cardapio/CardapioRenderer';
 import { CardapioGroup } from '../../utils/cardapioParser';
 import {
   CardapioTema,
@@ -20,6 +19,7 @@ import {
   resolveTema,
   withAlpha,
 } from '../../utils/cardapioTema';
+import { loadImage } from '../../utils/canvasHelpers';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const BLEED    = 8;                     // 10 mm * 0.8 px/mm
@@ -38,15 +38,6 @@ const CY1 = BLEED;
 const CY2 = PANEL_H - BLEED;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload  = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

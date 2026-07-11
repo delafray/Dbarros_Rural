@@ -14,11 +14,11 @@ import {
   CardapioRenderOptions,
   resolveTema,
   withAlpha,
-  screwColors,
   coverRect,
 } from '../../utils/cardapioTema';
+import { wrapText, loadImage, drawScrew } from '../../utils/canvasHelpers';
 
-// ─── Layout constants (must match CardapioCanvas.tsx visually) ───────────────
+// ─── Layout constants (source of truth do banner 2,00m × 1,10m) ──────────────
 export const CANVAS_W = 1600;
 export const CANVAS_H = 880;
 
@@ -40,39 +40,6 @@ function calcEmpresaFs(empresa: string, totalItens: number, colW = APPROX_COL_W)
   const byLength = Math.min(68, Math.floor(colW / Math.max(empresa.length, 1)));
   const pressure = Math.min(0.42, Math.max(0, (totalItens - 4) * 0.036));
   return Math.max(24, Math.floor(byLength * (1 - pressure)));
-}
-
-/** Wrap text to fit within maxWidth, returns array of lines */
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
-  if (!text) return [''];
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (ctx.measureText(test).width > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length ? lines : [''];
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
 }
 
 // ─── Drawing primitives ───────────────────────────────────────────────────────
@@ -120,32 +87,8 @@ function drawAccentLines(ctx: CanvasRenderingContext2D, T: CardapioTema) {
   ctx.globalAlpha = 1;
 }
 
-function drawScrew(ctx: CanvasRenderingContext2D, T: CardapioTema, cx: number, cy: number) {
-  const r = SCREW_SIZE / 2;
-  const { hi, lo } = screwColors(T);
-  const rg = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
-  rg.addColorStop(0,   hi);
-  rg.addColorStop(0.55, T.corDourado);
-  rg.addColorStop(1,   lo);
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = rg;
-  ctx.fill();
-
-  // Shadow ring
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  // Center dot
-  ctx.beginPath();
-  ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(26,14,0,0.65)';
-  ctx.fill();
-}
+// Preset visual do parafuso do banner (helper compartilhado em canvasHelpers)
+const SCREW_STYLE = { size: SCREW_SIZE, highlightOffset: 0.3, ringAlpha: 0.45, dotRadius: 3.5 };
 
 // ─── Fit calculation (pixel-accurate via measureText) ─────────────────────────
 // Replicates the y-advancement of drawColumn without actually drawing.
@@ -474,10 +417,10 @@ export async function renderCardapioToDataURL(
   drawAccentLines(ctx, T);
 
   const sr = SCREW_SIZE / 2;
-  drawScrew(ctx, T, SCREW_INSET + sr + 15, SCREW_INSET + sr);                   // top-left
-  drawScrew(ctx, T, CANVAS_W - SCREW_INSET - sr - 10, SCREW_INSET + sr);         // top-right (shifted left)
-  drawScrew(ctx, T, SCREW_INSET + sr + 15, CANVAS_H - SCREW_INSET - sr);         // bottom-left
-  drawScrew(ctx, T, CANVAS_W - SCREW_INSET - sr - 10, CANVAS_H - SCREW_INSET - sr); // bottom-right (shifted left)
+  drawScrew(ctx, T, SCREW_INSET + sr + 15, SCREW_INSET + sr, SCREW_STYLE);                   // top-left
+  drawScrew(ctx, T, CANVAS_W - SCREW_INSET - sr - 10, SCREW_INSET + sr, SCREW_STYLE);         // top-right (shifted left)
+  drawScrew(ctx, T, SCREW_INSET + sr + 15, CANVAS_H - SCREW_INSET - sr, SCREW_STYLE);         // bottom-left
+  drawScrew(ctx, T, CANVAS_W - SCREW_INSET - sr - 10, CANVAS_H - SCREW_INSET - sr, SCREW_STYLE); // bottom-right (shifted left)
 
   // Divisor central removido — cada painel é cortado ao meio independentemente
 

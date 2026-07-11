@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { CANVAS_W, CANVAS_H } from '../components/cardapio/CardapioCanvas';
 import {
+  CANVAS_W,
+  CANVAS_H,
   renderCardapioToDataURL,
   exportCardapioRenderer,
   RENDER_SCALES,

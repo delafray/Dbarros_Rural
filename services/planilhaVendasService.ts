@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Database } from '../database.types';
+import { Database, Json } from '../database.types';
 
 export type PlanilhaConfig = Database['public']['Tables']['planilha_configuracoes']['Row'];
 export type PlanilhaConfigInsert = Database['public']['Tables']['planilha_configuracoes']['Insert'];
@@ -186,5 +186,72 @@ export const planilhaVendasService = {
         }
 
         return { inserted: toInsert.length, deleted: toDelete.length };
+    },
+
+    // ── Área Livre ──────────────────────────────────────────────
+
+    /** Busca estandes de uma categoria por prefix, filtrando com ilike. */
+    async getEstandesAL(configId: string, prefix: string) {
+        const { data, error } = await supabase
+            .from('planilha_vendas_estandes')
+            .select('*')
+            .eq('config_id', configId)
+            .ilike('stand_nr', `${prefix} %`)
+            .order('stand_nr');
+
+        if (error) throw error;
+        return (data || []) as PlanilhaEstandeAL[];
+    },
+
+    /** Salva em paralelo todos os estandes AL (area_m2, overrides). */
+    async saveEstandesAL(
+        estandes: Array<{
+            id: string;
+            area_m2: number | null;
+            preco_m2_is_override: boolean;
+            preco_m2: number | null;
+            total_override: number | null;
+            combo_overrides: Record<string, number>;
+        }>,
+    ) {
+        const results = await Promise.all(
+            estandes.map((r) =>
+                supabase
+                    .from('planilha_vendas_estandes')
+                    .update({
+                        area_m2: r.area_m2,
+                        preco_m2_override: r.preco_m2_is_override ? r.preco_m2 : null,
+                        total_override: r.total_override,
+                        combo_overrides: Object.keys(r.combo_overrides).length > 0
+                            ? (r.combo_overrides as unknown as Json)
+                            : null,
+                    } as any)
+                    .eq('id', r.id),
+            ),
+        );
+        const erros = results.filter((r) => r.error);
+        if (erros.length > 0) {
+            throw new Error(`Falha ao salvar ${erros.length} de ${estandes.length} estandes.`);
+        }
+    },
+
+    /** Atualiza a lista de categorias_config em planilha_configuracoes. */
+    async saveCategoriasConfig(configId: string, categorias: CategoriaSetup[]) {
+        const { error } = await supabase
+            .from('planilha_configuracoes')
+            .update({ categorias_config: categorias as unknown as Json })
+            .eq('id', configId);
+        if (error) throw error;
+    },
+
+    /** Desmarca uma categoria como area_livre, voltando para 'fixo'. */
+    async unmarkAreaLivre(configId: string, categorias: CategoriaSetup[], tag: string) {
+        const updatedCats = categorias.map((c) =>
+            c.tag === tag
+                ? { ...c, tipo_precificacao: 'fixo' as const, preco_m2: undefined, combos_adicionais: undefined, comboNames: undefined }
+                : c,
+        );
+        await planilhaVendasService.saveCategoriasConfig(configId, updatedCats);
+        return updatedCats;
     },
 };
