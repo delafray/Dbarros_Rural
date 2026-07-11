@@ -10,6 +10,28 @@
 > baixo, padrões divergem) e modal de edição de usuário permanente no Users
 > (10+ estados entrelaçados — próximo candidato). Itens "Menores" do fim do
 > documento continuam válidos para o futuro.
+>
+> ## 🔎 AUDITADO em 11/07 por 12 agentes (3 camadas × 2 duplas)
+> Camadas: revisão do código novo (notas 7,5/10 × 4 revisores), inventário de
+> contrato do código antigo, e caça a regressões via diff. **1 regressão real
+> encontrada e corrigida** (TempUserModal não resetava ao abrir — commit
+> e2ce35f). Confirmados fiéis: fórmulas da planilha AL, medição do A3, presets
+> de parafuso, permissões, filtros/ordenação, isTemporaryId. Falsos positivos
+> descartados com evidência (botão "Tudo" do Photos, colSpan da AL, loading do
+> CadastroCliente, globalAlpha do drawScrew — todos idênticos ao código antigo).
+>
+> **Backlog de melhorias PRÉ-EXISTENTES anotadas pela auditoria (não são
+> regressões; atacar em sessão futura):**
+> - `clientesService.fetchClienteCompleto`: erros das queries de stands e
+>   atendimentos são silenciados (o código antigo também silenciava) — adicionar
+>   checks e decidir UX de falha parcial.
+> - Telefone de contato persistido COM máscara no banco (CEP é limpo; telefone não).
+> - `isTemporaryId` baseado em `id.length > 10` — trocar por prefixo `tmp-`.
+> - `CardapioRenderer.drawHalfHeader`: `empresaY` sombreado + `Object.assign(ctx, {})`
+>   no-op — código morto confuso.
+> - `colSpan={4 + numCombos + 1}` na PlanilhaAreaLivre (sobra 1 com a coluna
+>   Cliente oculta).
+> - Deps/`useCallback` menores apontados nos relatórios (baixo impacto).
 
 > Gerado em 11/07/2026 a partir de avaliação por 8 agentes em 4 duplas (cada
 > dupla leu a mesma área de forma independente; ✔✔ = os dois leitores
