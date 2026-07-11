@@ -7,10 +7,11 @@ import {
   exportCardapioRenderer,
   RENDER_SCALES,
 } from '../components/cardapio/CardapioRenderer';
-import { parseCardapioText, CardapioGroup } from '../utils/cardapioParser';
+import { parseCardapioText, gerarTextoCardapio, CardapioGroup } from '../utils/cardapioParser';
 import { CardapioRenderOptions } from '../utils/cardapioTema';
 import { cardapioService } from '../services/cardapioService';
 import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
+import EditorItensModal from '../components/cardapioProjeto/EditorItensModal';
 
 const PLACEHOLDER = `CHURRASCO BBQ
 MASMORRA
@@ -59,6 +60,7 @@ const CardapioEditor: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [isRendering, setIsRendering] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
+  const [showEditorItens, setShowEditorItens] = useState(false);
 
   // ── Load existing cardapio (edit mode) ──────────────────────────────────
   useEffect(() => {
@@ -295,6 +297,14 @@ const CardapioEditor: React.FC = () => {
               <p className="mt-2 text-xs text-red-500 font-medium">{parseError}</p>
             )}
 
+            <button
+              onClick={() => setShowEditorItens(true)}
+              className="mt-3 w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 hover:border-amber-400 text-slate-500 hover:text-amber-600 font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
+              title="Edite categorias, itens, valores e descrições campo a campo — sem risco de quebrar o formato"
+            >
+              ✏️ Editar itens
+            </button>
+
             {grupos.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className="text-xs bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-full">
@@ -359,6 +369,18 @@ const CardapioEditor: React.FC = () => {
           </p>
         </div>
       </div>
+
+      <EditorItensModal
+        aberto={showEditorItens}
+        titulo={titulo}
+        empresa={empresa}
+        grupos={grupos}
+        onFechar={() => setShowEditorItens(false)}
+        onAplicar={({ titulo: novoTitulo, empresa: novaEmpresa, grupos: novosGrupos }) => {
+          handleTextChange(gerarTextoCardapio(novoTitulo, novaEmpresa, novosGrupos));
+          setShowEditorItens(false);
+        }}
+      />
     </Layout>
 
   );

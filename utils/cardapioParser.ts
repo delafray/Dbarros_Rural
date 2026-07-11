@@ -125,6 +125,41 @@ export function calcFontSize(
   return Math.max(7, Math.min(28, fs));
 }
 
+/** Remove caracteres que quebrariam o formato TSV (tabs e quebras de linha) */
+function limparCampo(v: string): string {
+  return (v || '').replace(/[\t\r\n]+/g, ' ').trim();
+}
+
+/**
+ * Inverso do parse: gera o texto puro (TSV) a partir da estrutura.
+ * Usado pelo editor estruturado de itens — o texto volta consolidado
+ * (categorias agrupadas na ordem de primeira aparição).
+ */
+export function gerarTextoCardapio(
+  titulo: string,
+  empresa: string,
+  grupos: CardapioGroup[]
+): string {
+  const lines: string[] = [
+    limparCampo(titulo).toUpperCase(),
+    limparCampo(empresa).toUpperCase(),
+    'CATEGORIA\tITEM\tVALOR (R$)\tDESCRIÇÃO',
+  ];
+  for (const g of grupos) {
+    for (const i of g.itens) {
+      lines.push(
+        [
+          limparCampo(g.categoria).toUpperCase(),
+          limparCampo(i.item),
+          limparCampo(i.valor),
+          limparCampo(i.descricao),
+        ].join('\t')
+      );
+    }
+  }
+  return lines.join('\n');
+}
+
 /** Parse raw text input into structured data */
 export function parseCardapioText(raw: string): Omit<CardapioParsed, 'raw'> | null {
   const lines = raw

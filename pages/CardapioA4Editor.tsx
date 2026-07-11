@@ -7,10 +7,11 @@ import {
   FontesA4, FONTES_A4_PADRAO, resolveFontesA4, fontesA4SaoPadrao,
 } from '../components/cardapioA4/cardapioA4Config';
 import { exportMenuA4, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
-import { parseCardapioText, CardapioGroup } from '../utils/cardapioParser';
+import { parseCardapioText, gerarTextoCardapio, CardapioGroup } from '../utils/cardapioParser';
 import { CardapioRenderOptions } from '../utils/cardapioTema';
 import { menuA4Service } from '../services/menuA4Service';
 import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
+import EditorItensModal from '../components/cardapioProjeto/EditorItensModal';
 
 const isEditMode_check = (id?: string) => !!id;
 
@@ -65,6 +66,7 @@ export const CardapioA4Editor: React.FC = () => {
   const [error,        setError]        = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [isLoading,    setIsLoading]    = useState(isEditMode);
+  const [showEditorItens, setShowEditorItens] = useState(false);
   // Fontes individuais DESTE menu (multiplicadores; salvas junto no Salvar)
   const [fontesA4, setFontesA4] = useState<FontesA4>({ ...FONTES_A4_PADRAO });
 
@@ -275,6 +277,14 @@ export const CardapioA4Editor: React.FC = () => {
               <p className="text-xs text-red-500 font-medium">{parseError}</p>
             )}
 
+            <button
+              onClick={() => setShowEditorItens(true)}
+              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 hover:border-blue-400 text-slate-500 hover:text-blue-600 font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
+              title="Edite categorias, itens, valores e descrições campo a campo — sem risco de quebrar o formato"
+            >
+              ✏️ Editar itens
+            </button>
+
             {grupos.length > 0 && (
               <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 border border-slate-100">
                 <span className="font-bold text-slate-700">{empresa}</span>
@@ -382,6 +392,18 @@ export const CardapioA4Editor: React.FC = () => {
           </p>
         </div>
       </div>
+
+      <EditorItensModal
+        aberto={showEditorItens}
+        titulo={titulo}
+        empresa={empresa}
+        grupos={grupos}
+        onFechar={() => setShowEditorItens(false)}
+        onAplicar={({ titulo: novoTitulo, empresa: novaEmpresa, grupos: novosGrupos }) => {
+          handleTextChange(gerarTextoCardapio(novoTitulo, novaEmpresa, novosGrupos));
+          setShowEditorItens(false);
+        }}
+      />
     </Layout>
   );
 };
