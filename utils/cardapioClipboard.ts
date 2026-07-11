@@ -14,7 +14,7 @@
  * retornamos null e o paste normal (texto com Tabs) acontece.
  */
 
-const QUEBRA = ''; // marcador interno de quebra de bloco
+const QUEBRA = '0001'; // marcador interno de quebra de bloco
 
 /**
  * Converte o HTML colado em texto do cardápio.
