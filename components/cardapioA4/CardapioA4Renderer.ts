@@ -248,8 +248,7 @@ function drawColumn(
       // Medir preço primeiro pra reservar espaço
       ctx.font = `900 ${priceFs}px ${FONT_BLACK}`;
       const priceW = item.valor ? ctx.measureText(item.valor).width : 0;
-      const gapName = item.descricao ? (singleCol ? 16 : 6) : 16;
-      const nameMaxW = colW - (item.valor ? priceW + gapName : 0);
+      const nameMaxW = colW - (item.valor ? priceW + 16 : 0);
 
       // Nome do item (pode quebrar se tiver descricao; senão fica em 1 linha)
       ctx.font         = `700 ${itemFs}px ${FONT_REGULAR}`;
@@ -265,9 +264,9 @@ function drawColumn(
       });
       const nameBlockH = nameLines.length * nameLh;
 
-      // Dotted link (só quando NÃO tem descricao)
-      // Alinha no baseline da 1a linha (mesmo do preço). Multi-linha → nome ocupa nameMaxW, quase não sobra espaço.
-      if (!item.descricao && item.valor) {
+      // Dotted link em TODOS os itens com preço — descrição fica embaixo
+      // (mesmo padrão do A3). Alinha no baseline da 1a linha (mesmo do preço).
+      if (item.valor) {
         const nameSpanW = nameLines.length > 1
           ? nameMaxW
           : ctx.measureText(nameLines[0]).width;

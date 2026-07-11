@@ -118,7 +118,6 @@ const GroupList = ({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'baseline',
-                  gap: item.descricao ? (singleCol ? 16 : 6) : 0,
                 }}
               >
                 <span
@@ -128,13 +127,15 @@ const GroupList = ({
                     fontWeight: 700,
                     lineHeight: 1.2,
                     fontFamily: FONT_REGULAR,
-                    flex: item.descricao ? 1 : '0 0 auto',
+                    flex: '0 1 auto',
                     minWidth: 0,
                   }}
                 >
                   {item.item}
                 </span>
-                {!item.descricao && (
+                {/* Pontilhado em TODOS os itens com preço — a descrição fica
+                    embaixo (mesmo padrão aplicado no A3 Duplo) */}
+                {item.valor && (
                   <span
                     aria-hidden="true"
                     style={{
