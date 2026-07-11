@@ -1,5 +1,11 @@
 # PENDENTE — PDF Vetorial do A3 Duplo (pausado em 10/07/2026)
 
+> **ATUALIZAÇÃO 10/07 22h:** usuário testou o destino **"Salvar como PDF" do
+> Chrome** no diálogo de impressão e ficou perfeito — vetorial, com brilhos,
+> idêntico à tela. O caso de uso está ATENDIDO por esse caminho; esta feature
+> vira melhoria de conveniência (eliminar o risco de alguém escolher o destino
+> errado), não mais uma necessidade. Prioridade baixa.
+
 > Feature construída, funcional em parte, mas **desativada da UI a pedido do usuário**
 > porque o PDF gerado ainda saiu diferente do preview. Por enquanto o fluxo oficial
 > voltou a ser o botão "Imprimir / Salvar PDF" do navegador (aceita o serrilhado).
