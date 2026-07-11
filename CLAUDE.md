@@ -11,18 +11,24 @@ Apenas execute o que o usuário pedir explicitamente. Não proponha refatoraçõ
 > Esta seção é uma **lista de memória**. Só atuar aqui quando o usuário disser explicitamente:
 > **"quero refatorar [nome do arquivo]"** ou **"iniciar refatoração de [nome do arquivo]"**
 
-> Atualizada em 02/07/2026 — Photos, TempPlanilha, ConfiguracaoVendas e ControleImagens
-> já foram refatorados (padrão hooks + components). Fila atual:
+> Atualizada em 11/07/2026 — plano novo gerado por avaliação de 8 agentes em duplas
+> (checagem cruzada). Detalhes completos por fase: **PLANO-REFATORACAO-2026-07.md** na raiz.
 
-| Arquivo | Linhas | Problema |
-|---|---|---|
-| `pages/CadastroCliente.tsx` | 1.326 | Maior arquivo do core; importa `supabase` direto ignorando `clientesService`; PF/PJ + abas + validação misturados |
-| `pages/Users.tsx` | 966 | 3 responsabilidades: usuários permanentes + visitantes temporários + link/WhatsApp |
-| `pages/CadastroEvento.tsx` | 794 | Crescendo; avaliar quando passar de 1.000 |
+| Fase | Alvo | Linhas | Resumo |
+|---|---|---|---|
+| 0 | Quick wins transversais | — | wrapText/loadImage/drawScrew duplicados nos renderers; formatPeriodo; cores de probabilidade; usePaginatedSearch |
+| 1 | `pages/CadastroCliente.tsx` | 1.326 | supabase direto, save de 180 linhas, 5 queries sequenciais, validação triplicada, abas → components |
+| 2 | `pages/Atendimentos.tsx` | 1.091 | REVOGADO o "aceitável": AtendimentoForm (~400) + HistoricoPopup (~230) + ProbBadge internos |
+| 3 | `pages/Users.tsx` | 966 | TempUserModal (~300) + useTempUserFlow |
+| 4 | Photos / Tags / Tarefas | 734/722/688 | Modais inline → components/[modulo]/ |
+| 5 | `components/ClienteSelectorWidget.tsx` | 535 | supabase direto + 3 modos de UI num render |
+| 6 | `pages/PlanilhaAreaLivre.tsx` | 767 | supabase direto em 5 pontos, M2Field local, cálculos → hook |
+| 7 | `components/a3Duplo/A3DuploCanvas.tsx` | 662 | EmpresaBlock + painel de controles → arquivos próprios |
 
 **Arquivos aceitáveis (não refatorar):**
-- `pages/Atendimentos.tsx` (1.088) — focado, só tem muitos states
-- `services/backupService.ts` (~970) — serviço puro, bem estruturado
+- `services/backupService.ts` (1.154) — serviço puro, bem estruturado
+- `pages/TempPlanilha.tsx`, `ConfiguracaoVendas.tsx`, `ControleImagens.tsx` — padrão hooks+orquestrador elogiado na avaliação
+- `pages/CadastroEvento.tsx` (795) — reavaliar se passar de 1.000
 
 ---
 
