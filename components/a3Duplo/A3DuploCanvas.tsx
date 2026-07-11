@@ -237,9 +237,15 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
     setPhase('measuring');
   };
 
+  // Depois que o usuário mexe em QUALQUER controle, os valores dele mandam:
+  // nenhuma sincronização com o banco pode sobrescrever a edição em andamento
+  // (era isso que fazia a tela "voltar ao padrão" após salvar).
+  const userEditouRef = useRef(false);
+
   // Fontes/tema salvos do projeto podem chegar depois do mount (fetch assíncrono)
   const fontesIniciaisJson = JSON.stringify(fontesIniciais ?? null);
   useEffect(() => {
+    if (userEditouRef.current) return;
     setFontes(resolveFontes(fontesIniciais));
     remeasure();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,12 +253,14 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
 
   const temaJson = JSON.stringify(tema ?? null);
   useEffect(() => {
+    if (userEditouRef.current) return;
     setTemaEdit(resolveTema(tema));
     // cores não afetam alturas — sem re-medição
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [temaJson]);
 
   const changeFonte = (key: keyof FontesA3, delta: number) => {
+    userEditouRef.current = true;
     setFontes((prev) => ({
       ...prev,
       [key]: Math.min(FONTE_MAX, Math.max(FONTE_MIN, Math.round((prev[key] + delta) * 2) / 2)),
@@ -262,6 +270,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
   };
 
   const handleVoltarPadrao = () => {
+    userEditouRef.current = true;
     setFontes({ ...FONTES_A3_PADRAO });
     setTemaEdit({ ...TEMA_PADRAO });
     setFontesSalvas(false);
@@ -551,6 +560,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
                       type="color"
                       value={temaEdit[key]}
                       onChange={(e) => {
+                        userEditouRef.current = true;
                         setTemaEdit((prev) => ({ ...prev, [key]: e.target.value }));
                         setFontesSalvas(false);
                       }}
@@ -613,6 +623,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
                 step={1}
                 value={topoMm}
                 onChange={(e) => {
+                  userEditouRef.current = true;
                   setFontes((prev) => ({ ...prev, topoMm: Number(e.target.value) }));
                   setFontesSalvas(false);
                 }}
