@@ -1,80 +1,28 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { useAppDialog } from "../context/DialogContext";
 import {
   planilhaVendasService,
   CategoriaSetup,
-  PlanilhaEstande,
   PlanilhaEstandeAL,
 } from "../services/planilhaVendasService";
 import { clientesService, ClienteComContatos } from "../services/clientesService";
-import { supabase } from "../services/supabaseClient";
 import CurrencyField from "../components/CurrencyField";
+import M2Field from "../components/inputs/M2Field";
 import { useDirtyState } from "../hooks/useDirtyState";
 import { formatBRL } from "../utils/formatCurrency";
+import {
+  ALRow,
+  useAreaLivreCalculations,
+  applyAtualizarPrecos,
+  applyM2Change,
+  applyPrecoM2Change,
+  applyComboChange,
+} from "../hooks/useAreaLivreCalculations";
 
 // ── Helpers ──────────────────────────────────────────────────
 const formatMoney = formatBRL;
-
-// ── Componente de campo numérico (m²) ────────────────────────
-const M2Field: React.FC<{
-  value: number | null;
-  onChange: (v: number | null) => void;
-  className?: string;
-  inputRef?: React.Ref<HTMLInputElement>;
-  onEnter?: () => void;
-}> = ({ value, onChange, className, inputRef, onEnter }) => {
-  const [editing, setEditing] = React.useState(false);
-  const [draft, setDraft] = React.useState("");
-
-  return (
-    <input
-      ref={inputRef}
-      type="text"
-      inputMode="numeric"
-      value={editing ? draft : (value != null ? String(value) : "")}
-      placeholder="—"
-      onFocus={(e) => {
-        setEditing(true);
-        setDraft(value != null ? String(value) : "");
-        setTimeout(() => e.target.select(), 0);
-      }}
-      onChange={(e) => setDraft(e.target.value.replace(/[^0-9.]/g, ""))}
-      onBlur={() => {
-        setEditing(false);
-        const parsed = parseFloat(draft);
-        onChange(isNaN(parsed) ? null : parsed);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          // Commit valor antes de pular
-          setEditing(false);
-          const parsed = parseFloat(draft);
-          onChange(isNaN(parsed) ? null : parsed);
-          onEnter?.();
-        }
-      }}
-      className={className}
-    />
-  );
-};
-
-// ── Tipo local para linha editável ────────────────────────────
-interface ALRow {
-  id: string;
-  stand_nr: string;
-  cliente_id: string | null;
-  cliente_nome_livre: string | null;
-  area_m2: number | null;
-  preco_m2: number | null;       // preco_m2_override ou referência da categoria
-  preco_m2_is_override: boolean; // true = tem override individual
-  total_override: number | null;
-  combo_overrides: Record<string, number>;
-  // controle interno
-  total_stale: boolean; // m² mudou após override → fundo vermelho
-}
 
 const PlanilhaAreaLivre: React.FC = () => {
   const { edicaoId, categoriaTag } = useParams<{ edicaoId: string; categoriaTag: string }>();
@@ -100,6 +48,9 @@ const PlanilhaAreaLivre: React.FC = () => {
   const [allCategorias, setAllCategorias] = useState<CategoriaSetup[]>([]);
   // Refs dos inputs m² para navegação com Enter
   const m2Refs = useRef<Map<number, HTMLInputElement>>(new Map());
+
+  // ── Cálculos (memoizados) ──────────────────────────────────
+  const { calcTotal, calcCombo } = useAreaLivreCalculations(comboNames, categoria);
 
   // ── Load ──────────────────────────────────────────────────
   useEffect(() => {
@@ -149,18 +100,11 @@ const PlanilhaAreaLivre: React.FC = () => {
 
       setClientes(clientesList || []);
 
-      // Buscar estandes desta categoria
+      // Buscar estandes desta categoria via service
       const prefix = (cat.prefix || cat.tag || "").trim().toUpperCase();
-      const { data: estandes, error } = await supabase
-        .from("planilha_vendas_estandes")
-        .select("*")
-        .eq("config_id", config.id)
-        .ilike("stand_nr", `${prefix} %`)
-        .order("stand_nr");
+      const estandes = await planilhaVendasService.getEstandesAL(config.id, prefix);
 
-      if (error) throw error;
-
-      const alRows: ALRow[] = (estandes || []).map((e) => {
+      const alRows: ALRow[] = estandes.map((e) => {
         const eAL = e as unknown as PlanilhaEstandeAL;
         const combo_overrides = (eAL.combo_overrides as Record<string, number>) || {};
         return {
@@ -283,22 +227,9 @@ const PlanilhaAreaLivre: React.FC = () => {
     setM2Faltando(new Set());
 
     const pm2 = categoria.preco_m2 ?? 0;
-    setRows((prev) => prev.map((r) => {
-      const base = r.area_m2 != null ? r.area_m2 * pm2 : 0;
-      const newCombos: Record<string, number> = {};
-      (categoria.combos_adicionais || []).forEach((adicional, ci) => {
-        const label = comboNames[ci] || `COMBO ${String(ci + 1).padStart(2, "0")}`;
-        newCombos[label] = base + adicional;
-      });
-      return {
-        ...r,
-        preco_m2: pm2,
-        preco_m2_is_override: false,
-        total_override: base,
-        combo_overrides: newCombos,
-        total_stale: false,
-      };
-    }));
+    setRows((prev) =>
+      applyAtualizarPrecos(prev, pm2, categoria.combos_adicionais || [], comboNames)
+    );
     markDirty();
   };
 
@@ -314,20 +245,6 @@ const PlanilhaAreaLivre: React.FC = () => {
     markDirty();
   };
 
-  // ── Cálculo de totais ────────────────────────────────────
-  const calcTotal = useCallback((row: ALRow): number => {
-    if (row.total_override != null) return row.total_override;
-    if (row.area_m2 == null || row.preco_m2 == null) return 0;
-    return row.area_m2 * row.preco_m2;
-  }, []);
-
-  const calcCombo = useCallback((row: ALRow, ci: number): number => {
-    const label = comboNames[ci] || `COMBO ${String(ci + 1).padStart(2, "0")}`;
-    if (row.combo_overrides[label] != null) return row.combo_overrides[label];
-    const adicional = Array.isArray(categoria?.combos_adicionais) ? (categoria?.combos_adicionais[ci] ?? 0) : 0;
-    return calcTotal(row) + adicional;
-  }, [comboNames, categoria, calcTotal]);
-
   // ── Row Handlers ─────────────────────────────────────────
   const updateRow = (id: string, patch: Partial<ALRow>) => {
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, ...patch } : r));
@@ -335,15 +252,7 @@ const PlanilhaAreaLivre: React.FC = () => {
   };
 
   const handleM2Change = (id: string, val: number | null) => {
-    setRows((prev) => prev.map((r) => {
-      if (r.id !== id) return r;
-      // Se limpou o m², limpa também total_override e combo_overrides
-      if (val == null) {
-        return { ...r, area_m2: null, total_override: null, combo_overrides: {}, total_stale: false };
-      }
-      const stale = r.total_override != null || Object.keys(r.combo_overrides).length > 0;
-      return { ...r, area_m2: val, total_stale: stale };
-    }));
+    setRows((prev) => applyM2Change(prev, id, val));
     // Limpa destaque de faltando se preencheu
     if (val != null && val > 0) {
       setM2Faltando((prev) => { const next = new Set(prev); next.delete(id); return next; });
@@ -352,16 +261,7 @@ const PlanilhaAreaLivre: React.FC = () => {
   };
 
   const handlePrecoM2Change = (id: string, val: number | null) => {
-    setRows((prev) => prev.map((r) => {
-      if (r.id !== id) return r;
-      const stale = r.total_override != null || Object.keys(r.combo_overrides).length > 0;
-      return {
-        ...r,
-        preco_m2: val,
-        preco_m2_is_override: val != null && val !== categoria?.preco_m2,
-        total_stale: stale,
-      };
-    }));
+    setRows((prev) => applyPrecoM2Change(prev, id, val, categoria?.preco_m2));
     markDirty();
   };
 
@@ -370,17 +270,7 @@ const PlanilhaAreaLivre: React.FC = () => {
   };
 
   const handleComboChange = (id: string, ci: number, val: number | null) => {
-    const label = comboNames[ci] || `COMBO ${String(ci + 1).padStart(2, "0")}`;
-    setRows((prev) => prev.map((r) => {
-      if (r.id !== id) return r;
-      const overrides = { ...r.combo_overrides };
-      if (val == null) {
-        delete overrides[label];
-      } else {
-        overrides[label] = val;
-      }
-      return { ...r, combo_overrides: overrides };
-    }));
+    setRows((prev) => applyComboChange(prev, id, ci, val, comboNames));
     markDirty();
   };
 
@@ -390,25 +280,7 @@ const PlanilhaAreaLivre: React.FC = () => {
       setSaving(true);
 
       // 1. Salva os estandes
-      const results = await Promise.all(
-        rows.map((r) =>
-          supabase
-            .from("planilha_vendas_estandes")
-            .update({
-              area_m2: r.area_m2,
-              preco_m2_override: r.preco_m2_is_override ? r.preco_m2 : null,
-              total_override: r.total_override,
-              combo_overrides: Object.keys(r.combo_overrides).length > 0
-                ? (r.combo_overrides as unknown as import("../database.types").Json)
-                : null,
-            } as any)
-            .eq("id", r.id),
-        ),
-      );
-      const erros = results.filter((r) => r.error);
-      if (erros.length > 0) {
-        throw new Error(`Falha ao salvar ${erros.length} de ${rows.length} estandes.`);
-      }
+      await planilhaVendasService.saveEstandesAL(rows);
 
       // 2. Salva a configuração da categoria (preco_m2, combos_adicionais, comboNames)
       if (configId && categoria) {
@@ -423,10 +295,7 @@ const PlanilhaAreaLivre: React.FC = () => {
               }
             : c,
         );
-        await supabase
-          .from("planilha_configuracoes")
-          .update({ categorias_config: updatedCats as unknown as import("../database.types").Json })
-          .eq("id", configId);
+        await planilhaVendasService.saveCategoriasConfig(configId, updatedCats);
         setAllCategorias(updatedCats);
       }
 
@@ -469,13 +338,7 @@ const PlanilhaAreaLivre: React.FC = () => {
       const config = await planilhaVendasService.getConfig(edicaoId!);
       if (!config) return;
       const storedCats = (config.categorias_config as unknown as CategoriaSetup[]) || [];
-      const updatedCats = storedCats.map((c) =>
-        c.tag === decodedTag ? { ...c, tipo_precificacao: "fixo" as const, preco_m2: undefined, combos_adicionais: undefined, comboNames: undefined } : c,
-      );
-      await supabase
-        .from("planilha_configuracoes")
-        .update({ categorias_config: updatedCats as unknown as import("../database.types").Json })
-        .eq("id", config.id);
+      await planilhaVendasService.unmarkAreaLivre(config.id, storedCats, decodedTag);
       navigate(`/configuracao-vendas/${edicaoId}`);
     } catch (err) {
       await appDialog.alert({ title: "Erro", message: String(err), type: "danger" });
