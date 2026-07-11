@@ -30,48 +30,14 @@ import {
   CardapioRenderOptions,
   resolveTema,
   withAlpha,
-  screwColors,
   coverRect,
 } from '../../utils/cardapioTema';
+import { wrapText, loadImage, drawScrew } from '../../utils/canvasHelpers';
 
 /** Opções do A4: tema/fundo/chancela do projeto + fontes do menu */
 export type A4RenderOptions = CardapioRenderOptions & {
   fontesA4?: Partial<FontesA4> | null;
 };
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
-  if (!text) return [''];
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (ctx.measureText(test).width > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length ? lines : [''];
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
 
 // ─── Drawing primitives ──────────────────────────────────────────────────────
 
@@ -115,33 +81,8 @@ function drawAccentLine(ctx: CanvasRenderingContext2D, T: CardapioTema, y: numbe
   ctx.globalAlpha = 1;
 }
 
-function drawScrew(ctx: CanvasRenderingContext2D, T: CardapioTema, cx: number, cy: number) {
-  const r = SCREW_SIZE / 2;
-  const hlX = cx - r * 0.28;
-  const hlY = cy - r * 0.28;
-  const { hi, lo } = screwColors(T);
-  const rg = ctx.createRadialGradient(hlX, hlY, 0, cx, cy, r);
-  rg.addColorStop(0,    hi);
-  rg.addColorStop(0.55, T.corDourado);
-  rg.addColorStop(1,    lo);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = rg;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-  ctx.globalAlpha = 0.65;
-  ctx.fillStyle = '#1a0e00';
-  ctx.fill();
-  ctx.globalAlpha = 1;
-}
+// Preset visual do parafuso do A4 (helper compartilhado em canvasHelpers)
+const SCREW_STYLE = { size: SCREW_SIZE, highlightOffset: 0.28, ringAlpha: 0.5, dotRadius: 2.5 };
 
 function drawHeader(
   ctx: CanvasRenderingContext2D,
@@ -423,10 +364,10 @@ export async function renderMenuA4ToDataURL(
   drawAccentLine(ctx, T, CANVAS_H - BLEED_PX - 8 - 3);
 
   const screwOff = BLEED_PX + SCREW_INSET + SCREW_SIZE / 2;
-  drawScrew(ctx, T, screwOff, screwOff);
-  drawScrew(ctx, T, CANVAS_W - screwOff, screwOff);
-  drawScrew(ctx, T, screwOff, CANVAS_H - screwOff);
-  drawScrew(ctx, T, CANVAS_W - screwOff, CANVAS_H - screwOff);
+  drawScrew(ctx, T, screwOff, screwOff, SCREW_STYLE);
+  drawScrew(ctx, T, CANVAS_W - screwOff, screwOff, SCREW_STYLE);
+  drawScrew(ctx, T, screwOff, CANVAS_H - screwOff, SCREW_STYLE);
+  drawScrew(ctx, T, CANVAS_W - screwOff, CANVAS_H - screwOff, SCREW_STYLE);
 
   const headerTop  = SAFE_T + COL_PAD_V;
   const contentTop = headerTop + headerH;
