@@ -26,8 +26,9 @@ REGRAS DE PREENCHIMENTO:
    • Tamanhos nomeados: 220ml - R$ 20,00 / 330ml - R$ 28,00 / 550ml - R$ 37,00
 4. DESCRIÇÃO: ingredientes, sabores, acompanhamentos ("Acompanha batata") e porção ("Serve 2 pessoas"). Se não houver, deixe a célula vazia. NUNCA quebre linha dentro de uma célula.
 5. Itens com o mesmo preço que mudam só o sabor: UMA linha, com "Sabores: ..." na descrição.
-6. Não invente, não omita e não "corrija" nada: todos os itens e preços do original devem aparecer. Se algo estiver ilegível ou ambíguo, liste as dúvidas DEPOIS de todos os blocos — nunca dentro das tabelas.
-7. Não escreva comentários entre os blocos; apenas os blocos, um após o outro.
+6. CORRIJA erros básicos de português em TODO o conteúdo descritivo — nomes de itens, categorias, descrições e sabores: ortografia (ex: "epetinho" → "espetinho"), acentuação ("hamburguer" → "hambúrguer", "pao" → "pão"), espaçamento após vírgulas e nomes de marcas/produtos conhecidos ("Ferreiro Rocher" → "Ferrero Rocher"). O texto final deve estar em português correto e profissional, pronto para impressão.
+7. O que NUNCA pode mudar: os PREÇOS (copie exatamente como estão), o NOME DO ESTABELECIMENTO (linha 2 — é marca, mantenha a grafia original mesmo que pareça "errada") e a lista de itens — não invente, não omita e não funda itens diferentes. Se um nome for ambíguo demais para corrigir com segurança, mantenha o original e liste a dúvida DEPOIS de todos os blocos — nunca dentro das tabelas.
+8. Não escreva comentários entre os blocos; apenas os blocos, um após o outro.
 
 EXEMPLO DE ENTRADA (bagunçada, 3 estabelecimentos juntos):
 
