@@ -234,7 +234,11 @@ const CardapioProjetos: React.FC = () => {
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 space-y-1 mb-3">
               <p><strong>1.</strong> Copie o prompt e cole numa IA (ChatGPT, Claude, Gemini...).</p>
               <p><strong>2.</strong> Envie os cardápios bagunçados — um por vez ou todos juntos; ela separa por estabelecimento.</p>
-              <p><strong>3.</strong> Para cada estabelecimento, selecione da linha do segmento até a última linha da tabela, copie e cole no editor (Novo Menu A4 ou Novo Cardápio). A tabela vira colunas automaticamente.</p>
+              <p><strong>3.</strong> Para cada estabelecimento, selecione da linha do segmento até a última linha da tabela e copie.</p>
+              <p className="bg-amber-100 border border-amber-200 rounded-lg px-2 py-1.5 text-amber-800">
+                <strong>4. ⚠️ Cole PRIMEIRO no Excel</strong> (a tabela vira células) e então <strong>copie do Excel</strong> o bloco inteiro.
+              </p>
+              <p><strong>5.</strong> Cole no editor (Novo Menu A4 ou Novo Cardápio) — as colunas entram certinhas.</p>
             </div>
 
             <pre className="flex-1 min-h-0 overflow-auto bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap font-mono">
