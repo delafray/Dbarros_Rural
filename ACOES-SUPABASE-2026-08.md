@@ -25,32 +25,28 @@ WHERE schemaname = 'public' AND tablename = 'clientes'
 ORDER BY policyname;
 ```
 
-### Correção — decisão de produto (precisa da sua escolha)
-RLS não consegue esconder **uma coluna** de um role e mostrar para outro na mesma tabela.
-A forma limpa é uma **VIEW sem as colunas sensíveis** para o visitante. Duas opções:
+### Correção — decidida: VIEW sem PII (o visitante PRECISA dos nomes, mas não do CPF)
+Verificado no código: a planilha do visitante mostra o **nome** do cliente
+(`nome_fantasia`/`razao_social`/`nome_completo`), então não dá para simplesmente cortar o acesso.
+A solução é servir os nomes por uma VIEW sem colunas sensíveis e negar o acesso direto à tabela crua.
+O lado do código já foi feito (commit `feat(seguranca): visitante le nomes ... por view sem PII`):
+o visitante passa a ler `clientes_visitante` via `getClientesComContatosVisitante`.
 
-**Opção A (recomendada) — remover o acesso direto do visitante e servir por VIEW sem PII.**
-Requer também um pequeno ajuste no app (fazer o visitante ler `clientes_visitante` em vez de `clientes`).
-Me avise que eu faço a parte do código.
+**PASSO 1 — rodar AGORA (aditivo, não quebra nada):**
 ```sql
--- 1) Remove a leitura direta do visitante na tabela crua:
-DROP POLICY IF EXISTS "Visitantes podem ler clientes" ON public.clientes;
-
--- 2) View sem CPF/telefone-sensível (ajuste as colunas conforme o que o painel do visitante precisa):
 CREATE OR REPLACE VIEW public.clientes_visitante AS
-SELECT id, nome_completo, razao_social, nome_fantasia, tipo_pessoa, responsavel_empresa
+SELECT id, nome_completo, razao_social, nome_fantasia, tipo_pessoa
 FROM public.clientes;
--- (NÃO inclua cpf_responsavel nem cnpj/telefones aqui)
 
 GRANT SELECT ON public.clientes_visitante TO authenticated;
 ```
 
-**Opção B (rápida, se o visitante NÃO precisa de dado nenhum de cliente):**
+**PASSO 2 — rodar SÓ DEPOIS que a branch `seguranca-e-testes-2026-08` estiver deployada**
+(antes disso, o visitante ainda lê `clientes` direto; dropar a policy antes deixaria os nomes em branco):
 ```sql
 DROP POLICY IF EXISTS "Visitantes podem ler clientes" ON public.clientes;
 DROP POLICY IF EXISTS "Visitantes podem ler contatos" ON public.contatos;
 ```
-Só faça a B se tiver certeza de que nenhuma tela usada por visitante mostra dados de cliente.
 
 ---
 
