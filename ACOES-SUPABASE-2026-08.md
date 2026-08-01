@@ -10,6 +10,29 @@
 
 ---
 
+## ✅ JÁ APLICADO EM PRODUÇÃO (01/08/2026, nesta sessão)
+
+- **View `clientes_visitante` criada** (item 1, passo 1). Falta só o `DROP POLICY` do item 1
+  (rodar APÓS o deploy da branch `seguranca-e-testes-2026-08`).
+- **`atendimentos_historico`**: removida a policy permissiva `Authenticated access atendimentos_historico`
+  (liberava tudo para qualquer autenticado, anulando o `master_isolation`). Sobrou só `master_isolation`.
+- **`stand_imagem_recebimentos`, `stand_imagens_status`, `tarefas_historico`**: mesmo caso — removidas as
+  policies `Authenticated access ...`. Cada uma ficou só com `master_isolation`. Furos de isolamento fechados.
+
+### ⏳ Ainda pendente (não rodar ao vivo sem o item correspondente abaixo)
+- **`users` — `temp_password_plain`/`password_hash` legíveis por QUALQUER autenticado** (achado grave desta sessão):
+  a policy `Public profiles are viewable by everyone` (`public`/`true`) + grant de todas as colunas ao role
+  `authenticated` deixam um visitante ler a senha de todos. **NÃO revogar a coluna ao vivo:** o app faz
+  `select('*')` em `users` em ~9 pontos e um REVOKE de coluna faz o `select('*')` dar "permission denied".
+  Correção coordenada (código+banco): trocar os `select('*')` por colunas explícitas, criar RPC
+  `SECURITY DEFINER` com `is_admin()` para o admin ler a senha do visitante, e só então revogar. Fazer na branch.
+- **`itens_opcionais`**: policy `Authenticated access itens_opcionais` (`true`) permite visitante ALTERAR itens
+  direto pela API, contornando o guard da RPC `rename_opcional_item`. Precisa de policy própria (é global, sem edicao_id).
+- **`cardapios`, `menus_a4`, `cardapio_projetos`**: só têm policy permissiva (`true`). Dropar sem substituir tranca
+  a tabela — decisão de design (isolar por evento?).
+
+---
+
 ## 🔴 1. Visitante consegue ler o CPF dos clientes (LGPD)
 
 A policy `Visitantes podem ler clientes` (migration `20260228_visitor_read_clientes`) foi criada
