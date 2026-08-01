@@ -8,6 +8,15 @@ const migModules = import.meta.glob('../supabase/migrations/*.sql', { query: '?r
 // ── Auto-discovery do codigo-fonte via Vite glob ────────────────────────────
 // Embutido no build para inclusao no backup ZIP.
 // Exclui node_modules, dist, .git — apenas codigo-fonte do projeto.
+//
+// SEGURANCA: este glob acaba servido no chunk publico assets/backupService-*.js,
+// logo qualquer visitante do site pode baixar tudo o que estiver aqui. Por isso
+// NAO incluir codigo sensivel do lado servidor:
+//   - '../supabase/**/*.ts'  → as Edge Functions (ex.: passkey-auth) revelariam a
+//     logica de autenticacao/service_role para um atacante.
+//   - '../supabase/**/*.sql' → as migrations ja entram no ZIP via `migModules`
+//     (usadas no restore de schema); nao precisam ser duplicadas aqui.
+//   - '../vite.config.ts'    → configuracao de build, sem valor para o usuario final.
 const sourceModules = import.meta.glob(
     [
         '../pages/**/*.{ts,tsx}',
@@ -16,7 +25,6 @@ const sourceModules = import.meta.glob(
         '../services/**/*.{ts,tsx}',
         '../context/**/*.{ts,tsx}',
         '../utils/**/*.{ts,tsx}',
-        '../supabase/**/*.{sql,ts}',
         '../App.tsx',
         '../index.tsx',
         '../index.css',
@@ -24,7 +32,6 @@ const sourceModules = import.meta.glob(
         '../database.types.ts',
         '../version.ts',
         '../vite-env.d.ts',
-        '../vite.config.ts',
         '../tsconfig.json',
         '../package.json',
         '../index.html',
