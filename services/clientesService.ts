@@ -97,6 +97,21 @@ export const clientesService = {
         if (error) throw error;
         return (data as unknown as ClienteComContatos[]) || [];
     },
+    /**
+     * Variante para VISITANTES: lê a view `clientes_visitante`, que expõe só os
+     * nomes usados na planilha (sem CPF nem telefone — LGPD). Retorna no mesmo
+     * formato de `getClientesComContatos`, mas sem contatos.
+     * Usada quando a policy de leitura direta de `clientes` é negada ao visitante.
+     */
+    async getClientesComContatosVisitante(): Promise<ClienteComContatos[]> {
+        const { data, error } = await supabase
+            .from('clientes_visitante' as never)
+            .select('id, nome_completo, razao_social, nome_fantasia, tipo_pessoa')
+            .order('nome_fantasia');
+
+        if (error) throw error;
+        return ((data as unknown as ClienteComContatos[]) || []).map(c => ({ ...c, contatos: [] }));
+    },
     async getClienteById(id: string) {
         const { data, error } = await supabase
             .from('clientes')

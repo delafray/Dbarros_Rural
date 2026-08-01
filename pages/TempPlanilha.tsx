@@ -33,7 +33,7 @@ const PlanilhaVendas: React.FC = () => {
   const appDialog = useAppDialog();
 
   // ─── Data ───────────────────────────────────────────────────
-  const data = usePlanilhaData(edicaoId, navigate, appDialog);
+  const data = usePlanilhaData(edicaoId, navigate, appDialog, isVisitor);
   const {
     loading, error, config, edicao, rows, setRows, clientes, clienteMap, imagensConfig,
     statusMap, setStatusMap, recebimentosMap, setRecebimentosMap,

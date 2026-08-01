@@ -30,6 +30,7 @@ export function usePlanilhaData(
   edicaoId: string | undefined,
   navigate: (path: string) => void,
   appDialog?: { confirm: (opts: { title: string; message: string; confirmText?: string; type?: string }) => Promise<boolean> },
+  isVisitor = false,
 ) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function usePlanilhaData(
     let cancelled = false;
     loadData(() => cancelled);
     return () => { cancelled = true; };
-  }, [edicaoId]);
+  }, [edicaoId, isVisitor]);
 
   const loadData = async (isCancelled: () => boolean = () => false) => {
     try {
@@ -85,7 +86,9 @@ export function usePlanilhaData(
         await Promise.all([
           planilhaVendasService.getEstandes(configData.id),
           itensOpcionaisService.getItens(),
-          clientesService.getClientesComContatos(),
+          isVisitor
+            ? clientesService.getClientesComContatosVisitante()
+            : clientesService.getClientesComContatos(),
           imagensService.getConfig(edicaoId!),
           imagensService.getStatusByConfig(configData.id),
           imagensService.getRecebimentos(configData.id),
