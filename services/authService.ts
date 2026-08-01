@@ -68,7 +68,7 @@ function mapDbUserToUser(row: DbUser): User {
  * curingas `%` e `*`, que permitiriam casar com qualquer usuário via `ilike`.
  * Mantém letras, números, @, _, -, ponto e espaço — suficiente para emails e nomes.
  */
-function sanitizeFilterValue(value: string): string {
+export function sanitizeFilterValue(value: string): string {
     return value.replace(/[,'()"\\\n\r\t%*]/g, '');
 }
 
@@ -78,13 +78,26 @@ function sanitizeFilterValue(value: string): string {
  * Ex: "Barra Mansa 2026" → "barra2026"
  *     "Expo Rural"       → "expo2026"  (usa ano atual)
  */
-function generateTempBase(titulo: string): string {
+export function generateTempBase(titulo: string): string {
     const normalized = titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     // "Barra Mansa 2026" -> ["barra", "mansa", "2026"]
     const firstWord = (normalized.match(/[a-z]+/) ?? ['visitante'])[0].slice(0, 8);
     const yearMatch = titulo.match(/\b(20\d{2})\b/);
     const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
     return `${firstWord}${year}`;
+}
+
+/**
+ * Gera uma senha aleat\u00f3ria usando CSPRNG (`crypto.getRandomValues`).
+ * O alfabeto exclui caracteres amb\u00edguos (0/O, 1/l/I) para facilitar a leitura
+ * ao compartilhar a senha de um visitante tempor\u00e1rio.
+ * Extra\u00edda para fun\u00e7\u00e3o pura para ser test\u00e1vel \u2014 `Math.random` seria previs\u00edvel.
+ */
+export function gerarSenhaTemp(length = 12): string {
+    const passwordChars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    const randomBytes = new Uint8Array(length);
+    crypto.getRandomValues(randomBytes);
+    return Array.from(randomBytes, b => passwordChars[b % passwordChars.length]).join('');
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -293,10 +306,7 @@ export const authService = {
         const name = username;
         const email = `${username}@temp.local`;
         // Gera senha com CSPRNG (Math.random é previsível e inadequado para senhas)
-        const passwordChars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
-        const randomBytes = new Uint8Array(12);
-        crypto.getRandomValues(randomBytes);
-        const password = Array.from(randomBytes, b => passwordChars[b % passwordChars.length]).join('');
+        const password = gerarSenhaTemp(12);
 
         // Cria o usuário base com flag visitor via RPC existente
         await this.register(name, email, password, false, true, false, false);
