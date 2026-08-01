@@ -22,6 +22,8 @@
 - **`rename_opcional_item`** substituída pela versão que bloqueia visitantes (item 4 aplicado).
 - **`itens_opcionais`**: policy permissiva trocada por `read_all_authenticated` (SELECT) +
   `write_non_visitors` (ALL) — visitante virou read-only na tabela (item 4b aplicado).
+- **`cardapios`, `menus_a4`, `cardapio_projetos`**: mesmo padrão read-all + write-non-visitors aplicado.
+  Visitante não escreve mais em nenhuma tabela do banco.
 
 ### ⏳ Ainda pendente (não rodar ao vivo sem o item correspondente abaixo)
 - **`users` — `temp_password_plain`/`password_hash` legíveis por QUALQUER autenticado** (achado grave desta sessão):
@@ -30,10 +32,14 @@
   `select('*')` em `users` em ~9 pontos e um REVOKE de coluna faz o `select('*')` dar "permission denied".
   Correção coordenada (código+banco): trocar os `select('*')` por colunas explícitas, criar RPC
   `SECURITY DEFINER` com `is_admin()` para o admin ler a senha do visitante, e só então revogar. Fazer na branch.
-- **`cardapios`, `menus_a4`, `cardapio_projetos`**: só têm policy permissiva (`true`) — qualquer autenticado
-  (incl. visitante) lê/escreve. Módulo cardápio é "gambiarra assumida" (candidato a remoção). Opção de
-  hardening = mesmo padrão do `itens_opcionais` (read-all + write-non-visitors), OU deixar como está se o
-  módulo for removido. Decisão do usuário — pendente.
+- ~~`cardapios`, `menus_a4`, `cardapio_projetos`~~ ✅ endurecidas (read-all + write-non-visitors).
+
+### Falta rodar SÓ DEPOIS do deploy da branch `seguranca-e-testes-2026-08`
+- Item 1 passo 2: `DROP POLICY` do visitante em `clientes` e `contatos`.
+- Item 3 passo 2: `REVOKE SELECT (temp_password_plain, password_hash) ON users FROM authenticated`.
+
+### Via CLI (não SQL) — quando quiser
+- Regenerar `database.types.ts` (item 7). - Avaliar deletar a edge function `passkey-auth` (item 8).
 
 ---
 
