@@ -117,20 +117,44 @@ CREATE POLICY "master_isolation" ON public.atendimentos_historico
 
 ---
 
-## 🟠 3. Confirmar que a senha em texto claro (`temp_password_plain`) segue protegida
+## 🔴 3. `temp_password_plain`/`password_hash` legíveis por QUALQUER autenticado
 
-A migration `20260702000002` restringiu o role `anon` a ler só `id, email, name, is_active, expires_at`
-da tabela `users`. Se esse grant tiver sido revertido (ex.: por um restore que recria a policy),
-`temp_password_plain` volta a ficar legível sem login.
+Confirmado nesta sessão: o role `authenticated` tem SELECT em TODAS as colunas de `users`, e a policy
+`Public profiles are viewable by everyone` (role `public`, `true`) libera as linhas. Resultado: um
+**visitante logado pode ler `temp_password_plain` (senha em claro) e `password_hash` de todos** via
+chamada direta à API. Não dá para revogar a coluna sem antes tirar os `select('*')` do código
+(o código já foi ajustado na branch — usa colunas explícitas + RPC para o admin).
 
-### Diagnóstico (só leitura)
+**PASSO 1 — rodar AGORA (aditivo): RPC que só o admin usa para ler a senha do visitante:**
+```sql
+CREATE OR REPLACE FUNCTION public.get_temp_password(target_user_id uuid)
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT temp_password_plain FROM public.users
+  WHERE id = target_user_id AND public.is_admin()
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_temp_password(uuid) TO authenticated;
+```
+(Se não for admin, `is_admin()` é falso → o WHERE não casa → retorna NULL.)
+
+**PASSO 2 — rodar SÓ DEPOIS do deploy da branch** (antes disso o código ainda faz `select('*')` em
+`users`; revogar a coluna antes quebraria login e listagem de usuários):
+```sql
+REVOKE SELECT (temp_password_plain, password_hash) ON public.users FROM authenticated;
+```
+
+### Bônus (só leitura) — confirmar que o `anon` também segue restrito
 ```sql
 SELECT grantee, privilege_type, column_name
 FROM information_schema.column_privileges
 WHERE table_name = 'users' AND grantee = 'anon'
 ORDER BY column_name;
 ```
-**Esperado:** só as 5 colunas acima. Se aparecer `temp_password_plain` (ou `*`), reaplique:
+Esperado: só `id, email, name, is_active, expires_at`. Se aparecer `temp_password_plain` (ou tudo), reaplique:
 ```sql
 REVOKE SELECT ON public.users FROM anon;
 GRANT SELECT (id, email, name, is_active, expires_at) ON public.users TO anon;
