@@ -1,0 +1,29 @@
+#!/bin/sh
+# ============================================================================
+# Versionamento automatico — ver VERSIONING.md
+# Formato: 0.<ano>.<mes>.<NNNN>
+#   0     -> versao major (fixa)
+#   ano   -> ano atual (YYYY)
+#   mes   -> mes atual (MM, com zero a esquerda)
+#   NNNN  -> numero do commit = total de commits do git APOS este commit,
+#            com 4 digitos e zero a esquerda (git rev-list --count + 1)
+#
+# Escreve a versao em version.ts (exibida no app) e em package.json, e as
+# adiciona ao commit atual. Assim, todo commit fica com a versao correta.
+# ============================================================================
+set -e
+
+year=$(date +%Y)
+month=$(date +%m)
+count=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+next=$(printf "%04d" "$((count + 1))")
+version="0.${year}.${month}.${next}"
+
+# version.ts — fonte da versao exibida no app
+printf "export const APP_VERSION = '%s';\n" "$version" > version.ts
+
+# package.json — substitui apenas o valor do campo "version" (sem reformatar o resto)
+sed -i.bak -E "s/(\"version\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")/\1${version}\2/" package.json
+rm -f package.json.bak
+
+git add version.ts package.json

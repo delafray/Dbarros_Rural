@@ -6,6 +6,15 @@ Apenas execute o que o usuário pedir explicitamente. Não proponha refatoraçõ
 
 ---
 
+## Versionamento (automático — não editar à mão)
+
+Formato `0.AAAA.MM.NNNN`, onde `NNNN` é o número do commit (`git rev-list --count HEAD`).
+A versão é atualizada sozinha a cada commit pelo hook `.githooks/pre-commit`, que grava
+em `version.ts` e `package.json`. **Não bumpe a versão manualmente** — deixe o hook fazer.
+Detalhes e setup (`git config core.hooksPath .githooks`) em **VERSIONING.md**.
+
+---
+
 ## Fila de Refatoração (NÃO agir — apenas referência)
 
 > Esta seção é uma **lista de memória**. Só atuar aqui quando o usuário disser explicitamente:
