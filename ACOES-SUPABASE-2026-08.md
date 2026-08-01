@@ -18,6 +18,10 @@
   (liberava tudo para qualquer autenticado, anulando o `master_isolation`). Sobrou só `master_isolation`.
 - **`stand_imagem_recebimentos`, `stand_imagens_status`, `tarefas_historico`**: mesmo caso — removidas as
   policies `Authenticated access ...`. Cada uma ficou só com `master_isolation`. Furos de isolamento fechados.
+- **RPC `get_temp_password` criada** (item 3, passo 1). Falta o `REVOKE` das colunas (pós-deploy).
+- **`rename_opcional_item`** substituída pela versão que bloqueia visitantes (item 4 aplicado).
+- **`itens_opcionais`**: policy permissiva trocada por `read_all_authenticated` (SELECT) +
+  `write_non_visitors` (ALL) — visitante virou read-only na tabela (item 4b aplicado).
 
 ### ⏳ Ainda pendente (não rodar ao vivo sem o item correspondente abaixo)
 - **`users` — `temp_password_plain`/`password_hash` legíveis por QUALQUER autenticado** (achado grave desta sessão):
@@ -26,10 +30,10 @@
   `select('*')` em `users` em ~9 pontos e um REVOKE de coluna faz o `select('*')` dar "permission denied".
   Correção coordenada (código+banco): trocar os `select('*')` por colunas explícitas, criar RPC
   `SECURITY DEFINER` com `is_admin()` para o admin ler a senha do visitante, e só então revogar. Fazer na branch.
-- **`itens_opcionais`**: policy `Authenticated access itens_opcionais` (`true`) permite visitante ALTERAR itens
-  direto pela API, contornando o guard da RPC `rename_opcional_item`. Precisa de policy própria (é global, sem edicao_id).
-- **`cardapios`, `menus_a4`, `cardapio_projetos`**: só têm policy permissiva (`true`). Dropar sem substituir tranca
-  a tabela — decisão de design (isolar por evento?).
+- **`cardapios`, `menus_a4`, `cardapio_projetos`**: só têm policy permissiva (`true`) — qualquer autenticado
+  (incl. visitante) lê/escreve. Módulo cardápio é "gambiarra assumida" (candidato a remoção). Opção de
+  hardening = mesmo padrão do `itens_opcionais` (read-all + write-non-visitors), OU deixar como está se o
+  módulo for removido. Decisão do usuário — pendente.
 
 ---
 
