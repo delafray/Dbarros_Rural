@@ -23,6 +23,9 @@ export function useTempUserFlow({
     const [tempEdicaoId, setTempEdicaoId] = useState('');
     const [createdTempUser, setCreatedTempUser] = useState<{ user: User; passwordRaw: string } | null>(null);
     const [existingTempForEdicao, setExistingTempForEdicao] = useState<User | null>(null);
+    // Senha do visitante existente, lida sob demanda via RPC (só admin) — a coluna
+    // temp_password_plain não vem mais no objeto User (leitura geral não a expõe).
+    const [existingTempPassword, setExistingTempPassword] = useState<string | null>(null);
     const [confirmCreateAnother, setConfirmCreateAnother] = useState(false);
     const [whatsappCopied, setWhatsappCopied] = useState(false);
 
@@ -31,12 +34,14 @@ export function useTempUserFlow({
         setTempEdicaoId('');
         setTempExpiresAt('');
         setExistingTempForEdicao(null);
+        setExistingTempPassword(null);
         setConfirmCreateAnother(false);
     };
 
     const handleEdicaoChange = (id: string) => {
         setTempEdicaoId(id);
         setConfirmCreateAnother(false);
+        setExistingTempPassword(null);
         if (id) {
             const found =
                 users.find(
@@ -47,6 +52,11 @@ export function useTempUserFlow({
                         (!u.expiresAt || new Date(u.expiresAt) >= new Date())
                 ) ?? null;
             setExistingTempForEdicao(found);
+            if (found) {
+                authService.getTempPassword(found.id)
+                    .then(setExistingTempPassword)
+                    .catch(() => setExistingTempPassword(null));
+            }
         } else {
             setExistingTempForEdicao(null);
         }
@@ -89,7 +99,7 @@ export function useTempUserFlow({
 
     const handleCopyExistingWhatsapp = (existingUser: User, edicaoNome: string) => {
         const login = existingUser.email.replace('@temp.local', '');
-        const senha = existingUser.tempPasswordPlain ?? '(não disponível)';
+        const senha = existingTempPassword ?? '(não disponível)';
         const expira = existingUser.expiresAt
             ? new Date(existingUser.expiresAt).toLocaleDateString('pt-BR')
             : '—';
@@ -111,6 +121,7 @@ export function useTempUserFlow({
         createdTempUser,
         existingTempForEdicao,
         setExistingTempForEdicao,
+        existingTempPassword,
         confirmCreateAnother,
         setConfirmCreateAnother,
         whatsappCopied,

@@ -1,5 +1,5 @@
-import React from 'react';
-import { User } from '../../services/authService';
+import React, { useState, useEffect } from 'react';
+import { authService, User } from '../../services/authService';
 import { PromoModalState } from '../../hooks/usePromoModal';
 
 interface PromoModalProps {
@@ -26,6 +26,18 @@ export const PromoModal: React.FC<PromoModalProps> = ({
     onCreate,
 }) => {
     const existingVisitor = allVisitors.find(u => u.edicaoId === promoModal.edicao.id) ?? null;
+
+    // Senha lida sob demanda via RPC (só admin) — não vem mais no objeto User.
+    const [existingPassword, setExistingPassword] = useState<string | null>(null);
+    useEffect(() => {
+        if (promoModal.step === 'existing' && existingVisitor) {
+            authService.getTempPassword(existingVisitor.id)
+                .then(setExistingPassword)
+                .catch(() => setExistingPassword(null));
+        } else {
+            setExistingPassword(null);
+        }
+    }, [promoModal.step, existingVisitor?.id]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -86,10 +98,10 @@ export const PromoModal: React.FC<PromoModalProps> = ({
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 font-sans font-bold uppercase text-[10px]">Senha:</span>
                                     <div className="flex items-center gap-2">
-                                        {existingVisitor.tempPasswordPlain ? (
+                                        {existingPassword ? (
                                             <>
-                                                <code className="text-slate-800 font-black tracking-wider">{existingVisitor.tempPasswordPlain}</code>
-                                                <button onClick={() => navigator.clipboard.writeText(existingVisitor.tempPasswordPlain!)} className="text-[10px] text-blue-600 hover:underline font-sans">Copiar</button>
+                                                <code className="text-slate-800 font-black tracking-wider">{existingPassword}</code>
+                                                <button onClick={() => navigator.clipboard.writeText(existingPassword)} className="text-[10px] text-blue-600 hover:underline font-sans">Copiar</button>
                                             </>
                                         ) : (
                                             <span className="text-slate-400 italic font-sans text-[10px]">não disponível</span>
@@ -105,7 +117,7 @@ export const PromoModal: React.FC<PromoModalProps> = ({
                                 <button
                                     onClick={() => {
                                         const login = existingVisitor.email.replace('@temp.local', '');
-                                        const senha = existingVisitor.tempPasswordPlain ?? '(não disponível)';
+                                        const senha = existingPassword ?? '(não disponível)';
                                         const expira = existingVisitor.expiresAt ? new Date(existingVisitor.expiresAt).toLocaleDateString('pt-BR') : '—';
                                         const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${promoModal.edicao.titulo}*:\n\n🔗 *Link:* https://dbarros.vercel.app/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${senha}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
                                         navigator.clipboard.writeText(msg);

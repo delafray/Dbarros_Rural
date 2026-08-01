@@ -36,6 +36,17 @@ interface DbUser {
     temp_password_plain?: string | null;
 }
 
+/**
+ * Colunas seguras da tabela `users` para leitura geral (role `authenticated`).
+ * NÃO inclui `temp_password_plain` nem `password_hash` — o acesso a essas colunas
+ * é revogado do role `authenticated` (senão qualquer visitante lê a senha de todos).
+ * Por isso as leituras usam esta lista explícita em vez de `select('*')`, que
+ * passaria a dar "permission denied" após o REVOKE das colunas sensíveis.
+ * O admin lê `temp_password_plain` sob demanda via RPC `get_temp_password`.
+ */
+const SAFE_USER_COLUMNS =
+    'id, name, email, is_admin, is_visitor, is_active, created_at, expires_at, is_temp, can_manage_tags, is_projetista, edicao_id';
+
 // ── Factory: converte linha do DB para interface User ─────────────────────────
 
 /**
@@ -136,7 +147,7 @@ export const authService = {
 
         const { data, error: fetchError } = await (supabase as any)
             .from('users')
-            .select('*')
+            .select(SAFE_USER_COLUMNS)
             .eq('id', userId)
             .single();
 
@@ -187,7 +198,7 @@ export const authService = {
         // Pós-auth (role authenticated): agora sim busca o perfil completo
         const { data: fullProfile, error: fullError } = await (supabase as any)
             .from('users')
-            .select('*')
+            .select(SAFE_USER_COLUMNS)
             .eq('id', profile.id)
             .single();
 
@@ -210,7 +221,7 @@ export const authService = {
 
         const { data, error } = await (supabase as any)
             .from('users')
-            .select('*')
+            .select(SAFE_USER_COLUMNS)
             .eq('id', session.user.id)
             .single();
 
@@ -229,12 +240,27 @@ export const authService = {
     async getAllUsers(): Promise<User[]> {
         const { data, error } = await (supabase as any)
             .from('users')
-            .select('*')
+            .select(SAFE_USER_COLUMNS)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
 
         return (data as DbUser[]).map(mapDbUserToUser);
+    },
+
+    /**
+     * Lê a senha em texto plano de um visitante temporário (para o admin
+     * compartilhar). Passa pela RPC `get_temp_password`, que é SECURITY DEFINER
+     * e só retorna valor se `is_admin()` — a coluna `temp_password_plain` é
+     * revogada da leitura direta do role `authenticated`. Retorna null se a
+     * pessoa não for admin ou o usuário não tiver senha registrada.
+     */
+    async getTempPassword(userId: string): Promise<string | null> {
+        const { data, error } = await (supabase as any).rpc('get_temp_password', {
+            target_user_id: userId,
+        });
+        if (error) throw new Error(`Erro ao obter senha: ${error.message}`);
+        return (data as string | null) ?? null;
     },
 
     /** Atualiza campos permitidos de um usuário. */
@@ -321,12 +347,12 @@ export const authService = {
                 temp_password_plain: password,
             })
             .eq('email', email)
-            .select('*')
+            .select(SAFE_USER_COLUMNS)
             .single();
 
         if (error || !data) throw new Error(`Erro ao configurar usuário temporário: ${error?.message ?? 'sem dados retornados (RLS ou coluna ausente)'}`);
 
-
+        // passwordRaw vem da senha gerada em memória (não relemos temp_password_plain do banco)
         return { user: mapDbUserToUser(data as DbUser), passwordRaw: password };
     },
 

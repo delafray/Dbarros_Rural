@@ -21,6 +21,7 @@ export const TempUserModal: React.FC<TempUserModalProps> = ({
         createdTempUser,
         existingTempForEdicao,
         setExistingTempForEdicao,
+        existingTempPassword,
         confirmCreateAnother,
         setConfirmCreateAnother,
         whatsappCopied,
@@ -219,10 +220,10 @@ export const TempUserModal: React.FC<TempUserModalProps> = ({
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 font-sans font-bold uppercase text-[10px]">Senha:</span>
                                     <div className="flex items-center gap-2">
-                                        {existingTempForEdicao.tempPasswordPlain ? (
+                                        {existingTempPassword ? (
                                             <>
-                                                <code className="text-slate-800 font-black tracking-wider">{existingTempForEdicao.tempPasswordPlain}</code>
-                                                <button onClick={() => { navigator.clipboard.writeText(existingTempForEdicao.tempPasswordPlain!); showAlert('Copiado', 'Senha copiada!', 'success'); }} className="text-[10px] text-blue-600 hover:underline font-sans">Copiar</button>
+                                                <code className="text-slate-800 font-black tracking-wider">{existingTempPassword}</code>
+                                                <button onClick={() => { navigator.clipboard.writeText(existingTempPassword); showAlert('Copiado', 'Senha copiada!', 'success'); }} className="text-[10px] text-blue-600 hover:underline font-sans">Copiar</button>
                                             </>
                                         ) : (
                                             <span className="text-slate-400 italic font-sans text-[10px]">não disponível — crie novo acesso</span>
