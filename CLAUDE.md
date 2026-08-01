@@ -6,6 +6,16 @@ Apenas execute o que o usuário pedir explicitamente. Não proponha refatoraçõ
 
 ---
 
+## Padrão de qualidade (em vigor a partir de 01/08/2026)
+
+Este sistema segue o **`PADRAO-NOVOS-SISTEMAS.md`** (na raiz). Ao implementar qualquer
+mudança que o usuário pedir, a feature só está "pronta" com **teste cobrindo a lógica
+nova** e, se tocar em dado, com a **RLS/segurança revisada** (checklist da seção 4 do guia).
+Nunca deixar teste ou RLS "para depois". Isto NÃO significa sair testando o sistema
+inteiro sem pedido — significa que o que for feito daqui pra frente já sai com teste + RLS.
+
+---
+
 ## Versionamento (automático — não editar à mão)
 
 Formato `0.AAAA.MM.NNNN`, onde `NNNN` é o número do commit (`git rev-list --count HEAD`).

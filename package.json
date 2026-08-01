@@ -1,7 +1,7 @@
 {
   "name": "dbarro-rural",
   "private": true,
-  "version": "0.2026.08.0402",
+  "version": "0.2026.08.0403",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "@types/jszip": "^3.4.0",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/coverage-v8": "^4.1.9",
     "autoprefixer": "^10.5.2",
     "postcss": "^8.5.16",
     "sharp": "^0.34.5",
