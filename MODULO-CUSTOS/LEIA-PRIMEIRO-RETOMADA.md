@@ -56,6 +56,16 @@
   verificados; teste ~90% + todas as tabelas primeiro quando construir; prazo
   calibrado por dev assistido por IA (9 sistemas/5 meses).
 
+## Modo de construção (quando começar): IA = GUARDIÃ DA ESPECIFICAÇÃO
+
+Regra do usuário (02/08/2026): **ele compõe o projeto pedindo peça por peça;
+a IA lembra de tudo.** A cada pedido, ANTES de executar: cruzar com os RFs e
+decisões → avisar o que já existe para reaproveitar (ex.: cadastro de produtos
+= port do Prosperitas, RF-031/044) → lembrar requisitos amarrados (relatório →
+sai em xls, RF-047; cotação → exclusões RF-052; grade → 7 faces RF-051) →
+apontar o que o pedido esquece. Nunca executar "cru" um pedido que a
+documentação enriquece. (Regra 7 do `DOC-MODULO-CUSTOS/00-INDICE.md`.)
+
 ## Roteiro sugerido para a sessão de retomada
 
 1. Confirmar com o usuário o objetivo da sessão: despejar mais requisitos ×

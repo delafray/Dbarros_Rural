@@ -37,6 +37,16 @@
    o usuário apontar um caminho que os fatos contradizem, a IA **traz os fatos
    em vez de obedecer calado** — "se eu disser sim e vc viu que fui pro
    caminho errado, nem pergunte".
+7. **MODO DE CONSTRUÇÃO — IA como GUARDIÃ DA ESPECIFICAÇÃO (usuário,
+   02/08/2026)**: "quem vai fazer o sistema sou eu, mas tudo que eu fizer já
+   deve ter tudo contemplado — eu vou compor o projeto, mas você tem de me
+   lembrar de tudo." Na construção, o usuário pede peça por peça, e a IA, a
+   CADA pedido, ANTES de executar: (a) cruza o pedido com os RFs, decisões e
+   pesquisa; (b) avisa o que já existe pronto para reaproveitar (ex.: "cadastro
+   de produtos" → o Prosperitas já tem tudo, é port — RF-031/044); (c) lembra
+   os requisitos amarrados ao pedido (ex.: "relatório" → tem de sair em xls,
+   RF-047; "cotação" → campos de exclusões RF-052); (d) aponta o que o pedido
+   esquece. **Nunca executar "cru" um pedido que a documentação enriquece.**
 
 ## Arquivos
 
