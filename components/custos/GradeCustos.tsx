@@ -34,13 +34,15 @@ const STATUS_COR: Record<string, 'slate' | 'blue' | 'yellow' | 'green' | 'red'> 
 
 const Cell: React.FC<{
     valor: string; onSalvar: (v: string) => void; alinhar?: 'left' | 'right';
-}> = ({ valor, onSalvar, alinhar = 'left' }) => {
+    /** texto exibido quando NÃO está editando (ex.: valor com máscara R$) */
+    exibicao?: string;
+}> = ({ valor, onSalvar, alinhar = 'left', exibicao }) => {
     const [v, setV] = useState(valor);
     const [editando, setEditando] = useState(false);
     return (
         <input
             className={`w-full bg-transparent px-2 py-1 text-sm outline-none focus:bg-amber-50 focus:ring-1 focus:ring-amber-300 rounded ${alinhar === 'right' ? 'text-right' : ''}`}
-            value={editando ? v : valor}
+            value={editando ? v : (exibicao ?? valor)}
             onFocus={() => { setV(valor); setEditando(true); }}
             onChange={e => setV(e.target.value)}
             onBlur={() => { setEditando(false); if (v !== valor) onSalvar(v); }}
@@ -229,6 +231,7 @@ export const GradeCustos: React.FC<Props> = ({
                 onSalvar={v => void onAtualizar(item.id, { fator: numero(v, item.fator) })} /></td>
             <td><Cell alinhar="right"
                 valor={item.preco_unitario_orcado != null ? String(item.preco_unitario_orcado) : ''}
+                exibicao={item.preco_unitario_orcado != null ? formatBRL(item.preco_unitario_orcado) : ''}
                 onSalvar={v => void onAtualizar(item.id, { preco_unitario_orcado: parseNumeroBR(v) })} /></td>
             <td className="px-2 py-1 text-right font-medium">
                 {formatBRL(item.total_orcado ?? calcularTotalItem(item.quantidade, item.preco_unitario_orcado ?? 0, item.fator))}
