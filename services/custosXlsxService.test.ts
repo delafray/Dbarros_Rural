@@ -28,7 +28,8 @@ describe('round-trip da COTAÇÃO (RF-029): gera travada → fornecedor preenche
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.load(buf as Buffer);
         const ws = wb.worksheets[0];
-        expect(ws.sheetProtection?.sheet).toBe(true);          // folha travada
+        const protecao = (ws as unknown as { sheetProtection?: { sheet?: boolean } }).sheetProtection;
+        expect(protecao?.sheet).toBe(true);                    // folha travada
         const linhaItem = ws.getRow(8);
         expect(linhaItem.getCell(2).protection?.locked ?? true).toBe(true);   // descrição travada
         expect(linhaItem.getCell(6).protection?.locked).toBe(false);          // preço LIVRE

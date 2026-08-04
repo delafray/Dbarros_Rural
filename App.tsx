@@ -30,6 +30,7 @@ const CardapioEditor = lazy(() => import('./pages/CardapioEditor'));
 const CardapioA4Editor = lazy(() => import('./pages/CardapioA4Editor'));
 const A3PreviewA4 = lazy(() => import('./pages/A3PreviewA4'));
 const A3PreviewCardapios = lazy(() => import('./pages/A3PreviewCardapios'));
+const CentroCusto = lazy(() => import('./pages/CentroCusto'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -105,6 +106,10 @@ const App: React.FC = () => {
         <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
 
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
+
+        {/* Centro de Custo do Evento (orçado × contratado × realizado) */}
+        <Route path="/custos" element={<ProtectedRoute><CentroCusto /></ProtectedRoute>} />
+        <Route path="/custos/:edicaoId" element={<ProtectedRoute><CentroCusto /></ProtectedRoute>} />
 
         {/* Módulo Cardápios — projetos por evento, com abas (Menu A4 | Banner | Painel Duplo | Configuração) */}
         <Route path="/cardapios" element={<ProtectedRoute><CardapioProjetos /></ProtectedRoute>} />
