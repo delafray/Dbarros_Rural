@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { custosService, type PedidoComItens } from '../services/custosService';
+import { custosService, type CustoPagamento, type PedidoComItens } from '../services/custosService';
 import type {
     CustoCategoria,
     CustoChecklistResposta,
@@ -32,20 +32,21 @@ export interface CentroCustoData {
     compostos: CustoComposto[];
     itens: CustoItem[];
     pedidos: PedidoComItens[];
+    pagamentos: CustoPagamento[];
 }
 
 export function useCentroCusto(edicaoId: string | null) {
     const [data, setData] = useState<CentroCustoData>({
         carregando: true, erro: null,
         categorias: [], secoes: [], fornecedores: [], templates: [],
-        perfil: null, respostas: [], compostos: [], itens: [], pedidos: [],
+        perfil: null, respostas: [], compostos: [], itens: [], pedidos: [], pagamentos: [],
     });
 
     const recarregar = useCallback(async () => {
         if (!edicaoId) return;
         setData(d => ({ ...d, carregando: true, erro: null }));
         try {
-            const [categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos] =
+            const [categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos, pagamentos] =
                 await Promise.all([
                     custosService.getCategorias(),
                     custosService.getSecoes(),
@@ -56,10 +57,11 @@ export function useCentroCusto(edicaoId: string | null) {
                     custosService.getCompostos(edicaoId),
                     custosService.getItens(edicaoId),
                     custosService.getPedidos(edicaoId),
+                    custosService.getPagamentos(edicaoId),
                 ]);
             setData({
                 carregando: false, erro: null,
-                categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos,
+                categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos, pagamentos,
             });
         } catch (e) {
             setData(d => ({ ...d, carregando: false, erro: e instanceof Error ? e.message : String(e) }));
@@ -138,6 +140,42 @@ export function useCentroCusto(edicaoId: string | null) {
         await recarregar();
     }, [recarregar]);
 
+    // ── Templates (editor do descritivo-padrão) ─────────────────────────────
+    const addTemplateItem = useCallback(async (item: Parameters<typeof custosService.addTemplateItem>[0]) => {
+        await custosService.addTemplateItem(item);
+        const templates = await custosService.getEspacosTemplate();
+        setData(d => ({ ...d, templates }));
+    }, []);
+    const updateTemplateItem = useCallback(async (id: string, patch: Parameters<typeof custosService.updateTemplateItem>[1]) => {
+        await custosService.updateTemplateItem(id, patch);
+        const templates = await custosService.getEspacosTemplate();
+        setData(d => ({ ...d, templates }));
+    }, []);
+    const deleteTemplateItem = useCallback(async (id: string) => {
+        await custosService.deleteTemplateItem(id);
+        const templates = await custosService.getEspacosTemplate();
+        setData(d => ({ ...d, templates }));
+    }, []);
+    const createTemplate = useCallback(async (nome: string) => {
+        await custosService.createTemplate({ nome });
+        const templates = await custosService.getEspacosTemplate();
+        setData(d => ({ ...d, templates }));
+    }, []);
+
+    // ── Pagamentos (Q-009) ──────────────────────────────────────────────────
+    const criarParcelas = useCallback(async (p: { valorTotal: number; parcelas: number; primeiroVencimento: string | null; contratacaoId?: string | null }) => {
+        if (!edicaoId) return;
+        await custosService.criarParcelas({ edicaoId, ...p });
+        const pagamentos = await custosService.getPagamentos(edicaoId);
+        setData(d => ({ ...d, pagamentos }));
+    }, [edicaoId]);
+    const marcarPago = useCallback(async (id: string, dataPagamento: string) => {
+        if (!edicaoId) return;
+        await custosService.marcarPago(id, dataPagamento);
+        const pagamentos = await custosService.getPagamentos(edicaoId);
+        setData(d => ({ ...d, pagamentos }));
+    }, [edicaoId]);
+
     const salvarFornecedor = useCallback(async (f: Partial<CustoFornecedor>) => {
         const salvo = await custosService.saveFornecedor(f);
         setData(d => ({
@@ -154,5 +192,7 @@ export function useCentroCusto(edicaoId: string | null) {
         criarItem, atualizarItem, excluirItem, criarItensEmLote,
         salvarPerfil, salvarResposta, instanciarTemplate,
         criarPedido, importarCotacao, contratarLinha, salvarFornecedor,
+        addTemplateItem, updateTemplateItem, deleteTemplateItem, createTemplate,
+        criarParcelas, marcarPago,
     };
 }

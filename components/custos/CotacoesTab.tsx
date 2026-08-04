@@ -10,6 +10,8 @@ import { formatBRL } from '../../utils/parseBR';
 import {
     gerarPlanilhaCotacao,
     importarPlanilhaCotacao,
+    gerarPlanilhaCadastroFornecedor,
+    importarPlanilhaCadastroFornecedor,
 } from '../../services/custosXlsxService';
 import { montarMapaCotacao, type PedidoComItens } from '../../services/custosService';
 import type { CustoCategoria, CustoComposto, CustoFornecedor, CustoItem } from '../../types/custos';
@@ -168,6 +170,43 @@ export const CotacoesTab: React.FC<Props> = ({
                 <p className="mt-1 text-xs text-slate-400">
                     CNPJ é validado e vira a chave contra duplicidade — o mesmo CNPJ atualiza em vez de duplicar.
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2">
+                    <span className="text-xs text-slate-500">Ou pelo Excel (RF-027):</span>
+                    <Button variant="outline" onClick={async () => {
+                        const buf = await gerarPlanilhaCadastroFornecedor();
+                        baixar(buf as ArrayBuffer, 'Cadastro de Fornecedor - Dbarros.xlsx');
+                    }}>⬇ Planilha de cadastro</Button>
+                    <Button variant="outline" onClick={() => fileRefs.current['cadastro']?.click()}>
+                        ⬆ Importar cadastro preenchido
+                    </Button>
+                    <input
+                        type="file" accept=".xlsx" className="hidden"
+                        ref={el => { fileRefs.current['cadastro'] = el; }}
+                        onChange={async e => {
+                            const f = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!f) return;
+                            try {
+                                const r = await importarPlanilhaCadastroFornecedor(await f.arrayBuffer());
+                                if (r.avisos.length > 0) alert(`Avisos:\n${r.avisos.join('\n')}`);
+                                if (r.campos.razao_social) {
+                                    await onSalvarFornecedor({
+                                        razao_social: r.campos.razao_social,
+                                        cnpj: r.campos.cnpj || null,
+                                        nome_fantasia: r.campos.nome_fantasia || null,
+                                        email: r.campos.email || null,
+                                        telefone: r.campos.telefone || null,
+                                        cidade: r.campos.cidade || null,
+                                        uf: r.campos.uf || null,
+                                        observacoes: r.campos.observacoes || null,
+                                    });
+                                }
+                            } catch (err) {
+                                setErroFornecedor(err instanceof Error ? err.message : String(err));
+                            }
+                        }}
+                    />
+                </div>
             </Card>
 
             <Card className="p-4">

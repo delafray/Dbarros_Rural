@@ -15,8 +15,10 @@ import { WizardEvento } from '../components/custos/WizardEvento';
 import { GradeCustos } from '../components/custos/GradeCustos';
 import { CotacoesTab } from '../components/custos/CotacoesTab';
 import { DashboardTab } from '../components/custos/DashboardTab';
+import { EspacosTab } from '../components/custos/EspacosTab';
+import { PagamentosTab } from '../components/custos/PagamentosTab';
 
-type Aba = 'grade' | 'cotacoes' | 'dashboard';
+type Aba = 'grade' | 'cotacoes' | 'pagamentos' | 'espacos' | 'dashboard';
 
 interface EdicaoLista {
     id: string;
@@ -137,6 +139,8 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
                 {([
                     ['grade', `Grade (${cc.itens.length})`],
                     ['cotacoes', `Cotações (${cc.pedidos.length})`],
+                    ['pagamentos', `Pagamentos (${cc.pagamentos.length})`],
+                    ['espacos', 'Espaços'],
                     ['dashboard', 'Dashboard'],
                 ] as [Aba, string][]).map(([id, rotulo]) => (
                     <button key={id}
@@ -175,8 +179,34 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
                     onContratar={cc.contratarLinha}
                 />
             )}
+            {aba === 'pagamentos' && (
+                <PagamentosTab
+                    pagamentos={cc.pagamentos}
+                    pedidos={cc.pedidos}
+                    onCriarParcelas={cc.criarParcelas}
+                    onMarcarPago={cc.marcarPago}
+                />
+            )}
+            {aba === 'espacos' && (
+                <EspacosTab
+                    templates={cc.templates}
+                    categorias={cc.categorias}
+                    onAddItem={cc.addTemplateItem}
+                    onUpdateItem={cc.updateTemplateItem}
+                    onDeleteItem={cc.deleteTemplateItem}
+                    onCreateTemplate={cc.createTemplate}
+                    onInstanciar={cc.instanciarTemplate}
+                />
+            )}
             {aba === 'dashboard' && (
-                <DashboardTab itens={cc.itens} compostos={cc.compostos} categorias={cc.categorias} />
+                <DashboardTab
+                    itens={cc.itens}
+                    compostos={cc.compostos}
+                    categorias={cc.categorias}
+                    realizadoPagamentos={cc.pagamentos
+                        .filter(p => p.status === 'pago')
+                        .reduce((s, p) => s + Number(p.valor), 0)}
+                />
             )}
 
             <WizardEvento

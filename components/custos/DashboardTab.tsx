@@ -21,6 +21,8 @@ interface Props {
     itens: CustoItem[];
     compostos: CustoComposto[];
     categorias: CustoCategoria[];
+    /** soma das parcelas pagas (aba Pagamentos) — o Realizado de verdade */
+    realizadoPagamentos?: number;
 }
 
 const COR_SEMAFORO = {
@@ -29,7 +31,7 @@ const COR_SEMAFORO = {
     vermelho: 'bg-red-100 text-red-700',
 } as const;
 
-export const DashboardTab: React.FC<Props> = ({ itens, compostos, categorias }) => {
+export const DashboardTab: React.FC<Props> = ({ itens, compostos, categorias, realizadoPagamentos }) => {
     const paraCalc = (i: CustoItem): ItemCalc => ({
         quantidade: (Number(i.quantidade) || 0) * (Number(i.fator) || 1),
         valorUnitario: Number(i.preco_unitario_orcado) || 0,
@@ -89,7 +91,7 @@ export const DashboardTab: React.FC<Props> = ({ itens, compostos, categorias }) 
                 {[
                     ['Orçado', projecao.orcado],
                     ['Contratado', projecao.contratado],
-                    ['Realizado', projecao.realizado],
+                    ['Realizado', realizadoPagamentos ?? projecao.realizado],
                     ['Projeção final', projecao.projecaoFinal],
                 ].map(([rotulo, valor]) => (
                     <Card key={String(rotulo)} className="p-4">
