@@ -202,11 +202,12 @@ export const GradeCustos: React.FC<Props> = ({
                 <select
                     className="w-full truncate bg-transparent py-1 pr-4 text-xs"
                     value={item.secao_id ?? ''}
+                    title={secoesOrdenadas.find(s => s.secao.id === item.secao_id)?.rotulo ?? ''}
                     onChange={e => void onAtualizar(item.id, { secao_id: e.target.value || null })}
                 >
                     <option value="">—</option>
-                    {secoesOrdenadas.map(({ secao, rotulo }) => (
-                        <option key={secao.id} value={secao.id}>{rotulo}</option>
+                    {secoesOrdenadas.map(({ secao }) => (
+                        <option key={secao.id} value={secao.id}>{secao.nome_curto}</option>
                     ))}
                 </select>
             </td>
@@ -226,6 +227,7 @@ export const GradeCustos: React.FC<Props> = ({
                 <select
                     className="w-full truncate bg-transparent py-1 pr-4 text-xs"
                     value={item.categoria_id ?? ''}
+                    title={categorias.find(c => c.id === item.categoria_id)?.nome ?? ''}
                     onChange={e => void onAtualizar(item.id, { categoria_id: e.target.value || null })}
                 >
                     <option value="">—</option>
@@ -292,9 +294,9 @@ export const GradeCustos: React.FC<Props> = ({
                     <thead className="bg-slate-100 text-left text-xs uppercase text-slate-500">
                         <tr>
                             <th className="px-2 py-2">Descrição</th>
-                            <th className="px-2 py-2 w-28">Seção</th>
-                            {temEspacos && <th className="px-2 py-2 w-28">Espaço</th>}
-                            <th className="px-2 py-2 w-32">Categoria</th>
+                            <th className="px-2 py-2 w-36">Seção</th>
+                            {temEspacos && <th className="px-2 py-2 w-32">Espaço</th>}
+                            <th className="px-2 py-2 w-44">Categoria</th>
                             <th className="px-2 py-2 w-14 text-right">Qtde</th>
                             <th className="px-2 py-2 w-14 text-right">Fator</th>
                             <th className="px-2 py-2 w-24 text-right">Valor Unit.</th>
@@ -354,8 +356,8 @@ export const GradeCustos: React.FC<Props> = ({
                                     onChange={e => setNovaSecao(e.target.value)}
                                 >
                                     <option value="">seção…</option>
-                                    {secoesOrdenadas.map(({ secao, rotulo }) => (
-                                        <option key={secao.id} value={secao.id}>{rotulo}</option>
+                                    {secoesOrdenadas.map(({ secao }) => (
+                                        <option key={secao.id} value={secao.id}>{secao.nome_curto}</option>
                                     ))}
                                 </select>
                             </td>
