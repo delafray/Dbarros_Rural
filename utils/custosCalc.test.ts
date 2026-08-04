@@ -126,7 +126,7 @@ describe('custosGeraisACobrir (Q-021 — a faixa de aviso)', () => {
             { quantidade: 1, valorUnitario: 8000, alocacao: 'verba_fechada', compostoId: null },  // frete
             { quantidade: 1, valorUnitario: 3000, alocacao: 'verba_fechada', compostoId: null },  // ART
             { quantidade: 1, valorUnitario: 500, alocacao: 'direto', compostoId: 'bar' },
-            { quantidade: 10, valorUnitario: 30, alocacao: 'indireto_rateavel', compostoId: null },
+            { quantidade: 10, valorUnitario: 30, alocacao: 'medivel', compostoId: null },
         ];
         expect(custosGeraisACobrir(itens)).toBe(11_000);
     });

@@ -2,7 +2,7 @@
  * Cálculos financeiros puros do Centro de Custo do Evento — sem React, sem IO.
  * Espelho do padrão `orcamento-calc.ts` do Prosperitas (RF-031), adaptado às
  * decisões do módulo:
- *  - 3 gavetas de alocação (Q-021 deliberada): direto | indireto_rateavel | verba_fechada
+ *  - 3 gavetas de alocação (Q-021 deliberada): direto | medivel | verba_fechada
  *  - rateio por quantidade com INVARIANTE de conservação (RF-033/051): a soma
  *    das parcelas rateadas é EXATAMENTE o valor rateado — o centavo residual
  *    de arredondamento vai para a maior parcela (método do maior resto).
@@ -19,7 +19,7 @@ import { roundCentavos, somaMonetaria } from './money';
 // ────────────────────────────────────────────────────────────────────────────
 
 /** As 3 gavetas de alocação decididas na Q-021. */
-export type Alocacao = 'direto' | 'indireto_rateavel' | 'verba_fechada';
+export type Alocacao = 'direto' | 'medivel' | 'verba_fechada';
 
 export interface ItemCusto {
     quantidade: number;
@@ -115,7 +115,7 @@ export interface CustoComposto {
 
 /**
  * Custo de um composto: itens `direto` do próprio composto + parcelas de
- * `indireto_rateavel` já rateadas. Verba fechada NUNCA entra aqui (Q-021) —
+ * `medivel` já rateadas. Verba fechada NUNCA entra aqui (Q-021) —
  * ela é reportada por `custosGeraisACobrir`.
  */
 export function calcularCustoComposto(
