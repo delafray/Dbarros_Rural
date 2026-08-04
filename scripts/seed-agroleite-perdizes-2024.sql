@@ -34,7 +34,9 @@ BEGIN
          v.descricao, v.formato, v.qtd, v.fator, v.preco, v.st::custos_status_item
   FROM (VALUES
     -- ══ A. JULGAMENTO › GIROLANDO ══════════════════════════════════════════
-    ('julgamento-girolando','hospedagem','Pró Labore Jurado Girolando','Julgamento',1::numeric,3::numeric,8000::numeric,'contratado'),
+    -- Nota: na planilha original esta linha tinha QTDE 1|3 mas total 8.000 (pacote
+    -- fechado — o "3" era so os dias). O sistema acusou a inconsistencia; fator=1.
+    ('julgamento-girolando','hospedagem','Pró Labore Jurado Girolando','Julgamento (pacote fechado, 3 dias)',1::numeric,1::numeric,8000::numeric,'contratado'),
     ('julgamento-girolando','hospedagem','Pró Labore Técnico de Admissão Girolando','Admissão + KM',1,5,800,'contratado'),
     ('julgamento-girolando','hospedagem','Pró Labore Técnico de Sistema Girolando','Sistema',1,3,600,'contratado'),
     ('julgamento-girolando','hospedagem','Hospedagem Jurado - Girolando','Hotel conveniado',1,3,90,'contratado'),
