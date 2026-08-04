@@ -130,6 +130,13 @@ export const GradeCustos: React.FC<Props> = ({
     const totalGeral = useMemo(
         () => grupos.reduce((s, g) => s + g.subtotal, 0), [grupos]);
 
+    // A Descrição se ajusta ao MAIOR nome visível (sem reservar espaço morto):
+    // a tabela termina no último caractere, como o usuário pediu.
+    const descWidthCh = useMemo(() => {
+        const maior = visiveis.reduce((m, i) => Math.max(m, i.descricao.length), 0);
+        return Math.min(Math.max(24, maior + 3), 60); // entre 24ch e 60ch
+    }, [visiveis]);
+
     // Coluna PARTICIPAÇÃO das planilhas reais: % do item/seção sobre o total
     const pct = (v: number) =>
         totalGeral > 0
@@ -287,13 +294,13 @@ export const GradeCustos: React.FC<Props> = ({
                 </span>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-                {/* table-fixed: larguras exatas nas colunas de apoio; a Descrição
-                    (sem largura) absorve TODO o espaço restante da tela. */}
-                <table className="w-full min-w-[980px] table-fixed text-sm">
+            <div className="w-fit max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                {/* table-fixed com Descrição dimensionada pelo maior nome visível:
+                    a tabela abraça o conteúdo, sem coluna esticada à toa. */}
+                <table className="table-fixed text-sm">
                     <thead className="bg-slate-100 text-left text-xs uppercase text-slate-500">
                         <tr>
-                            <th className="px-2 py-2">Descrição</th>
+                            <th className="px-2 py-2" style={{ width: `${descWidthCh}ch` }}>Descrição</th>
                             <th className="px-2 py-2 w-36">Seção</th>
                             {temEspacos && <th className="px-2 py-2 w-32">Espaço</th>}
                             <th className="px-2 py-2 w-44">Categoria</th>
@@ -332,7 +339,7 @@ export const GradeCustos: React.FC<Props> = ({
                                 <input
                                     ref={descRef}
                                     className="w-full bg-transparent px-2 py-2 text-sm outline-none"
-                                    placeholder="+ novo item (busque: 'cadera' acha cadeira…)"
+                                    placeholder="+ novo item…"
                                     value={novo.descricao}
                                     onChange={e => void buscar(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && void criarLinha()}
