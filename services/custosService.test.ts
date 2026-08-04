@@ -59,7 +59,7 @@ describe('normalizarFornecedor (RF-028: CNPJ é a chave — não pode ser lixo)'
     it('CNPJ vazio vira null (MEI/pessoa sem CNPJ é permitido)', () => {
         expect(normalizarFornecedor({ cnpj: '' }).cnpj).toBeNull();
         expect(normalizarFornecedor({ cnpj: null }).cnpj).toBeNull();
-        expect(normalizarFornecedor({}).cnpj).toBeNull();
+        expect(normalizarFornecedor({ cnpj: undefined }).cnpj).toBeNull();
     });
     it('CNPJ presente e inválido é ERRO, não silêncio', () => {
         expect(() => normalizarFornecedor({ cnpj: '11111111111111' })).toThrow(/inválido/);
@@ -221,5 +221,81 @@ describe('custosService.saveChecklistResposta (upsert edição+chave)', () => {
             expect.objectContaining({ chave: 'limpeza', quantidade: 30 }),
             { onConflict: 'edicao_id,chave' },
         );
+    });
+});
+
+describe('getters da grade e do catálogo (filtros e ordenação certos)', () => {
+    it('getCategorias: só ativas, por ordem', async () => {
+        state.results.push({ data: [{ id: 'c1' }], error: null });
+        const r = await custosService.getCategorias();
+        expect(builders[0].eq).toHaveBeenCalledWith('ativo', true);
+        expect(builders[0].order).toHaveBeenCalledWith('ordem');
+        expect(r).toHaveLength(1);
+    });
+    it('getFornecedores: ativos por razão social', async () => {
+        state.results.push({ data: [], error: null });
+        const r = await custosService.getFornecedores();
+        expect(builders[0].order).toHaveBeenCalledWith('razao_social');
+        expect(r).toEqual([]);
+    });
+    it('getItens/getCompostos: filtram pela edição', async () => {
+        state.results.push({ data: [], error: null });
+        state.results.push({ data: [], error: null });
+        await custosService.getItens('ed9');
+        await custosService.getCompostos('ed9');
+        expect(builders[0].eq).toHaveBeenCalledWith('edicao_id', 'ed9');
+        expect(builders[1].eq).toHaveBeenCalledWith('edicao_id', 'ed9');
+    });
+    it('getEspacosTemplate: traz itens embutidos', async () => {
+        state.results.push({ data: [{ id: 't1', itens: [] }], error: null });
+        const r = await custosService.getEspacosTemplate();
+        expect(builders[0].select).toHaveBeenCalledWith('*, itens:custos_espaco_template_itens(*)');
+        expect(r[0].itens).toEqual([]);
+    });
+    it('getChecklist e getPerfil: por edição; perfil ausente vira null', async () => {
+        state.results.push({ data: [], error: null });
+        state.results.push({ data: null, error: null });
+        await custosService.getChecklist('ed1');
+        const p = await custosService.getPerfil('ed1');
+        expect(p).toBeNull();
+        expect(builders[1].maybeSingle).toHaveBeenCalled();
+    });
+    it('erros dos getters são propagados', async () => {
+        state.results.push({ data: null, error: new Error('rls') });
+        await expect(custosService.getItens('ed1')).rejects.toThrow('rls');
+        state.results.push({ data: null, error: new Error('rls2') });
+        await expect(custosService.getCategorias()).rejects.toThrow('rls2');
+    });
+});
+
+describe('savePerfil, deleteItem, registrarUsoProduto, saveFornecedor com id', () => {
+    it('savePerfil: upsert por edicao_id com timestamp', async () => {
+        state.results.push({ data: { edicao_id: 'ed1' }, error: null });
+        await custosService.savePerfil({ edicao_id: 'ed1', publico_esperado: 5000 });
+        expect(builders[0].upsert).toHaveBeenCalledWith(
+            expect.objectContaining({ edicao_id: 'ed1', publico_esperado: 5000, atualizado_em: expect.any(String) }),
+            { onConflict: 'edicao_id' },
+        );
+    });
+    it('deleteItem: delete por id, erro propagado', async () => {
+        state.results.push({ data: null, error: null });
+        await custosService.deleteItem('i7');
+        expect(builders[0].delete).toHaveBeenCalled();
+        expect(builders[0].eq).toHaveBeenCalledWith('id', 'i7');
+        state.results.push({ data: null, error: new Error('pago') });
+        await expect(custosService.deleteItem('i8')).rejects.toThrow('pago');
+    });
+    it('registrarUsoProduto: lê a frequência e grava +1', async () => {
+        state.results.push({ data: { frequencia_uso: 41 }, error: null });
+        state.results.push({ data: null, error: null });
+        await custosService.registrarUsoProduto('p1');
+        expect(builders[1].update).toHaveBeenCalledWith({ frequencia_uso: 42 });
+    });
+    it('saveFornecedor com id existente vai direto ao update', async () => {
+        state.results.push({ data: { id: 'f1' }, error: null });
+        await custosService.saveFornecedor({ id: 'f1', razao_social: 'Editada', cnpj: null });
+        expect(builders[0].update).toHaveBeenCalled();
+        expect(builders[0].eq).toHaveBeenCalledWith('id', 'f1');
+        expect(builders).toHaveLength(1); // sem busca de dedup
     });
 });
