@@ -130,12 +130,25 @@ export const GradeCustos: React.FC<Props> = ({
     const totalGeral = useMemo(
         () => grupos.reduce((s, g) => s + g.subtotal, 0), [grupos]);
 
-    // A Descrição se ajusta ao MAIOR nome visível (sem reservar espaço morto):
-    // a tabela termina no último caractere, como o usuário pediu.
+    // Colunas de texto se ajustam ao MAIOR nome EM USO (sem "..." enquanto
+    // houver tela livre; sem reservar espaço morto quando não houver nome grande).
     const descWidthCh = useMemo(() => {
         const maior = visiveis.reduce((m, i) => Math.max(m, i.descricao.length), 0);
-        return Math.min(Math.max(24, maior + 3), 60); // entre 24ch e 60ch
+        return Math.min(Math.max(24, maior + 3), 60);
     }, [visiveis]);
+
+    const secWidthCh = useMemo(() => {
+        const maior = secoesOrdenadas.reduce((m, s) => Math.max(m, s.secao.nome_curto.length), 0);
+        return Math.min(Math.max(12, maior + 5), 24); // +5 = seta do select
+    }, [secoesOrdenadas]);
+
+    const catWidthCh = useMemo(() => {
+        const usadas = new Set(visiveis.map(i => i.categoria_id).filter(Boolean));
+        const maior = categorias
+            .filter(c => usadas.has(c.id))
+            .reduce((m, c) => Math.max(m, c.nome.length), 0);
+        return Math.min(Math.max(14, maior + 5), 34);
+    }, [visiveis, categorias]);
 
     // Coluna PARTICIPAÇÃO das planilhas reais: % do item/seção sobre o total
     const pct = (v: number) =>
@@ -301,9 +314,9 @@ export const GradeCustos: React.FC<Props> = ({
                     <thead className="bg-slate-100 text-left text-xs uppercase text-slate-500">
                         <tr>
                             <th className="px-2 py-2" style={{ width: `${descWidthCh}ch` }}>Descrição</th>
-                            <th className="px-2 py-2 w-36">Seção</th>
+                            <th className="px-2 py-2" style={{ width: `${secWidthCh}ch` }}>Seção</th>
                             {temEspacos && <th className="px-2 py-2 w-32">Espaço</th>}
-                            <th className="px-2 py-2 w-44">Categoria</th>
+                            <th className="px-2 py-2" style={{ width: `${catWidthCh}ch` }}>Categoria</th>
                             <th className="px-2 py-2 w-14 text-right">Qtde</th>
                             <th className="px-2 py-2 w-14 text-right">Fator</th>
                             <th className="px-2 py-2 w-28 text-right">Valor Unit.</th>
