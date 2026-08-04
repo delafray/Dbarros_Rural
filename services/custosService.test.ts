@@ -38,7 +38,13 @@ vi.mock('./supabaseClient', () => ({
 }));
 
 import { supabase } from './supabaseClient';
-import { custosService, normalizarFornecedor, normalizarItem } from './custosService';
+import {
+    custosService,
+    normalizarFornecedor,
+    normalizarItem,
+    montarMapaCotacao,
+    type PedidoComItens,
+} from './custosService';
 
 beforeEach(() => {
     state.results = [];
@@ -297,5 +303,196 @@ describe('savePerfil, deleteItem, registrarUsoProduto, saveFornecedor com id', (
         expect(builders[0].update).toHaveBeenCalled();
         expect(builders[0].eq).toHaveBeenCalledWith('id', 'f1');
         expect(builders).toHaveLength(1); // sem busca de dedup
+    });
+});
+
+describe('pedidos e cotações (RF-002/011/029)', () => {
+    it('createPedido: pedido + N:N com quantidades; vazio é erro', async () => {
+        state.results.push({ data: { id: 'ped1' }, error: null });
+        state.results.push({ data: null, error: null });
+        const p = await custosService.createPedido({
+            edicaoId: 'ed1', nome: 'Tendas', categoriaId: 'cat-t',
+            itens: [{ itemId: 'i1', quantidade: 29 }, { itemId: 'i2', quantidade: 1000 }],
+        });
+        expect(p.id).toBe('ped1');
+        expect(builders[1].insert).toHaveBeenCalledWith([
+            { pedido_id: 'ped1', item_id: 'i1', quantidade: 29 },
+            { pedido_id: 'ped1', item_id: 'i2', quantidade: 1000 },
+        ]);
+        await expect(custosService.createPedido({ edicaoId: 'ed1', nome: 'X', itens: [] }))
+            .rejects.toThrow(/1 item/);
+    });
+
+    it('registrarCotacaoImportada: upsert por (pedido,fornecedor), linhas substituídas, exclusão SIM/NÃO interpretada', async () => {
+        state.results.push({ data: { id: 'cot1' }, error: null });  // upsert cotacao
+        state.results.push({ data: null, error: null });            // delete linhas antigas
+        state.results.push({ data: null, error: null });            // insert linhas
+        state.results.push({ data: null, error: null });            // upsert exclusao 1
+        state.results.push({ data: null, error: null });            // upsert exclusao 2
+        await custosService.registrarCotacaoImportada({
+            edicaoId: 'ed1', pedidoId: 'ped1', fornecedorId: 'f1',
+            linhas: [{ itemId: 'i1', precoUnitario: 2761, quantidade: 29 }],
+            exclusoes: [
+                { chave: 'frete', resposta: 'NÃO — R$ 1.200' },
+                { chave: 'art', resposta: 'sim, inclusa' },
+            ],
+        });
+        expect(builders[0].upsert).toHaveBeenCalledWith(
+            expect.objectContaining({ pedido_id: 'ped1', fornecedor_id: 'f1', status: 'recebida' }),
+            { onConflict: 'pedido_id,fornecedor_id' },
+        );
+        expect(builders[1].delete).toHaveBeenCalled();
+        expect(builders[3].upsert).toHaveBeenCalledWith(
+            expect.objectContaining({ chave: 'frete', incluso: false }),
+            expect.anything(),
+        );
+        expect(builders[4].upsert).toHaveBeenCalledWith(
+            expect.objectContaining({ chave: 'art', incluso: true }),
+            expect.anything(),
+        );
+    });
+
+    it('marcarVencedor: item vira contratado (split award por linha)', async () => {
+        state.results.push({ data: { id: 'l1', preco_unitario: 2761 }, error: null });
+        state.results.push({ data: null, error: null });
+        await custosService.marcarVencedor('cot1', 'i1');
+        expect(builders[1].update).toHaveBeenCalledWith({ status: 'contratado' });
+        expect(builders[1].eq).toHaveBeenCalledWith('id', 'i1');
+    });
+
+    it('getPedidos filtra pela edição com joins de cotações', async () => {
+        state.results.push({ data: [], error: null });
+        await custosService.getPedidos('ed1');
+        expect(builders[0].eq).toHaveBeenCalledWith('edicao_id', 'ed1');
+    });
+});
+
+describe('montarMapaCotacao (RF-011/052 — o mapa item × fornecedor)', () => {
+    const itens = [
+        { itemId: 'i1', descricao: 'Tenda 5x5', quantidade: 29 },
+        { itemId: 'i2', descricao: 'Piso', quantidade: 1000 },
+        { itemId: 'i3', descricao: 'Elétrica', quantidade: 1 },
+    ];
+    const cotacoes: PedidoComItens['cotacoes'] = [
+        {
+            id: 'cA', fornecedor_id: 'fA', status: 'recebida', frete: 1200,
+            fornecedor: { id: 'fA', razao_social: 'Fornecedor A', cnpj: null },
+            linhas: [
+                { item_id: 'i1', quantidade: 29, preco_unitario: 2800, total: null },
+                { item_id: 'i2', quantidade: 1000, preco_unitario: 30, total: null },
+                { item_id: 'i3', quantidade: 1, preco_unitario: 2800, total: null },
+            ],
+        },
+        {
+            id: 'cB', fornecedor_id: 'fB', status: 'recebida', frete: null,
+            fornecedor: { id: 'fB', razao_social: 'Fornecedor B', cnpj: null },
+            linhas: [
+                { item_id: 'i1', quantidade: 29, preco_unitario: 2761, total: null },
+                { item_id: 'i3', quantidade: 1, preco_unitario: 2600, total: null },
+            ],
+        },
+    ];
+
+    it('menor preço por item + cobertura parcial ("2/3") + all-in com frete', () => {
+        const mapa = montarMapaCotacao(itens, cotacoes);
+        expect(mapa.linhas[0].menorFornecedorId).toBe('fB');   // 2761 < 2800
+        expect(mapa.linhas[1].menorFornecedorId).toBe('fA');   // só A cotou piso
+        expect(mapa.linhas[2].menorFornecedorId).toBe('fB');
+
+        const fA = mapa.fornecedores.find(f => f.id === 'fA')!;
+        const fB = mapa.fornecedores.find(f => f.id === 'fB')!;
+        expect(fA.cobertura).toBe('3/3');
+        expect(fB.cobertura).toBe('2/3');
+        // A: 29×2800 + 1000×30 + 2800 + frete 1200 = 115.200 (all-in RF-052)
+        expect(fA.totalAllIn).toBe(115_200);
+        // B: 29×2761 + 2600 = 82.669 (sem frete informado — o alerta é da UI)
+        expect(fB.totalAllIn).toBe(82_669);
+    });
+
+    it('cenário "menor por item" é sugestão calculada (rel. 05)', () => {
+        const mapa = montarMapaCotacao(itens, cotacoes);
+        // i1 B 29×2761 + i2 A 1000×30 + i3 B 2600 = 112.669
+        expect(mapa.totalMenorPorItem).toBe(112_669);
+    });
+
+    it('sem cotações: mapa vazio sem explodir', () => {
+        const mapa = montarMapaCotacao(itens, []);
+        expect(mapa.fornecedores).toEqual([]);
+        expect(mapa.linhas[0].menorFornecedorId).toBeNull();
+        expect(mapa.totalMenorPorItem).toBe(0);
+    });
+
+    it('fornecedor sem join vira "?" e frete null conta como 0', () => {
+        const mapa = montarMapaCotacao(itens.slice(0, 1), [{
+            id: 'cX', fornecedor_id: 'fX', status: 'recebida', frete: null,
+            fornecedor: null,
+            linhas: [{ item_id: 'i1', quantidade: 29, preco_unitario: 100, total: null }],
+        }]);
+        expect(mapa.fornecedores[0].nome).toBe('?');
+        expect(mapa.fornecedores[0].totalAllIn).toBe(2900);
+    });
+});
+
+describe('ramos restantes de pedidos/cotações', () => {
+    it('registrarCotacaoImportada sem linhas: não insere; resposta neutra → incluso null', async () => {
+        state.results.push({ data: { id: 'cot2' }, error: null });  // upsert cotacao
+        state.results.push({ data: null, error: null });            // delete linhas
+        state.results.push({ data: null, error: null });            // upsert exclusao neutra
+        await custosService.registrarCotacaoImportada({
+            edicaoId: 'ed1', pedidoId: 'ped1', fornecedorId: 'f1',
+            linhas: [],
+            exclusoes: [{ chave: 'validade', resposta: '30/09/2026' }],
+        });
+        expect(builders).toHaveLength(3); // cotacao + delete + exclusao (sem insert de linhas)
+        expect(builders[2].upsert).toHaveBeenCalledWith(
+            expect.objectContaining({ chave: 'validade', incluso: null }),
+            expect.anything(),
+        );
+    });
+
+    it('createPedido sem categoria grava null; erro no N:N é propagado', async () => {
+        state.results.push({ data: { id: 'ped2' }, error: null });
+        state.results.push({ data: null, error: new Error('fk') });
+        await expect(custosService.createPedido({
+            edicaoId: 'ed1', nome: 'Solto', itens: [{ itemId: 'i1', quantidade: 1 }],
+        })).rejects.toThrow('fk');
+        expect(builders[0].insert).toHaveBeenCalledWith(
+            expect.objectContaining({ categoria_id: null }),
+        );
+    });
+
+    it('data null nos getters vira lista vazia (PostgREST caprichoso)', async () => {
+        state.results.push({ data: null, error: null });
+        expect(await custosService.getPedidos('ed1')).toEqual([]);
+        state.results.push({ data: null, error: null });
+        expect(await custosService.getFornecedores()).toEqual([]);
+        state.results.push({ data: null, error: null });
+        expect(await custosService.getEspacosTemplate()).toEqual([]);
+        state.results.push({ data: null, error: null });
+        expect(await custosService.getChecklist('ed1')).toEqual([]);
+        state.results.push({ data: null, error: null });
+        expect(await custosService.getCompostos('ed1')).toEqual([]);
+    });
+
+    it('fornecedor SEM cnpj vai direto ao insert (sem busca de dedup)', async () => {
+        state.results.push({ data: { id: 'f9' }, error: null });
+        const r = await custosService.saveFornecedor({ razao_social: 'Diarista', cnpj: null });
+        expect(r.id).toBe('f9');
+        expect(builders).toHaveLength(1);
+        expect(builders[0].insert).toHaveBeenCalled();
+    });
+
+    it('registrarUsoProduto propaga erro de leitura', async () => {
+        state.results.push({ data: null, error: new Error('nf') });
+        await expect(custosService.registrarUsoProduto('p1')).rejects.toThrow('nf');
+    });
+
+    it('erros de upsert de cotação e de marcarVencedor são propagados', async () => {
+        state.results.push({ data: null, error: new Error('rls-cot') });
+        await expect(custosService.registrarCotacaoImportada({
+            edicaoId: 'e', pedidoId: 'p', fornecedorId: 'f', linhas: [], exclusoes: [],
+        })).rejects.toThrow('rls-cot');
+        state.results.push({ data: null, error: new Error('sem-linha') });
+        await expect(custosService.marcarVencedor('c', 'i')).rejects.toThrow('sem-linha');
     });
 });

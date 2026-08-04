@@ -324,4 +324,188 @@ export const custosService = {
         const { error } = await db.from('custos_itens').delete().eq('id', id);
         if (error) throw error;
     },
+
+    // ── Pedidos de orçamento e cotações (RF-002/011/036) ────────────────────
+    async getPedidos(edicaoId: string): Promise<PedidoComItens[]> {
+        const { data, error } = await db
+            .from('custos_pedidos')
+            .select('*, itens:custos_pedido_itens(item_id, quantidade), cotacoes:custos_cotacoes(*, fornecedor:custos_fornecedores(id, razao_social, cnpj), linhas:custos_cotacao_linhas(*))')
+            .eq('edicao_id', edicaoId)
+            .order('criado_em');
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /** Agrupamento do modal (RF-036): itens marcados viram um pedido. */
+    async createPedido(params: {
+        edicaoId: string;
+        nome: string;
+        categoriaId?: string | null;
+        itens: { itemId: string; quantidade: number }[];
+    }): Promise<{ id: string }> {
+        if (params.itens.length === 0) throw new Error('Pedido precisa de ao menos 1 item');
+        const { data: pedido, error: e1 } = await db
+            .from('custos_pedidos')
+            .insert({
+                edicao_id: params.edicaoId,
+                nome: params.nome,
+                categoria_id: params.categoriaId ?? null,
+            })
+            .select()
+            .single();
+        if (e1) throw e1;
+        const { error: e2 } = await db.from('custos_pedido_itens').insert(
+            params.itens.map(i => ({
+                pedido_id: pedido.id,
+                item_id: i.itemId,
+                quantidade: i.quantidade,
+            })),
+        );
+        if (e2) throw e2;
+        return pedido;
+    },
+
+    /**
+     * Importação da planilha devolvida (RF-029): upsert da cotação por
+     * (pedido, fornecedor), linhas substituídas, exclusões gravadas.
+     */
+    async registrarCotacaoImportada(params: {
+        edicaoId: string;
+        pedidoId: string;
+        fornecedorId: string;
+        linhas: { itemId: string; precoUnitario: number; quantidade: number }[];
+        exclusoes: { chave: string; resposta: string }[];
+    }): Promise<{ id: string }> {
+        const { data: cot, error: e1 } = await db
+            .from('custos_cotacoes')
+            .upsert({
+                edicao_id: params.edicaoId,
+                pedido_id: params.pedidoId,
+                fornecedor_id: params.fornecedorId,
+                status: 'recebida',
+            }, { onConflict: 'pedido_id,fornecedor_id' })
+            .select()
+            .single();
+        if (e1) throw e1;
+
+        const { error: eDel } = await db
+            .from('custos_cotacao_linhas').delete().eq('cotacao_id', cot.id);
+        if (eDel) throw eDel;
+        if (params.linhas.length > 0) {
+            const { error: e2 } = await db.from('custos_cotacao_linhas').insert(
+                params.linhas.map(l => ({
+                    cotacao_id: cot.id,
+                    item_id: l.itemId,
+                    quantidade: l.quantidade,
+                    preco_unitario: l.precoUnitario,
+                })),
+            );
+            if (e2) throw e2;
+        }
+        for (const ex of params.exclusoes) {
+            const { error: e3 } = await db
+                .from('custos_cotacao_exclusoes')
+                .upsert({
+                    cotacao_id: cot.id,
+                    chave: ex.chave,
+                    observacao: ex.resposta,
+                    incluso: /^\s*sim/i.test(ex.resposta) ? true : /^\s*n[aã]o/i.test(ex.resposta) ? false : null,
+                }, { onConflict: 'cotacao_id,chave' });
+            if (e3) throw e3;
+        }
+        return cot;
+    },
+
+    /** Split award (RF-011): marca a linha vencedora e o item vira 'contratado'. */
+    async marcarVencedor(cotacaoId: string, itemId: string): Promise<void> {
+        const { data: linha, error: e1 } = await db
+            .from('custos_cotacao_linhas')
+            .select('id, preco_unitario')
+            .eq('cotacao_id', cotacaoId)
+            .eq('item_id', itemId)
+            .single();
+        if (e1) throw e1;
+        const { error: e2 } = await db
+            .from('custos_itens')
+            .update({ status: 'contratado' })
+            .eq('id', itemId);
+        if (e2) throw e2;
+        void linha;
+    },
 };
+
+export interface PedidoComItens {
+    id: string;
+    edicao_id: string;
+    nome: string;
+    categoria_id: string | null;
+    criado_em: string;
+    itens: { item_id: string; quantidade: number }[];
+    cotacoes: {
+        id: string;
+        fornecedor_id: string;
+        status: string;
+        frete: number | null;
+        fornecedor: { id: string; razao_social: string; cnpj: string | null } | null;
+        linhas: { item_id: string; quantidade: number; preco_unitario: number; total: number | null }[];
+    }[];
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Mapa de cotação (RF-011/052) — puro, exportado para teste
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface LinhaMapa {
+    itemId: string;
+    descricao: string;
+    quantidade: number;
+    /** preço unitário por fornecedor (fornecedorId → preço) */
+    precos: Record<string, number>;
+    menorFornecedorId: string | null;
+}
+
+export interface MapaCotacao {
+    fornecedores: { id: string; nome: string; totalAllIn: number; cobertura: string }[];
+    linhas: LinhaMapa[];
+    /** soma escolhendo o menor preço por item (sugestão, não imposição — rel. 05) */
+    totalMenorPorItem: number;
+}
+
+export function montarMapaCotacao(
+    itensPedido: { itemId: string; descricao: string; quantidade: number }[],
+    cotacoes: PedidoComItens['cotacoes'],
+): MapaCotacao {
+    const linhas: LinhaMapa[] = itensPedido.map(it => {
+        const precos: Record<string, number> = {};
+        for (const c of cotacoes) {
+            const l = c.linhas.find(x => x.item_id === it.itemId);
+            if (l) precos[c.fornecedor_id] = l.preco_unitario;
+        }
+        let menor: string | null = null;
+        for (const [fid, p] of Object.entries(precos)) {
+            if (menor === null || p < precos[menor]) menor = fid;
+        }
+        return { itemId: it.itemId, descricao: it.descricao, quantidade: it.quantidade, precos, menorFornecedorId: menor };
+    });
+
+    const fornecedores = cotacoes.map(c => {
+        const cobertos = linhas.filter(l => c.fornecedor_id in l.precos).length;
+        const totalItens = linhas.reduce((s, l) => {
+            const p = l.precos[c.fornecedor_id];
+            return p !== undefined ? s + p * l.quantidade : s;
+        }, 0);
+        return {
+            id: c.fornecedor_id,
+            nome: c.fornecedor?.razao_social ?? '?',
+            totalAllIn: Math.round((totalItens + (c.frete ?? 0)) * 100) / 100,  // RF-052
+            cobertura: `${cobertos}/${linhas.length}`,
+        };
+    });
+
+    const totalMenorPorItem = Math.round(linhas.reduce((s, l) => {
+        if (!l.menorFornecedorId) return s;
+        return s + l.precos[l.menorFornecedorId] * l.quantidade;
+    }, 0) * 100) / 100;
+
+    return { fornecedores, linhas, totalMenorPorItem };
+}
