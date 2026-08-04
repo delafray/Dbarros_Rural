@@ -26,6 +26,14 @@ describe('calcularTotalItem', () => {
     it('aceita strings numéricas (grade estilo planilha)', () => {
         expect(calcularTotalItem('4', '2.5')).toBe(10);
     });
+    it('fator: a 2ª dimensão das planilhas reais (RF-053)', () => {
+        expect(calcularTotalItem(7, 200, 16)).toBe(22_400);   // 7 seguranças × 16 diárias (Cláudio)
+        expect(calcularTotalItem(240, 1.76, 2)).toBe(844.8);  // 240 km × 2 viagens (Perdizes)
+        expect(calcularTotalItem(2, 40, 3)).toBe(240);        // 2 refeições × 3 dias (jurado)
+        expect(calcularTotalItem(5, 10)).toBe(50);            // sem fator = comportamento antigo
+        expect(calcularTotalItem(5, 10, NaN)).toBe(0);
+        expect(calcularTotalItem(5, 10, -1)).toBe(0);
+    });
 });
 
 describe('ratearPorQuantidade — o exemplo canônico do usuário', () => {

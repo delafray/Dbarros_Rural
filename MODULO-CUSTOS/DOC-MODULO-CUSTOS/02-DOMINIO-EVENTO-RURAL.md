@@ -242,6 +242,37 @@ ao nível SINAPI (coeficientes de consumo). Registrado no log de decisões.
   leiteiro) com a nuance financeira: desembolso obrigatório, receita
   compensatória depois.
 
+### Planilhas REAIS analisadas (04/08/2026 — Agroleite Perdizes 2024 e Feira de Cláudio)
+
+Fonte: `C:\Users\ronal\OneDrive\Pictures\Screenshots\` (2 xlsx de eventos reais,
+R$ 348 mil e R$ 300 mil). O que as planilhas CONFIRMAM do desenho:
+- Seções A/B/C com subtotais = nossas categorias/camadas; coluna OBSERVAÇÃO com
+  **"Valores fechados" × "Valor provisionado" = exatamente contratado × orçado**
+  (a cultura O×C já existia na empresa!);
+- **Kit logístico por pessoa em estado puro**: jurado Girolando = pró-labore +
+  hospedagem + alimentação + deslocamento por km (RF-023 confirmado na prática);
+- Coluna PARTICIPAÇÃO (% do item no total) = curva ABC (RF-017);
+- Frete da estrutura como linha própria (600 km × 2 × R$ 5) = verba fechada;
+- Itens do checklist todos presentes: maravalha, silagem, fazendinha, AVCB+projeto
+  +extintores, caçambas, marmitex do pessoal, sinalização, seguro, RT.
+
+O que as planilhas REVELARAM de novo:
+1. **QUANTIDADE EM DOIS FATORES (RF-053)**: as planilhas têm DUAS colunas QTDE —
+   "Segurança 7 × 16 diárias × R$ 200", "Alimentação jurado 2 × 3 dias",
+   "Deslocamento 240 km × 2 viagens". O schema tinha só `quantidade` → criado
+   campo `fator` (Bloco 15). Perder essa semântica achataria a grade.
+2. **Variantes do mesmo composto**: "Estandes Expositores" aparece em 4 linhas
+   (5x5, 5x5 2 testeiras, 5x5 3 testeiras, 8x8) com qtde própria → o template
+   instancia VARIANTES (formato/porte já cobrem).
+3. **Custo como % da receita**: "Participação Sindicato 10% do faturamento",
+   "Participação Dbarros 20%" — itens proporcionais à receita lançados como
+   custo. v1: lança o valor calculado à mão; v2: tipo "percentual da receita".
+- Observação do usuário confirmando o modelo: "Estandes Expositores pode ter
+  fornecedor de piso e de programação visual diferentes — faço o descritivo e
+  preciso agrupar para compor o item e mandar para fornecedores diferentes
+  depois" = exatamente composto (RF-032) + modal de agrupamento por categoria
+  (RF-036) + rateio de volta (RF-033).
+
 ### Implicações registradas
 - Certas escolhas geram **custos derivados/encadeados** (julgador → transporte
   + hospedagem + alimentação; peão → alimentação + alojamento local; local sem

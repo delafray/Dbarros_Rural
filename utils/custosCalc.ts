@@ -39,15 +39,23 @@ export interface ParcelaRateio {
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Total de um item: quantidade × valor unitário em centavos exatos.
+ * Total de um item: quantidade × fator × valor unitário em centavos exatos.
+ * O `fator` é a 2ª dimensão das planilhas reais (RF-053): diárias, pessoas,
+ * viagens — "7 seguranças × 16 diárias × R$ 200". Default 1 (item simples).
  * Entradas inválidas (NaN/null/undefined/negativas) viram 0 — a grade aceita
  * entrada suja (RNF-002) e o cálculo nunca propaga lixo financeiro.
  */
-export function calcularTotalItem(quantidade: unknown, valorUnitario: unknown): number {
+export function calcularTotalItem(
+    quantidade: unknown,
+    valorUnitario: unknown,
+    fator: unknown = 1,
+): number {
     const q = Number(quantidade);
     const v = Number(valorUnitario);
-    if (!Number.isFinite(q) || !Number.isFinite(v) || q < 0 || v < 0) return 0;
-    return roundCentavos(q * v);
+    const f = Number(fator);
+    if (!Number.isFinite(q) || !Number.isFinite(v) || !Number.isFinite(f)
+        || q < 0 || v < 0 || f < 0) return 0;
+    return roundCentavos(q * f * v);
 }
 
 // ────────────────────────────────────────────────────────────────────────────

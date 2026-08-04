@@ -1,7 +1,7 @@
 {
   "name": "dbarro-rural",
   "private": true,
-  "version": "0.2026.08.0410",
+  "version": "0.2026.08.0411",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",
     "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.1.0",
     "jszip": "^3.10.1",
