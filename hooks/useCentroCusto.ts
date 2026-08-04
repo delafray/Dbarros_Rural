@@ -17,12 +17,14 @@ import type {
     CustoItem,
     CustoItemInput,
     CustoPerfilEdicao,
+    CustoSecao,
 } from '../types/custos';
 
 export interface CentroCustoData {
     carregando: boolean;
     erro: string | null;
     categorias: CustoCategoria[];
+    secoes: CustoSecao[];
     fornecedores: CustoFornecedor[];
     templates: (CustoEspacoTemplate & { itens: CustoEspacoTemplateItem[] })[];
     perfil: CustoPerfilEdicao | null;
@@ -35,7 +37,7 @@ export interface CentroCustoData {
 export function useCentroCusto(edicaoId: string | null) {
     const [data, setData] = useState<CentroCustoData>({
         carregando: true, erro: null,
-        categorias: [], fornecedores: [], templates: [],
+        categorias: [], secoes: [], fornecedores: [], templates: [],
         perfil: null, respostas: [], compostos: [], itens: [], pedidos: [],
     });
 
@@ -43,9 +45,10 @@ export function useCentroCusto(edicaoId: string | null) {
         if (!edicaoId) return;
         setData(d => ({ ...d, carregando: true, erro: null }));
         try {
-            const [categorias, fornecedores, templates, perfil, respostas, compostos, itens, pedidos] =
+            const [categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos] =
                 await Promise.all([
                     custosService.getCategorias(),
+                    custosService.getSecoes(),
                     custosService.getFornecedores(),
                     custosService.getEspacosTemplate(),
                     custosService.getPerfil(edicaoId),
@@ -56,7 +59,7 @@ export function useCentroCusto(edicaoId: string | null) {
                 ]);
             setData({
                 carregando: false, erro: null,
-                categorias, fornecedores, templates, perfil, respostas, compostos, itens, pedidos,
+                categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos,
             });
         } catch (e) {
             setData(d => ({ ...d, carregando: false, erro: e instanceof Error ? e.message : String(e) }));

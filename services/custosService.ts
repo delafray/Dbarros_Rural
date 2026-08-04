@@ -11,6 +11,7 @@ import { supabase } from './supabaseClient';
 import { limparCNPJ, validarCNPJ } from '../utils/parseBR';
 import type {
     CustoCategoria,
+    CustoSecao,
     CustoChecklistResposta,
     CustoComposto,
     CustoEspacoTemplate,
@@ -78,6 +79,28 @@ export const custosService = {
             .order('ordem');
         if (error) throw error;
         return data ?? [];
+    },
+
+    /** Seções/centros de custo (RF-055): Julgamento (por raça), Estrutura, Diversos. */
+    async getSecoes(): Promise<CustoSecao[]> {
+        const { data, error } = await db
+            .from('custos_secoes')
+            .select('*')
+            .eq('ativo', true)
+            .order('ordem');
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /** Raça nova, seção nova — lista aberta (RF-055). */
+    async createSecao(s: { nome: string; nome_curto: string; slug: string; parent_id?: string | null; ordem?: number }): Promise<CustoSecao> {
+        const { data, error } = await db
+            .from('custos_secoes')
+            .insert({ ...s, parent_id: s.parent_id ?? null, ordem: s.ordem ?? 999 })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     },
 
     /** Busca "Mercado Livre" (RF-049): typo, sinônimo, prefixo, popularidade. */

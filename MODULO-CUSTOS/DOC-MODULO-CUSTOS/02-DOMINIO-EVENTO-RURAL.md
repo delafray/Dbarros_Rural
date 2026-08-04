@@ -293,6 +293,19 @@ enviados aos clientes** (planilha impressa via Excel) revelaram:
 4. **Jurado Nelore** além de Girolando → raças múltiplas por evento (ABCZ).
 5. "Taxas Bancárias" como linha própria → PC-09 confirmado pela prática.
 
+### Acréscimo do usuário (04/08/2026 — os CENTROS DE CUSTO reais da planilha)
+
+- "Meus centros de custo são diferentes: **Julgamento**, dividido **por raça ou
+  tipo de animal** (Julgamento Girolando, Gir, Torneio Leiteiro — fica
+  SUB-agrupado); depois **Estrutura do Evento** (na planilha, só 'Estrutura'
+  para poupar espaço); depois **Custos Diversos do Evento** ('Diversos')."
+- É uma TERCEIRA dimensão do item, distinta de categoria-de-cotação (com quem
+  se cota) e de composto/espaço (bar, stand): a **SEÇÃO/centro de custo** é
+  como a planilha se organiza para o gestor e para o PDF ao cliente — os
+  blocos A/B/C com subtotais das planilhas reais. → RF-055.
+- Seções são hierárquicas (Julgamento → raças) e lista aberta (raças novas:
+  Nelore etc.).
+
 ### Implicações registradas
 - Certas escolhas geram **custos derivados/encadeados** (julgador → transporte
   + hospedagem + alimentação; peão → alimentação + alojamento local; local sem

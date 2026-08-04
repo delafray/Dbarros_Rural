@@ -231,6 +231,22 @@ describe('custosService.saveChecklistResposta (upsert edição+chave)', () => {
 });
 
 describe('getters da grade e do catálogo (filtros e ordenação certos)', () => {
+    it('getSecoes: ativas por ordem; createSecao com defaults; erros propagados', async () => {
+        state.results.push({ data: [{ id: 's1', slug: 'julgamento' }], error: null });
+        const secoes = await custosService.getSecoes();
+        expect(builders[0].order).toHaveBeenCalledWith('ordem');
+        expect(secoes).toHaveLength(1);
+        state.results.push({ data: { id: 's2' }, error: null });
+        await custosService.createSecao({ nome: 'Julgamento Nelore', nome_curto: 'Nelore', slug: 'julgamento-nelore', parent_id: 's1' });
+        expect(builders[1].insert).toHaveBeenCalledWith(
+            expect.objectContaining({ slug: 'julgamento-nelore', parent_id: 's1', ordem: 999 }),
+        );
+        state.results.push({ data: null, error: null });
+        expect(await custosService.getSecoes()).toEqual([]);
+        state.results.push({ data: null, error: new Error('rls-sec') });
+        await expect(custosService.createSecao({ nome: 'X', nome_curto: 'X', slug: 'x' })).rejects.toThrow('rls-sec');
+    });
+
     it('getCategorias: só ativas, por ordem', async () => {
         state.results.push({ data: [{ id: 'c1' }], error: null });
         const r = await custosService.getCategorias();

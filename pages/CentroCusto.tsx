@@ -118,6 +118,10 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
         () => Object.fromEntries(cc.categorias.map(c => [c.slug, c.id])),
         [cc.categorias],
     );
+    const slugParaSecao = useMemo(
+        () => Object.fromEntries(cc.secoes.map(s => [s.slug, s.id])),
+        [cc.secoes],
+    );
 
     // Sem perfil ainda → o wizard é o caminho natural
     useEffect(() => {
@@ -151,6 +155,7 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
                     itens={cc.itens}
                     categorias={cc.categorias}
                     compostos={cc.compostos}
+                    secoes={cc.secoes}
                     onCriar={cc.criarItem}
                     onCriarLote={cc.criarItensEmLote}
                     onAtualizar={cc.atualizarItem}
@@ -190,6 +195,7 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
                         descricao: p.descricao,
                         quantidade: p.quantidade,
                         categoria_id: slugParaId[p.categoriaSlug] ?? null,
+                        secao_id: slugParaSecao[p.secaoSlug] ?? null,
                         prazo_limite: p.prazoLimite,
                         avulso: p.avulso,
                         alocacao: 'verba_fechada',

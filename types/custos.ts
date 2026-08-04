@@ -18,6 +18,18 @@ export type CustosAlocacao = 'direto' | 'medivel' | 'verba_fechada';
 
 // ── Nível empresa (catálogo) ────────────────────────────────────────────────
 
+/** Seção/centro de custo do usuário (RF-055): Julgamento (por raça), Estrutura, Diversos. */
+export interface CustoSecao {
+    id: string;
+    nome: string;
+    nome_curto: string;
+    slug: string;
+    parent_id: string | null;
+    ordem: number;
+    ativo: boolean;
+    criado_em: string;
+}
+
 export interface CustoCategoria {
     id: string;
     nome: string;
@@ -129,6 +141,7 @@ export interface CustoItem {
     edicao_id: string;
     composto_id: string | null;
     categoria_id: string | null;
+    secao_id: string | null;       // centro de custo (RF-055)
     produto_id: string | null;
     descricao: string;
     formato: string | null;
@@ -155,7 +168,7 @@ export interface CustoItem {
 
 /** Campos editáveis pela grade (o resto é do banco/trigger). */
 export type CustoItemInput = Partial<Pick<CustoItem,
-    | 'composto_id' | 'categoria_id' | 'produto_id' | 'descricao' | 'formato'
+    | 'composto_id' | 'categoria_id' | 'secao_id' | 'produto_id' | 'descricao' | 'formato'
     | 'quantidade' | 'fator' | 'fator_rotulo' | 'unidade' | 'porte'
     | 'alocacao' | 'driver_rateio' | 'percentual_rateio' | 'avulso'
     | 'prazo_limite' | 'status' | 'preco_unitario_orcado'

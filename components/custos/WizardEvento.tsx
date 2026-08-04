@@ -31,7 +31,7 @@ interface Props {
     onSalvarResposta: (r: Partial<CustoChecklistResposta> & { chave: string }) => Promise<void>;
     onInstanciarTemplate: (templateId: string, nome: string, quantidade: number) => Promise<void>;
     onCriarItemAvulso: (params: {
-        descricao: string; categoriaSlug: string; quantidade: number;
+        descricao: string; categoriaSlug: string; secaoSlug: string; quantidade: number;
         prazoLimite: string | null; avulso: boolean;
     }) => Promise<void>;
 }
@@ -95,9 +95,17 @@ export const WizardEvento: React.FC<Props> = ({
                     prazo_limite: item.prazoLimite,
                 });
                 if (on) {
+                    // Seção default (RF-055): torneio→Torneio Leiteiro; sanitário
+                    // de animais→Julgamento; camada estrutura→Estrutura; resto→Diversos
+                    const secaoSlug =
+                        item.chave === 'torneio_leiteiro' ? 'torneio-leiteiro'
+                        : ['veterinario_rt', 'gta_animais'].includes(item.chave) ? 'julgamento'
+                        : item.camada === 'estrutura' ? 'estrutura'
+                        : 'diversos';
                     await onCriarItemAvulso({
                         descricao: item.rotulo,
                         categoriaSlug: item.categoriaSlug,
+                        secaoSlug,
                         quantidade: qtd ?? 1,
                         prazoLimite: item.prazoLimite,
                         avulso: item.camada === 'governamental',

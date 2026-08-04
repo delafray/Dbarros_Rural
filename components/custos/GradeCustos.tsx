@@ -1,8 +1,9 @@
 /**
  * A GRADE — planilha com superpoderes (RNF-001/002/003).
- * Digitou-salvou no blur/Enter, linha nova no rodapé, colar do Excel com
- * preview (RF-012, utils/pasteTSV), qtd × fator × unitário (RF-053),
- * autocomplete de produto via busca "Mercado Livre" (RF-049).
+ * Agrupada por SEÇÃO/centro de custo (RF-055: Julgamento por raça, Estrutura,
+ * Diversos) com SUBTOTAIS como as planilhas reais do usuário. Digitou-salvou,
+ * colar do Excel com preview (RF-012), qtd × fator × unitário (RF-053),
+ * autocomplete via busca "Mercado Livre" (RF-049).
  */
 
 import React, { useMemo, useRef, useState } from 'react';
@@ -12,13 +13,14 @@ import { processarPaste, type LinhaColada } from '../../utils/pasteTSV';
 import { formatBRL, parseNumeroBR } from '../../utils/parseBR';
 import { calcularTotalItem } from '../../utils/custosCalc';
 import type {
-    CustoCategoria, CustoComposto, CustoItem, CustoItemInput, CustoProdutoBusca,
+    CustoCategoria, CustoComposto, CustoItem, CustoItemInput, CustoProdutoBusca, CustoSecao,
 } from '../../types/custos';
 
 interface Props {
     itens: CustoItem[];
     categorias: CustoCategoria[];
     compostos: CustoComposto[];
+    secoes: CustoSecao[];
     onCriar: (i: Omit<CustoItemInput, 'edicao_id'>) => Promise<unknown>;
     onCriarLote: (l: Omit<CustoItemInput, 'edicao_id'>[]) => Promise<void>;
     onAtualizar: (id: string, patch: Partial<CustoItemInput>) => Promise<void>;
@@ -30,15 +32,14 @@ const STATUS_COR: Record<string, 'slate' | 'blue' | 'yellow' | 'green' | 'red'> 
     contratado: 'green', realizado: 'green', cancelado: 'red',
 };
 
-/** Célula editável: salva no blur ou Enter; Esc restaura. */
 const Cell: React.FC<{
-    valor: string; onSalvar: (v: string) => void; alinhar?: 'left' | 'right'; largura?: string;
-}> = ({ valor, onSalvar, alinhar = 'left', largura = '' }) => {
+    valor: string; onSalvar: (v: string) => void; alinhar?: 'left' | 'right';
+}> = ({ valor, onSalvar, alinhar = 'left' }) => {
     const [v, setV] = useState(valor);
     const [editando, setEditando] = useState(false);
     return (
         <input
-            className={`w-full bg-transparent px-2 py-1 text-sm outline-none focus:bg-amber-50 focus:ring-1 focus:ring-amber-300 rounded ${alinhar === 'right' ? 'text-right' : ''} ${largura}`}
+            className={`w-full bg-transparent px-2 py-1 text-sm outline-none focus:bg-amber-50 focus:ring-1 focus:ring-amber-300 rounded ${alinhar === 'right' ? 'text-right' : ''}`}
             value={editando ? v : valor}
             onFocus={() => { setV(valor); setEditando(true); }}
             onChange={e => setV(e.target.value)}
@@ -51,10 +52,26 @@ const Cell: React.FC<{
     );
 };
 
+/** Ordena seções: pai (por ordem) seguido dos filhos; devolve rótulos prontos. */
+export function ordenarSecoes(secoes: CustoSecao[]): { secao: CustoSecao; rotulo: string }[] {
+    const pais = secoes.filter(s => !s.parent_id).sort((a, b) => a.ordem - b.ordem);
+    const resultado: { secao: CustoSecao; rotulo: string }[] = [];
+    for (const pai of pais) {
+        const filhos = secoes.filter(s => s.parent_id === pai.id).sort((a, b) => a.ordem - b.ordem);
+        if (filhos.length === 0) {
+            resultado.push({ secao: pai, rotulo: pai.nome_curto });
+        } else {
+            for (const f of filhos) resultado.push({ secao: f, rotulo: `${pai.nome_curto} › ${f.nome_curto}` });
+        }
+    }
+    return resultado;
+}
+
 export const GradeCustos: React.FC<Props> = ({
-    itens, categorias, compostos, onCriar, onCriarLote, onAtualizar, onExcluir,
+    itens, categorias, compostos, secoes, onCriar, onCriarLote, onAtualizar, onExcluir,
 }) => {
     const [novo, setNovo] = useState({ descricao: '', quantidade: '', fator: '', preco: '' });
+    const [novaSecao, setNovaSecao] = useState<string>('');
     const [sugestoes, setSugestoes] = useState<CustoProdutoBusca[]>([]);
     const [preview, setPreview] = useState<LinhaColada[] | null>(null);
     const [avisosPaste, setAvisosPaste] = useState<string[]>([]);
@@ -62,13 +79,8 @@ export const GradeCustos: React.FC<Props> = ({
     const descRef = useRef<HTMLInputElement>(null);
 
     const nomeComposto = useMemo(
-        () => Object.fromEntries(compostos.map(c => [c.id, c.nome])),
-        [compostos],
-    );
-    const nomeCategoria = useMemo(
-        () => Object.fromEntries(categorias.map(c => [c.id, c.nome])),
-        [categorias],
-    );
+        () => Object.fromEntries(compostos.map(c => [c.id, c.nome])), [compostos]);
+    void nomeComposto;
 
     const visiveis = useMemo(() => {
         if (filtroComposto === 'todos') return itens;
@@ -76,10 +88,40 @@ export const GradeCustos: React.FC<Props> = ({
         return itens.filter(i => i.composto_id === filtroComposto);
     }, [itens, filtroComposto]);
 
-    const totalVisivel = useMemo(
-        () => visiveis.reduce((s, i) => s + (Number(i.total_orcado) || 0), 0),
-        [visiveis],
-    );
+    // ── Agrupamento por seção (RF-055) com subtotais A/B/C ──────────────────
+    const secoesOrdenadas = useMemo(() => ordenarSecoes(secoes), [secoes]);
+    const grupos = useMemo(() => {
+        const porSecao = new Map<string | null, CustoItem[]>();
+        for (const i of visiveis) {
+            const chave = i.secao_id ?? null;
+            porSecao.set(chave, [...(porSecao.get(chave) ?? []), i]);
+        }
+        const resultado: { rotulo: string; letra: string; itens: CustoItem[]; subtotal: number }[] = [];
+        let letra = 65; // 'A'
+        for (const { secao, rotulo } of secoesOrdenadas) {
+            const doGrupo = porSecao.get(secao.id) ?? [];
+            if (doGrupo.length === 0) continue;
+            resultado.push({
+                rotulo,
+                letra: String.fromCharCode(letra++),
+                itens: doGrupo,
+                subtotal: doGrupo.reduce((s, i) => s + (Number(i.total_orcado) || 0), 0),
+            });
+        }
+        const semSecao = porSecao.get(null) ?? [];
+        if (semSecao.length > 0) {
+            resultado.push({
+                rotulo: 'Sem seção',
+                letra: String.fromCharCode(letra),
+                itens: semSecao,
+                subtotal: semSecao.reduce((s, i) => s + (Number(i.total_orcado) || 0), 0),
+            });
+        }
+        return resultado;
+    }, [visiveis, secoesOrdenadas]);
+
+    const totalGeral = useMemo(
+        () => grupos.reduce((s, g) => s + g.subtotal, 0), [grupos]);
 
     // ── Autocomplete (RF-049) ───────────────────────────────────────────────
     const buscar = async (termo: string) => {
@@ -94,7 +136,6 @@ export const GradeCustos: React.FC<Props> = ({
         void custosService.registrarUsoProduto(s.id).catch(() => undefined);
     };
 
-    // ── Linha nova (Enter cria) ─────────────────────────────────────────────
     const criarLinha = async () => {
         if (!novo.descricao.trim()) return;
         await onCriar({
@@ -102,6 +143,7 @@ export const GradeCustos: React.FC<Props> = ({
             quantidade: parseNumeroBR(novo.quantidade) ?? 1,
             fator: parseNumeroBR(novo.fator) ?? 1,
             preco_unitario_orcado: parseNumeroBR(novo.preco),
+            secao_id: novaSecao || null,
             composto_id: filtroComposto !== 'todos' && filtroComposto !== 'geral' ? filtroComposto : null,
         });
         setNovo({ descricao: '', quantidade: '', fator: '', preco: '' });
@@ -109,10 +151,9 @@ export const GradeCustos: React.FC<Props> = ({
         descRef.current?.focus();
     };
 
-    // ── Colar do Excel (RF-012) ─────────────────────────────────────────────
     const aoColar = (e: React.ClipboardEvent) => {
         const texto = e.clipboardData.getData('text/plain');
-        if (!texto || !texto.includes('\t')) return;   // colagem simples segue normal
+        if (!texto || !texto.includes('\t')) return;
         e.preventDefault();
         const r = processarPaste(texto);
         setPreview(r.linhas);
@@ -127,6 +168,7 @@ export const GradeCustos: React.FC<Props> = ({
             fator: l.fator,
             preco_unitario_orcado: l.precoUnitario,
             formato: l.formato,
+            secao_id: novaSecao || null,
             composto_id: filtroComposto !== 'todos' && filtroComposto !== 'geral' ? filtroComposto : null,
         })));
         setPreview(null);
@@ -136,6 +178,69 @@ export const GradeCustos: React.FC<Props> = ({
         const n = parseNumeroBR(v);
         return n !== null && n > 0 ? n : fallback;
     };
+
+    const LinhaItem: React.FC<{ item: CustoItem }> = ({ item }) => (
+        <tr className="hover:bg-slate-50">
+            <td><Cell valor={item.descricao}
+                onSalvar={v => void onAtualizar(item.id, { descricao: v })} /></td>
+            <td className="px-1">
+                <select
+                    className="w-full bg-transparent py-1 text-xs"
+                    value={item.secao_id ?? ''}
+                    onChange={e => void onAtualizar(item.id, { secao_id: e.target.value || null })}
+                >
+                    <option value="">—</option>
+                    {secoesOrdenadas.map(({ secao, rotulo }) => (
+                        <option key={secao.id} value={secao.id}>{rotulo}</option>
+                    ))}
+                </select>
+            </td>
+            <td className="px-1">
+                <select
+                    className="w-full bg-transparent py-1 text-xs"
+                    value={item.composto_id ?? ''}
+                    onChange={e => void onAtualizar(item.id, { composto_id: e.target.value || null })}
+                >
+                    <option value="">— geral —</option>
+                    {compostos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+            </td>
+            <td className="px-1">
+                <select
+                    className="w-full bg-transparent py-1 text-xs"
+                    value={item.categoria_id ?? ''}
+                    onChange={e => void onAtualizar(item.id, { categoria_id: e.target.value || null })}
+                >
+                    <option value="">—</option>
+                    {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+            </td>
+            <td><Cell alinhar="right" valor={String(item.quantidade)}
+                onSalvar={v => void onAtualizar(item.id, { quantidade: numero(v, item.quantidade) })} /></td>
+            <td><Cell alinhar="right" valor={String(item.fator)}
+                onSalvar={v => void onAtualizar(item.id, { fator: numero(v, item.fator) })} /></td>
+            <td><Cell alinhar="right"
+                valor={item.preco_unitario_orcado != null ? String(item.preco_unitario_orcado) : ''}
+                onSalvar={v => void onAtualizar(item.id, { preco_unitario_orcado: parseNumeroBR(v) })} /></td>
+            <td className="px-2 py-1 text-right font-medium">
+                {formatBRL(item.total_orcado ?? calcularTotalItem(item.quantidade, item.preco_unitario_orcado ?? 0, item.fator))}
+            </td>
+            <td className="px-2">
+                <Badge color={STATUS_COR[item.status] ?? 'slate'}>{item.status}</Badge>
+                {item.prazo_limite && (
+                    <span className="block text-[10px] text-red-500">
+                        até {item.prazo_limite.split('-').reverse().join('/')}
+                    </span>
+                )}
+            </td>
+            <td className="px-2 text-center">
+                {['rascunho', 'orcado', 'cotado'].includes(item.status) && (
+                    <button className="text-slate-300 hover:text-red-500" title="Excluir"
+                        onClick={() => void onExcluir(item.id)}>×</button>
+                )}
+            </td>
+        </tr>
+    );
 
     return (
         <div onPaste={aoColar}>
@@ -150,10 +255,10 @@ export const GradeCustos: React.FC<Props> = ({
                     {compostos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
                 <span className="text-xs text-slate-400">
-                    Cole aqui um bloco do Excel (Ctrl+V) que eu estruturo — pode vir bagunçado.
+                    Cole aqui um bloco do Excel (Ctrl+V) que eu estruturo.
                 </span>
                 <span className="ml-auto text-sm font-semibold">
-                    Total orçado: {formatBRL(totalVisivel)}
+                    CUSTO TOTAL: {formatBRL(totalGeral)}
                 </span>
             </div>
 
@@ -161,70 +266,35 @@ export const GradeCustos: React.FC<Props> = ({
                 <table className="min-w-full text-sm">
                     <thead className="bg-slate-100 text-left text-xs uppercase text-slate-500">
                         <tr>
-                            <th className="px-2 py-2 w-64">Descrição</th>
+                            <th className="px-2 py-2 w-60">Descrição</th>
+                            <th className="px-2 py-2">Seção</th>
                             <th className="px-2 py-2">Espaço</th>
                             <th className="px-2 py-2">Categoria</th>
-                            <th className="px-2 py-2 w-20 text-right">Qtde</th>
-                            <th className="px-2 py-2 w-20 text-right">× Fator</th>
-                            <th className="px-2 py-2 w-28 text-right">Valor Unit.</th>
-                            <th className="px-2 py-2 w-28 text-right">Total</th>
+                            <th className="px-2 py-2 w-16 text-right">Qtde</th>
+                            <th className="px-2 py-2 w-16 text-right">× Fator</th>
+                            <th className="px-2 py-2 w-24 text-right">Valor Unit.</th>
+                            <th className="px-2 py-2 w-24 text-right">Total</th>
                             <th className="px-2 py-2">Status</th>
                             <th className="px-2 py-2 w-8" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {visiveis.map(item => (
-                            <tr key={item.id} className="hover:bg-slate-50">
-                                <td><Cell valor={item.descricao}
-                                    onSalvar={v => void onAtualizar(item.id, { descricao: v })} /></td>
-                                <td className="px-2">
-                                    <select
-                                        className="w-full bg-transparent py-1 text-sm"
-                                        value={item.composto_id ?? ''}
-                                        onChange={e => void onAtualizar(item.id, { composto_id: e.target.value || null })}
-                                    >
-                                        <option value="">— geral —</option>
-                                        {compostos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                    </select>
-                                </td>
-                                <td className="px-2">
-                                    <select
-                                        className="w-full bg-transparent py-1 text-sm"
-                                        value={item.categoria_id ?? ''}
-                                        onChange={e => void onAtualizar(item.id, { categoria_id: e.target.value || null })}
-                                    >
-                                        <option value="">—</option>
-                                        {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                    </select>
-                                </td>
-                                <td><Cell alinhar="right" valor={String(item.quantidade)}
-                                    onSalvar={v => void onAtualizar(item.id, { quantidade: numero(v, item.quantidade) })} /></td>
-                                <td><Cell alinhar="right" valor={String(item.fator)}
-                                    onSalvar={v => void onAtualizar(item.id, { fator: numero(v, item.fator) })} /></td>
-                                <td><Cell alinhar="right"
-                                    valor={item.preco_unitario_orcado != null ? String(item.preco_unitario_orcado) : ''}
-                                    onSalvar={v => void onAtualizar(item.id, { preco_unitario_orcado: parseNumeroBR(v) })} /></td>
-                                <td className="px-2 py-1 text-right font-medium">
-                                    {formatBRL(item.total_orcado ?? calcularTotalItem(item.quantidade, item.preco_unitario_orcado ?? 0, item.fator))}
-                                </td>
-                                <td className="px-2">
-                                    <Badge color={STATUS_COR[item.status] ?? 'slate'}>{item.status}</Badge>
-                                    {item.prazo_limite && (
-                                        <span className="block text-[10px] text-red-500">
-                                            até {item.prazo_limite.split('-').reverse().join('/')}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="px-2 text-center">
-                                    {['rascunho', 'orcado', 'cotado'].includes(item.status) && (
-                                        <button
-                                            className="text-slate-300 hover:text-red-500"
-                                            title="Excluir"
-                                            onClick={() => void onExcluir(item.id)}
-                                        >×</button>
-                                    )}
-                                </td>
-                            </tr>
+                        {grupos.map(g => (
+                            <React.Fragment key={g.rotulo}>
+                                <tr className="bg-slate-200/70">
+                                    <td colSpan={10} className="px-2 py-1.5 text-xs font-bold uppercase tracking-wide">
+                                        {g.rotulo}
+                                    </td>
+                                </tr>
+                                {g.itens.map(item => <LinhaItem key={item.id} item={item} />)}
+                                <tr className="bg-slate-50">
+                                    <td colSpan={7} className="px-2 py-1 text-right text-xs font-semibold uppercase text-slate-500">
+                                        Subtotal ({g.letra})
+                                    </td>
+                                    <td className="px-2 py-1 text-right font-bold">{formatBRL(g.subtotal)}</td>
+                                    <td colSpan={2} />
+                                </tr>
+                            </React.Fragment>
                         ))}
 
                         {/* Linha nova — digite e Enter */}
@@ -250,6 +320,18 @@ export const GradeCustos: React.FC<Props> = ({
                                     </div>
                                 )}
                             </td>
+                            <td className="px-1">
+                                <select
+                                    className="w-full bg-transparent py-1 text-xs"
+                                    value={novaSecao}
+                                    onChange={e => setNovaSecao(e.target.value)}
+                                >
+                                    <option value="">seção…</option>
+                                    {secoesOrdenadas.map(({ secao, rotulo }) => (
+                                        <option key={secao.id} value={secao.id}>{rotulo}</option>
+                                    ))}
+                                </select>
+                            </td>
                             <td /><td />
                             <td><input className="w-full bg-transparent px-2 py-2 text-right text-sm outline-none"
                                 placeholder="qtde" value={novo.quantidade}
@@ -263,16 +345,19 @@ export const GradeCustos: React.FC<Props> = ({
                                 placeholder="R$" value={novo.preco}
                                 onChange={e => setNovo(n => ({ ...n, preco: e.target.value }))}
                                 onKeyDown={e => e.key === 'Enter' && void criarLinha()} /></td>
-                            <td colSpan={3} className="px-2 text-xs text-slate-400">Enter salva</td>
+                            <td colSpan={3} className="px-2 text-xs text-slate-400">Enter salva (na seção escolhida)</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            {/* Preview do paste (rel. 09/20: sempre confirmar antes de gravar) */}
             <Modal isOpen={preview !== null} onClose={() => setPreview(null)}
                 maxWidth="max-w-3xl" title={`Colar ${preview?.length ?? 0} itens da planilha`}>
                 <div className="space-y-3">
+                    <p className="text-xs text-slate-500">
+                        Os itens entram na seção escolhida na linha de baixo da grade
+                        {novaSecao ? '' : ' (nenhuma escolhida — entram "sem seção", dá para mover depois)'}.
+                    </p>
                     {avisosPaste.map((a, i) => (
                         <p key={i} className="text-xs text-amber-600">⚠ {a}</p>
                     ))}
