@@ -68,9 +68,11 @@
 
 ## Status
 
-- **Fase:** PLANEJAMENTO (levantamento de requisitos em andamento)
-- **Início do levantamento:** 01/08/2026
-- **Última sessão de levantamento:** 02/08/2026
-- **Autorização de implementação:** ❌ ainda não dada
-- **Pesquisa:** 60 relatórios (4 rodadas de agentes) em `../PESQUISA-MODULO-CUSTOS/`
-- **Pendência ativa:** absorver os relatórios 41–60 no checklist `05` (itens novos e kits de consumíveis por área)
+- **Fase:** 🚀 **CONSTRUÇÃO** (autorizada em 04/08/2026)
+- **Levantamento:** 01–02/08/2026 (52 RFs + 14 RNFs, decisões estruturais tomadas)
+- **Modo de execução:** IA executa tudo com ~90% de testes; **SQL em blocos
+  unitários** — IA entrega bloco → usuário aplica no Supabase → confirma →
+  próximo bloco. Branch `feature-modulo-custos`, commits pequenos verificados.
+- **Pesquisa:** 68+ relatórios em `../PESQUISA-MODULO-CUSTOS/`
+- **Pendência ativa:** absorver os relatórios 41–60 no checklist `05` (pode
+  ocorrer durante a construção, ao semear os dados)
