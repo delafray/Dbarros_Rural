@@ -242,7 +242,7 @@ export const GradeCustos: React.FC<Props> = ({
                 valor={item.preco_unitario_orcado != null ? String(item.preco_unitario_orcado) : ''}
                 exibicao={item.preco_unitario_orcado != null ? formatBRL(item.preco_unitario_orcado) : ''}
                 onSalvar={v => void onAtualizar(item.id, { preco_unitario_orcado: parseNumeroBR(v) })} /></td>
-            <td className="px-2 py-1 text-right font-medium">
+            <td className="whitespace-nowrap px-2 py-1 text-right font-medium">
                 {formatBRL(item.total_orcado ?? calcularTotalItem(item.quantidade, item.preco_unitario_orcado ?? 0, item.fator))}
             </td>
             <td className="px-2 py-1 text-right text-xs text-slate-500">
@@ -299,8 +299,8 @@ export const GradeCustos: React.FC<Props> = ({
                             <th className="px-2 py-2 w-44">Categoria</th>
                             <th className="px-2 py-2 w-14 text-right">Qtde</th>
                             <th className="px-2 py-2 w-14 text-right">Fator</th>
-                            <th className="px-2 py-2 w-24 text-right">Valor Unit.</th>
-                            <th className="px-2 py-2 w-24 text-right">Total</th>
+                            <th className="px-2 py-2 w-28 text-right">Valor Unit.</th>
+                            <th className="px-2 py-2 w-32 text-right">Total</th>
                             <th className="px-2 py-2 w-12 text-right">Part.</th>
                             <th className="px-2 py-2 w-24">Status</th>
                             <th className="px-2 py-2 w-7" />
@@ -319,7 +319,7 @@ export const GradeCustos: React.FC<Props> = ({
                                     <td colSpan={temEspacos ? 7 : 6} className="px-2 py-1 text-right text-xs font-semibold uppercase text-slate-500">
                                         Subtotal ({g.letra})
                                     </td>
-                                    <td className="px-2 py-1 text-right font-bold">{formatBRL(g.subtotal)}</td>
+                                    <td className="whitespace-nowrap px-2 py-1 text-right font-bold">{formatBRL(g.subtotal)}</td>
                                     <td className="px-2 py-1 text-right text-xs font-bold text-slate-600">{pct(g.subtotal)}</td>
                                     <td colSpan={2} />
                                 </tr>
