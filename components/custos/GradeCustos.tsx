@@ -82,6 +82,10 @@ export const GradeCustos: React.FC<Props> = ({
         () => Object.fromEntries(compostos.map(c => [c.id, c.nome])), [compostos]);
     void nomeComposto;
 
+    // Evento sem espaços instanciados: a coluna "Espaço" e o filtro somem
+    // (só poluiriam — tudo seria "geral"). Voltam quando houver compostos.
+    const temEspacos = compostos.length > 0;
+
     const visiveis = useMemo(() => {
         if (filtroComposto === 'todos') return itens;
         if (filtroComposto === 'geral') return itens.filter(i => !i.composto_id);
@@ -197,16 +201,18 @@ export const GradeCustos: React.FC<Props> = ({
                     ))}
                 </select>
             </td>
-            <td className="px-1">
-                <select
-                    className="w-full bg-transparent py-1 text-xs"
-                    value={item.composto_id ?? ''}
-                    onChange={e => void onAtualizar(item.id, { composto_id: e.target.value || null })}
-                >
-                    <option value="">— geral —</option>
-                    {compostos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-            </td>
+            {temEspacos && (
+                <td className="px-1">
+                    <select
+                        className="w-full bg-transparent py-1 text-xs"
+                        value={item.composto_id ?? ''}
+                        onChange={e => void onAtualizar(item.id, { composto_id: e.target.value || null })}
+                    >
+                        <option value="">— geral —</option>
+                        {compostos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </select>
+                </td>
+            )}
             <td className="px-1">
                 <select
                     className="w-full bg-transparent py-1 text-xs"
@@ -247,15 +253,17 @@ export const GradeCustos: React.FC<Props> = ({
     return (
         <div onPaste={aoColar}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
-                <select
-                    className="rounded border border-slate-300 px-2 py-1.5 text-sm"
-                    value={filtroComposto}
-                    onChange={e => setFiltroComposto(e.target.value)}
-                >
-                    <option value="todos">Todos os itens</option>
-                    <option value="geral">Gerais do evento (sem espaço)</option>
-                    {compostos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
+                {temEspacos && (
+                    <select
+                        className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+                        value={filtroComposto}
+                        onChange={e => setFiltroComposto(e.target.value)}
+                    >
+                        <option value="todos">Todos os itens</option>
+                        <option value="geral">Gerais do evento (sem espaço)</option>
+                        {compostos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </select>
+                )}
                 <span className="text-xs text-slate-400">
                     Cole aqui um bloco do Excel (Ctrl+V) que eu estruturo.
                 </span>
@@ -270,7 +278,7 @@ export const GradeCustos: React.FC<Props> = ({
                         <tr>
                             <th className="px-2 py-2 w-60">Descrição</th>
                             <th className="px-2 py-2">Seção</th>
-                            <th className="px-2 py-2">Espaço</th>
+                            {temEspacos && <th className="px-2 py-2">Espaço</th>}
                             <th className="px-2 py-2">Categoria</th>
                             <th className="px-2 py-2 w-16 text-right">Qtde</th>
                             <th className="px-2 py-2 w-16 text-right">× Fator</th>
@@ -284,13 +292,13 @@ export const GradeCustos: React.FC<Props> = ({
                         {grupos.map(g => (
                             <React.Fragment key={g.rotulo}>
                                 <tr className="bg-slate-200/70">
-                                    <td colSpan={10} className="px-2 py-1.5 text-xs font-bold uppercase tracking-wide">
+                                    <td colSpan={temEspacos ? 10 : 9} className="px-2 py-1.5 text-xs font-bold uppercase tracking-wide">
                                         {g.rotulo}
                                     </td>
                                 </tr>
                                 {g.itens.map(item => renderLinhaItem(item))}
                                 <tr className="bg-slate-50">
-                                    <td colSpan={7} className="px-2 py-1 text-right text-xs font-semibold uppercase text-slate-500">
+                                    <td colSpan={temEspacos ? 7 : 6} className="px-2 py-1 text-right text-xs font-semibold uppercase text-slate-500">
                                         Subtotal ({g.letra})
                                     </td>
                                     <td className="px-2 py-1 text-right font-bold">{formatBRL(g.subtotal)}</td>
@@ -334,7 +342,7 @@ export const GradeCustos: React.FC<Props> = ({
                                     ))}
                                 </select>
                             </td>
-                            <td /><td />
+                            {temEspacos && <td />}<td />
                             <td><input className="w-full bg-transparent px-2 py-2 text-right text-sm outline-none"
                                 placeholder="qtde" value={novo.quantidade}
                                 onChange={e => setNovo(n => ({ ...n, quantidade: e.target.value }))}
