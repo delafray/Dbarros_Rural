@@ -150,6 +150,20 @@ export const GradeCustos: React.FC<Props> = ({
         return Math.min(Math.max(14, maior + 5), 34);
     }, [visiveis, categorias]);
 
+    // Dinheiro NUNCA oculto (nem no zoom): larguras em ch = maior valor em uso,
+    // escalam junto com a fonte.
+    const unitWidthCh = useMemo(() => {
+        const maior = visiveis.reduce((m, i) =>
+            Math.max(m, i.preco_unitario_orcado != null ? formatBRL(i.preco_unitario_orcado).length : 0), 0);
+        return Math.min(Math.max(11, maior + 2), 20);
+    }, [visiveis]);
+
+    const totalWidthCh = useMemo(() => {
+        const maiorItem = visiveis.reduce((m, i) => Math.max(m, formatBRL(Number(i.total_orcado) || 0).length), 0);
+        const soma = visiveis.reduce((s, i) => s + (Number(i.total_orcado) || 0), 0);
+        return Math.min(Math.max(12, Math.max(maiorItem, formatBRL(soma).length) + 2), 22);
+    }, [visiveis]);
+
     // Coluna PARTICIPAÇÃO das planilhas reais: % do item/seção sobre o total
     const pct = (v: number) =>
         totalGeral > 0
@@ -319,9 +333,9 @@ export const GradeCustos: React.FC<Props> = ({
                             <th className="px-2 py-2" style={{ width: `${catWidthCh}ch` }}>Categoria</th>
                             <th className="px-2 py-2 w-14 text-right">Qtde</th>
                             <th className="px-2 py-2 w-14 text-right">Fator</th>
-                            <th className="px-2 py-2 w-28 text-right">Valor Unit.</th>
-                            <th className="px-2 py-2 w-32 text-right">Total</th>
-                            <th className="px-2 py-2 w-12 text-right">Part.</th>
+                            <th className="px-2 py-2 text-right" style={{ width: `${unitWidthCh}ch` }}>Valor Unit.</th>
+                            <th className="px-2 py-2 text-right" style={{ width: `${totalWidthCh}ch` }}>Total</th>
+                            <th className="px-2 py-2 text-right" style={{ width: '8ch' }}>Part.</th>
                             <th className="px-2 py-2 w-24">Status</th>
                             <th className="px-2 py-2 w-7" />
                         </tr>
