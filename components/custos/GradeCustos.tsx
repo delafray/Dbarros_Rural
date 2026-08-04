@@ -129,6 +129,12 @@ export const GradeCustos: React.FC<Props> = ({
     const totalGeral = useMemo(
         () => grupos.reduce((s, g) => s + g.subtotal, 0), [grupos]);
 
+    // Coluna PARTICIPAÇÃO das planilhas reais: % do item/seção sobre o total
+    const pct = (v: number) =>
+        totalGeral > 0
+            ? `${((v / totalGeral) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+            : '—';
+
     // ── Autocomplete (RF-049) ───────────────────────────────────────────────
     const buscar = async (termo: string) => {
         setNovo(n => ({ ...n, descricao: termo }));
@@ -236,6 +242,9 @@ export const GradeCustos: React.FC<Props> = ({
             <td className="px-2 py-1 text-right font-medium">
                 {formatBRL(item.total_orcado ?? calcularTotalItem(item.quantidade, item.preco_unitario_orcado ?? 0, item.fator))}
             </td>
+            <td className="px-2 py-1 text-right text-xs text-slate-500">
+                {pct(Number(item.total_orcado) || 0)}
+            </td>
             <td className="px-2">
                 <Badge color={STATUS_COR[item.status] ?? 'slate'}>{item.status}</Badge>
                 {item.prazo_limite && (
@@ -287,6 +296,7 @@ export const GradeCustos: React.FC<Props> = ({
                             <th className="px-2 py-2 w-16 text-right">Fator</th>
                             <th className="px-2 py-2 w-24 text-right">Valor Unit.</th>
                             <th className="px-2 py-2 w-24 text-right">Total</th>
+                            <th className="px-2 py-2 w-14 text-right">Part.</th>
                             <th className="px-2 py-2">Status</th>
                             <th className="px-2 py-2 w-8" />
                         </tr>
@@ -295,7 +305,7 @@ export const GradeCustos: React.FC<Props> = ({
                         {grupos.map(g => (
                             <React.Fragment key={g.rotulo}>
                                 <tr className="bg-slate-200/70">
-                                    <td colSpan={temEspacos ? 10 : 9} className="px-2 py-1.5 text-xs font-bold uppercase tracking-wide">
+                                    <td colSpan={temEspacos ? 11 : 10} className="px-2 py-1.5 text-xs font-bold uppercase tracking-wide">
                                         {g.rotulo}
                                     </td>
                                 </tr>
@@ -305,6 +315,7 @@ export const GradeCustos: React.FC<Props> = ({
                                         Subtotal ({g.letra})
                                     </td>
                                     <td className="px-2 py-1 text-right font-bold">{formatBRL(g.subtotal)}</td>
+                                    <td className="px-2 py-1 text-right text-xs font-bold text-slate-600">{pct(g.subtotal)}</td>
                                     <td colSpan={2} />
                                 </tr>
                             </React.Fragment>
@@ -358,7 +369,7 @@ export const GradeCustos: React.FC<Props> = ({
                                 placeholder="R$" value={novo.preco}
                                 onChange={e => setNovo(n => ({ ...n, preco: e.target.value }))}
                                 onKeyDown={e => e.key === 'Enter' && void criarLinha()} /></td>
-                            <td colSpan={3} className="px-2 text-xs text-slate-400">Enter salva (na seção escolhida)</td>
+                            <td colSpan={4} className="px-2 text-xs text-slate-400">Enter salva (na seção escolhida)</td>
                         </tr>
                     </tbody>
                 </table>
