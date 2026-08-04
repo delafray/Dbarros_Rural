@@ -273,6 +273,26 @@ O que as planilhas REVELARAM de novo:
   depois" = exatamente composto (RF-032) + modal de agrupamento por categoria
   (RF-036) + rateio de volta (RF-033).
 
+### 3º artefato real + PDFs ao cliente (04/08/2026)
+
+**"Planilha de Previsão de Custos.xlsx"** (o modelo pré-evento) e os **PDFs
+enviados aos clientes** (planilha impressa via Excel) revelaram:
+1. **A planilha de custos É DOCUMENTO DE CLIENTE**: vai em PDF para o dono do
+   evento (sindicato/prefeitura) — modelo de negócio de transparência: a Dbarros
+   organiza, mostra os custos, e cobra "Participação Dbarros 20–25% do
+   faturamento" + "Pagamento Entrada" (lançados como itens de custo!). → RF-054
+   (export PDF formatado para o cliente).
+2. **A margem lateral da previsão é a PRECIFICAÇÃO feita à mão**: "VENDA DE
+   ESTANDES — 19 estandes × 7.000; 20 blimps × 1.600; 14 galhardetes × 1.000;
+   8 rádio-feira × 800; 10 logos back drop × 800; 6 logos pórtico × 1.000;
+   % DeBarros 0,25; Total para pagar conta e organizador" → o break-even
+   RF-040/034 em estado bruto, e a lista real dos VENDÁVEIS (estandes + mídias:
+   blimp, galhardete, spot na rádio-feira, logo em backdrop/pórtico).
+3. Previsão com valores vazios = "a cotar"; notas "haverá reajuste de tabela
+   para 2025" e seguro "média" → estimativas honestas (RF-048) na prática.
+4. **Jurado Nelore** além de Girolando → raças múltiplas por evento (ABCZ).
+5. "Taxas Bancárias" como linha própria → PC-09 confirmado pela prática.
+
 ### Implicações registradas
 - Certas escolhas geram **custos derivados/encadeados** (julgador → transporte
   + hospedagem + alimentação; peão → alimentação + alojamento local; local sem
