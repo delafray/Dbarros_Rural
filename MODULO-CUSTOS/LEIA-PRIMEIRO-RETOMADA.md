@@ -34,10 +34,25 @@
 | Gaps e auditorias | 34–38, 40 |
 | Deliberações do tribunal (Q-001, Q-021) | 61–68 |
 
-## Estado congelado em 02/08/2026
+## Estado em 04/08/2026 — V1 CONSTRUÍDA, AGUARDANDO TESTE DO USUÁRIO
+
+- **Banco em produção**: 15 blocos aplicados pelo usuário (24 tabelas, 72
+  policies, triggers, busca, seeds). Migration: `supabase/migrations/20260804120000_*`.
+- **Código na branch `feature-modulo-custos`** (~15 commits pequenos): rota
+  `/custos` (menu "Centro de Custo", só gestor) — wizard 5 camadas, grade
+  (digitou-salvou, autocomplete, colar do Excel), cotações (xlsx bloqueado
+  ida-e-volta, mapa all-in, split award), dashboard (O×C×R, custo por espaço,
+  gerais a cobrir, semáforo). 239 testes; cobertura do módulo travada.
+- **v2 registrado (não construído)**: UI de pagamentos/parcelas, PDF ao
+  cliente (RF-054), encerramento/snapshot (RF-037), previsão histórica
+  (RF-046), UI de equivalências (RF-045), feed, curva ABC visual.
+- **Próximo passo**: usuário testa tudo; correções viram commits pontuais.
+
+## Estado anterior (planejamento, 02/08/2026)
 
 - **Fase**: PLANEJAMENTO ENCERRADO NA PRÁTICA — levantamento maduro, aguardando
-  o usuário decidir QUANDO construir. **Implementação NÃO autorizada.**
+  o usuário decidir QUANDO construir. ~~Implementação NÃO autorizada.~~
+  **Autorizada e executada em 04/08.**
 - **52 RFs + 14 RNFs**, todas as decisões estruturais tomadas (edição como raiz;
   3 gavetas de alocação; 5 camadas de criação; port do Prosperitas código+dados;
   busca estilo Mercado Livre em Postgres puro; planilha travada ida-e-volta).
