@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'path';
 import { execSync } from 'child_process';
 import { defineConfig } from 'vite';
@@ -93,6 +94,27 @@ export default defineConfig(() => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
+    },
+    // ── Vitest: cobertura TRAVADA para o módulo de custos (RNF-014, ~90%) ─────
+    // Escopo restrito aos arquivos do módulo: não pune o código legado, mas
+    // FALHA o `npm run coverage:custos` se o módulo novo cair abaixo da meta.
+    test: {
+      coverage: {
+        provider: 'v8' as const,
+        include: [
+          'utils/custosCalc.ts',
+          'utils/parseBR.ts',
+          'services/custosService.ts',
+          'services/fornecedoresService.ts',
+          'hooks/useCustos*.ts',
+        ],
+        thresholds: {
+          lines: 90,
+          functions: 90,
+          branches: 85,
+          statements: 90,
+        },
+      },
     },
     build: {
       chunkSizeWarningLimit: 1000,

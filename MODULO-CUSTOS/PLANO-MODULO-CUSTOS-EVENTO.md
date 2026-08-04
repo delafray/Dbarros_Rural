@@ -1,5 +1,8 @@
 # PLANO — Módulo de Custos do Evento (Orçado × Contratado × Realizado)
 
+> ⚠️ **SUPERSEDIDO em 04/08/2026 pelo `PLANO-EXECUCAO.md`** (consolidação dos
+> 3 planos Opus, rel. 69/70/71). Mantido apenas como histórico do rascunho.
+
 > **Status: AGUARDANDO APROVAÇÃO DO USUÁRIO — nada implementado ainda.**
 > Elaborado em 01/08/2026 pelo Fable, consolidando 20 relatórios de pesquisa
 > em `PESQUISA-MODULO-CUSTOS/` (01–20). Segue `PADRAO-NOVOS-SISTEMAS.md`:
