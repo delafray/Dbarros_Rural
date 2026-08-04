@@ -64,6 +64,15 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { lab
 );
 
 export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: React.ReactNode; children: React.ReactNode; maxWidth?: string; className?: string }> = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg', className = '' }) => {
+  // Trava o scroll da página de trás enquanto o modal está aberto (senão a
+  // roda do mouse sobre o backdrop rola o conteúdo por baixo do modal).
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = anterior; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
