@@ -123,7 +123,10 @@ export const WizardEvento: React.FC<Props> = ({
         }
     };
 
-    const ChecklistPasso: React.FC<{ camada: ItemChecklistGerado['camada'] }> = ({ camada }) => (
+    // Função de render (NÃO componente aninhado): componente definido dentro do
+    // render ganha identidade nova a cada tique → React remonta a lista e o
+    // scroll volta ao topo. Como função, os elementos reconciliam e o scroll fica.
+    const renderChecklist = (camada: ItemChecklistGerado['camada']) => (
         <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
             {doPasso(camada).length === 0 && (
                 <p className="text-sm text-slate-500">Nada se aplica com este perfil — pode avançar.</p>
@@ -194,8 +197,8 @@ export const WizardEvento: React.FC<Props> = ({
                         </p>
                     </div>
                 )}
-                {passo === 1 && <ChecklistPasso camada="governamental" />}
-                {passo === 2 && <ChecklistPasso camada="estrutura" />}
+                {passo === 1 && renderChecklist('governamental')}
+                {passo === 2 && renderChecklist('estrutura')}
                 {passo === 3 && (
                     <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                         <p className="text-xs text-slate-400 mb-2">
@@ -218,7 +221,7 @@ export const WizardEvento: React.FC<Props> = ({
                         ))}
                     </div>
                 )}
-                {passo === 4 && <ChecklistPasso camada="detalhes" />}
+                {passo === 4 && renderChecklist('detalhes')}
 
                 <div className="flex justify-between border-t border-slate-200 pt-4">
                     <Button variant="secondary" onClick={() => (passo === 0 ? onFechar() : setPasso(p => p - 1))}>

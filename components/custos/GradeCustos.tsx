@@ -179,8 +179,10 @@ export const GradeCustos: React.FC<Props> = ({
         return n !== null && n > 0 ? n : fallback;
     };
 
-    const LinhaItem: React.FC<{ item: CustoItem }> = ({ item }) => (
-        <tr className="hover:bg-slate-50">
+    // Função de render (não componente aninhado) — evita remontagem das linhas
+    // a cada estado novo, que faria inputs em edição perderem o foco.
+    const renderLinhaItem = (item: CustoItem) => (
+        <tr key={item.id} className="hover:bg-slate-50">
             <td><Cell valor={item.descricao}
                 onSalvar={v => void onAtualizar(item.id, { descricao: v })} /></td>
             <td className="px-1">
@@ -286,7 +288,7 @@ export const GradeCustos: React.FC<Props> = ({
                                         {g.rotulo}
                                     </td>
                                 </tr>
-                                {g.itens.map(item => <LinhaItem key={item.id} item={item} />)}
+                                {g.itens.map(item => renderLinhaItem(item))}
                                 <tr className="bg-slate-50">
                                     <td colSpan={7} className="px-2 py-1 text-right text-xs font-semibold uppercase text-slate-500">
                                         Subtotal ({g.letra})
