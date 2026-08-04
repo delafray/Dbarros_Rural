@@ -8,7 +8,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Button, Card, LoadingSpinner } from '../components/UI';
-import { eventosService } from '../services/eventosService';
 import { custosService } from '../services/custosService';
 import { useCentroCusto } from '../hooks/useCentroCusto';
 import { WizardEvento } from '../components/custos/WizardEvento';
@@ -34,20 +33,15 @@ const SeletorEdicao: React.FC = () => {
     const [criando, setCriando] = useState(false);
     const [novo, setNovo] = useState({ nome: '', ano: String(new Date().getFullYear() + 1) });
 
+    const [erro, setErro] = useState<string | null>(null);
     useEffect(() => {
         void (async () => {
-            const eventos = await eventosService.getEventos() as unknown as {
-                id: string; nome: string;
-                eventos_edicoes?: { id: string; titulo: string; ano: number; data_inicio: string | null }[];
-            }[];
-            const lista: EdicaoLista[] = [];
-            for (const ev of eventos) {
-                for (const ed of ev.eventos_edicoes ?? []) {
-                    lista.push({ ...ed, eventoNome: ev.nome });
-                }
+            try {
+                setEdicoes(await custosService.getEdicoesSelecao());
+            } catch (e) {
+                setErro(e instanceof Error ? e.message : String(e));
+                setEdicoes([]);
             }
-            lista.sort((a, b) => b.ano - a.ano || a.eventoNome.localeCompare(b.eventoNome));
-            setEdicoes(lista);
         })();
     }, []);
 
@@ -102,7 +96,9 @@ const SeletorEdicao: React.FC = () => {
                     </button>
                 ))}
                 {edicoes.length === 0 && (
-                    <p className="p-4 text-sm text-slate-400">Nenhuma edição ainda — crie acima.</p>
+                    <p className="p-4 text-sm text-slate-400">
+                        {erro ? `Erro ao carregar: ${erro}` : 'Nenhuma edição ainda — crie acima.'}
+                    </p>
                 )}
             </Card>
         </div>

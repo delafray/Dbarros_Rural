@@ -81,6 +81,24 @@ export const custosService = {
         return data ?? [];
     },
 
+    /** Edições para o seletor do Centro de Custo (Evento + Ano). */
+    async getEdicoesSelecao(): Promise<{
+        id: string; titulo: string; ano: number; data_inicio: string | null; eventoNome: string;
+    }[]> {
+        const { data, error } = await db
+            .from('eventos_edicoes')
+            .select('id, titulo, ano, data_inicio, evento:eventos(nome)')
+            .order('ano', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map((e: { id: string; titulo: string; ano: number; data_inicio: string | null; evento: { nome: string } | null }) => ({
+            id: e.id,
+            titulo: e.titulo,
+            ano: e.ano,
+            data_inicio: e.data_inicio,
+            eventoNome: e.evento?.nome ?? e.titulo,
+        }));
+    },
+
     /** Seções/centros de custo (RF-055): Julgamento (por raça), Estrutura, Diversos. */
     async getSecoes(): Promise<CustoSecao[]> {
         const { data, error } = await db

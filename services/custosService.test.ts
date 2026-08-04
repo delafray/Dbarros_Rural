@@ -231,6 +231,24 @@ describe('custosService.saveChecklistResposta (upsert edição+chave)', () => {
 });
 
 describe('getters da grade e do catálogo (filtros e ordenação certos)', () => {
+    it('getEdicoesSelecao: junta nome do evento-pai, ano desc; pai nulo cai no título', async () => {
+        state.results.push({
+            data: [
+                { id: 'e1', titulo: 'ExpoLeite Perdizes 2024', ano: 2024, data_inicio: null, evento: { nome: 'Agroleite Perdizes' } },
+                { id: 'e2', titulo: 'Avulso 2023', ano: 2023, data_inicio: null, evento: null },
+            ],
+            error: null,
+        });
+        const r = await custosService.getEdicoesSelecao();
+        expect(builders[0].order).toHaveBeenCalledWith('ano', { ascending: false });
+        expect(r[0].eventoNome).toBe('Agroleite Perdizes');
+        expect(r[1].eventoNome).toBe('Avulso 2023');
+        state.results.push({ data: null, error: new Error('rls-ed') });
+        await expect(custosService.getEdicoesSelecao()).rejects.toThrow('rls-ed');
+        state.results.push({ data: null, error: null });
+        expect(await custosService.getEdicoesSelecao()).toEqual([]);
+    });
+
     it('getSecoes: ativas por ordem; createSecao com defaults; erros propagados', async () => {
         state.results.push({ data: [{ id: 's1', slug: 'julgamento' }], error: null });
         const secoes = await custosService.getSecoes();
