@@ -383,6 +383,70 @@ describe('pedidos e cotações (RF-002/011/029)', () => {
     });
 });
 
+describe('templates (editor do descritivo-padrão) e pagamentos (Q-009)', () => {
+    it('addTemplateItem aplica defaults; update/delete por id; erros propagados', async () => {
+        state.results.push({ data: { id: 't1' }, error: null });
+        await custosService.addTemplateItem({ template_id: 'tpl1', descricao: 'Tenda', quantidade: 1 });
+        expect(builders[0].insert).toHaveBeenCalledWith(
+            expect.objectContaining({ template_id: 'tpl1', formato: null, ordem: 0 }),
+        );
+        state.results.push({ data: { id: 't1', quantidade: 25 }, error: null });
+        await custosService.updateTemplateItem('t1', { quantidade: 25 });
+        expect(builders[1].eq).toHaveBeenCalledWith('id', 't1');
+        state.results.push({ data: null, error: null });
+        await custosService.deleteTemplateItem('t1');
+        expect(builders[2].delete).toHaveBeenCalled();
+        state.results.push({ data: null, error: new Error('rls-tpl') });
+        await expect(custosService.addTemplateItem({ template_id: 'x', descricao: 'y', quantidade: 1 }))
+            .rejects.toThrow('rls-tpl');
+    });
+
+    it('createTemplate cria espaço novo com defaults null', async () => {
+        state.results.push({ data: { id: 'tplN' }, error: null });
+        await custosService.createTemplate({ nome: 'Camarote' });
+        expect(builders[0].insert).toHaveBeenCalledWith(
+            { nome: 'Camarote', descricao: null, porte: null },
+        );
+    });
+
+    it('criarParcelas: 3 parcelas de 1000,01 — resto de centavo na 1ª, vencimentos mensais', async () => {
+        state.results.push({ data: null, error: null });
+        await custosService.criarParcelas({
+            edicaoId: 'ed1', valorTotal: 1000.01, parcelas: 3, primeiroVencimento: '2026-09-10',
+        });
+        const linhas = (builders[0].insert as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(linhas).toHaveLength(3);
+        expect(linhas[0]).toMatchObject({ parcela_num: 1, valor: 333.35, data_vencimento: '2026-09-10' });
+        expect(linhas[1]).toMatchObject({ parcela_num: 2, valor: 333.33, data_vencimento: '2026-10-10' });
+        expect(linhas[2]).toMatchObject({ parcela_num: 3, valor: 333.33, data_vencimento: '2026-11-10' });
+        const soma = linhas.reduce((s: number, l: { valor: number }) => s + Math.round(l.valor * 100), 0);
+        expect(soma).toBe(100_001); // conservação exata
+    });
+
+    it('criarParcelas: valor inválido é erro; sem vencimento gera null', async () => {
+        await expect(custosService.criarParcelas({
+            edicaoId: 'ed1', valorTotal: 0, parcelas: 2, primeiroVencimento: null,
+        })).rejects.toThrow(/inválido/);
+        state.results.push({ data: null, error: null });
+        await custosService.criarParcelas({
+            edicaoId: 'ed1', valorTotal: 100, parcelas: 1, primeiroVencimento: null,
+        });
+        const linhas = (builders[0].insert as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(linhas[0].data_vencimento).toBeNull();
+    });
+
+    it('getPagamentos filtra pela edição; marcarPago grava status+data', async () => {
+        state.results.push({ data: [], error: null });
+        await custosService.getPagamentos('ed1');
+        expect(builders[0].eq).toHaveBeenCalledWith('edicao_id', 'ed1');
+        state.results.push({ data: null, error: null });
+        await custosService.marcarPago('pg1', '2026-08-04');
+        expect(builders[1].update).toHaveBeenCalledWith({ status: 'pago', data_pagamento: '2026-08-04' });
+        state.results.push({ data: null, error: new Error('imutavel') });
+        await expect(custosService.marcarPago('pg2', '2026-08-04')).rejects.toThrow('imutavel');
+    });
+});
+
 describe('montarMapaCotacao (RF-011/052 — o mapa item × fornecedor)', () => {
     const itens = [
         { itemId: 'i1', descricao: 'Tenda 5x5', quantidade: 29 },

@@ -439,6 +439,102 @@ export const custosService = {
         return cot;
     },
 
+    // ── Descritivo-padrão dos espaços (RF-050 — editor de template) ─────────
+    async addTemplateItem(item: {
+        template_id: string; descricao: string; quantidade: number;
+        formato?: string | null; categoria_id?: string | null; produto_id?: string | null; ordem?: number;
+    }): Promise<CustoEspacoTemplateItem> {
+        const { data, error } = await db
+            .from('custos_espaco_template_itens')
+            .insert({ ...item, formato: item.formato ?? null, categoria_id: item.categoria_id ?? null, produto_id: item.produto_id ?? null, ordem: item.ordem ?? 0 })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    async updateTemplateItem(id: string, patch: Partial<Pick<CustoEspacoTemplateItem, 'descricao' | 'quantidade' | 'formato' | 'categoria_id' | 'ordem'>>): Promise<CustoEspacoTemplateItem> {
+        const { data, error } = await db
+            .from('custos_espaco_template_itens')
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    async deleteTemplateItem(id: string): Promise<void> {
+        const { error } = await db.from('custos_espaco_template_itens').delete().eq('id', id);
+        if (error) throw error;
+    },
+
+    async createTemplate(t: { nome: string; descricao?: string | null; porte?: string | null }): Promise<CustoEspacoTemplate> {
+        const { data, error } = await db
+            .from('custos_espacos_template')
+            .insert({ nome: t.nome, descricao: t.descricao ?? null, porte: t.porte ?? null })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    // ── Pagamentos com parcelas (Q-009 — o REALIZADO de verdade) ────────────
+    async getPagamentos(edicaoId: string): Promise<CustoPagamento[]> {
+        const { data, error } = await db
+            .from('custos_pagamentos')
+            .select('*')
+            .eq('edicao_id', edicaoId)
+            .order('data_vencimento', { ascending: true, nullsFirst: false });
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /**
+     * Cria N parcelas iguais (resto de centavos na 1ª) a partir do total,
+     * com vencimentos mensais a partir da 1ª data.
+     */
+    async criarParcelas(params: {
+        edicaoId: string; contratacaoId?: string | null;
+        valorTotal: number; parcelas: number; primeiroVencimento: string | null;
+    }): Promise<void> {
+        const n = Math.max(1, Math.floor(params.parcelas));
+        if (!Number.isFinite(params.valorTotal) || params.valorTotal <= 0) {
+            throw new Error('Valor total inválido');
+        }
+        const totalCent = Math.round(params.valorTotal * 100);
+        const base = Math.floor(totalCent / n);
+        const linhas = Array.from({ length: n }, (_, i) => {
+            const cent = i === 0 ? totalCent - base * (n - 1) : base;
+            let venc: string | null = null;
+            if (params.primeiroVencimento) {
+                const d = new Date(`${params.primeiroVencimento}T00:00:00Z`);
+                d.setUTCMonth(d.getUTCMonth() + i);
+                venc = d.toISOString().slice(0, 10);
+            }
+            return {
+                edicao_id: params.edicaoId,
+                contratacao_id: params.contratacaoId ?? null,
+                parcela_num: i + 1,
+                parcelas_total: n,
+                valor: cent / 100,
+                data_vencimento: venc,
+                status: 'previsto',
+            };
+        });
+        const { error } = await db.from('custos_pagamentos').insert(linhas);
+        if (error) throw error;
+    },
+
+    /** Marca pago (imutável depois — Q-025, a RLS trava UPDATE de linha paga). */
+    async marcarPago(id: string, dataPagamento: string): Promise<void> {
+        const { error } = await db
+            .from('custos_pagamentos')
+            .update({ status: 'pago', data_pagamento: dataPagamento })
+            .eq('id', id);
+        if (error) throw error;
+    },
+
     /** Split award (RF-011): marca a linha vencedora e o item vira 'contratado'. */
     async marcarVencedor(cotacaoId: string, itemId: string): Promise<void> {
         const { data: linha, error: e1 } = await db
@@ -456,6 +552,19 @@ export const custosService = {
         void linha;
     },
 };
+
+export interface CustoPagamento {
+    id: string;
+    edicao_id: string;
+    contratacao_id: string | null;
+    parcela_num: number;
+    parcelas_total: number;
+    valor: number;
+    data_vencimento: string | null;
+    data_pagamento: string | null;
+    status: 'previsto' | 'agendado' | 'pago' | 'cancelado';
+    criado_em: string;
+}
 
 export interface PedidoComItens {
     id: string;
