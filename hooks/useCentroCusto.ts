@@ -135,11 +135,21 @@ export function useCentroCusto(edicaoId: string | null) {
         await recarregar();
     }, [recarregar]);
 
+    const salvarFornecedor = useCallback(async (f: Partial<CustoFornecedor>) => {
+        const salvo = await custosService.saveFornecedor(f);
+        setData(d => ({
+            ...d,
+            fornecedores: [...d.fornecedores.filter(x => x.id !== salvo.id), salvo]
+                .sort((a, b) => a.razao_social.localeCompare(b.razao_social)),
+        }));
+        return salvo;
+    }, []);
+
     return {
         ...data,
         recarregar,
         criarItem, atualizarItem, excluirItem, criarItensEmLote,
         salvarPerfil, salvarResposta, instanciarTemplate,
-        criarPedido, importarCotacao, contratarLinha,
+        criarPedido, importarCotacao, contratarLinha, salvarFornecedor,
     };
 }

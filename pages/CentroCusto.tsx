@@ -164,6 +164,7 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
                     compostos={cc.compostos}
                     fornecedores={cc.fornecedores}
                     pedidos={cc.pedidos}
+                    onSalvarFornecedor={cc.salvarFornecedor}
                     onCriarPedido={cc.criarPedido}
                     onImportarCotacao={cc.importarCotacao}
                     onContratar={cc.contratarLinha}

@@ -20,6 +20,7 @@ interface Props {
     compostos: CustoComposto[];
     fornecedores: CustoFornecedor[];
     pedidos: PedidoComItens[];
+    onSalvarFornecedor: (f: Partial<CustoFornecedor>) => Promise<unknown>;
     onCriarPedido: (nome: string, categoriaId: string | null, itens: { itemId: string; quantidade: number }[]) => Promise<void>;
     onImportarCotacao: (p: {
         pedidoId: string; fornecedorId: string;
@@ -43,8 +44,24 @@ function baixar(buffer: ArrayBuffer, nome: string) {
 
 export const CotacoesTab: React.FC<Props> = ({
     itens, categorias, compostos, fornecedores, pedidos,
-    onCriarPedido, onImportarCotacao, onContratar,
+    onSalvarFornecedor, onCriarPedido, onImportarCotacao, onContratar,
 }) => {
+    const [novoFornecedor, setNovoFornecedor] = useState({ razao: '', cnpj: '' });
+    const [erroFornecedor, setErroFornecedor] = useState<string | null>(null);
+
+    const cadastrarFornecedor = async () => {
+        if (!novoFornecedor.razao.trim()) return;
+        setErroFornecedor(null);
+        try {
+            await onSalvarFornecedor({
+                razao_social: novoFornecedor.razao.trim(),
+                cnpj: novoFornecedor.cnpj.trim() || null,
+            });
+            setNovoFornecedor({ razao: '', cnpj: '' });
+        } catch (e) {
+            setErroFornecedor(e instanceof Error ? e.message : String(e));
+        }
+    };
     const [modalAberto, setModalAberto] = useState(false);
     const [categoriaSel, setCategoriaSel] = useState<string>('');
     const [marcados, setMarcados] = useState<Record<string, boolean>>({});
@@ -128,6 +145,31 @@ export const CotacoesTab: React.FC<Props> = ({
 
     return (
         <div className="space-y-4">
+            <Card className="p-4">
+                <h3 className="mb-2 font-semibold">Fornecedores ({fornecedores.length})</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        className="flex-1 min-w-48 rounded border border-slate-300 px-3 py-1.5 text-sm"
+                        placeholder="Razão social do fornecedor"
+                        value={novoFornecedor.razao}
+                        onChange={e => setNovoFornecedor(n => ({ ...n, razao: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && void cadastrarFornecedor()}
+                    />
+                    <input
+                        className="w-44 rounded border border-slate-300 px-3 py-1.5 text-sm"
+                        placeholder="CNPJ (opcional)"
+                        value={novoFornecedor.cnpj}
+                        onChange={e => setNovoFornecedor(n => ({ ...n, cnpj: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && void cadastrarFornecedor()}
+                    />
+                    <Button variant="outline" onClick={() => void cadastrarFornecedor()}>+ Cadastrar</Button>
+                </div>
+                {erroFornecedor && <p className="mt-1 text-xs text-red-600">{erroFornecedor}</p>}
+                <p className="mt-1 text-xs text-slate-400">
+                    CNPJ é validado e vira a chave contra duplicidade — o mesmo CNPJ atualiza em vez de duplicar.
+                </p>
+            </Card>
+
             <Card className="p-4">
                 <h3 className="mb-2 font-semibold">Novo pedido de orçamento</h3>
                 <p className="mb-3 text-xs text-slate-500">
