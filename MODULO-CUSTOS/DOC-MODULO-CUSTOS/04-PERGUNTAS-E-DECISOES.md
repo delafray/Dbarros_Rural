@@ -64,3 +64,7 @@
 | 01/08/2026 | **Fluxo de criação em 3 etapas definido pelo usuário (RF-035)**: obrigatórios governamentais → variáveis/compostos (stands) → listagem-questionário com quantidades; resultado é planilha agrupável com modal de seleção por categoria onde se desmarca itens do agrupamento (RF-036, ex.: piso sem os stands). Item novo de domínio: **sistema de cobrança** (caixas fixos/ambulantes) → checklist | relato do usuário |
 | 01/08/2026 | **Itens compostos com rateio (RF-032/033/034)**: item de custo passa a ter 2 dimensões (composto × categoria de cotação); cotação consolida por categoria, custo volta rateado por quantidade; custo do composto = valor base para precificar venda. Isso REVÊ parcialmente o rel. 03 ("não transferir composição de insumos"): uma composição LEVE é necessária, sem coeficientes SINAPI | relato do usuário (exemplos bar e estande) |
 | 01/08/2026 | **DECISÃO DE ARQUITETURA: o módulo de descritivo do Prosperitas será importado/portado** como base da grade de itens (RF-031) — não construir a grade do zero; adaptar para Vite/React, services, RLS e categorias rurais. Substitui a hipótese "grade própria estilo TempPlanilha" do plano técnico | decisão do usuário |
+
+> **04/08/2026 — fechamento da construção**: Bloco 16 (seções) aplicado e
+> verificado (6 linhas). Total: 16 blocos SQL em produção. Sistema completo na
+> `feature-modulo-custos` aguardando o TESTE GERAL do usuário.
