@@ -1,5 +1,12 @@
 # Import do catálogo REAL do Prosperitas (análise completa — 04/08/2026)
 
+> **⚠️ ESCOPO (usuário, 04/08)**: este import é **exclusivamente a seção
+> ESTRUTURA** (RF-055). Julgamento (por raça), Diversos "e outros que vão
+> chegar" têm itens próprios que NÃO vêm do Prosperitas — chegarão das
+> planilhas de custos reais e de relatos futuros. Grupos/espaços/descritivo
+> (RF-056/057/058) vivem dentro de Estrutura; não estender este catálogo às
+> outras seções.
+
 > Contexto: os 58 produtos do seed (Bloco 17) são INVENÇÃO da IA a partir das
 > planilhas. O catálogo REAL é o do Prosperitas (340 produtos, 13 grupos,
 > 5 unidades) e vem do dump MySQL do sistema Grails antigo. Esta página guarda

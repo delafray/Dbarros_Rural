@@ -323,6 +323,23 @@ enviados aos clientes** (planilha impressa via Excel) revelaram:
 - → RF-056 (aba Espaços padrão×exclusivo), RF-057 (descritivo = réplica do
   Prosperitas modificado), RF-058 (autocomplete casado com a busca RF-049).
 
+### Acréscimo do usuário (04/08/2026 — o import do Prosperitas é SÓ a seção ESTRUTURA)
+
+- "Esta estrutura que você importou é **exclusivamente de estruturas**. Ainda
+  teremos **os julgamentos, os diversos, entre outros que vão chegar** —
+  entenda isso."
+- Implicação central: o catálogo Prosperitas (340 produtos, 13 grupos), os
+  espaços/templates e a tela de descritivo (RF-056/057/058) pertencem TODOS à
+  seção **Estrutura** (RF-055). As seções **Julgamento** (por raça — jurados,
+  kit logístico RF-023, premiação) e **Diversos** (seguros, taxas, marmitex,
+  segurança...) têm itens de natureza própria que NÃO vêm do Prosperitas —
+  virão das planilhas de custos reais e de relatos futuros. "Entre outros que
+  vão chegar" = lista de seções ABERTA (regra dos exemplos).
+- Consequência para a purga dos 58 produtos 'seed': os itens NÃO-estruturais
+  (marmitex, seguro, pró-labore de jurado, maravalha, silagem, km rodado...)
+  são o embrião do conteúdo de Julgamento/Diversos — **não purgar às cegas**;
+  a limpeza vale só onde o catálogo real de Estrutura os substitui.
+
 ### Implicações registradas
 - Certas escolhas geram **custos derivados/encadeados** (julgador → transporte
   + hospedagem + alimentação; peão → alimentação + alojamento local; local sem
