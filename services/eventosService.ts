@@ -64,13 +64,17 @@ export const eventosService = {
     },
 
     async getActiveEdicoes() {
-        const { data, error } = await supabase
-            .from('eventos_edicoes')
+        // status_custos: edição em SIMULAÇÃO (criada no Centro de Custo para
+        // orçar antes de decidir) fica oculta do Dashboard/Controle até ser
+        // validada. Cast: coluna ainda não está no database.types.ts gerado.
+        const { data, error } = await (supabase
+            .from('eventos_edicoes') as any)
             .select(`
                 *,
                 eventos ( nome )
             `)
-            .eq('ativo', true);
+            .eq('ativo', true)
+            .neq('status_custos', 'simulacao');
 
         if (error) throw error;
 
@@ -82,12 +86,14 @@ export const eventosService = {
     },
 
     async getAllEdicoes() {
-        const { data, error } = await supabase
-            .from('eventos_edicoes')
+        // Oculta edições em simulação (ver getActiveEdicoes)
+        const { data, error } = await (supabase
+            .from('eventos_edicoes') as any)
             .select(`
                 id, titulo, ano, created_at, proposta_comercial_path, planta_baixa_path,
                 eventos ( id, nome )
             `)
+            .neq('status_custos', 'simulacao')
             .order('created_at', { ascending: true });
 
         if (error) throw error;

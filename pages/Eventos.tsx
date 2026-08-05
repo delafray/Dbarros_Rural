@@ -7,11 +7,13 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { Evento, EventoEdicao } from '../services/eventosService';
 import { maskTelefone } from '../utils/masks';
+import { eventoOcultoPorSimulacao } from '../utils/eventosVisibilidade';
 
 const PAGE_SIZE = 50;
 
 type EventoComEdicoes = Evento & {
-    eventos_edicoes?: Pick<EventoEdicao, 'id' | 'titulo' | 'ano' | 'data_inicio' | 'created_at'>[];
+    eventos_edicoes?: (Pick<EventoEdicao, 'id' | 'titulo' | 'ano' | 'data_inicio' | 'created_at'>
+        & { status_custos?: string | null })[];
 };
 
 const ultimaEdicao = (e: EventoComEdicoes) => {
@@ -87,15 +89,17 @@ const Eventos: React.FC = () => {
             const { data, error } = await applyMasterFilter(
                 supabase
                     .from('eventos')
-                    .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
+                    .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at, status_custos)')
                     .order('nome')
             ).range(from, from + PAGE_SIZE - 1);
 
             if (error) throw error;
 
-            const rows = data || [];
+            // Evento que só existe como SIMULAÇÃO de custos fica oculto até validar
+            const rows = ((data || []) as EventoComEdicoes[])
+                .filter(e => !eventoOcultoPorSimulacao(e.eventos_edicoes));
             setEventos(prev => page === 0 ? rows : [...prev, ...rows]);
-            setHasMore(rows.length === PAGE_SIZE);
+            setHasMore((data || []).length === PAGE_SIZE);
         } catch (err) {
             console.error('Erro ao carregar eventos:', err);
         } finally {
@@ -110,13 +114,14 @@ const Eventos: React.FC = () => {
             const { data, error } = await applyMasterFilter(
                 supabase
                     .from('eventos')
-                    .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at)')
+                    .select('*, eventos_edicoes(id, titulo, ano, data_inicio, created_at, status_custos)')
                     .or(`nome.ilike.%${term}%,promotor_nome.ilike.%${term}%,promotor_email.ilike.%${term}%`)
                     .order('nome')
             ).limit(200);
 
             if (error) throw error;
-            setEventos(data || []);
+            setEventos(((data || []) as EventoComEdicoes[])
+                .filter(e => !eventoOcultoPorSimulacao(e.eventos_edicoes)));
             setHasMore(false);
         } catch (err) {
             console.error('Erro na busca:', err);
