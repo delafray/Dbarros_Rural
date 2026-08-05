@@ -16,7 +16,6 @@ import { CotacoesTab } from '../components/custos/CotacoesTab';
 import { DashboardTab } from '../components/custos/DashboardTab';
 import { EspacosTab } from '../components/custos/EspacosTab';
 import { PagamentosTab } from '../components/custos/PagamentosTab';
-import { ProdutosManager } from '../components/custos/ProdutosManager';
 
 type Aba = 'grade' | 'cotacoes' | 'pagamentos' | 'espacos' | 'dashboard';
 
@@ -33,7 +32,6 @@ const SeletorEdicao: React.FC = () => {
     const [edicoes, setEdicoes] = useState<EdicaoLista[] | null>(null);
     const [criando, setCriando] = useState(false);
     const [novo, setNovo] = useState({ nome: '', ano: String(new Date().getFullYear() + 1) });
-    const [produtosAberto, setProdutosAberto] = useState(false);
 
     const [erro, setErro] = useState<string | null>(null);
     useEffect(() => {
@@ -65,11 +63,10 @@ const SeletorEdicao: React.FC = () => {
     return (
         <div className="mx-auto max-w-2xl space-y-4">
             <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setProdutosAberto(a => !a)}>
-                    {produtosAberto ? 'Fechar produtos' : '📦 Produtos do catálogo'}
+                <Button variant="outline" onClick={() => navigate('/custos/cadastros')}>
+                    🗂️ Cadastros (produtos, espaços padrão…)
                 </Button>
             </div>
-            <ProdutosManager aberto={produtosAberto} />
             <Card className="p-4">
                 <h3 className="mb-2 font-semibold">Novo evento (simulação de custos)</h3>
                 <p className="mb-3 text-xs text-slate-500">
