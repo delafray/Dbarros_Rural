@@ -9,6 +9,7 @@ import React, { useMemo, useState } from 'react';
 import { Button, Card, LoadingSpinner } from '../UI';
 import { useCustosProdutos } from '../../hooks/useCustosProdutos';
 import { cadeiaDeModificacoes } from '../../utils/produtosGestao';
+import { normalizarTexto } from '../../utils/descritivoSugestoes';
 
 export const ProdutosManager: React.FC<{ aberto: boolean }> = ({ aberto }) => {
     const g = useCustosProdutos(aberto);
@@ -19,11 +20,11 @@ export const ProdutosManager: React.FC<{ aberto: boolean }> = ({ aberto }) => {
     const [novo, setNovo] = useState({ nome: '', grupo: '', categoria: '', unidade: 'un' });
 
     const visiveis = useMemo(() => {
-        const f = filtro.trim().toLowerCase();
+        const f = normalizarTexto(filtro.trim());
         return g.produtos.filter(p =>
             (mostrarInativos || p.ativo) &&
             (!grupoFiltro || p.grupo_id === grupoFiltro) &&
-            (!f || p.nome.toLowerCase().includes(f)));
+            (!f || normalizarTexto(p.nome).includes(f)));
     }, [g.produtos, filtro, grupoFiltro, mostrarInativos]);
 
     if (!aberto) return null;

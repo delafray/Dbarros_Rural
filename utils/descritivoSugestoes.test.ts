@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     mesclarComBusca,
+    normalizarTexto,
     parseQuantidade,
     produtosDoGrupo,
     resolverProdutoPorNome,
@@ -97,6 +98,21 @@ describe('resolverProdutoPorNome (o doAddItem original resolve por nome)', () =>
 
     it('vazio → null', () => {
         expect(resolverProdutoPorNome(grupo, '')).toBeNull();
+    });
+});
+
+describe('normalizarTexto (sem LIKE sensível a acento em fase nenhuma)', () => {
+    it('remove acentos e baixa a caixa como o unaccent do banco', () => {
+        expect(normalizarTexto('Elétrica')).toBe('eletrica');
+        expect(normalizarTexto('IMPRESSÃO À MÃO')).toBe('impressao a mao');
+        expect(normalizarTexto('bagum')).toBe('bagum');
+    });
+    it('filtro local acha "Tenda piramidal" digitando sem cedilha/acento', () => {
+        const grupo: ProdutoCatalogoLeve[] = [
+            { id: 'x', nome: 'Instalação elétrica básica', unidade: 'un', grupo_id: 'g', frequencia_uso: 1, ativo: true },
+        ];
+        expect(sugerirLocal(grupo, 'instalacao eletrica')).toHaveLength(1);
+        expect(resolverProdutoPorNome(grupo, 'INSTALACAO ELETRICA BASICA')?.id).toBe('x');
     });
 });
 

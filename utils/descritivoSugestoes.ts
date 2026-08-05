@@ -30,6 +30,15 @@ export interface ProdutoSugestao {
 
 export const MAX_SUGESTOES = 12;
 
+/**
+ * Normalização espelhando o `custos_unaccent(lower(...))` do banco (RF-049):
+ * minúsculas + sem acento — "elétrica" casa com "eletrica" também no filtro
+ * local (nada de LIKE sensível a acento em nenhuma fase do módulo).
+ */
+export function normalizarTexto(s: string): string {
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
 function paraSugestao(p: ProdutoCatalogoLeve): ProdutoSugestao {
     return {
         id: p.id,
@@ -56,10 +65,10 @@ export function sugerirLocal(
     query: string,
     max = MAX_SUGESTOES,
 ): ProdutoSugestao[] {
-    const qt = query.trim().toLowerCase();
+    const qt = normalizarTexto(query.trim());
     if (!qt) return [];
     return produtosGrupo
-        .filter(p => p.nome.toLowerCase().includes(qt))
+        .filter(p => normalizarTexto(p.nome).includes(qt))
         .slice(0, max)
         .map(paraSugestao);
 }
@@ -104,9 +113,9 @@ export function resolverProdutoPorNome(
     produtosGrupo: ProdutoCatalogoLeve[],
     nome: string,
 ): ProdutoCatalogoLeve | null {
-    const alvo = nome.trim().toLowerCase();
+    const alvo = normalizarTexto(nome.trim());
     if (!alvo) return null;
-    return produtosGrupo.find(p => p.nome.trim().toLowerCase() === alvo) ?? null;
+    return produtosGrupo.find(p => normalizarTexto(p.nome.trim()) === alvo) ?? null;
 }
 
 /** Quantidade da linha de inclusão: aceita vírgula; inválida/zero → null. */
