@@ -306,6 +306,23 @@ enviados aos clientes** (planilha impressa via Excel) revelaram:
 - Seções são hierárquicas (Julgamento → raças) e lista aberta (raças novas:
   Nelore etc.).
 
+### Acréscimo do usuário (04/08/2026 — aba ESPAÇOS: padrão × exclusivo, descritivo do Prosperitas modificado)
+
+- O usuário **modificou totalmente o descritivo do Prosperitas** (foto: tela
+  "Editar Projetos ID 8916"; código: `prosperitas/src/components/projetos/
+  ProjetoDescritivoTab.tsx` + `ProdutoAutocomplete.tsx`) e quer "**importar
+  para nosso sistema exatamente isso**", na aba **Espaços**.
+- **Cada espaço será cadastrado ou como PADRÃO ou como EXCLUSIVO do evento.**
+  "No nosso hoje tá muito bagunçado. Tem de ser uma **listagem**: na parte de
+  cima os **já cadastrados que posso setar** [padrões da biblioteca]; e abrir
+  para modificação, abaixo, **espaços novos exclusivos** do evento."
+- Autocomplete: "quando busco um produto no Prosperitas ele me encaminha os
+  mais usados, mas gostaria de **casar com nossa probabilidade**" — ou seja,
+  as sugestões devem usar a busca RF-049 (typo/sinônimo/prefixo + popularidade
+  real, agora alimentada pela frequência histórica importada do dump).
+- → RF-056 (aba Espaços padrão×exclusivo), RF-057 (descritivo = réplica do
+  Prosperitas modificado), RF-058 (autocomplete casado com a busca RF-049).
+
 ### Implicações registradas
 - Certas escolhas geram **custos derivados/encadeados** (julgador → transporte
   + hospedagem + alimentação; peão → alimentação + alojamento local; local sem
