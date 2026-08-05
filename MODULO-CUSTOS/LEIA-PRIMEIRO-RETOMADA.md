@@ -1,5 +1,19 @@
 # 🔄 PROTOCOLO DE RETOMADA — Módulo Centro de Custo do Evento
 
+> **📌 05/08/2026 — PRIMEIRA COISA DA PRÓXIMA SESSÃO**: o usuário AINDA NÃO
+> LEU o **`MODULO-CUSTOS/RESUMO-MANHA-2026-08-05.md`** — produto da missão
+> noturna que ELE encomendou (20 agentes: releitura de toda a doc + 8
+> pesquisas web novas, relatórios **79–86** em PESQUISA-MODULO-CUSTOS/,
+> sobre PRECIFICAÇÃO de eventos rurais). Abrir a sessão oferecendo esse
+> resumo; dele saem as fases R4/R5. Novidades de 05/08 (detalhes no log 04):
+> eventos em SIMULAÇÃO ocultos do Dashboard/Eventos/Todos os Eventos —
+> commit cherry-picked na **main e DEPLOYADO em produção** (`5565ab2`;
+> remote corrigido para `delafray@github.com`, a credencial que funciona);
+> **Bloco 24** (marca o demo Agroleite como simulação) — aplicação NÃO
+> confirmada pelo usuário, conferir; validar evento = `status_custos →
+> 'confirmada'` (UI disso entra na R5); criado prompt para levar a busca
+> RF-049 ao Prosperitas (`PROSPERITAS\prosperitas\PROMPT-BUSCA-MERCADO-LIVRE.md`).
+
 > **⚠️ 04/08/2026 — RECOMEÇO DECIDIDO**: o usuário concluiu que "começou pelo
 > fim sem dar o início". TUDO é aproveitado (banco/motor/testes), mas o fluxo
 > será redesenhado. Ler TAMBÉM **`MODULO-CUSTOS/RECOMECO-2026-08-04.md`** e
