@@ -1,5 +1,10 @@
 # 🔄 PROTOCOLO DE RETOMADA — Módulo Centro de Custo do Evento
 
+> **⚠️ 04/08/2026 — RECOMEÇO DECIDIDO**: o usuário concluiu que "começou pelo
+> fim sem dar o início". TUDO é aproveitado (banco/motor/testes), mas o fluxo
+> será redesenhado. Ler TAMBÉM **`MODULO-CUSTOS/RECOMECO-2026-08-04.md`** e
+> fazer a **PERGUNTA DO INÍCIO** de lá antes de qualquer código.
+
 > **PARA A IA**: quando o usuário disser algo como "vamos voltar ao nosso novo
 > módulo", "voltar ao módulo de custos", "continuar o centro de custo" —
 > **este arquivo é o ponto de entrada**. Siga o protocolo abaixo ANTES de
