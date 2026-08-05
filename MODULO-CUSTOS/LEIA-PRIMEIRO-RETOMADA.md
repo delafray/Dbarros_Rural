@@ -55,10 +55,15 @@
 >   arquivar) em cima; espaços do evento (exclusivos: renomear/excluir/
 >   **promover a padrão**) embaixo. Usuário aprovou: "o front end ficou
 >   muito bom". 283 testes, cobertura travada verde, build ok.
+> - **RF-059** (04/08 tarde): gestão de produtos na tela inicial — botão "📦
+>   Produtos do catálogo" no seletor: adicionar/renomear/excluir/desativar;
+>   exclusão BLOQUEADA se em uso; renomear preserva o nome original (subitem
+>   + hover com a cadeia). Bloco 22 (histórico de nomes) APLICADO. Fila de
+>   blocos SQL: **VAZIA** (22 blocos aplicados no total).
 > - **PENDENTE**: **R4** (seções Julgamento/Diversos — aguarda planilhas/
 >   relatos do usuário) e **R5** (redesenho do fluxo — aguarda o usuário
 >   descrever a ordem de uso ponta a ponta). Merge na main: só com aprovação.
-> - RF-056/057/058 registrados no 03; decisões todas no log 04.
+> - RF-056/057/058/059 registrados no 03; decisões todas no log 04.
 
 ## Estado anterior (madrugada 04/08) — V1 CONSTRUÍDA (superada pelo recomeço)
 
