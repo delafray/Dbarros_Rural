@@ -39,7 +39,28 @@
 | Gaps e auditorias | 34–38, 40 |
 | Deliberações do tribunal (Q-001, Q-021) | 61–68 |
 
-## Estado em 04/08/2026 — V1 CONSTRUÍDA, AGUARDANDO TESTE DO USUÁRIO
+## Estado em 04/08/2026 (NOITE) — RECOMEÇO EM CONSTRUÇÃO: R0–R3 CONCLUÍDAS ✅
+
+> Plano vigente: **PARTE 1 do `PLANO-EXECUCAO.md`** (fases R0–R5). Feito:
+> - **R0**: catálogo REAL do Prosperitas importado (340 produtos/13 grupos/
+>   unidades/frequência real dos ~200K descritivos) + Blocos 19 (grupo nos
+>   descritivos), 20 (13 templates reais das 96 planilhas, 84 itens) e 21
+>   (12 seeds estruturais desativados, reversível) — TODOS aplicados e
+>   verificados pelo usuário. Análise: `IMPORT-CATALOGO-PROSPERITAS.md`.
+> - **R1**: port LITERAL do descritivo do Prosperitas modificado
+>   (`components/custos/ProdutoAutocomplete.tsx` + `EspacoDescritivo.tsx`,
+>   cores/teclado idênticos; busca RF-049 mesclada; frequencia_uso
+>   incrementa na seleção). Lógica pura em `utils/descritivoSugestoes.ts`.
+> - **R2**: aba Espaços em DUAS ZONAS (RF-056): padrões (setar/renomear/
+>   arquivar) em cima; espaços do evento (exclusivos: renomear/excluir/
+>   **promover a padrão**) embaixo. Usuário aprovou: "o front end ficou
+>   muito bom". 283 testes, cobertura travada verde, build ok.
+> - **PENDENTE**: **R4** (seções Julgamento/Diversos — aguarda planilhas/
+>   relatos do usuário) e **R5** (redesenho do fluxo — aguarda o usuário
+>   descrever a ordem de uso ponta a ponta). Merge na main: só com aprovação.
+> - RF-056/057/058 registrados no 03; decisões todas no log 04.
+
+## Estado anterior (madrugada 04/08) — V1 CONSTRUÍDA (superada pelo recomeço)
 
 - **Banco em produção**: 15 blocos aplicados pelo usuário (24 tabelas, 72
   policies, triggers, busca, seeds). Migration: `supabase/migrations/20260804120000_*`.
