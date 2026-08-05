@@ -370,6 +370,84 @@ export const custosService = {
         return data;
     },
 
+    async updateComposto(id: string, patch: Partial<Pick<CustoComposto, 'nome' | 'quantidade' | 'porte'>>): Promise<CustoComposto> {
+        const { data, error } = await db
+            .from('custos_compostos')
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    /** Excluir espaço do evento: os itens dele ficam na grade (FK SET NULL). */
+    async deleteComposto(id: string): Promise<void> {
+        const { error } = await db.from('custos_compostos').delete().eq('id', id);
+        if (error) throw error;
+    },
+
+    async updateTemplate(id: string, patch: Partial<Pick<CustoEspacoTemplate, 'nome' | 'descricao' | 'porte' | 'ativo'>>): Promise<CustoEspacoTemplate> {
+        const { data, error } = await db
+            .from('custos_espacos_template')
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Promove um espaço EXCLUSIVO a PADRÃO da biblioteca (derivado do RF-056):
+     * cria o template com o descritivo atual do espaço e vincula o composto.
+     */
+    async promoverCompostoATemplate(compostoId: string): Promise<CustoEspacoTemplate> {
+        const { data: composto, error: e1 } = await db
+            .from('custos_compostos')
+            .select('*')
+            .eq('id', compostoId)
+            .single();
+        if (e1) throw e1;
+
+        const { data: tpl, error: e2 } = await db
+            .from('custos_espacos_template')
+            .insert({ nome: composto.nome, porte: composto.porte ?? null, descricao: 'Promovido de espaço exclusivo' })
+            .select()
+            .single();
+        if (e2) throw e2;
+
+        const { data: itens, error: e3 } = await db
+            .from('custos_itens')
+            .select('*')
+            .eq('composto_id', compostoId)
+            .order('criado_em');
+        if (e3) throw e3;
+
+        if (itens && itens.length > 0) {
+            const { error: e4 } = await db.from('custos_espaco_template_itens').insert(
+                itens.map((i: CustoItem, idx: number) => ({
+                    template_id: tpl.id,
+                    grupo_id: i.grupo_id ?? null,
+                    categoria_id: i.categoria_id,
+                    produto_id: i.produto_id,
+                    descricao: i.descricao,
+                    formato: i.formato,
+                    quantidade: i.quantidade,
+                    ordem: (idx + 1) * 10,
+                })),
+            );
+            if (e4) throw e4;
+        }
+
+        const { error: e5 } = await db
+            .from('custos_compostos')
+            .update({ template_id: tpl.id })
+            .eq('id', compostoId);
+        if (e5) throw e5;
+        return tpl;
+    },
+
     // ── Itens: a grade (digitou-salvou) ─────────────────────────────────────
     async getItens(edicaoId: string): Promise<CustoItem[]> {
         const { data, error } = await db

@@ -104,6 +104,7 @@ export default defineConfig(() => {
         include: [
           'utils/custosCalc.ts',
           'utils/parseBR.ts',
+          'utils/descritivoSugestoes.ts',
           'services/custosService.ts',
           'services/fornecedoresService.ts',
           'hooks/useCustos*.ts',

@@ -133,6 +133,38 @@ export function useCentroCusto(edicaoId: string | null) {
         setData(d => ({ ...d, compostos }));
     }, [edicaoId]);
 
+    const renomearComposto = useCallback(async (id: string, nome: string) => {
+        if (!edicaoId) return;
+        await custosService.updateComposto(id, { nome });
+        const compostos = await custosService.getCompostos(edicaoId);
+        setData(d => ({ ...d, compostos }));
+    }, [edicaoId]);
+
+    const excluirComposto = useCallback(async (id: string) => {
+        if (!edicaoId) return;
+        await custosService.deleteComposto(id);
+        await recarregar();  // itens do espaço mudam de vínculo (SET NULL)
+    }, [edicaoId, recarregar]);
+
+    const renomearTemplate = useCallback(async (id: string, nome: string) => {
+        await custosService.updateTemplate(id, { nome });
+        const templates = await custosService.getEspacosTemplate();
+        setData(d => ({ ...d, templates }));
+    }, []);
+
+    /** "Excluir" padrão = arquivar (ativo=false): reversível, preserva histórico. */
+    const arquivarTemplate = useCallback(async (id: string) => {
+        await custosService.updateTemplate(id, { ativo: false });
+        const templates = await custosService.getEspacosTemplate();
+        setData(d => ({ ...d, templates }));
+    }, []);
+
+    /** Espaço exclusivo que deu certo vira padrão da biblioteca (RF-056). */
+    const promoverComposto = useCallback(async (id: string) => {
+        await custosService.promoverCompostoATemplate(id);
+        await recarregar();
+    }, [recarregar]);
+
     /** Sugestões da busca RF-049 para o autocomplete do descritivo (RF-058). */
     const buscarSugestoes = useCallback(async (termo: string): Promise<{ id: string }[]> => {
         const r = await custosService.buscarProdutos(termo, 20);
@@ -222,6 +254,7 @@ export function useCentroCusto(edicaoId: string | null) {
         recarregar,
         criarItem, atualizarItem, excluirItem, criarItensEmLote,
         salvarPerfil, salvarResposta, instanciarTemplate, criarCompostoExclusivo,
+        renomearComposto, excluirComposto, renomearTemplate, arquivarTemplate, promoverComposto,
         buscarSugestoes, registrarUso,
         criarPedido, importarCotacao, contratarLinha, salvarFornecedor,
         addTemplateItem, updateTemplateItem, deleteTemplateItem, createTemplate,

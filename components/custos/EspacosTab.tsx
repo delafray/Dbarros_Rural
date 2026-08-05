@@ -32,8 +32,13 @@ interface Props {
     onDeleteTemplateItem: (id: string) => Promise<void>;
     onCreateTemplate: (nome: string) => Promise<void>;
     onSetar: (templateId: string, nome: string, quantidade: number) => Promise<void>;
+    onRenomearTemplate: (id: string, nome: string) => Promise<void>;
+    onArquivarTemplate: (id: string) => Promise<void>;
     // evento (exclusivos e setados)
     onCriarExclusivo: (nome: string) => Promise<void>;
+    onRenomearComposto: (id: string, nome: string) => Promise<void>;
+    onExcluirComposto: (id: string) => Promise<void>;
+    onPromoverComposto: (id: string) => Promise<void>;
     onCriarItem: (input: Omit<CustoItemInput, 'edicao_id'>) => Promise<unknown>;
     onAtualizarItem: (id: string, patch: Partial<CustoItemInput>) => Promise<void>;
     onExcluirItem: (id: string) => Promise<void>;
@@ -43,7 +48,9 @@ export const EspacosTab: React.FC<Props> = ({
     grupos, produtos, templates, compostos, itens,
     buscarSugestoes, registrarUso,
     onAddTemplateItem, onUpdateTemplateItem, onDeleteTemplateItem, onCreateTemplate, onSetar,
-    onCriarExclusivo, onCriarItem, onAtualizarItem, onExcluirItem,
+    onRenomearTemplate, onArquivarTemplate,
+    onCriarExclusivo, onRenomearComposto, onExcluirComposto, onPromoverComposto,
+    onCriarItem, onAtualizarItem, onExcluirItem,
 }) => {
     const [abertoTpl, setAbertoTpl] = useState<string | null>(null);
     const [abertoComp, setAbertoComp] = useState<string | null>(null);
@@ -99,6 +106,23 @@ export const EspacosTab: React.FC<Props> = ({
                                 {tpl.porte && <span className="text-xs text-slate-400">{tpl.porte}</span>}
                                 <span className="text-xs text-slate-400">{tpl.itens.length} itens</span>
                                 <div className="ml-auto flex items-center gap-1">
+                                    <button
+                                        className="px-1 text-slate-400 hover:text-slate-700"
+                                        title="Renomear espaço padrão"
+                                        onClick={() => {
+                                            const nome = window.prompt('Novo nome do espaço padrão:', tpl.nome);
+                                            if (nome?.trim() && nome.trim() !== tpl.nome) void onRenomearTemplate(tpl.id, nome.trim());
+                                        }}
+                                    >✎</button>
+                                    <button
+                                        className="px-1 text-slate-400 hover:text-red-600"
+                                        title="Arquivar (some da biblioteca; reversível)"
+                                        onClick={() => {
+                                            if (window.confirm(`Arquivar o espaço padrão "${tpl.nome}"? Ele some da biblioteca (reversível no banco); eventos que já o usaram não mudam.`)) {
+                                                void onArquivarTemplate(tpl.id);
+                                            }
+                                        }}
+                                    >🗑</button>
                                     <input
                                         className="w-14 rounded border border-slate-300 px-2 py-1 text-right text-sm"
                                         placeholder="qtd"
@@ -192,6 +216,32 @@ export const EspacosTab: React.FC<Props> = ({
                                     </span>
                                     {comp.quantidade !== 1 && <span className="text-xs text-slate-400">× {comp.quantidade}</span>}
                                     <span className="text-xs text-slate-400">{nItens} itens</span>
+                                    <div className="ml-auto flex items-center gap-1">
+                                        {!comp.template_id && (
+                                            <Button variant="outline" onClick={() => {
+                                                if (window.confirm(`Promover "${comp.nome}" a espaço PADRÃO da biblioteca? O descritivo atual vira o modelo para todos os eventos.`)) {
+                                                    void onPromoverComposto(comp.id);
+                                                }
+                                            }}>Promover a padrão</Button>
+                                        )}
+                                        <button
+                                            className="px-1 text-slate-400 hover:text-slate-700"
+                                            title="Renomear espaço"
+                                            onClick={() => {
+                                                const nome = window.prompt('Novo nome do espaço:', comp.nome);
+                                                if (nome?.trim() && nome.trim() !== comp.nome) void onRenomearComposto(comp.id, nome.trim());
+                                            }}
+                                        >✎</button>
+                                        <button
+                                            className="px-1 text-slate-400 hover:text-red-600"
+                                            title="Excluir espaço deste evento"
+                                            onClick={() => {
+                                                if (window.confirm(`Excluir o espaço "${comp.nome}" deste evento? Os ${nItens} itens do descritivo CONTINUAM na grade, sem vínculo com o espaço.`)) {
+                                                    void onExcluirComposto(comp.id);
+                                                }
+                                            }}
+                                        >🗑</button>
+                                    </div>
                                 </div>
                                 {abertoComp === comp.id && (
                                     <div className="mt-2 rounded border border-slate-200 bg-white p-3">
