@@ -197,17 +197,10 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
                     itens={cc.itens}
                     buscarSugestoes={cc.buscarSugestoes}
                     registrarUso={cc.registrarUso}
-                    onAddTemplateItem={cc.addTemplateItem}
-                    onUpdateTemplateItem={cc.updateTemplateItem}
-                    onDeleteTemplateItem={cc.deleteTemplateItem}
-                    onCreateTemplate={cc.createTemplate}
                     onSetar={cc.instanciarTemplate}
-                    onRenomearTemplate={cc.renomearTemplate}
-                    onArquivarTemplate={cc.arquivarTemplate}
                     onCriarExclusivo={cc.criarCompostoExclusivo}
                     onRenomearComposto={cc.renomearComposto}
                     onExcluirComposto={cc.excluirComposto}
-                    onPromoverComposto={cc.promoverComposto}
                     onCriarItem={cc.criarItem}
                     onAtualizarItem={cc.atualizarItem}
                     onExcluirItem={cc.excluirItem}

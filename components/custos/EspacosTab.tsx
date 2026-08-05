@@ -1,8 +1,10 @@
 /**
- * Aba ESPAÇOS em duas zonas (RF-056): em cima os espaços PADRÃO da biblioteca
- * (o gestor "seta" para o evento = instancia cópia editável); abaixo os
- * espaços deste evento (setados e EXCLUSIVOS, criados aqui). Clicar num espaço
- * abre o descritivo — port literal do Prosperitas (RF-057, EspacoDescritivo).
+ * Aba ESPAÇOS em duas zonas (RF-056, regra do usuário 04/08): em cima os
+ * espaços PADRÃO da biblioteca — no evento são SÓ vitrine (prévia
+ * somente-leitura) + "Setar"; o molde se cadastra/edita em Cadastros
+ * (/custos/cadastros). Setar copia o descritivo para o evento; a CÓPIA é
+ * editada na zona de baixo e vale APENAS para aquele evento (junto com os
+ * espaços exclusivos), na tela portada do Prosperitas (RF-057).
  */
 
 import React, { useMemo, useState } from 'react';
@@ -16,7 +18,7 @@ import type {
     CustoProdutoGrupo,
 } from '../../types/custos';
 import type { ProdutoCatalogoLeve } from '../../utils/descritivoSugestoes';
-import { EspacoDescritivo, type DescritivoAddInput, type DescritivoItemVM } from './EspacoDescritivo';
+import { EspacoDescritivo, type DescritivoItemVM } from './EspacoDescritivo';
 
 interface Props {
     grupos: CustoProdutoGrupo[];
@@ -26,19 +28,12 @@ interface Props {
     itens: CustoItem[];
     buscarSugestoes: (termo: string) => Promise<{ id: string }[]>;
     registrarUso: (produtoId: string) => void;
-    // biblioteca (padrões)
-    onAddTemplateItem: (item: { template_id: string; descricao: string; quantidade: number; formato?: string | null; grupo_id?: string | null; produto_id?: string | null; ordem?: number }) => Promise<void>;
-    onUpdateTemplateItem: (id: string, patch: { quantidade?: number; formato?: string | null }) => Promise<void>;
-    onDeleteTemplateItem: (id: string) => Promise<void>;
-    onCreateTemplate: (nome: string) => Promise<void>;
+    // biblioteca (padrões): no evento é só vitrine + setar
     onSetar: (templateId: string, nome: string, quantidade: number) => Promise<void>;
-    onRenomearTemplate: (id: string, nome: string) => Promise<void>;
-    onArquivarTemplate: (id: string) => Promise<void>;
-    // evento (exclusivos e setados)
+    // evento (exclusivos e setados — a edição vale só para este evento)
     onCriarExclusivo: (nome: string) => Promise<void>;
     onRenomearComposto: (id: string, nome: string) => Promise<void>;
     onExcluirComposto: (id: string) => Promise<void>;
-    onPromoverComposto: (id: string) => Promise<void>;
     onCriarItem: (input: Omit<CustoItemInput, 'edicao_id'>) => Promise<unknown>;
     onAtualizarItem: (id: string, patch: Partial<CustoItemInput>) => Promise<void>;
     onExcluirItem: (id: string) => Promise<void>;
@@ -47,14 +42,12 @@ interface Props {
 export const EspacosTab: React.FC<Props> = ({
     grupos, produtos, templates, compostos, itens,
     buscarSugestoes, registrarUso,
-    onAddTemplateItem, onUpdateTemplateItem, onDeleteTemplateItem, onCreateTemplate, onSetar,
-    onRenomearTemplate, onArquivarTemplate,
-    onCriarExclusivo, onRenomearComposto, onExcluirComposto, onPromoverComposto,
+    onSetar,
+    onCriarExclusivo, onRenomearComposto, onExcluirComposto,
     onCriarItem, onAtualizarItem, onExcluirItem,
 }) => {
     const [abertoTpl, setAbertoTpl] = useState<string | null>(null);
     const [abertoComp, setAbertoComp] = useState<string | null>(null);
-    const [novoPadrao, setNovoPadrao] = useState('');
     const [novoExclusivo, setNovoExclusivo] = useState('');
     const [qtdSetar, setQtdSetar] = useState<Record<string, string>>({});
 
@@ -63,11 +56,11 @@ export const EspacosTab: React.FC<Props> = ({
         [produtos],
     );
 
-    const tplParaVM = (tpl: CustoEspacoTemplate & { itens: CustoEspacoTemplateItem[] }): DescritivoItemVM[] =>
-        tpl.itens.map(i => ({
-            id: i.id, grupo_id: i.grupo_id, produto_id: i.produto_id,
-            descricao: i.descricao, quantidade: i.quantidade, formato: i.formato, ordem: i.ordem,
-        }));
+    const nomeGrupo = (id: string | null) =>
+        grupos.find(g => g.id === id)?.nome ?? 'Sem grupo';
+
+    const unidadeDoProduto = (produtoId: string | null) =>
+        produtoId ? (produtos.find(p => p.id === produtoId)?.unidade ?? '') : '';
 
     const itensDoComposto = (compostoId: string): DescritivoItemVM[] =>
         itens.filter(i => i.composto_id === compostoId)
@@ -76,21 +69,18 @@ export const EspacosTab: React.FC<Props> = ({
                 descricao: i.descricao, quantidade: i.quantidade, formato: i.formato, ordem: 0,
             }));
 
-    const aoAdicionar = (input: DescritivoAddInput) => {
-        if (input.produto_id) registrarUso(input.produto_id);
-    };
-
     return (
         <div className="space-y-6">
-            {/* ── ZONA 1: padrões da biblioteca ─────────────────────────────── */}
+            {/* ── ZONA 1: padrões da biblioteca (vitrine — molde não se edita aqui) ── */}
             <Card className="p-4">
                 <div className="mb-1 flex items-center gap-2">
                     <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Espaços padrão</h2>
-                    <span className="text-xs text-slate-400">biblioteca da empresa — vale para todos os eventos</span>
+                    <span className="text-xs text-slate-400">biblioteca da empresa — cadastro/edição do molde em Cadastros</span>
                 </div>
                 <p className="mb-3 text-xs text-slate-500">
-                    Clique no nome para abrir o descritivo. <b>Setar</b> copia o espaço para este evento
-                    (a cópia é editável na zona de baixo, sem mexer no padrão).
+                    Clique no nome para VER o descritivo do molde. <b>Setar</b> copia o espaço para este
+                    evento — a cópia aparece na zona de baixo e as mudanças que você fizer nela valem
+                    <b> só para este evento</b>.
                 </p>
 
                 <div className="divide-y divide-slate-100">
@@ -106,23 +96,6 @@ export const EspacosTab: React.FC<Props> = ({
                                 {tpl.porte && <span className="text-xs text-slate-400">{tpl.porte}</span>}
                                 <span className="text-xs text-slate-400">{tpl.itens.length} itens</span>
                                 <div className="ml-auto flex items-center gap-1">
-                                    <button
-                                        className="px-1 text-slate-400 hover:text-slate-700"
-                                        title="Renomear espaço padrão"
-                                        onClick={() => {
-                                            const nome = window.prompt('Novo nome do espaço padrão:', tpl.nome);
-                                            if (nome?.trim() && nome.trim() !== tpl.nome) void onRenomearTemplate(tpl.id, nome.trim());
-                                        }}
-                                    >✎</button>
-                                    <button
-                                        className="px-1 text-slate-400 hover:text-red-600"
-                                        title="Arquivar (some da biblioteca; reversível)"
-                                        onClick={() => {
-                                            if (window.confirm(`Arquivar o espaço padrão "${tpl.nome}"? Ele some da biblioteca (reversível no banco); eventos que já o usaram não mudam.`)) {
-                                                void onArquivarTemplate(tpl.id);
-                                            }
-                                        }}
-                                    >🗑</button>
                                     <input
                                         className="w-14 rounded border border-slate-300 px-2 py-1 text-right text-sm"
                                         placeholder="qtd"
@@ -139,58 +112,51 @@ export const EspacosTab: React.FC<Props> = ({
                                 <p className="mt-0.5 text-xs text-slate-400">{tpl.descricao}</p>
                             )}
                             {abertoTpl === tpl.id && (
-                                <div className="mt-2 rounded border border-slate-200 bg-white p-3">
-                                    <EspacoDescritivo
-                                        idPrefix={`tpl-${tpl.id}`}
-                                        grupos={grupos}
-                                        produtos={produtos}
-                                        itens={tplParaVM(tpl)}
-                                        unidades={unidades}
-                                        buscarRemoto={buscarSugestoes}
-                                        onAdd={async input => {
-                                            aoAdicionar(input);
-                                            await onAddTemplateItem({
-                                                template_id: tpl.id,
-                                                grupo_id: input.grupo_id,
-                                                produto_id: input.produto_id,
-                                                descricao: input.descricao,
-                                                quantidade: input.quantidade,
-                                                formato: input.formato,
-                                                ordem: input.ordem,
-                                            });
-                                        }}
-                                        onUpdate={onUpdateTemplateItem}
-                                        onDelete={onDeleteTemplateItem}
-                                    />
+                                /* prévia SOMENTE-LEITURA do molde */
+                                <div className="mt-2 rounded border border-slate-200 bg-slate-50/60 p-3">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-xs uppercase text-slate-500">
+                                                <th className="py-1 pr-2">Qtd.</th>
+                                                <th className="py-1 pr-2">Uni.</th>
+                                                <th className="py-1 pr-2">Item</th>
+                                                <th className="py-1 pr-2">Formato</th>
+                                                <th className="py-1">Grupo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {[...tpl.itens].sort((a, b) => a.ordem - b.ordem).map(it => (
+                                                <tr key={it.id}>
+                                                    <td className="py-0.5 pr-2">{it.quantidade}</td>
+                                                    <td className="py-0.5 pr-2 text-xs text-slate-500">{unidadeDoProduto(it.produto_id)}</td>
+                                                    <td className="py-0.5 pr-2">{it.descricao}</td>
+                                                    <td className="py-0.5 pr-2 text-xs text-slate-500">{it.formato ?? ''}</td>
+                                                    <td className="py-0.5 text-xs text-slate-400">{nomeGrupo(it.grupo_id)}</td>
+                                                </tr>
+                                            ))}
+                                            {tpl.itens.length === 0 && (
+                                                <tr><td colSpan={5} className="py-1 text-xs text-slate-400">Molde sem descritivo — preencha em Cadastros.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                    <p className="mt-2 text-[11px] text-slate-400">
+                                        Para mudar o MOLDE (vale para todos os eventos): tela inicial → 🗂️ Cadastros → Espaços padrão.
+                                    </p>
                                 </div>
                             )}
                         </div>
                     ))}
-                </div>
-
-                <div className="mt-3 flex gap-2">
-                    <input
-                        className="flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm"
-                        placeholder="Novo espaço padrão (ex.: Camarote)"
-                        value={novoPadrao}
-                        onChange={e => setNovoPadrao(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter' && novoPadrao.trim()) {
-                                void onCreateTemplate(novoPadrao.trim()).then(() => setNovoPadrao(''));
-                            }
-                        }}
-                    />
-                    <Button variant="outline" onClick={async () => {
-                        if (novoPadrao.trim()) { await onCreateTemplate(novoPadrao.trim()); setNovoPadrao(''); }
-                    }}>+ Incluir espaço padrão</Button>
+                    {templates.length === 0 && (
+                        <p className="py-2 text-sm text-slate-400">Nenhum espaço padrão — cadastre em 🗂️ Cadastros.</p>
+                    )}
                 </div>
             </Card>
 
-            {/* ── ZONA 2: espaços deste evento ──────────────────────────────── */}
+            {/* ── ZONA 2: espaços deste evento (edição vale só para este evento) ── */}
             <Card className="p-4">
                 <div className="mb-1 flex items-center gap-2">
                     <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Espaços deste evento</h2>
-                    <span className="text-xs text-slate-400">setados da biblioteca ou exclusivos — edite à vontade</span>
+                    <span className="text-xs text-slate-400">setados da biblioteca ou exclusivos — edite à vontade, vale só aqui</span>
                 </div>
 
                 {compostos.length === 0 && (
@@ -217,16 +183,9 @@ export const EspacosTab: React.FC<Props> = ({
                                     {comp.quantidade !== 1 && <span className="text-xs text-slate-400">× {comp.quantidade}</span>}
                                     <span className="text-xs text-slate-400">{nItens} itens</span>
                                     <div className="ml-auto flex items-center gap-1">
-                                        {!comp.template_id && (
-                                            <Button variant="outline" onClick={() => {
-                                                if (window.confirm(`Promover "${comp.nome}" a espaço PADRÃO da biblioteca? O descritivo atual vira o modelo para todos os eventos.`)) {
-                                                    void onPromoverComposto(comp.id);
-                                                }
-                                            }}>Promover a padrão</Button>
-                                        )}
                                         <button
                                             className="px-1 text-slate-400 hover:text-slate-700"
-                                            title="Renomear espaço"
+                                            title="Renomear espaço (só neste evento)"
                                             onClick={() => {
                                                 const nome = window.prompt('Novo nome do espaço:', comp.nome);
                                                 if (nome?.trim() && nome.trim() !== comp.nome) void onRenomearComposto(comp.id, nome.trim());
@@ -253,7 +212,7 @@ export const EspacosTab: React.FC<Props> = ({
                                             unidades={unidades}
                                             buscarRemoto={buscarSugestoes}
                                             onAdd={async input => {
-                                                aoAdicionar(input);
+                                                if (input.produto_id) registrarUso(input.produto_id);
                                                 await onCriarItem({
                                                     composto_id: comp.id,
                                                     grupo_id: input.grupo_id,

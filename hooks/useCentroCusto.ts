@@ -146,25 +146,6 @@ export function useCentroCusto(edicaoId: string | null) {
         await recarregar();  // itens do espaço mudam de vínculo (SET NULL)
     }, [edicaoId, recarregar]);
 
-    const renomearTemplate = useCallback(async (id: string, nome: string) => {
-        await custosService.updateTemplate(id, { nome });
-        const templates = await custosService.getEspacosTemplate();
-        setData(d => ({ ...d, templates }));
-    }, []);
-
-    /** "Excluir" padrão = arquivar (ativo=false): reversível, preserva histórico. */
-    const arquivarTemplate = useCallback(async (id: string) => {
-        await custosService.updateTemplate(id, { ativo: false });
-        const templates = await custosService.getEspacosTemplate();
-        setData(d => ({ ...d, templates }));
-    }, []);
-
-    /** Espaço exclusivo que deu certo vira padrão da biblioteca (RF-056). */
-    const promoverComposto = useCallback(async (id: string) => {
-        await custosService.promoverCompostoATemplate(id);
-        await recarregar();
-    }, [recarregar]);
-
     /** Sugestões da busca RF-049 para o autocomplete do descritivo (RF-058). */
     const buscarSugestoes = useCallback(async (termo: string): Promise<{ id: string }[]> => {
         const r = await custosService.buscarProdutos(termo, 20);
@@ -203,27 +184,8 @@ export function useCentroCusto(edicaoId: string | null) {
         await recarregar();
     }, [recarregar]);
 
-    // ── Templates (editor do descritivo-padrão) ─────────────────────────────
-    const addTemplateItem = useCallback(async (item: Parameters<typeof custosService.addTemplateItem>[0]) => {
-        await custosService.addTemplateItem(item);
-        const templates = await custosService.getEspacosTemplate();
-        setData(d => ({ ...d, templates }));
-    }, []);
-    const updateTemplateItem = useCallback(async (id: string, patch: Parameters<typeof custosService.updateTemplateItem>[1]) => {
-        await custosService.updateTemplateItem(id, patch);
-        const templates = await custosService.getEspacosTemplate();
-        setData(d => ({ ...d, templates }));
-    }, []);
-    const deleteTemplateItem = useCallback(async (id: string) => {
-        await custosService.deleteTemplateItem(id);
-        const templates = await custosService.getEspacosTemplate();
-        setData(d => ({ ...d, templates }));
-    }, []);
-    const createTemplate = useCallback(async (nome: string) => {
-        await custosService.createTemplate({ nome });
-        const templates = await custosService.getEspacosTemplate();
-        setData(d => ({ ...d, templates }));
-    }, []);
+    // (gestão do descritivo-padrão saiu daqui: vive em useEspacosPadrao/Cadastros
+    //  — regra 04/08: dentro do evento não se edita o MOLDE, só a cópia setada)
 
     // ── Pagamentos (Q-009) ──────────────────────────────────────────────────
     const criarParcelas = useCallback(async (p: { valorTotal: number; parcelas: number; primeiroVencimento: string | null; contratacaoId?: string | null }) => {
@@ -254,10 +216,9 @@ export function useCentroCusto(edicaoId: string | null) {
         recarregar,
         criarItem, atualizarItem, excluirItem, criarItensEmLote,
         salvarPerfil, salvarResposta, instanciarTemplate, criarCompostoExclusivo,
-        renomearComposto, excluirComposto, renomearTemplate, arquivarTemplate, promoverComposto,
+        renomearComposto, excluirComposto,
         buscarSugestoes, registrarUso,
         criarPedido, importarCotacao, contratarLinha, salvarFornecedor,
-        addTemplateItem, updateTemplateItem, deleteTemplateItem, createTemplate,
         criarParcelas, marcarPago,
     };
 }
