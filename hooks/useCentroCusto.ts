@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { custosService, type CustoPagamento, type PedidoComItens } from '../services/custosService';
+import type { ProdutoCatalogoLeve } from '../utils/descritivoSugestoes';
 import type {
     CustoCategoria,
     CustoChecklistResposta,
@@ -17,6 +18,7 @@ import type {
     CustoItem,
     CustoItemInput,
     CustoPerfilEdicao,
+    CustoProdutoGrupo,
     CustoSecao,
 } from '../types/custos';
 
@@ -27,6 +29,8 @@ export interface CentroCustoData {
     secoes: CustoSecao[];
     fornecedores: CustoFornecedor[];
     templates: (CustoEspacoTemplate & { itens: CustoEspacoTemplateItem[] })[];
+    grupos: CustoProdutoGrupo[];
+    produtosCatalogo: ProdutoCatalogoLeve[];
     perfil: CustoPerfilEdicao | null;
     respostas: CustoChecklistResposta[];
     compostos: CustoComposto[];
@@ -38,7 +42,7 @@ export interface CentroCustoData {
 export function useCentroCusto(edicaoId: string | null) {
     const [data, setData] = useState<CentroCustoData>({
         carregando: true, erro: null,
-        categorias: [], secoes: [], fornecedores: [], templates: [],
+        categorias: [], secoes: [], fornecedores: [], templates: [], grupos: [], produtosCatalogo: [],
         perfil: null, respostas: [], compostos: [], itens: [], pedidos: [], pagamentos: [],
     });
 
@@ -46,12 +50,14 @@ export function useCentroCusto(edicaoId: string | null) {
         if (!edicaoId) return;
         setData(d => ({ ...d, carregando: true, erro: null }));
         try {
-            const [categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos, pagamentos] =
+            const [categorias, secoes, fornecedores, templates, grupos, produtosCatalogo, perfil, respostas, compostos, itens, pedidos, pagamentos] =
                 await Promise.all([
                     custosService.getCategorias(),
                     custosService.getSecoes(),
                     custosService.getFornecedores(),
                     custosService.getEspacosTemplate(),
+                    custosService.getGrupos(),
+                    custosService.getProdutosCatalogo(),
                     custosService.getPerfil(edicaoId),
                     custosService.getChecklist(edicaoId),
                     custosService.getCompostos(edicaoId),
@@ -61,7 +67,8 @@ export function useCentroCusto(edicaoId: string | null) {
                 ]);
             setData({
                 carregando: false, erro: null,
-                categorias, secoes, fornecedores, templates, perfil, respostas, compostos, itens, pedidos, pagamentos,
+                categorias, secoes, fornecedores, templates, grupos, produtosCatalogo,
+                perfil, respostas, compostos, itens, pedidos, pagamentos,
             });
         } catch (e) {
             setData(d => ({ ...d, carregando: false, erro: e instanceof Error ? e.message : String(e) }));
@@ -117,6 +124,30 @@ export function useCentroCusto(edicaoId: string | null) {
         await custosService.instanciarTemplate({ edicaoId, templateId, nome, quantidade });
         await recarregar();
     }, [edicaoId, recarregar]);
+
+    /** Espaço EXCLUSIVO do evento (RF-056). */
+    const criarCompostoExclusivo = useCallback(async (nome: string) => {
+        if (!edicaoId) return;
+        await custosService.createComposto({ edicaoId, nome });
+        const compostos = await custosService.getCompostos(edicaoId);
+        setData(d => ({ ...d, compostos }));
+    }, [edicaoId]);
+
+    /** Sugestões da busca RF-049 para o autocomplete do descritivo (RF-058). */
+    const buscarSugestoes = useCallback(async (termo: string): Promise<{ id: string }[]> => {
+        const r = await custosService.buscarProdutos(termo, 20);
+        return r.map(x => ({ id: x.id }));
+    }, []);
+
+    /** Seleção no autocomplete alimenta a probabilidade (RF-058). */
+    const registrarUso = useCallback((produtoId: string) => {
+        void custosService.registrarUsoProduto(produtoId).catch(() => { /* ranking é best-effort */ });
+        setData(d => ({
+            ...d,
+            produtosCatalogo: d.produtosCatalogo.map(p =>
+                p.id === produtoId ? { ...p, frequencia_uso: p.frequencia_uso + 1 } : p),
+        }));
+    }, []);
 
     // ── Cotações ────────────────────────────────────────────────────────────
     const criarPedido = useCallback(async (nome: string, categoriaId: string | null, itens: { itemId: string; quantidade: number }[]) => {
@@ -190,7 +221,8 @@ export function useCentroCusto(edicaoId: string | null) {
         ...data,
         recarregar,
         criarItem, atualizarItem, excluirItem, criarItensEmLote,
-        salvarPerfil, salvarResposta, instanciarTemplate,
+        salvarPerfil, salvarResposta, instanciarTemplate, criarCompostoExclusivo,
+        buscarSugestoes, registrarUso,
         criarPedido, importarCotacao, contratarLinha, salvarFornecedor,
         addTemplateItem, updateTemplateItem, deleteTemplateItem, createTemplate,
         criarParcelas, marcarPago,

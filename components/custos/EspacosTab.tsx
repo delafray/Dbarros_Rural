@@ -1,187 +1,246 @@
 /**
- * Editor do descritivo-padrão dos ESPAÇOS (RF-050): o que compõe um Stand 5x5,
- * um Bar, o CAEX — biblioteca da empresa, reutilizada em todo evento.
+ * Aba ESPAÇOS em duas zonas (RF-056): em cima os espaços PADRÃO da biblioteca
+ * (o gestor "seta" para o evento = instancia cópia editável); abaixo os
+ * espaços deste evento (setados e EXCLUSIVOS, criados aqui). Clicar num espaço
+ * abre o descritivo — port literal do Prosperitas (RF-057, EspacoDescritivo).
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button, Card } from '../UI';
-import type { CustoCategoria, CustoEspacoTemplate, CustoEspacoTemplateItem } from '../../types/custos';
+import type {
+    CustoComposto,
+    CustoEspacoTemplate,
+    CustoEspacoTemplateItem,
+    CustoItem,
+    CustoItemInput,
+    CustoProdutoGrupo,
+} from '../../types/custos';
+import type { ProdutoCatalogoLeve } from '../../utils/descritivoSugestoes';
+import { EspacoDescritivo, type DescritivoAddInput, type DescritivoItemVM } from './EspacoDescritivo';
 
 interface Props {
+    grupos: CustoProdutoGrupo[];
+    produtos: ProdutoCatalogoLeve[];
     templates: (CustoEspacoTemplate & { itens: CustoEspacoTemplateItem[] })[];
-    categorias: CustoCategoria[];
-    onAddItem: (item: { template_id: string; descricao: string; quantidade: number; formato?: string | null; categoria_id?: string | null }) => Promise<void>;
-    onUpdateItem: (id: string, patch: Partial<Pick<CustoEspacoTemplateItem, 'descricao' | 'quantidade' | 'formato' | 'categoria_id'>>) => Promise<void>;
-    onDeleteItem: (id: string) => Promise<void>;
+    compostos: CustoComposto[];
+    itens: CustoItem[];
+    buscarSugestoes: (termo: string) => Promise<{ id: string }[]>;
+    registrarUso: (produtoId: string) => void;
+    // biblioteca (padrões)
+    onAddTemplateItem: (item: { template_id: string; descricao: string; quantidade: number; formato?: string | null; grupo_id?: string | null; produto_id?: string | null; ordem?: number }) => Promise<void>;
+    onUpdateTemplateItem: (id: string, patch: { quantidade?: number; formato?: string | null }) => Promise<void>;
+    onDeleteTemplateItem: (id: string) => Promise<void>;
     onCreateTemplate: (nome: string) => Promise<void>;
-    onInstanciar: (templateId: string, nome: string, quantidade: number) => Promise<void>;
+    onSetar: (templateId: string, nome: string, quantidade: number) => Promise<void>;
+    // evento (exclusivos e setados)
+    onCriarExclusivo: (nome: string) => Promise<void>;
+    onCriarItem: (input: Omit<CustoItemInput, 'edicao_id'>) => Promise<unknown>;
+    onAtualizarItem: (id: string, patch: Partial<CustoItemInput>) => Promise<void>;
+    onExcluirItem: (id: string) => Promise<void>;
 }
 
 export const EspacosTab: React.FC<Props> = ({
-    templates, categorias, onAddItem, onUpdateItem, onDeleteItem, onCreateTemplate, onInstanciar,
+    grupos, produtos, templates, compostos, itens,
+    buscarSugestoes, registrarUso,
+    onAddTemplateItem, onUpdateTemplateItem, onDeleteTemplateItem, onCreateTemplate, onSetar,
+    onCriarExclusivo, onCriarItem, onAtualizarItem, onExcluirItem,
 }) => {
-    const [novoItem, setNovoItem] = useState<Record<string, { descricao: string; qtd: string; formato: string; cat: string }>>({});
-    const [novoEspaco, setNovoEspaco] = useState('');
-    const [qtdInstancia, setQtdInstancia] = useState<Record<string, string>>({});
+    const [abertoTpl, setAbertoTpl] = useState<string | null>(null);
+    const [abertoComp, setAbertoComp] = useState<string | null>(null);
+    const [novoPadrao, setNovoPadrao] = useState('');
+    const [novoExclusivo, setNovoExclusivo] = useState('');
+    const [qtdSetar, setQtdSetar] = useState<Record<string, string>>({});
 
-    const campo = (tplId: string) =>
-        novoItem[tplId] ?? { descricao: '', qtd: '', formato: '', cat: '' };
+    const unidades = useMemo(
+        () => [...new Set(produtos.map(p => p.unidade).filter(Boolean))].sort(),
+        [produtos],
+    );
 
-    const adicionar = async (tplId: string) => {
-        const c = campo(tplId);
-        if (!c.descricao.trim()) return;
-        await onAddItem({
-            template_id: tplId,
-            descricao: c.descricao.trim(),
-            quantidade: Number(c.qtd.replace(',', '.')) || 1,
-            formato: c.formato.trim() || null,
-            categoria_id: c.cat || null,
-        });
-        setNovoItem(m => ({ ...m, [tplId]: { descricao: '', qtd: '', formato: '', cat: c.cat } }));
+    const tplParaVM = (tpl: CustoEspacoTemplate & { itens: CustoEspacoTemplateItem[] }): DescritivoItemVM[] =>
+        tpl.itens.map(i => ({
+            id: i.id, grupo_id: i.grupo_id, produto_id: i.produto_id,
+            descricao: i.descricao, quantidade: i.quantidade, formato: i.formato, ordem: i.ordem,
+        }));
+
+    const itensDoComposto = (compostoId: string): DescritivoItemVM[] =>
+        itens.filter(i => i.composto_id === compostoId)
+            .map(i => ({
+                id: i.id, grupo_id: i.grupo_id, produto_id: i.produto_id,
+                descricao: i.descricao, quantidade: i.quantidade, formato: i.formato, ordem: 0,
+            }));
+
+    const aoAdicionar = (input: DescritivoAddInput) => {
+        if (input.produto_id) registrarUso(input.produto_id);
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
+            {/* ── ZONA 1: padrões da biblioteca ─────────────────────────────── */}
             <Card className="p-4">
-                <p className="text-xs text-slate-500">
-                    Estes são os modelos da EMPRESA (valem para todos os eventos). O que você definir aqui é o
-                    que o wizard instancia — ex.: Stand 5x5 = tenda + piso + mobiliário + testeira + elétrica.
-                    Cada item tem a sua <b>categoria</b>: é ela que decide com quem se cota
-                    (piso com um fornecedor, programação visual com outro).
+                <div className="mb-1 flex items-center gap-2">
+                    <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Espaços padrão</h2>
+                    <span className="text-xs text-slate-400">biblioteca da empresa — vale para todos os eventos</span>
+                </div>
+                <p className="mb-3 text-xs text-slate-500">
+                    Clique no nome para abrir o descritivo. <b>Setar</b> copia o espaço para este evento
+                    (a cópia é editável na zona de baixo, sem mexer no padrão).
                 </p>
-                <div className="mt-2 flex gap-2">
+
+                <div className="divide-y divide-slate-100">
+                    {templates.map(tpl => (
+                        <div key={tpl.id} className="py-2">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    className="text-left font-semibold text-slate-800 hover:text-emerald-700"
+                                    onClick={() => setAbertoTpl(a => (a === tpl.id ? null : tpl.id))}
+                                >
+                                    {abertoTpl === tpl.id ? '▾ ' : '▸ '}{tpl.nome}
+                                </button>
+                                {tpl.porte && <span className="text-xs text-slate-400">{tpl.porte}</span>}
+                                <span className="text-xs text-slate-400">{tpl.itens.length} itens</span>
+                                <div className="ml-auto flex items-center gap-1">
+                                    <input
+                                        className="w-14 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                                        placeholder="qtd"
+                                        value={qtdSetar[tpl.id] ?? ''}
+                                        onChange={e => setQtdSetar(m => ({ ...m, [tpl.id]: e.target.value }))}
+                                    />
+                                    <Button variant="outline" onClick={() => {
+                                        const n = Number(qtdSetar[tpl.id]) || 1;
+                                        void onSetar(tpl.id, tpl.nome, n);
+                                    }}>Setar neste evento</Button>
+                                </div>
+                            </div>
+                            {tpl.descricao && abertoTpl !== tpl.id && (
+                                <p className="mt-0.5 text-xs text-slate-400">{tpl.descricao}</p>
+                            )}
+                            {abertoTpl === tpl.id && (
+                                <div className="mt-2 rounded border border-slate-200 bg-white p-3">
+                                    <EspacoDescritivo
+                                        idPrefix={`tpl-${tpl.id}`}
+                                        grupos={grupos}
+                                        produtos={produtos}
+                                        itens={tplParaVM(tpl)}
+                                        unidades={unidades}
+                                        buscarRemoto={buscarSugestoes}
+                                        onAdd={async input => {
+                                            aoAdicionar(input);
+                                            await onAddTemplateItem({
+                                                template_id: tpl.id,
+                                                grupo_id: input.grupo_id,
+                                                produto_id: input.produto_id,
+                                                descricao: input.descricao,
+                                                quantidade: input.quantidade,
+                                                formato: input.formato,
+                                                ordem: input.ordem,
+                                            });
+                                        }}
+                                        onUpdate={onUpdateTemplateItem}
+                                        onDelete={onDeleteTemplateItem}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-3 flex gap-2">
                     <input
                         className="flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm"
-                        placeholder="Novo espaço (ex.: Camarote)"
-                        value={novoEspaco}
-                        onChange={e => setNovoEspaco(e.target.value)}
+                        placeholder="Novo espaço padrão (ex.: Camarote)"
+                        value={novoPadrao}
+                        onChange={e => setNovoPadrao(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && novoPadrao.trim()) {
+                                void onCreateTemplate(novoPadrao.trim()).then(() => setNovoPadrao(''));
+                            }
+                        }}
                     />
                     <Button variant="outline" onClick={async () => {
-                        if (novoEspaco.trim()) { await onCreateTemplate(novoEspaco.trim()); setNovoEspaco(''); }
-                    }}>+ Criar espaço</Button>
+                        if (novoPadrao.trim()) { await onCreateTemplate(novoPadrao.trim()); setNovoPadrao(''); }
+                    }}>+ Incluir espaço padrão</Button>
                 </div>
             </Card>
 
-            {templates.map(tpl => (
-                <Card key={tpl.id} className="p-4">
-                    <div className="mb-2 flex items-center gap-2">
-                        <h3 className="font-semibold">{tpl.nome}</h3>
-                        <span className="text-xs text-slate-400">{tpl.itens.length} itens no descritivo</span>
-                        <div className="ml-auto flex items-center gap-1">
-                            <input
-                                className="w-16 rounded border border-slate-300 px-2 py-1 text-right text-sm"
-                                placeholder="qtd"
-                                value={qtdInstancia[tpl.id] ?? ''}
-                                onChange={e => setQtdInstancia(m => ({ ...m, [tpl.id]: e.target.value }))}
-                            />
-                            <Button variant="outline" onClick={() => {
-                                const n = Number(qtdInstancia[tpl.id]) || 1;
-                                void onInstanciar(tpl.id, tpl.nome, n);
-                            }}>Instanciar neste evento</Button>
-                        </div>
-                    </div>
+            {/* ── ZONA 2: espaços deste evento ──────────────────────────────── */}
+            <Card className="p-4">
+                <div className="mb-1 flex items-center gap-2">
+                    <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Espaços deste evento</h2>
+                    <span className="text-xs text-slate-400">setados da biblioteca ou exclusivos — edite à vontade</span>
+                </div>
 
-                    <table className="min-w-full text-sm">
-                        <thead className="text-left text-xs uppercase text-slate-500">
-                            <tr>
-                                <th className="py-1">Item</th>
-                                <th className="py-1">Formato</th>
-                                <th className="py-1 text-right">Qtde</th>
-                                <th className="py-1">Categoria (com quem cota)</th>
-                                <th className="w-8" />
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {tpl.itens.sort((a, b) => a.ordem - b.ordem || a.criado_em.localeCompare(b.criado_em)).map(it => (
-                                <tr key={it.id}>
-                                    <td className="py-1 pr-2">
-                                        <input
-                                            className="w-full bg-transparent text-sm outline-none focus:bg-amber-50"
-                                            defaultValue={it.descricao}
-                                            onBlur={e => e.target.value !== it.descricao &&
-                                                void onUpdateItem(it.id, { descricao: e.target.value })}
-                                        />
-                                    </td>
-                                    <td className="py-1 pr-2">
-                                        <input
-                                            className="w-full bg-transparent text-sm outline-none focus:bg-amber-50"
-                                            defaultValue={it.formato ?? ''}
-                                            onBlur={e => (e.target.value || null) !== it.formato &&
-                                                void onUpdateItem(it.id, { formato: e.target.value || null })}
-                                        />
-                                    </td>
-                                    <td className="py-1 text-right">
-                                        <input
-                                            className="w-16 bg-transparent text-right text-sm outline-none focus:bg-amber-50"
-                                            defaultValue={String(it.quantidade)}
-                                            onBlur={e => {
-                                                const n = Number(e.target.value.replace(',', '.'));
-                                                if (Number.isFinite(n) && n > 0 && n !== it.quantidade) {
-                                                    void onUpdateItem(it.id, { quantidade: n });
-                                                }
-                                            }}
-                                        />
-                                    </td>
-                                    <td className="py-1">
-                                        <select
-                                            className="w-full bg-transparent text-xs"
-                                            value={it.categoria_id ?? ''}
-                                            onChange={e => void onUpdateItem(it.id, { categoria_id: e.target.value || null })}
-                                        >
-                                            <option value="">—</option>
-                                            {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                        </select>
-                                    </td>
-                                    <td className="text-center">
-                                        <button className="text-slate-300 hover:text-red-500"
-                                            onClick={() => void onDeleteItem(it.id)}>×</button>
-                                    </td>
-                                </tr>
-                            ))}
-                            <tr className="bg-amber-50/40">
-                                <td className="py-1 pr-2">
-                                    <input
-                                        className="w-full bg-transparent text-sm outline-none"
-                                        placeholder="+ item do descritivo (Enter salva)"
-                                        value={campo(tpl.id).descricao}
-                                        onChange={e => setNovoItem(m => ({ ...m, [tpl.id]: { ...campo(tpl.id), descricao: e.target.value } }))}
-                                        onKeyDown={e => e.key === 'Enter' && void adicionar(tpl.id)}
-                                    />
-                                </td>
-                                <td className="py-1 pr-2">
-                                    <input
-                                        className="w-full bg-transparent text-sm outline-none"
-                                        placeholder="5x5, m2…"
-                                        value={campo(tpl.id).formato}
-                                        onChange={e => setNovoItem(m => ({ ...m, [tpl.id]: { ...campo(tpl.id), formato: e.target.value } }))}
-                                        onKeyDown={e => e.key === 'Enter' && void adicionar(tpl.id)}
-                                    />
-                                </td>
-                                <td className="py-1 text-right">
-                                    <input
-                                        className="w-16 bg-transparent text-right text-sm outline-none"
-                                        placeholder="1"
-                                        value={campo(tpl.id).qtd}
-                                        onChange={e => setNovoItem(m => ({ ...m, [tpl.id]: { ...campo(tpl.id), qtd: e.target.value } }))}
-                                        onKeyDown={e => e.key === 'Enter' && void adicionar(tpl.id)}
-                                    />
-                                </td>
-                                <td className="py-1">
-                                    <select
-                                        className="w-full bg-transparent text-xs"
-                                        value={campo(tpl.id).cat}
-                                        onChange={e => setNovoItem(m => ({ ...m, [tpl.id]: { ...campo(tpl.id), cat: e.target.value } }))}
+                {compostos.length === 0 && (
+                    <p className="py-2 text-sm text-slate-400">
+                        Nenhum espaço no evento ainda — sete um padrão acima ou crie um exclusivo abaixo.
+                    </p>
+                )}
+
+                <div className="divide-y divide-slate-100">
+                    {compostos.map(comp => {
+                        const nItens = itens.filter(i => i.composto_id === comp.id).length;
+                        return (
+                            <div key={comp.id} className="py-2">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        className="text-left font-semibold text-slate-800 hover:text-emerald-700"
+                                        onClick={() => setAbertoComp(a => (a === comp.id ? null : comp.id))}
                                     >
-                                        <option value="">categoria…</option>
-                                        {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                    </select>
-                                </td>
-                                <td />
-                            </tr>
-                        </tbody>
-                    </table>
-                </Card>
-            ))}
+                                        {abertoComp === comp.id ? '▾ ' : '▸ '}{comp.nome}
+                                    </button>
+                                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${comp.template_id ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
+                                        {comp.template_id ? 'do padrão' : 'exclusivo'}
+                                    </span>
+                                    {comp.quantidade !== 1 && <span className="text-xs text-slate-400">× {comp.quantidade}</span>}
+                                    <span className="text-xs text-slate-400">{nItens} itens</span>
+                                </div>
+                                {abertoComp === comp.id && (
+                                    <div className="mt-2 rounded border border-slate-200 bg-white p-3">
+                                        <EspacoDescritivo
+                                            idPrefix={`comp-${comp.id}`}
+                                            grupos={grupos}
+                                            produtos={produtos}
+                                            itens={itensDoComposto(comp.id)}
+                                            unidades={unidades}
+                                            buscarRemoto={buscarSugestoes}
+                                            onAdd={async input => {
+                                                aoAdicionar(input);
+                                                await onCriarItem({
+                                                    composto_id: comp.id,
+                                                    grupo_id: input.grupo_id,
+                                                    produto_id: input.produto_id,
+                                                    descricao: input.descricao,
+                                                    quantidade: input.quantidade,
+                                                    formato: input.formato,
+                                                    unidade: input.unidade ?? 'un',
+                                                });
+                                            }}
+                                            onUpdate={async (id, patch) => onAtualizarItem(id, patch)}
+                                            onDelete={onExcluirItem}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                    <input
+                        className="flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm"
+                        placeholder="Novo espaço exclusivo deste evento (ex.: Stand da Rádio)"
+                        value={novoExclusivo}
+                        onChange={e => setNovoExclusivo(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && novoExclusivo.trim()) {
+                                void onCriarExclusivo(novoExclusivo.trim()).then(() => setNovoExclusivo(''));
+                            }
+                        }}
+                    />
+                    <Button variant="outline" onClick={async () => {
+                        if (novoExclusivo.trim()) { await onCriarExclusivo(novoExclusivo.trim()); setNovoExclusivo(''); }
+                    }}>+ Incluir espaço exclusivo</Button>
+                </div>
+            </Card>
         </div>
     );
 };

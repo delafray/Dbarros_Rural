@@ -339,6 +339,7 @@ export const custosService = {
                 edicao_id: params.edicaoId,
                 composto_id: composto.id,
                 categoria_id: t.categoria_id,
+                grupo_id: t.grupo_id ?? null,
                 produto_id: t.produto_id,
                 descricao: t.descricao,
                 formato: t.formato,
@@ -348,6 +349,25 @@ export const custosService = {
             if (e3) throw e3;
         }
         return composto;
+    },
+
+    /** Espaço EXCLUSIVO do evento (RF-056): composto sem template. */
+    async createComposto(params: {
+        edicaoId: string; nome: string; quantidade?: number; porte?: string | null;
+    }): Promise<CustoComposto> {
+        const { data, error } = await db
+            .from('custos_compostos')
+            .insert({
+                edicao_id: params.edicaoId,
+                template_id: null,
+                nome: params.nome,
+                quantidade: params.quantidade ?? 1,
+                porte: params.porte ?? null,
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     },
 
     // ── Itens: a grade (digitou-salvou) ─────────────────────────────────────

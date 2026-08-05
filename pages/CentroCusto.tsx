@@ -185,13 +185,22 @@ const Workspace: React.FC<{ edicaoId: string }> = ({ edicaoId }) => {
             )}
             {aba === 'espacos' && (
                 <EspacosTab
+                    grupos={cc.grupos}
+                    produtos={cc.produtosCatalogo}
                     templates={cc.templates}
-                    categorias={cc.categorias}
-                    onAddItem={cc.addTemplateItem}
-                    onUpdateItem={cc.updateTemplateItem}
-                    onDeleteItem={cc.deleteTemplateItem}
+                    compostos={cc.compostos}
+                    itens={cc.itens}
+                    buscarSugestoes={cc.buscarSugestoes}
+                    registrarUso={cc.registrarUso}
+                    onAddTemplateItem={cc.addTemplateItem}
+                    onUpdateTemplateItem={cc.updateTemplateItem}
+                    onDeleteTemplateItem={cc.deleteTemplateItem}
                     onCreateTemplate={cc.createTemplate}
-                    onInstanciar={cc.instanciarTemplate}
+                    onSetar={cc.instanciarTemplate}
+                    onCriarExclusivo={cc.criarCompostoExclusivo}
+                    onCriarItem={cc.criarItem}
+                    onAtualizarItem={cc.atualizarItem}
+                    onExcluirItem={cc.excluirItem}
                 />
             )}
             {aba === 'dashboard' && (
