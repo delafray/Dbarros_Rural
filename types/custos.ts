@@ -55,12 +55,40 @@ export interface CustoFornecedor {
     criado_em: string;
 }
 
+/** Grupo de produto (import Prosperitas): as SEÇÕES da tela de descritivo (RF-057). */
+export interface CustoProdutoGrupo {
+    id: string;
+    nome: string;            // "Tenda / Telhado", "Montagem", "Elétrica"...
+    ordem: number | null;
+    prosperitas_id: number | null;
+    ativo: boolean;
+    criado_em: string;
+}
+
+/** Unidade de medida (import Prosperitas): Unid., m², m, m³... */
+export interface CustoUnidade {
+    id: string;
+    nome: string;
+    sigla: string;
+    prosperitas_id: number | null;
+    ativo: boolean;
+    criado_em: string;
+}
+
 export interface CustoProduto {
     id: string;
     nome: string;
     descricao: string | null;
     unidade: string;
     categoria_id: string | null;
+    grupo_id: string | null;       // seção do descritivo (import Prosperitas)
+    unidade_id: string | null;
+    preco_locacao: number | null;  // referência do catálogo (valor_locacao)
+    preco_custo: number | null;
+    consumo_kva: number | null;    // liga com RF-022 (carga elétrica)
+    observacao: string | null;
+    prosperitas_id: number | null;
+    origem: string;                // 'prosperitas' | 'seed' | 'pesquisa' | 'manual'
     frequencia_uso: number;  // ranking do autocomplete (RF-031/049)
     ativo: boolean;
     criado_em: string;
@@ -89,6 +117,7 @@ export interface CustoEspacoTemplateItem {
     template_id: string;
     produto_id: string | null;
     categoria_id: string | null;
+    grupo_id: string | null;       // seção do descritivo (Bloco 19)
     descricao: string;
     quantidade: number;
     formato: string | null;
@@ -142,6 +171,7 @@ export interface CustoItem {
     composto_id: string | null;
     categoria_id: string | null;
     secao_id: string | null;       // centro de custo (RF-055)
+    grupo_id: string | null;       // seção do descritivo de espaço (Bloco 19)
     produto_id: string | null;
     descricao: string;
     formato: string | null;
@@ -168,7 +198,7 @@ export interface CustoItem {
 
 /** Campos editáveis pela grade (o resto é do banco/trigger). */
 export type CustoItemInput = Partial<Pick<CustoItem,
-    | 'composto_id' | 'categoria_id' | 'secao_id' | 'produto_id' | 'descricao' | 'formato'
+    | 'composto_id' | 'categoria_id' | 'secao_id' | 'grupo_id' | 'produto_id' | 'descricao' | 'formato'
     | 'quantidade' | 'fator' | 'fator_rotulo' | 'unidade' | 'porte'
     | 'alocacao' | 'driver_rateio' | 'percentual_rateio' | 'avulso'
     | 'prazo_limite' | 'status' | 'preco_unitario_orcado'

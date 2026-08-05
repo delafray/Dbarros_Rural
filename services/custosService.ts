@@ -9,8 +9,10 @@
 
 import { supabase } from './supabaseClient';
 import { limparCNPJ, validarCNPJ } from '../utils/parseBR';
+import type { ProdutoCatalogoLeve } from '../utils/descritivoSugestoes';
 import type {
     CustoCategoria,
+    CustoProdutoGrupo,
     CustoSecao,
     CustoChecklistResposta,
     CustoComposto,
@@ -119,6 +121,28 @@ export const custosService = {
             .single();
         if (error) throw error;
         return data;
+    },
+
+    /** Grupos de produto (import Prosperitas) — as seções da tela de descritivo (RF-057). */
+    async getGrupos(): Promise<CustoProdutoGrupo[]> {
+        const { data, error } = await db
+            .from('custos_produto_grupos')
+            .select('*')
+            .eq('ativo', true)
+            .order('ordem', { ascending: true, nullsFirst: false });
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /** Catálogo leve para o autocomplete por seção (RF-057/058). */
+    async getProdutosCatalogo(): Promise<ProdutoCatalogoLeve[]> {
+        const { data, error } = await db
+            .from('custos_produtos')
+            .select('id, nome, unidade, grupo_id, frequencia_uso, ativo')
+            .eq('ativo', true)
+            .order('frequencia_uso', { ascending: false });
+        if (error) throw error;
+        return data ?? [];
     },
 
     /** Busca "Mercado Livre" (RF-049): typo, sinônimo, prefixo, popularidade. */
@@ -460,18 +484,26 @@ export const custosService = {
     // ── Descritivo-padrão dos espaços (RF-050 — editor de template) ─────────
     async addTemplateItem(item: {
         template_id: string; descricao: string; quantidade: number;
-        formato?: string | null; categoria_id?: string | null; produto_id?: string | null; ordem?: number;
+        formato?: string | null; categoria_id?: string | null; grupo_id?: string | null;
+        produto_id?: string | null; ordem?: number;
     }): Promise<CustoEspacoTemplateItem> {
         const { data, error } = await db
             .from('custos_espaco_template_itens')
-            .insert({ ...item, formato: item.formato ?? null, categoria_id: item.categoria_id ?? null, produto_id: item.produto_id ?? null, ordem: item.ordem ?? 0 })
+            .insert({
+                ...item,
+                formato: item.formato ?? null,
+                categoria_id: item.categoria_id ?? null,
+                grupo_id: item.grupo_id ?? null,
+                produto_id: item.produto_id ?? null,
+                ordem: item.ordem ?? 0,
+            })
             .select()
             .single();
         if (error) throw error;
         return data;
     },
 
-    async updateTemplateItem(id: string, patch: Partial<Pick<CustoEspacoTemplateItem, 'descricao' | 'quantidade' | 'formato' | 'categoria_id' | 'ordem'>>): Promise<CustoEspacoTemplateItem> {
+    async updateTemplateItem(id: string, patch: Partial<Pick<CustoEspacoTemplateItem, 'descricao' | 'quantidade' | 'formato' | 'categoria_id' | 'grupo_id' | 'ordem'>>): Promise<CustoEspacoTemplateItem> {
         const { data, error } = await db
             .from('custos_espaco_template_itens')
             .update(patch)
