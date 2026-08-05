@@ -1,6 +1,42 @@
-# PLANO DE EXECUÇÃO — Centro de Custo do Evento (v1)
+# PLANO DE EXECUÇÃO — Centro de Custo do Evento
 
-> **OPERATIVO desde 04/08/2026** — consolidação do Fable sobre os 3 planos Opus
+> **Parte 1 (abaixo): RECOMEÇO — plano vigente (04/08/2026, sessão da noite).**
+> **Parte 2 (final): plano da v1 — EXECUTADO, mantido como referência.**
+
+---
+
+# PARTE 1 — PLANO DO RECOMEÇO (vigente)
+
+> Origem: usuário decidiu recomeçar pelo "início certo" (`RECOMECO-2026-08-04.md`).
+> Início definido até agora: **cadastros-base e ESPAÇOS primeiro** — catálogo
+> real do Prosperitas + biblioteca de espaços das planilhas reais + tela de
+> descritivo idêntica ao Prosperitas modificado (RF-056/057/058). Tudo que a
+> v1 construiu por baixo (banco, motor, testes) é aproveitado.
+> Regra dos blocos SQL mantida: um bloco por vez — **nunca dois pendentes**.
+
+## Fases do recomeço
+
+| Fase | Entrega | Estado |
+|---|---|---|
+| **R0. Dados reais no banco** | Import do catálogo Prosperitas (340 produtos, 13 grupos, unidades, frequência real) ✅ APLICADO · **Bloco 19** (grupo nos descritivos) · **Bloco 20** (13 templates reais das 96 planilhas, 84 itens) | ✅ import · ⏳ Bloco 19 → depois Bloco 20 (nesta ordem, um por vez) |
+| **R1. Port literal da tela de descritivo** (RF-057/058) | `ProdutoAutocomplete` + tela de descritivo por seções de grupo, cópia fiel do Prosperitas modificado ("mesmas configurações"); fonte do autocomplete = `custos_buscar_produtos` (RF-049) filtrada por grupo + incremento de `frequencia_uso` na seleção; service + testes (cobertura travada) | aguarda R0 confirmado |
+| **R2. Aba Espaços em duas zonas** (RF-056) | Listagem única: padrões da biblioteca em cima ("setar" = instanciar cópia editável no evento), exclusivos do evento abaixo (criar/modificar ali); substitui a `EspacosTab.tsx` v1 ("bagunçada"); usa `custos_compostos.template_id` (NULL = exclusivo) | depois de R1 |
+| **R3. Limpeza seletiva do catálogo seed** | Purga SÓ dos seeds ESTRUTURAIS redundantes com o catálogo real (Tenda 5x5 seed × Tenda piramidal 5,00x5,00m...); os NÃO-estruturais FICAM (embrião de Julgamento/Diversos — decisão 04/08) | decisão do usuário item a item |
+| **R4. Seções além da Estrutura** | Julgamento (por raça: jurados, kit RF-023, premiação, taxas de associação) e Diversos como conteúdo da grade por seção (RF-055); itens virão das planilhas de custos reais e de relatos "que vão chegar" (lista aberta) | aguarda insumos do usuário |
+| **R5. Redesenho do fluxo do evento** | Rever o wizard/fluxo da v1 a partir do início certo completo — **pendente o usuário descrever a ordem certa de uso ponta a ponta** (pergunta do RECOMEÇO, respondida só em parte: espaços primeiro) | aguarda o usuário |
+
+## O que NÃO muda no recomeço
+
+Banco/motor/testes da v1 (25 tabelas, 76 policies, custosCalc, parseBR,
+xlsx travado, busca); v2 registrada (PDF cliente RF-054, snapshot RF-037,
+previsão RF-046, de-para UI RF-045, feed, ABC); modo de trabalho (IA executa,
+blocos unitários, commits pequenos, ~90% cobertura, guardiã da especificação).
+
+---
+
+# PARTE 2 — PLANO DA v1 (EXECUTADO em 04/08/2026; referência)
+
+> Consolidação do Fable sobre os 3 planos Opus
 > (rel. 69-banco, 70-entrega, 71-qualidade). Substitui `PLANO-MODULO-CUSTOS-EVENTO.md`.
 > Modo: IA executa tudo; **SQL vai ao usuário em blocos unitários** (aplica no
 > Supabase → confirma → próximo). Branch `feature-modulo-custos`. ~90% de
