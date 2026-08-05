@@ -12,8 +12,11 @@ import { limparCNPJ, validarCNPJ } from '../utils/parseBR';
 import type { ProdutoCatalogoLeve } from '../utils/descritivoSugestoes';
 import type {
     CustoCategoria,
+    CustoProduto,
     CustoProdutoGrupo,
+    CustoProdutoNomeHistorico,
     CustoSecao,
+    CustoUnidade,
     CustoChecklistResposta,
     CustoComposto,
     CustoEspacoTemplate,
@@ -143,6 +146,136 @@ export const custosService = {
             .order('frequencia_uso', { ascending: false });
         if (error) throw error;
         return data ?? [];
+    },
+
+    /** Unidades de medida (import Prosperitas): Unid., m², m³... */
+    async getUnidades(): Promise<CustoUnidade[]> {
+        const { data, error } = await db
+            .from('custos_unidades')
+            .select('*')
+            .eq('ativo', true)
+            .order('sigla');
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    // ── Gestão de produtos (RF-059 — tela inicial) ──────────────────────────
+    /** Catálogo completo para a gestão (inclui inativos). */
+    async getProdutosGestao(): Promise<CustoProduto[]> {
+        const { data, error } = await db
+            .from('custos_produtos')
+            .select('*')
+            .order('nome');
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /** Histórico de renomeações (subitem do nome original, RF-059). */
+    async getNomeHistorico(): Promise<CustoProdutoNomeHistorico[]> {
+        const { data, error } = await db
+            .from('custos_produto_nome_historico')
+            .select('*')
+            .order('alterado_em');
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /** Onde o produto está em uso — decide trava de exclusão (RF-059). */
+    async contarUsoProduto(produtoId: string): Promise<{ emEventos: number; emTemplates: number }> {
+        const { count: emEventos, error: e1 } = await db
+            .from('custos_itens')
+            .select('id', { count: 'exact', head: true })
+            .eq('produto_id', produtoId);
+        if (e1) throw e1;
+        const { count: emTemplates, error: e2 } = await db
+            .from('custos_espaco_template_itens')
+            .select('id', { count: 'exact', head: true })
+            .eq('produto_id', produtoId);
+        if (e2) throw e2;
+        return { emEventos: emEventos ?? 0, emTemplates: emTemplates ?? 0 };
+    },
+
+    async createProduto(p: {
+        nome: string; grupo_id?: string | null; categoria_id?: string | null;
+        unidade?: string; unidade_id?: string | null; descricao?: string | null;
+    }): Promise<CustoProduto> {
+        const nome = p.nome.trim();
+        if (!nome) throw new Error('Produto precisa de nome');
+        const { data, error } = await db
+            .from('custos_produtos')
+            .insert({
+                nome,
+                descricao: p.descricao ?? null,
+                unidade: p.unidade || 'un',
+                unidade_id: p.unidade_id ?? null,
+                grupo_id: p.grupo_id ?? null,
+                categoria_id: p.categoria_id ?? null,
+                origem: 'manual',
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Renomeia preservando o nome original no histórico (RF-059): o subitem
+     * "nome original" aparece na gestão e o hover mostra a modificação.
+     * Registra SEMPRE (cobre "em evento passado" como subconjunto).
+     */
+    async renomearProduto(id: string, novoNome: string): Promise<CustoProduto> {
+        const nome = novoNome.trim();
+        if (!nome) throw new Error('Nome não pode ser vazio');
+        const { data: atual, error: e1 } = await db
+            .from('custos_produtos')
+            .select('id, nome')
+            .eq('id', id)
+            .single();
+        if (e1) throw e1;
+        if (atual.nome === nome) return atual;
+
+        const { error: e2 } = await db
+            .from('custos_produto_nome_historico')
+            .insert({ produto_id: id, nome_anterior: atual.nome, nome_novo: nome });
+        if (e2) throw e2;
+
+        const { data, error: e3 } = await db
+            .from('custos_produtos')
+            .update({ nome })
+            .eq('id', id)
+            .select()
+            .single();
+        if (e3) throw e3;
+        return data;
+    },
+
+    /**
+     * Exclusão com a trava do usuário: "se tiver em algum evento não posso
+     * excluir". Em uso → erro EM_USO (a UI oferece desativar).
+     */
+    async deleteProduto(id: string): Promise<void> {
+        const uso = await this.contarUsoProduto(id);
+        if (uso.emEventos > 0 || uso.emTemplates > 0) {
+            const onde = [
+                uso.emEventos > 0 ? `${uso.emEventos} item(ns) de evento` : null,
+                uso.emTemplates > 0 ? `${uso.emTemplates} descritivo(s) de espaço padrão` : null,
+            ].filter(Boolean).join(' e ');
+            throw new Error(`EM_USO: produto está em ${onde} — desative em vez de excluir`);
+        }
+        const { error } = await db.from('custos_produtos').delete().eq('id', id);
+        if (error) throw error;
+    },
+
+    /** Desativar/reativar (a alternativa segura à exclusão). */
+    async setProdutoAtivo(id: string, ativo: boolean): Promise<CustoProduto> {
+        const { data, error } = await db
+            .from('custos_produtos')
+            .update({ ativo })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     },
 
     /** Busca "Mercado Livre" (RF-049): typo, sinônimo, prefixo, popularidade. */

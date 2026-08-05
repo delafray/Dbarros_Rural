@@ -94,6 +94,16 @@ export interface CustoProduto {
     criado_em: string;
 }
 
+/** Renomeação de produto (RF-059): o nome original vira subitem preservado. */
+export interface CustoProdutoNomeHistorico {
+    id: string;
+    produto_id: string;
+    nome_anterior: string;
+    nome_novo: string;
+    alterado_em: string;
+    alterado_por: string | null;
+}
+
 /** Resultado da RPC custos_buscar_produtos (busca "Mercado Livre", RF-049). */
 export interface CustoProdutoBusca {
     id: string;

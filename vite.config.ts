@@ -105,9 +105,12 @@ export default defineConfig(() => {
           'utils/custosCalc.ts',
           'utils/parseBR.ts',
           'utils/descritivoSugestoes.ts',
+          'utils/produtosGestao.ts',
           'services/custosService.ts',
           'services/fornecedoresService.ts',
-          'hooks/useCustos*.ts',
+          // hooks ficam FORA da régua: são orquestradores finos (padrão do
+          // repo, como as páginas) e não há ambiente jsdom para testá-los —
+          // toda lógica testável deles vive em utils/ e services/ (cobertos)
         ],
         thresholds: {
           lines: 90,
