@@ -65,6 +65,40 @@ Além disso:
 - Tudo que a IA extrai é **sugestão a validar** por humano — conversa de grupo é ambígua.
 - Foto de nota fiscal no grupo pode virar lançamento de custo sugerido (mesmo funil).
 
+## Evolução (05/08/2026): de secretária a GERENTE do grupo
+
+O bot não só anota — **cruza o WhatsApp com o sistema** e garante que os dois contem a
+mesma história (mata o problema clássico de "ninguém alimenta o sistema no calor do evento"):
+
+- **Direção 1 — Zap sabe, sistema não (baixa proposta):** alguém fala "já resolveu" no
+  grupo → bot cruza com a tarefa aberta e propõe: *"Vi que o fio do som foi resolvido às
+  17h07. Dou baixa? Responde SIM."* → baixa gravada com hora, autor e a mensagem do grupo
+  como evidência. Mesmo Permission Loop do bot de frota (propor → confirmar → gravar).
+- **Direção 2 — sistema sabe, Zap esqueceu (cobrança ativa):** varredura agendada (cron,
+  ex.: 8h e 15h) por tarefas sem baixa, decisões com prazo estourando, lançamentos
+  previstos sem confirmação → devolve ao grupo **em lote** com menções:
+  *"📋 3 pendências sem baixa: (1) gerador — @beto, prazo ontem 16h; (2) contratação X —
+  prazo hoje; (3) entrega Di Maria sem confirmação."*
+
+Calibragens (regras de negócio a definir por evento): cobrança em lote 2×/dia, nunca
+pingada; quem pode confirmar baixa (qualquer um / responsável / coordenador); o que é
+grave o bastante para cobrança imediata fora do lote (ex.: falta d'água na madrugada);
+baixa proposta ≠ baixa dada — humano sempre confirma.
+
+**Posicionamento que isso destrava:** não é "IA que anota o grupo" — é *"gerente de
+evento que garante que o sistema e a realidade contam a mesma história"*.
+
+## Base já construída: SISTEMA_DE_FROTA (leitura em 05/08/2026)
+
+`C:\Users\ronal\Documents\Antigravity\SISTEMA_DE_FROTA` — sistema de frota em produção,
+já vendido via kit de implantação, com ~80-90% do pipeline deste assistente pronto:
+Evolution API v2.3.7 (Oracle Cloud VM) + webhook Next.js/Vercel + Supabase +
+Gemini 2.5 Flash com tools + **Deepgram nova-3 (áudio)** + **GPT-4o Vision (fotos)** +
+Cloudflare R2 + Permission Loop + multi-tenant por `empresa_id` + cron. Docs:
+`framework/INDEX.md`. O que falta para o caso evento: escuta passiva de GRUPO
+(parser/router hoje são 1-a-1), modo silencioso com regras de intervenção, extração de
+tarefas com janela de contexto maior, resumo diário e a varredura de reconciliação acima.
+
 ## Encaixe no produto
 
 Diferencial forte para o pacote por evento (projeto 3D + descritivo + sistema): nenhum
