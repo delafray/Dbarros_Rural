@@ -110,7 +110,7 @@ const Login: React.FC = () => {
             Por favor, acesse pelo <strong>computador</strong>.
           </p>
         </div>
-        <p className="mt-6 text-xs text-slate-400 text-center">
+        <p className="mt-6 text-[10px] text-slate-400 text-center">
           &copy; {new Date().getFullYear()} {getOwnerName()}
           <br />
           licenciado para Dbarros Rural
@@ -187,7 +187,7 @@ const Login: React.FC = () => {
         </div>
       </Card>
 
-      <p className="mt-8 text-sm text-slate-400 text-center">
+      <p className="mt-8 text-xs text-slate-400 text-center">
         &copy; {new Date().getFullYear()} {getOwnerName()}
         <br />
         licenciado para Dbarros Rural. Todos os direitos reservados.
