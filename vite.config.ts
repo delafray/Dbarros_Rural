@@ -1,42 +1,10 @@
 /// <reference types="vitest/config" />
 import path from 'path';
-import { execSync } from 'child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// ── Git: captura os ultimos 10 commits no build time ──────────────────────────
-function getGitCommits(): { hash: string; date: string; author: string; subject: string; files: { status: string; path: string }[] }[] {
-  try {
-    const SEP = '@@COMMIT@@';
-    const raw = execSync(
-      `git log -10 --pretty=format:"${SEP}%h|%ai|%an|%s" --name-status`,
-      { encoding: 'utf-8', timeout: 5000 },
-    );
-    return raw
-      .split(SEP)
-      .filter(Boolean)
-      .map((block) => {
-        const lines = block.trim().split('\n');
-        const [hash, date, author, ...subjectParts] = lines[0].split('|');
-        const subject = subjectParts.join('|'); // caso o subject tenha '|'
-        const files = lines
-          .slice(1)
-          .filter((l) => /^[AMDRC]\t/.test(l))
-          .map((l) => {
-            const [status, ...pathParts] = l.split('\t');
-            return { status: status.charAt(0), path: pathParts.join('\t') };
-          });
-        return { hash: hash.trim(), date: date.trim(), author: author.trim(), subject: subject.trim(), files };
-      });
-  } catch {
-    console.warn('[vite] git log nao disponivel — git_history sera vazio no backup');
-    return [];
-  }
-}
-
 export default defineConfig(() => {
-  const gitCommits = getGitCommits();
   return {
     server: {
       port: 3001,
@@ -85,11 +53,9 @@ export default defineConfig(() => {
         },
       }),
     ],
-    define: {
-      // GEMINI_API_KEY removido do define: nenhum código usa e injetar chave de
-      // API no bundle do cliente a exporia publicamente.
-      '__GIT_COMMITS__': JSON.stringify(gitCommits),
-    },
+    // define: GEMINI_API_KEY e __GIT_COMMITS__ removidos — nada de segredo nem
+    // metadado do git (mensagens/arquivos de commit) vai para o bundle publico
+    // (auditoria F12 de 14/08/2026; o historico vive no GitHub privado).
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

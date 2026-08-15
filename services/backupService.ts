@@ -32,39 +32,10 @@ const MIGRATION_FILES: { filename: string; content: string }[] = Object.entries(
     }))
     .sort((a, b) => a.filename.localeCompare(b.filename));
 
-// ── Git: ultimos 10 commits injetados no build time ─────────────────────────
-const GIT_COMMITS: GitCommit[] = typeof __GIT_COMMITS__ !== 'undefined' ? __GIT_COMMITS__ : [];
-
-const STATUS_LABELS: Record<string, string> = { A: 'Adicionado', M: 'Modificado', D: 'Removido', R: 'Renomeado', C: 'Copiado' };
-
-function slugify(text: string): string {
-    return text
-        .toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_|_$/g, '')
-        .slice(0, 60);
-}
-
-function generateCommitMd(c: GitCommit): string {
-    const lines = [
-        `# ${c.subject}`,
-        ``,
-        `- **Hash:** ${c.hash}`,
-        `- **Data:** ${c.date}`,
-        `- **Autor:** ${c.author}`,
-        ``,
-    ];
-    if (c.files.length > 0) {
-        lines.push(`## Arquivos alterados`, ``, `| Status | Arquivo |`, `|--------|---------|`);
-        for (const f of c.files) {
-            lines.push(`| ${STATUS_LABELS[f.status] ?? f.status} | ${f.path} |`);
-        }
-    } else {
-        lines.push(`_Nenhum arquivo alterado registrado._`);
-    }
-    return lines.join('\n');
-}
+// ── Git history: REMOVIDO do bundle (auditoria F12 de 14/08/2026) ────────────
+// As mensagens de commit e listas de arquivos alterados eram injetadas via
+// __GIT_COMMITS__ e vazavam metadados internos no chunk publico. O historico
+// completo vive no repositorio privado do GitHub (ver SOURCE_POINTER).
 
 // ── Fallback: lista de tabelas caso backup_introspect() nao esteja disponivel ─
 // Usada apenas se a funcao RPC ainda nao foi criada no banco.
@@ -492,9 +463,8 @@ Se os UUIDs mudarem, tudo quebra. Execute SEMPRE na ordem indicada.
 - ${functionsCount} funcoes PostgreSQL (DDL completo extraido ao vivo do banco)
 - ${policiesCount} politicas RLS (extraidas ao vivo — arquivo idempotente)
 - Todos os arquivos do Storage (fotos, documentos)
-- Ponteiro para o codigo-fonte (repositorio privado no GitHub — o fonte nao e
-  mais embutido no site publico por seguranca)
-- Historico git dos ultimos 10 commits (com lista de arquivos alterados)
+- Ponteiro para o codigo-fonte e o historico git (repositorio privado no
+  GitHub — nada disso e mais embutido no site publico por seguranca)
 - Este guia de restauracao
 
 ### Senhas apos restauracao
@@ -519,9 +489,7 @@ Sistema_Dbarros_Rural_Backup_completo_${dateStr}.zip
 ├── schema_migrations/
 │   └── *.sql (${MIGRATION_FILES.length} arquivos — referencia individual)
 ├── source_code/
-│   └── LEIA-ME-CODIGO-FONTE.md <- Ponteiro: o fonte vive no repositorio privado (GitHub)
-├── git_history/
-│   └── YYYY-MM-DD/          <- Ultimos 10 commits (1 .md por commit com arquivos alterados)
+│   └── LEIA-ME-CODIGO-FONTE.md <- Ponteiro: fonte e historico git vivem no repositorio privado (GitHub)
 └── storage_backup/
 ${storageLines}
 \`\`\`
@@ -870,7 +838,6 @@ ORDER BY policyname;
 | Funcoes SQL | Auto-exportadas em 5_functions_ddl.sql (DDL extraido ao vivo do banco) |
 | Politicas RLS | Auto-exportadas em 6_rls_policies.sql (pg_policies extraido ao vivo) |
 | Storage URLs | Apos migrar o projeto execute o UPDATE do Passo 10 |
-| Git History | Pasta git_history/ contem os 10 ultimos commits com detalhes de arquivos alterados |
 | psql externo | psql -h HOST -U USER -d DB -f 4_database_backup.sql |
 `;
 }
@@ -1075,17 +1042,6 @@ export const backupService = {
         onProgress?.({ phase: 'source', label: 'Incluindo ponteiro do codigo-fonte...', pct: 80 });
         zip.file('source_code/LEIA-ME-CODIGO-FONTE.md', SOURCE_POINTER);
         onProgress?.({ phase: 'source', label: 'Ponteiro do codigo-fonte incluido', pct: 85 });
-
-        // ── Git history (85–88%) ─────────────────────────────────────────────
-        if (GIT_COMMITS.length > 0) {
-            onProgress?.({ phase: 'source', label: `Incluindo historico git (${GIT_COMMITS.length} commits)...`, pct: 86 });
-            for (const commit of GIT_COMMITS) {
-                const dateFolder = commit.date.slice(0, 10); // YYYY-MM-DD
-                const slug = slugify(commit.subject);
-                const filename = `git_history/${dateFolder}/${commit.hash}_${slug}.md`;
-                zip.file(filename, generateCommitMd(commit));
-            }
-        }
 
         // ── RESTORE_GUIDE.md dentro do ZIP ────────────────────────────────────
         zip.file('RESTORE_GUIDE.md', generateRestoreGuide(
