@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { assertUpload } from '../../utils/uploadValidation';
 import type { TablesInsert, TablesUpdate } from '../../database.types';
 import type { Photo } from '../../types';
 
@@ -144,6 +145,7 @@ export const photoService = {
     },
 
     uploadPhotoFile: async (userId: string, file: File) => {
+        assertUpload(file, 'imageOrVideo');
         const fileExt = file.name.split('.').pop();
         const randomSuffix = Math.random().toString(36).substring(2, 7);
         const filePath = `${userId}/${Date.now()}_${randomSuffix}.${fileExt}`;

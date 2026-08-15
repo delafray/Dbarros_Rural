@@ -1,6 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck - table 'cardapio_projetos' not yet in generated types (database.types.ts)
 import { supabase } from './supabaseClient';
+import { assertUpload } from '../utils/uploadValidation';
 import type { CardapioTema } from '../utils/cardapioTema';
 import type { FontesA3 } from '../components/a3Duplo/a3DuploLayout';
 
@@ -125,6 +126,7 @@ export const cardapioProjetosService = {
    * URL pública (mesmo padrão de photoService.uploadPhotoFile).
    */
   async uploadAsset(file: File, tipo: CardapioAssetTipo): Promise<string> {
+    assertUpload(file, 'image');
     const fileExt = file.name.split('.').pop();
     const randomSuffix = Math.random().toString(36).substring(2, 7);
     const filePath = `${tipo}/${Date.now()}_${randomSuffix}.${fileExt}`;

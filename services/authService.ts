@@ -263,6 +263,24 @@ export const authService = {
         return (data as string | null) ?? null;
     },
 
+    /**
+     * Sincroniza o BAN da credencial no Supabase Auth (auth.users.banned_until)
+     * com o estado de ativação (auditoria F12 de 14/08/2026, Parte D4).
+     * Sem isto, desativar um usuário só bloqueava DENTRO do app — a senha
+     * continuava logando direto contra a API de auth por fora do site.
+     * Best-effort: se a RPC ainda não existir (Bloco SQL 27 não aplicado), o
+     * bloqueio por is_active + realtime segue valendo; apenas registra o aviso.
+     */
+    async setAuthBan(userId: string, banned: boolean): Promise<void> {
+        const { error } = await (supabase as any).rpc('set_user_ban', {
+            target_user_id: userId,
+            banned,
+        });
+        if (error) {
+            console.warn(`[seguranca] set_user_ban falhou (aplique o Bloco 27 no Supabase): ${error.message}`);
+        }
+    },
+
     /** Atualiza campos permitidos de um usuário. */
     async updateUser(id: string, updates: Partial<User>): Promise<void> {
         const dbUpdates: Partial<DbUser> = {};
@@ -289,6 +307,11 @@ export const authService = {
             .eq('id', id);
 
         if (error) throw error;
+
+        // Espelha a ativação no ban da credencial (D4): inativo → banido.
+        if (updates.isActive !== undefined) {
+            await this.setAuthBan(id, updates.isActive === false);
+        }
     },
 
     /**
@@ -367,6 +390,9 @@ export const authService = {
             .eq('id', userId);
 
         if (error) throw new Error('Erro ao encerrar usuário temporário');
+
+        // Bane a credencial no Auth para a senha não logar por fora do app (D4)
+        await this.setAuthBan(userId, true);
     },
 
     /** Exclui permanentemente um usuário (public e auth) via RPC. */

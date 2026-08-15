@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { assertUpload } from '../utils/uploadValidation';
 
 const BUCKET = 'edicao-docs';
 
@@ -6,6 +7,7 @@ export type DocTipo = 'proposta_comercial' | 'planta_baixa';
 
 export const edicaoDocsService = {
     async upload(edicaoId: string, tipo: DocTipo, file: File): Promise<string> {
+        assertUpload(file, 'document');
         const ext = file.name.split('.').pop() || 'pdf';
         const newPath = `${edicaoId}/${tipo}.${ext}`;
         const column = tipo === 'proposta_comercial' ? 'proposta_comercial_path' : 'planta_baixa_path';
