@@ -17,6 +17,15 @@ export const FORCE_LOGOUT_MESSAGES = {
   EXPIRED: 'Sua conta temporária expirou.',
 } as const;
 
+/**
+ * URL pública do app em produção (Vercel).
+ * Única fonte para links enviados a terceiros (WhatsApp de acesso temporário).
+ * O domínio antigo dbarros.vercel.app morreu — auditoria de 14/08/2026.
+ */
+export const APP_PUBLIC_URL = 'https://dbarros-rural.vercel.app';
+/** Versão exibível do domínio (sem protocolo), para telas */
+export const APP_PUBLIC_HOST = APP_PUBLIC_URL.replace('https://', '');
+
 /** Buckets de storage do Supabase */
 export const STORAGE_BUCKETS = [
   'photos',

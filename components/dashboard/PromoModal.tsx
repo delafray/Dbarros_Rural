@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authService, User } from '../../services/authService';
 import { PromoModalState } from '../../hooks/usePromoModal';
+import { APP_PUBLIC_URL, APP_PUBLIC_HOST } from '../../utils/constants';
 
 interface PromoModalProps {
     promoModal: NonNullable<PromoModalState>;
@@ -119,7 +120,7 @@ export const PromoModal: React.FC<PromoModalProps> = ({
                                         const login = existingVisitor.email.replace('@temp.local', '');
                                         const senha = existingPassword ?? '(não disponível)';
                                         const expira = existingVisitor.expiresAt ? new Date(existingVisitor.expiresAt).toLocaleDateString('pt-BR') : '—';
-                                        const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${promoModal.edicao.titulo}*:\n\n🔗 *Link:* https://dbarros.vercel.app/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${senha}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
+                                        const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${promoModal.edicao.titulo}*:\n\n🔗 *Link:* ${APP_PUBLIC_URL}/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${senha}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
                                         navigator.clipboard.writeText(msg);
                                     }}
                                     className="w-full flex items-center justify-center gap-2 py-3 text-xs font-black text-white bg-slate-800 hover:bg-slate-950 transition-colors rounded-lg"
@@ -197,7 +198,7 @@ export const PromoModal: React.FC<PromoModalProps> = ({
                                     </div>
                                     <div className="bg-blue-50 border border-blue-100 p-2.5 rounded-lg">
                                         <span className="text-[9px] font-black text-blue-600 uppercase block mb-0.5">Acesso em</span>
-                                        <span className="text-[10px] font-black text-blue-800">dbarros.vercel.app</span>
+                                        <span className="text-[10px] font-black text-blue-800">{APP_PUBLIC_HOST}</span>
                                     </div>
                                 </div>
                             </div>
@@ -206,7 +207,7 @@ export const PromoModal: React.FC<PromoModalProps> = ({
                                     onClick={() => {
                                         const login = promoCreated.user.email.replace('@temp.local', '');
                                         const expira = new Date(promoCreated.user.expiresAt!).toLocaleDateString('pt-BR');
-                                        const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${promoModal.edicao.titulo}*:\n\n🔗 *Link:* https://dbarros.vercel.app/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${promoCreated.passwordRaw}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
+                                        const msg = `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${promoModal.edicao.titulo}*:\n\n🔗 *Link:* ${APP_PUBLIC_URL}/#/login\n👤 *Usuário:* ${login}\n🔑 *Senha:* ${promoCreated.passwordRaw}\n\n📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
                                         navigator.clipboard.writeText(msg);
                                     }}
                                     className="w-full flex items-center justify-center gap-2 py-3 text-xs font-black text-white bg-slate-800 hover:bg-slate-950 transition-colors rounded-lg"

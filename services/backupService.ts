@@ -5,49 +5,25 @@ import { supabase } from './supabaseClient';
 // Nao e necessario atualizar este arquivo ao criar novas migrations.
 const migModules = import.meta.glob('../supabase/migrations/*.sql', { query: '?raw', import: 'default', eager: true });
 
-// ── Auto-discovery do codigo-fonte via Vite glob ────────────────────────────
-// Embutido no build para inclusao no backup ZIP.
-// Exclui node_modules, dist, .git — apenas codigo-fonte do projeto.
-//
-// SEGURANCA: este glob acaba servido no chunk publico assets/backupService-*.js,
-// logo qualquer visitante do site pode baixar tudo o que estiver aqui. Por isso
-// NAO incluir codigo sensivel do lado servidor:
-//   - '../supabase/**/*.ts'  → as Edge Functions (ex.: passkey-auth) revelariam a
-//     logica de autenticacao/service_role para um atacante.
-//   - '../supabase/**/*.sql' → as migrations ja entram no ZIP via `migModules`
-//     (usadas no restore de schema); nao precisam ser duplicadas aqui.
-//   - '../vite.config.ts'    → configuracao de build, sem valor para o usuario final.
-const sourceModules = import.meta.glob(
-    [
-        '../pages/**/*.{ts,tsx}',
-        '../components/**/*.{ts,tsx}',
-        '../hooks/**/*.{ts,tsx}',
-        '../services/**/*.{ts,tsx}',
-        '../context/**/*.{ts,tsx}',
-        '../utils/**/*.{ts,tsx}',
-        '../App.tsx',
-        '../index.tsx',
-        '../index.css',
-        '../types.ts',
-        '../database.types.ts',
-        '../version.ts',
-        '../vite-env.d.ts',
-        '../tsconfig.json',
-        '../package.json',
-        '../index.html',
-        '../CLAUDE.md',
-        '../README.md',
-    ],
-    { query: '?raw', import: 'default', eager: true }
-);
-
-const SOURCE_FILES: { relativePath: string; content: string }[] = Object.entries(sourceModules)
-    .map(([path, content]) => ({
-        // Remove o prefixo '../' para ter caminho relativo ao projeto
-        relativePath: path.replace(/^\.\.\//, ''),
-        content: content as string,
-    }))
-    .sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+// ── Codigo-fonte: NAO e mais embutido no bundle ──────────────────────────────
+// SEGURANCA (auditoria F12 de 14/08/2026): o glob ?raw que vivia aqui servia
+// TODO o codigo-fonte (incluindo o modulo de custos e o CLAUDE.md) como texto
+// no chunk publico assets/backupService-*.js (~2 MB) — qualquer visitante
+// anonimo do site podia baixar e ler. O ZIP agora leva um PONTEIRO para o
+// repositorio privado; dados, migrations, funcoes e policies continuam no
+// backup normalmente (essenciais ao restore).
+const SOURCE_POINTER = [
+    '# Codigo-fonte — ponteiro',
+    '',
+    'O codigo-fonte NAO acompanha mais este ZIP: ele era embutido no bundle',
+    'publico do site e qualquer visitante conseguia baixa-lo (vazamento fechado',
+    'na auditoria de 14/08/2026).',
+    '',
+    'Fonte completo, com historico de commits, no repositorio privado:',
+    'https://github.com/delafray/Dbarros_Rural (owner: delafray)',
+    '',
+    'Clone: git clone https://github.com/delafray/Dbarros_Rural.git',
+].join('\n');
 
 const MIGRATION_FILES: { filename: string; content: string }[] = Object.entries(migModules)
     .map(([path, content]) => ({
@@ -516,7 +492,8 @@ Se os UUIDs mudarem, tudo quebra. Execute SEMPRE na ordem indicada.
 - ${functionsCount} funcoes PostgreSQL (DDL completo extraido ao vivo do banco)
 - ${policiesCount} politicas RLS (extraidas ao vivo — arquivo idempotente)
 - Todos os arquivos do Storage (fotos, documentos)
-- Codigo-fonte completo do projeto (pages, components, hooks, services, etc.)
+- Ponteiro para o codigo-fonte (repositorio privado no GitHub — o fonte nao e
+  mais embutido no site publico por seguranca)
 - Historico git dos ultimos 10 commits (com lista de arquivos alterados)
 - Este guia de restauracao
 
@@ -542,14 +519,7 @@ Sistema_Dbarros_Rural_Backup_completo_${dateStr}.zip
 ├── schema_migrations/
 │   └── *.sql (${MIGRATION_FILES.length} arquivos — referencia individual)
 ├── source_code/
-│   ├── pages/              <- Telas do app
-│   ├── components/         <- Componentes reutilizaveis
-│   ├── hooks/              <- Hooks customizados
-│   ├── services/           <- Logica de dados e APIs
-│   ├── context/            <- Context providers
-│   ├── utils/              <- Utilitarios
-│   ├── supabase/           <- Migrations e edge functions
-│   └── *.tsx, *.ts, *.json <- Arquivos raiz (App, config, types)
+│   └── LEIA-ME-CODIGO-FONTE.md <- Ponteiro: o fonte vive no repositorio privado (GitHub)
 ├── git_history/
 │   └── YYYY-MM-DD/          <- Ultimos 10 commits (1 .md por commit com arquivos alterados)
 └── storage_backup/
@@ -1101,15 +1071,10 @@ export const backupService = {
             );
         }
 
-        // ── Codigo-fonte (80–88%) ───────────────────────────────────────────────
-        onProgress?.({ phase: 'source', label: `Incluindo codigo-fonte (${SOURCE_FILES.length} arquivos)...`, pct: 80 });
-
-        for (let i = 0; i < SOURCE_FILES.length; i++) {
-            const sf = SOURCE_FILES[i];
-            zip.file(`source_code/${sf.relativePath}`, sf.content);
-        }
-
-        onProgress?.({ phase: 'source', label: `Codigo-fonte: ${SOURCE_FILES.length} arquivos incluidos`, pct: 85 });
+        // ── Codigo-fonte: apenas o ponteiro (fonte nao vai mais no bundle) ─────
+        onProgress?.({ phase: 'source', label: 'Incluindo ponteiro do codigo-fonte...', pct: 80 });
+        zip.file('source_code/LEIA-ME-CODIGO-FONTE.md', SOURCE_POINTER);
+        onProgress?.({ phase: 'source', label: 'Ponteiro do codigo-fonte incluido', pct: 85 });
 
         // ── Git history (85–88%) ─────────────────────────────────────────────
         if (GIT_COMMITS.length > 0) {
@@ -1154,7 +1119,7 @@ export const backupService = {
 
         onProgress?.({
             phase: 'done',
-            label: `Backup concluido! ${tables.length} tabelas, ${allFiles.length} arquivo(s) de storage, ${SOURCE_FILES.length} arquivos de codigo-fonte.`,
+            label: `Backup concluido! ${tables.length} tabelas, ${allFiles.length} arquivo(s) de storage, ponteiro do codigo-fonte incluido.`,
             pct: 100,
         });
     },

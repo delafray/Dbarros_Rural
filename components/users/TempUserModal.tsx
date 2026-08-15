@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Modal, Button } from '../UI';
 import { User } from '../../services/authService';
 import { TempUserModalProps } from './types';
+import { APP_PUBLIC_HOST } from '../../utils/constants';
 import { useTempUserFlow } from '../../hooks/useTempUserFlow';
 
 export const TempUserModal: React.FC<TempUserModalProps> = ({
@@ -124,7 +125,7 @@ export const TempUserModal: React.FC<TempUserModalProps> = ({
                         <div className="bg-blue-50 border-2 border-blue-100 p-3 flex flex-col justify-center">
                             <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Endereço de Acesso</span>
                             <span className="text-[11px] font-black text-blue-800 leading-none">
-                                dbarros.vercel.app
+                                {APP_PUBLIC_HOST}
                             </span>
                         </div>
                     </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { authService, User } from '../services/authService';
 import { AlertType } from '../components/AlertModal';
+import { APP_PUBLIC_URL } from '../utils/constants';
 
 interface UseTempUserFlowOptions {
     users: User[];
@@ -86,7 +87,7 @@ export function useTempUserFlow({
         const message =
             `*Acesso Temporário - Dbarros Rural*\n\n` +
             `Olá! Segue seu acesso de visitante:\n\n` +
-            `🔗 *Link:* https://dbarros.vercel.app/#/login\n` +
+            `🔗 *Link:* ${APP_PUBLIC_URL}/#/login\n` +
             `👤 *Usuário:* ${createdTempUser.user.email.replace('@temp.local', '')}\n` +
             `🔑 *Senha:* ${createdTempUser.passwordRaw}\n\n` +
             `📅 *Válido até:* ${new Date(createdTempUser.user.expiresAt!).toLocaleDateString()}\n\n` +
@@ -105,7 +106,7 @@ export function useTempUserFlow({
             : '—';
         const msg =
             `*Acesso Temporário - Dbarros Rural*\n\nOlá! Segue seu acesso de visitante para *${edicaoNome}*:\n\n` +
-            `🔗 *Link:* https://dbarros.vercel.app/#/login\n` +
+            `🔗 *Link:* ${APP_PUBLIC_URL}/#/login\n` +
             `👤 *Usuário:* ${login}\n` +
             `🔑 *Senha:* ${senha}\n\n` +
             `📅 *Válido até:* ${expira}\n\nAcesse para visualizar a planilha e atendimentos.`;
