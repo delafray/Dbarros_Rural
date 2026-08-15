@@ -6,6 +6,40 @@ Apenas execute o que o usuário pedir explicitamente. Não proponha refatoraçõ
 
 ---
 
+## Padrão de qualidade (em vigor a partir de 01/08/2026)
+
+Este sistema segue o **`PADRAO-NOVOS-SISTEMAS.md`** (na raiz). Ao implementar qualquer
+mudança que o usuário pedir, a feature só está "pronta" com **teste cobrindo a lógica
+nova** e, se tocar em dado, com a **RLS/segurança revisada** (checklist da seção 4 do guia).
+Nunca deixar teste ou RLS "para depois". Isto NÃO significa sair testando o sistema
+inteiro sem pedido — significa que o que for feito daqui pra frente já sai com teste + RLS.
+
+---
+
+## Módulo de Custos do Evento — EM PLANEJAMENTO (não implementar)
+
+> **🔄 GATILHO DE RETOMADA**: se o usuário disser "vamos voltar ao nosso novo
+> módulo" / "módulo de custos" / "centro de custo", ler PRIMEIRO
+> **`MODULO-CUSTOS/LEIA-PRIMEIRO-RETOMADA.md`** e seguir o protocolo de lá
+> (carrega os 7 docs inteiros + mapa da pesquisa sob demanda) ANTES de
+> responder qualquer conteúdo.
+
+O novo módulo de custos (orçado × contratado × realizado) está em fase de
+**levantamento de requisitos que durará várias sessões**. Tudo vive na pasta
+**`MODULO-CUSTOS/`**. Fonte única da verdade:
+**`MODULO-CUSTOS/DOC-MODULO-CUSTOS/`** (00-índice, 01-visão, 02-domínio,
+03-requisitos, 04-perguntas/decisões, 05-checklist, 06-pontos-cegos). Regras:
+
+1. **Todo requisito que o usuário mencionar** entra em `.../03-REQUISITOS.md`
+   numerado, com data e status. Toda dúvida vira Q-nnn em `04-PERGUNTAS-E-DECISOES.md`;
+   respostas migram para o log de decisões. Nada fica só na conversa.
+2. **Nenhuma implementação** até o usuário autorizar explicitamente. O rascunho
+   técnico `MODULO-CUSTOS/PLANO-MODULO-CUSTOS-EVENTO.md` é subordinado à
+   documentação e será revisado quando o levantamento fechar.
+3. Pesquisa de referência (40 relatórios): `MODULO-CUSTOS/PESQUISA-MODULO-CUSTOS/`.
+
+---
+
 ## Versionamento (automático — não editar à mão)
 
 Formato `0.AAAA.MM.NNNN`, onde `NNNN` é o número do commit (`git rev-list --count HEAD`).

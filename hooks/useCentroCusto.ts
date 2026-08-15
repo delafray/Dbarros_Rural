@@ -1,0 +1,224 @@
+/**
+ * Hook do workspace do Centro de Custo (uma edição) — orquestra o
+ * custosService (páginas não importam supabase, RNF-007).
+ * Carrega catálogo + dados da edição e expõe ações com atualização otimista
+ * simples (recarrega a coleção afetada após gravar).
+ */
+
+import { useCallback, useEffect, useState } from 'react';
+import { custosService, type CustoPagamento, type PedidoComItens } from '../services/custosService';
+import type { ProdutoCatalogoLeve } from '../utils/descritivoSugestoes';
+import type {
+    CustoCategoria,
+    CustoChecklistResposta,
+    CustoComposto,
+    CustoEspacoTemplate,
+    CustoEspacoTemplateItem,
+    CustoFornecedor,
+    CustoItem,
+    CustoItemInput,
+    CustoPerfilEdicao,
+    CustoProdutoGrupo,
+    CustoSecao,
+} from '../types/custos';
+
+export interface CentroCustoData {
+    carregando: boolean;
+    erro: string | null;
+    categorias: CustoCategoria[];
+    secoes: CustoSecao[];
+    fornecedores: CustoFornecedor[];
+    templates: (CustoEspacoTemplate & { itens: CustoEspacoTemplateItem[] })[];
+    grupos: CustoProdutoGrupo[];
+    produtosCatalogo: ProdutoCatalogoLeve[];
+    perfil: CustoPerfilEdicao | null;
+    respostas: CustoChecklistResposta[];
+    compostos: CustoComposto[];
+    itens: CustoItem[];
+    pedidos: PedidoComItens[];
+    pagamentos: CustoPagamento[];
+}
+
+export function useCentroCusto(edicaoId: string | null) {
+    const [data, setData] = useState<CentroCustoData>({
+        carregando: true, erro: null,
+        categorias: [], secoes: [], fornecedores: [], templates: [], grupos: [], produtosCatalogo: [],
+        perfil: null, respostas: [], compostos: [], itens: [], pedidos: [], pagamentos: [],
+    });
+
+    const recarregar = useCallback(async () => {
+        if (!edicaoId) return;
+        setData(d => ({ ...d, carregando: true, erro: null }));
+        try {
+            const [categorias, secoes, fornecedores, templates, grupos, produtosCatalogo, perfil, respostas, compostos, itens, pedidos, pagamentos] =
+                await Promise.all([
+                    custosService.getCategorias(),
+                    custosService.getSecoes(),
+                    custosService.getFornecedores(),
+                    custosService.getEspacosTemplate(),
+                    custosService.getGrupos(),
+                    custosService.getProdutosCatalogo(),
+                    custosService.getPerfil(edicaoId),
+                    custosService.getChecklist(edicaoId),
+                    custosService.getCompostos(edicaoId),
+                    custosService.getItens(edicaoId),
+                    custosService.getPedidos(edicaoId),
+                    custosService.getPagamentos(edicaoId),
+                ]);
+            setData({
+                carregando: false, erro: null,
+                categorias, secoes, fornecedores, templates, grupos, produtosCatalogo,
+                perfil, respostas, compostos, itens, pedidos, pagamentos,
+            });
+        } catch (e) {
+            setData(d => ({ ...d, carregando: false, erro: e instanceof Error ? e.message : String(e) }));
+        }
+    }, [edicaoId]);
+
+    useEffect(() => { void recarregar(); }, [recarregar]);
+
+    // ── Ações da grade ──────────────────────────────────────────────────────
+    const criarItem = useCallback(async (input: Omit<CustoItemInput, 'edicao_id'>) => {
+        if (!edicaoId) return;
+        const novo = await custosService.createItem({ ...input, edicao_id: edicaoId });
+        setData(d => ({ ...d, itens: [...d.itens, novo] }));
+        return novo;
+    }, [edicaoId]);
+
+    const atualizarItem = useCallback(async (id: string, patch: Partial<CustoItemInput>) => {
+        const salvo = await custosService.updateItem(id, patch);
+        setData(d => ({ ...d, itens: d.itens.map(i => (i.id === id ? salvo : i)) }));
+    }, []);
+
+    const excluirItem = useCallback(async (id: string) => {
+        await custosService.deleteItem(id);
+        setData(d => ({ ...d, itens: d.itens.filter(i => i.id !== id) }));
+    }, []);
+
+    const criarItensEmLote = useCallback(async (lote: Omit<CustoItemInput, 'edicao_id'>[]) => {
+        for (const item of lote) {
+            // sequencial: mantém a ordem da colagem
+            // eslint-disable-next-line no-await-in-loop
+            await criarItem(item);
+        }
+    }, [criarItem]);
+
+    // ── Wizard/perfil/checklist ─────────────────────────────────────────────
+    const salvarPerfil = useCallback(async (perfil: Partial<CustoPerfilEdicao>) => {
+        if (!edicaoId) return;
+        const salvo = await custosService.savePerfil({ ...perfil, edicao_id: edicaoId });
+        setData(d => ({ ...d, perfil: salvo }));
+    }, [edicaoId]);
+
+    const salvarResposta = useCallback(async (r: Partial<CustoChecklistResposta> & { chave: string }) => {
+        if (!edicaoId) return;
+        const salvo = await custosService.saveChecklistResposta({ ...r, edicao_id: edicaoId });
+        setData(d => ({
+            ...d,
+            respostas: [...d.respostas.filter(x => x.chave !== r.chave), salvo],
+        }));
+    }, [edicaoId]);
+
+    const instanciarTemplate = useCallback(async (templateId: string, nome: string, quantidade: number) => {
+        if (!edicaoId) return;
+        await custosService.instanciarTemplate({ edicaoId, templateId, nome, quantidade });
+        await recarregar();
+    }, [edicaoId, recarregar]);
+
+    /** Espaço EXCLUSIVO do evento (RF-056). */
+    const criarCompostoExclusivo = useCallback(async (nome: string) => {
+        if (!edicaoId) return;
+        await custosService.createComposto({ edicaoId, nome });
+        const compostos = await custosService.getCompostos(edicaoId);
+        setData(d => ({ ...d, compostos }));
+    }, [edicaoId]);
+
+    const renomearComposto = useCallback(async (id: string, nome: string) => {
+        if (!edicaoId) return;
+        await custosService.updateComposto(id, { nome });
+        const compostos = await custosService.getCompostos(edicaoId);
+        setData(d => ({ ...d, compostos }));
+    }, [edicaoId]);
+
+    const excluirComposto = useCallback(async (id: string) => {
+        if (!edicaoId) return;
+        await custosService.deleteComposto(id);
+        await recarregar();  // itens do espaço mudam de vínculo (SET NULL)
+    }, [edicaoId, recarregar]);
+
+    /** Sugestões da busca RF-049 para o autocomplete do descritivo (RF-058). */
+    const buscarSugestoes = useCallback(async (termo: string): Promise<{ id: string }[]> => {
+        const r = await custosService.buscarProdutos(termo, 20);
+        return r.map(x => ({ id: x.id }));
+    }, []);
+
+    /** Seleção no autocomplete alimenta a probabilidade (RF-058). */
+    const registrarUso = useCallback((produtoId: string) => {
+        void custosService.registrarUsoProduto(produtoId).catch(() => { /* ranking é best-effort */ });
+        setData(d => ({
+            ...d,
+            produtosCatalogo: d.produtosCatalogo.map(p =>
+                p.id === produtoId ? { ...p, frequencia_uso: p.frequencia_uso + 1 } : p),
+        }));
+    }, []);
+
+    // ── Cotações ────────────────────────────────────────────────────────────
+    const criarPedido = useCallback(async (nome: string, categoriaId: string | null, itens: { itemId: string; quantidade: number }[]) => {
+        if (!edicaoId) return;
+        await custosService.createPedido({ edicaoId, nome, categoriaId, itens });
+        await recarregar();
+    }, [edicaoId, recarregar]);
+
+    const importarCotacao = useCallback(async (params: {
+        pedidoId: string; fornecedorId: string;
+        linhas: { itemId: string; precoUnitario: number; quantidade: number }[];
+        exclusoes: { chave: string; resposta: string }[];
+    }) => {
+        if (!edicaoId) return;
+        await custosService.registrarCotacaoImportada({ edicaoId, ...params });
+        await recarregar();
+    }, [edicaoId, recarregar]);
+
+    const contratarLinha = useCallback(async (cotacaoId: string, itemId: string) => {
+        await custosService.marcarVencedor(cotacaoId, itemId);
+        await recarregar();
+    }, [recarregar]);
+
+    // (gestão do descritivo-padrão saiu daqui: vive em useEspacosPadrao/Cadastros
+    //  — regra 04/08: dentro do evento não se edita o MOLDE, só a cópia setada)
+
+    // ── Pagamentos (Q-009) ──────────────────────────────────────────────────
+    const criarParcelas = useCallback(async (p: { valorTotal: number; parcelas: number; primeiroVencimento: string | null; contratacaoId?: string | null }) => {
+        if (!edicaoId) return;
+        await custosService.criarParcelas({ edicaoId, ...p });
+        const pagamentos = await custosService.getPagamentos(edicaoId);
+        setData(d => ({ ...d, pagamentos }));
+    }, [edicaoId]);
+    const marcarPago = useCallback(async (id: string, dataPagamento: string) => {
+        if (!edicaoId) return;
+        await custosService.marcarPago(id, dataPagamento);
+        const pagamentos = await custosService.getPagamentos(edicaoId);
+        setData(d => ({ ...d, pagamentos }));
+    }, [edicaoId]);
+
+    const salvarFornecedor = useCallback(async (f: Partial<CustoFornecedor>) => {
+        const salvo = await custosService.saveFornecedor(f);
+        setData(d => ({
+            ...d,
+            fornecedores: [...d.fornecedores.filter(x => x.id !== salvo.id), salvo]
+                .sort((a, b) => a.razao_social.localeCompare(b.razao_social)),
+        }));
+        return salvo;
+    }, []);
+
+    return {
+        ...data,
+        recarregar,
+        criarItem, atualizarItem, excluirItem, criarItensEmLote,
+        salvarPerfil, salvarResposta, instanciarTemplate, criarCompostoExclusivo,
+        renomearComposto, excluirComposto,
+        buscarSugestoes, registrarUso,
+        criarPedido, importarCotacao, contratarLinha, salvarFornecedor,
+        criarParcelas, marcarPago,
+    };
+}

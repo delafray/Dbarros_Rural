@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button, Input, Card } from '../components/UI';
 import { authService } from '../services/authService';
 import { STORAGE_KEYS } from '../utils/constants';
+import { getOwnerName } from '../utils/core_lic';
 
 const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
@@ -109,7 +110,11 @@ const Login: React.FC = () => {
             Por favor, acesse pelo <strong>computador</strong>.
           </p>
         </div>
-        <p className="mt-6 text-xs text-slate-400">&copy; {new Date().getFullYear()} Dbarros Rural</p>
+        <p className="mt-6 text-[10px] text-slate-400 text-center">
+          &copy; {new Date().getFullYear()} {getOwnerName()}
+          <br />
+          licenciado para Dbarros Rural
+        </p>
       </div>
 
       {/* Formulário — apenas desktop */}
@@ -182,8 +187,10 @@ const Login: React.FC = () => {
         </div>
       </Card>
 
-      <p className="mt-8 text-sm text-slate-400">
-        &copy; {new Date().getFullYear()} Dbarros Rural. Todos os direitos reservados.
+      <p className="mt-8 text-xs text-slate-400 text-center">
+        &copy; {new Date().getFullYear()} {getOwnerName()}
+        <br />
+        licenciado para Dbarros Rural. Todos os direitos reservados.
       </p>
       </div>{/* fim hidden md:flex */}
 
