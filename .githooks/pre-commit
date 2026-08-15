@@ -1,12 +1,12 @@
 #!/bin/sh
 # ============================================================================
 # Versionamento automatico — ver VERSIONING.md
-# Formato: 0.<ano>.<mes>.<NNNN>
+# Formato: 0.<ano>.<mes>.<NNNN>  (exibido no app como V0.<ano>.<mes>.<NNNN>)
 #   0     -> versao major (fixa)
 #   ano   -> ano atual (YYYY)
 #   mes   -> mes atual (MM, com zero a esquerda)
-#   NNNN  -> numero do commit = total de commits do git APOS este commit,
-#            com 4 digitos e zero a esquerda (git rev-list --count + 1)
+#   NNNN  -> contador DO MES = commits feitos no mes corrente APOS este
+#            commit, com 4 digitos (reinicia a cada virada de mes)
 #
 # Escreve a versao em version.ts (exibida no app) e em package.json, e as
 # adiciona ao commit atual. Assim, todo commit fica com a versao correta.
@@ -15,7 +15,7 @@ set -e
 
 year=$(date +%Y)
 month=$(date +%m)
-count=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+count=$(git rev-list --count HEAD --since="${year}-${month}-01 00:00:00" 2>/dev/null || echo 0)
 next=$(printf "%04d" "$((count + 1))")
 version="0.${year}.${month}.${next}"
 

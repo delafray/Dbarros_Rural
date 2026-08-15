@@ -42,10 +42,14 @@ O novo módulo de custos (orçado × contratado × realizado) está em fase de
 
 ## Versionamento (automático — não editar à mão)
 
-Formato `0.AAAA.MM.NNNN`, onde `NNNN` é o número do commit (`git rev-list --count HEAD`).
-A versão é atualizada sozinha a cada commit pelo hook `.githooks/pre-commit`, que grava
-em `version.ts` e `package.json`. **Não bumpe a versão manualmente** — deixe o hook fazer.
+Formato `0.AAAA.MM.NNNN`, onde `NNNN` é o **contador do mês** (commits do mês corrente,
+reinicia na virada do mês; exibido no app como `V0.AAAA.MM.NNNN`). A versão é atualizada
+sozinha a cada commit pelo hook `.githooks/pre-commit`, que grava em `version.ts` e
+`package.json`. **Não bumpe a versão manualmente** — deixe o hook fazer.
 Detalhes e setup (`git config core.hooksPath .githooks`) em **VERSIONING.md**.
+**Regra permanente (pedido do usuário, 14/08/2026): todo `git push` deve ser reportado
+na resposta com o hash do commit E a versão** (ex.: `d5c61ab → V0.2026.08.0097`), para
+ele conferir o deploy sem abrir a Vercel.
 
 ---
 

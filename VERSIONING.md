@@ -11,18 +11,22 @@
 | `0`    | Versão major (fixa por enquanto)                     | `0` |
 | `AAAA` | Ano em que o commit foi feito                        | `2026` |
 | `MM`   | Mês em que o commit foi feito (2 dígitos)            | `08` |
-| `NNNN` | **Número do commit** = total de commits do git, com 4 dígitos | `0402` |
+| `NNNN` | **Contador do mês** = commits feitos no mês corrente, com 4 dígitos | `0097` |
 
-Exemplo: `0.2026.08.0402` = commit nº 402, feito em agosto de 2026.
+Exemplo: `0.2026.08.0097` = 97º commit de agosto de 2026. O app exibe com o
+prefixo `V` no rodapé do menu lateral: `V0.2026.08.0097` — é por ali que se
+confere se o deploy versionou, sem entrar na Vercel.
 
-O **número do commit** (`NNNN`) é o total de commits do repositório
-(`git rev-list --count HEAD`). Como cada commit incrementa esse total, a versão
-sobe **automaticamente a cada commit** e é sempre rastreável: o `NNNN` aponta
-para exatamente aquele commit no histórico do git.
+O **contador do mês** (`NNNN`) é o número de commits do mês corrente
+(`git rev-list --count HEAD --since="<ano>-<mês>-01"`). Ele **reinicia a cada
+virada de mês**; a dupla `AAAA.MM` + `NNNN` continua identificando o commit
+de forma única.
 
-> Observação histórica: até 01/08/2026 o `NNNN` era um contador manual e ficou
-> defasado (estava em `0042` com o repo já em 401 commits) e o mês estava fixo em
-> `02`. A partir do commit 402 o número passou a refletir o git de verdade.
+> Observações históricas: até 01/08/2026 o `NNNN` era um contador manual
+> defasado (estava em `0042` com o repo já em 401 commits, mês fixo em `02`);
+> do commit 402 até 14/08/2026 o `NNNN` foi o TOTAL de commits do repositório
+> (chegou a `0483`); a partir de 14/08/2026 passou a ser o contador do mês
+> (pedido do usuário — "a versão do mês").
 
 ## Como é atualizado (automático)
 
