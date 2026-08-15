@@ -2,9 +2,16 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { authService, User } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { STORAGE_KEYS } from '../utils/constants';
+import { aplicarSimulacao, proximoNivel, NivelSimulacao } from '../utils/simulacaoAcesso';
+import { ehDonoDoSistema } from '../utils/acessoCustos';
 
 interface AuthContextType {
     user: User | null;
+    // Simulação de visão (só o dono): `user` acima já vem com a simulação
+    // aplicada; `realUser` é sempre o usuário autenticado de verdade.
+    realUser: User | null;
+    nivelSimulacao: NivelSimulacao;
+    alternarSimulacao: () => void;
     login: (identifier: string, password: string) => Promise<void>;
     loginWithBiometrics: (email?: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -17,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [nivelSimulacao, setNivelSimulacao] = useState<NivelSimulacao>(null);
 
     useEffect(() => {
         let mounted = true;
@@ -123,6 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = useCallback(async () => {
         await authService.logout();
         setUser(null);
+        setNivelSimulacao(null);
+    }, []);
+
+    const alternarSimulacao = useCallback(() => {
+        setNivelSimulacao(prev => proximoNivel(prev));
     }, []);
 
     const register = useCallback(async (name: string, email: string, password: string, isAdmin: boolean) => {
@@ -131,10 +144,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser);
     }, []);
 
+    // Simulação só existe para o dono; para qualquer outro login é inerte
+    const nivelEfetivo = ehDonoDoSistema(user) ? nivelSimulacao : null;
+
     // Memoiza o value para não re-renderizar todos os consumidores a cada render do provider
     const value = useMemo(
-        () => ({ user, login, loginWithBiometrics, logout, register, isLoading }),
-        [user, isLoading, login, loginWithBiometrics, logout, register]
+        () => ({
+            user: aplicarSimulacao(user, nivelEfetivo),
+            realUser: user,
+            nivelSimulacao: nivelEfetivo,
+            alternarSimulacao,
+            login, loginWithBiometrics, logout, register, isLoading,
+        }),
+        [user, nivelEfetivo, isLoading, login, loginWithBiometrics, logout, register, alternarSimulacao]
     );
 
     return (

@@ -7,6 +7,8 @@ import DashboardAlerts from '../components/DashboardAlerts';
 import ResolucaoAtendimentoModal from '../components/ResolucaoAtendimentoModal';
 import { Atendimento } from '../services/atendimentosService';
 import { useAuth } from '../context/AuthContext';
+import { ehDonoDoSistema } from '../utils/acessoCustos';
+import { rotuloNivel } from '../utils/simulacaoAcesso';
 import { usePresence } from '../context/PresenceContext';
 import { useDashboardExportPDF } from '../hooks/useDashboardExportPDF';
 import { EdicaoCard } from '../components/dashboard/EdicaoCard';
@@ -22,7 +24,7 @@ type EdicaoComDocs = EventoEdicao & {
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, realUser, nivelSimulacao, alternarSimulacao } = useAuth();
     const { onlineUsers } = usePresence();
     const [edicoes, setEdicoes] = useState<EdicaoComDocs[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -61,6 +63,27 @@ const Dashboard: React.FC = () => {
     const handleResolutionSuccess = () => {
         setRefreshTrigger(prev => prev + 1);
     };
+
+    // Simulação de visão (só o dono vê; some para todos os outros logins).
+    // Cicla Super Admin → Admin → Usuário e SEMPRE aparece, mesmo simulando,
+    // porque é gateado pelo realUser — é a volta para o acesso real.
+    const simulacaoButton = ehDonoDoSistema(realUser) ? (
+        <button
+            onClick={alternarSimulacao}
+            title="Simular visão de outro nível de acesso (só a interface; seus dados/permissões reais não mudam)"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${
+                nivelSimulacao
+                    ? 'bg-amber-500 text-white hover:bg-amber-600 animate-pulse'
+                    : 'bg-purple-700 text-white hover:bg-purple-600'
+            }`}
+        >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            {nivelSimulacao ? `Vendo como: ${rotuloNivel(nivelSimulacao)}` : rotuloNivel(nivelSimulacao)}
+        </button>
+    ) : null;
 
     const allPanelButton = (
         <button
@@ -109,7 +132,12 @@ const Dashboard: React.FC = () => {
     ) : null;
 
     return (
-        <Layout title="Dashboard Central" titleExtras={onlineBadge} headerActions={allPanelButton}>
+        <Layout title="Dashboard Central" titleExtras={onlineBadge} headerActions={
+            <div className="flex items-center gap-2">
+                {simulacaoButton}
+                {allPanelButton}
+            </div>
+        }>
             <div className="max-w-7xl mx-auto space-y-[2px] animate-in fade-in duration-500">
                 <div className="border-t border-slate-100 pt-1">
                     <h2 className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-2">
