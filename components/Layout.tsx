@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAppDialog } from '../context/DialogContext';
 import { getSystemInfo } from '../utils/core_lic';
+import { podeVerCentroCusto } from '../utils/acessoCustos';
 import { ConfirmModal } from './ConfirmModal';
 import { authService } from '../services/authService';
 
@@ -224,7 +225,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, titleExtras, headerAct
 
             <SectionLabel label="Ferramentas" />
             <NavItem to="/cardapios" label="Cardápios" icon={MenuBoardIcon} />
-            {(user?.isAdmin || user?.canManageTags) && (
+            {podeVerCentroCusto(user) && (
               <NavItem to="/custos" label="Centro de Custo" icon={CoinIcon} />
             )}
 

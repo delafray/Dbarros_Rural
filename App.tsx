@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import { useAuth } from './context/AuthContext';
 import { PresenceProvider } from './context/PresenceContext';
+import { podeVerCentroCusto } from './utils/acessoCustos';
 
 // Code splitting: cada rota vira um chunk carregado sob demanda.
 // Login e Dashboard ficam estáticos (são as portas de entrada do app);
@@ -45,6 +46,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   return user ? <>{children}</> : <Navigate to="/login" />;
+};
+
+// RF-060: Centro de Custo em teste restrito em produção — só o usuário
+// autorizado acessa; os demais (mesmo admin) voltam ao dashboard.
+const CustosRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-screen">Carregando...</div>;
+  }
+
+  if (!user) return <Navigate to="/login" />;
+  return podeVerCentroCusto(user) ? <>{children}</> : <Navigate to="/dashboard" />;
 };
 
 const RouteFallback = () => (
@@ -108,10 +122,10 @@ const App: React.FC = () => {
 
         <Route path="/tags" element={<ProtectedRoute><Tags /></ProtectedRoute>} />
 
-        {/* Centro de Custo do Evento (orçado × contratado × realizado) */}
-        <Route path="/custos" element={<ProtectedRoute><CentroCusto /></ProtectedRoute>} />
-        <Route path="/custos/cadastros" element={<ProtectedRoute><CentroCustoCadastros /></ProtectedRoute>} />
-        <Route path="/custos/:edicaoId" element={<ProtectedRoute><CentroCusto /></ProtectedRoute>} />
+        {/* Centro de Custo do Evento (orçado × contratado × realizado) — RF-060: acesso exclusivo */}
+        <Route path="/custos" element={<CustosRoute><CentroCusto /></CustosRoute>} />
+        <Route path="/custos/cadastros" element={<CustosRoute><CentroCustoCadastros /></CustosRoute>} />
+        <Route path="/custos/:edicaoId" element={<CustosRoute><CentroCusto /></CustosRoute>} />
 
         {/* Módulo Cardápios — projetos por evento, com abas (Menu A4 | Banner | Painel Duplo | Configuração) */}
         <Route path="/cardapios" element={<ProtectedRoute><CardapioProjetos /></ProtectedRoute>} />

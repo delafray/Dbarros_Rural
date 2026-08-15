@@ -102,6 +102,7 @@ export default defineConfig(() => {
       coverage: {
         provider: 'v8' as const,
         include: [
+          'utils/acessoCustos.ts',
           'utils/custosCalc.ts',
           'utils/parseBR.ts',
           'utils/descritivoSugestoes.ts',
