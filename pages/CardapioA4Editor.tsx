@@ -70,6 +70,8 @@ export const CardapioA4Editor: React.FC = () => {
   const [showEditorItens, setShowEditorItens] = useState(false);
   // Fontes individuais DESTE menu (multiplicadores; salvas junto no Salvar)
   const [fontesA4, setFontesA4] = useState<FontesA4>({ ...FONTES_A4_PADRAO });
+  // Layout de colunas DESTE menu (salvo junto no Salvar)
+  const [forcarUmaColuna, setForcarUmaColuna] = useState(false);
 
   // ── Load existing (edit mode) ────────────────────────────────────────────
   useEffect(() => {
@@ -83,6 +85,7 @@ export const CardapioA4Editor: React.FC = () => {
         setEmpresa(c.empresa);
         setGrupos(c.itens as CardapioGroup[]);
         setFontesA4(resolveFontesA4(c.fontes));
+        setForcarUmaColuna(!!c.forcar_uma_coluna);
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
@@ -135,6 +138,7 @@ export const CardapioA4Editor: React.FC = () => {
         itens: grupos,
         projeto_id: projetoId ?? null,
         fontes: fontesA4SaoPadrao(fontesA4) ? null : fontesA4,
+        forcar_uma_coluna: forcarUmaColuna,
       };
       if (isEditMode && id) {
         await menuA4Service.atualizar(id, payload);
@@ -161,6 +165,7 @@ export const CardapioA4Editor: React.FC = () => {
       await exportMenuA4(titulo, empresa, grupos, filename, scale, setExportStatus, {
         ...renderOpts,
         fontesA4,
+        forcarUmaColuna,
       });
     } catch (e: any) {
       setError(e.message || 'Erro ao exportar');
@@ -306,6 +311,39 @@ export const CardapioA4Editor: React.FC = () => {
             )}
           </div>
 
+          {/* Layout de colunas deste menu */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col gap-2">
+            <p className="text-xs font-bold text-slate-600">Colunas do menu</p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setForcarUmaColuna(false)}
+                className={`flex-1 text-xs font-bold px-3 py-2 rounded-lg border transition-all ${
+                  !forcarUmaColuna
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow'
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                }`}
+                title="Até 18 itens em 1 coluna; acima disso, 2 colunas"
+              >
+                Automático
+              </button>
+              <button
+                onClick={() => setForcarUmaColuna(true)}
+                className={`flex-1 text-xs font-bold px-3 py-2 rounded-lg border transition-all ${
+                  forcarUmaColuna
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow'
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                }`}
+                title="Coluna única sempre, independente do número de itens"
+              >
+                1 coluna
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Automático usa 2 colunas acima de 18 itens. Em 1 coluna o tamanho do texto
+              recalcula para caber na página. Salvo junto com o menu ao clicar em Salvar.
+            </p>
+          </div>
+
           {/* Fontes individuais deste menu */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
@@ -393,6 +431,7 @@ export const CardapioA4Editor: React.FC = () => {
                   fundoUrl={renderOpts.fundoUrl}
                   chancelaUrl={renderOpts.chancelaUrl}
                   fontes={fontesA4}
+                  forcarUmaColuna={forcarUmaColuna}
                 />
               </div>
             )}

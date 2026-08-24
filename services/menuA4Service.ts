@@ -9,6 +9,8 @@ interface MenuA4Payload {
   projeto_id?: string | null;
   /** Multiplicadores de fonte deste menu (Partial<FontesA4>); null = padrão */
   fontes?: Record<string, number> | null;
+  /** Força coluna única mesmo acima do limiar automático de itens */
+  forcar_uma_coluna?: boolean;
 }
 
 export const menuA4Service = {

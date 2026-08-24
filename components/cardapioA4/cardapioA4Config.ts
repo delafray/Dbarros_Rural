@@ -43,6 +43,14 @@ export const SCREW_INSET = 12;
 // Menus com até N itens usam coluna única; acima disso, duas colunas.
 export const TWO_COL_ITEM_THRESHOLD = 18;
 
+/**
+ * Decide o layout de colunas — usado por preview (Canvas.tsx) e export (Renderer.ts).
+ * `forcarUmaColuna` (opção salva por menu) vence o limiar automático.
+ */
+export function calcSingleCol(totalItens: number, forcarUmaColuna?: boolean | null): boolean {
+  return !!forcarUmaColuna || totalItens <= TWO_COL_ITEM_THRESHOLD;
+}
+
 // ─── Fontes ajustáveis por menu (multiplicadores; 1 = padrão) ────────────────
 // Aplicados sobre os tamanhos calculados automaticamente. O auto-fit desconta
 // os multiplicadores na estimativa de peso, então aumentar um elemento pode

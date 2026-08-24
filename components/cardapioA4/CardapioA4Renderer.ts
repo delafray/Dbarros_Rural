@@ -20,7 +20,7 @@ import {
   SAFE_L, SAFE_T, SAFE_W, SAFE_H,
   FONT_REGULAR, FONT_BLACK,
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
-  TWO_COL_ITEM_THRESHOLD,
+  calcSingleCol,
   calcHeaderH, calcEmpresaFs,
   FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
@@ -34,9 +34,11 @@ import {
 } from '../../utils/cardapioTema';
 import { wrapText, loadImage, drawScrew } from '../../utils/canvasHelpers';
 
-/** Opções do A4: tema/fundo/chancela do projeto + fontes do menu */
+/** Opções do A4: tema/fundo/chancela do projeto + fontes/colunas do menu */
 export type A4RenderOptions = CardapioRenderOptions & {
   fontesA4?: Partial<FontesA4> | null;
+  /** Força coluna única mesmo acima do limiar automático de itens */
+  forcarUmaColuna?: boolean;
 };
 
 // ─── Drawing primitives ──────────────────────────────────────────────────────
@@ -342,7 +344,7 @@ export async function renderMenuA4ToDataURL(
 
   // Layout metrics — espelha CardapioA4Canvas
   const totalItens = grupos.reduce((s, g) => s + g.itens.length, 0);
-  const singleCol  = totalItens <= TWO_COL_ITEM_THRESHOLD;
+  const singleCol  = calcSingleCol(totalItens, opts.forcarUmaColuna);
   const [leftGrupos, rightGrupos] = singleCol ? [grupos, []] : splitGroups(grupos, undefined, F);
 
   const headerH = calcHeaderH(totalItens);

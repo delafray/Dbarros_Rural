@@ -5,6 +5,7 @@
  * ADAPTIVE LAYOUT:
  *   totalItens ≤ 18  →  single column  (full width, bigger text, cleaner read)
  *   totalItens > 18  →  two columns    (handles large menus)
+ *   forcarUmaColuna  →  single column sempre (opção salva por menu)
  *
  * Physical dimensions:
  *   Total (with bleed): 270mm × 357mm
@@ -30,7 +31,7 @@ import {
   SAFE_L, SAFE_T, SAFE_W, SAFE_H,
   FONT_REGULAR, FONT_BLACK,
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
-  TWO_COL_ITEM_THRESHOLD,
+  calcSingleCol,
   calcHeaderH, calcEmpresaFs,
   FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
@@ -41,10 +42,6 @@ import {
   withAlpha,
   screwColors,
 } from '../../utils/cardapioTema';
-
-function useSingleColumn(totalItens: number): boolean {
-  return totalItens <= TWO_COL_ITEM_THRESHOLD;
-}
 
 // ─── Screw decoration ─────────────────────────────────────────────────────────
 const Screw = ({ t, style }: { t: CardapioTema; style: React.CSSProperties }) => {
@@ -206,10 +203,12 @@ interface CardapioA4CanvasProps {
   chancelaUrl?: string | null;
   /** Multiplicadores de fonte do menu (null = padrão) */
   fontes?: Partial<FontesA4> | null;
+  /** Força coluna única mesmo acima do limiar automático de itens */
+  forcarUmaColuna?: boolean;
 }
 
 export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps>(
-  ({ titulo = '', empresa = '', grupos, exporting = false, tema = null, fundoUrl = null, chancelaUrl = null, fontes = null }, ref) => {
+  ({ titulo = '', empresa = '', grupos, exporting = false, tema = null, fundoUrl = null, chancelaUrl = null, fontes = null, forcarUmaColuna = false }, ref) => {
     const t = useMemo(() => resolveTema(tema), [tema]);
     const f = useMemo(() => resolveFontesA4(fontes), [fontes]);
 
@@ -218,7 +217,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
       [grupos]
     );
 
-    const singleCol = useSingleColumn(totalItens);
+    const singleCol = calcSingleCol(totalItens, forcarUmaColuna);
 
     const [leftGrupos, rightGrupos] = useMemo(
       () => (singleCol ? [grupos, []] : splitGroups(grupos, undefined, f)),
