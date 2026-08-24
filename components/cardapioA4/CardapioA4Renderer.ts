@@ -442,3 +442,31 @@ export const A4_RENDER_SCALES = {
   MEDIUM:  2,
   HIGH:    4,
 } as const;
+
+/**
+ * Exporta o menu como PDF A4 embutindo o PNG de 300dpi do próprio renderer —
+ * saída pixel-idêntica ao preview (mesma abordagem raster do PNG Alta 4×;
+ * o PDF vetorial ficou pausado, ver PENDENTE-PDF-VETORIAL-A3.md).
+ */
+export async function exportMenuA4Pdf(
+  titulo: string,
+  empresa: string,
+  grupos: CardapioGroup[],
+  filename: string,
+  onProgress?: (status: string) => void,
+  opts: A4RenderOptions = {}
+): Promise<void> {
+  onProgress?.('Desenhando menu A4...');
+  const dataUrl = await renderMenuA4ToDataURL(
+    titulo, empresa, grupos, A4_RENDER_SCALES.HIGH, opts
+  );
+
+  onProgress?.('Gerando PDF...');
+  const { jsPDF } = await import('jspdf');
+  // Canvas de 630×891px a 3px/mm mapeia exato na página A4 (210×297mm)
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  doc.addImage(dataUrl, 'PNG', 0, 0, 210, 297);
+  doc.save(`${filename}.pdf`);
+
+  onProgress?.('Concluído!');
+}

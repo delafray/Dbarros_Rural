@@ -6,7 +6,7 @@ import {
   CANVAS_W, CANVAS_H,
   FontesA4, FONTES_A4_PADRAO, resolveFontesA4, fontesA4SaoPadrao,
 } from '../components/cardapioA4/cardapioA4Config';
-import { exportMenuA4, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
+import { exportMenuA4, exportMenuA4Pdf, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
 import { parseCardapioText, gerarTextoCardapio, CardapioGroup } from '../utils/cardapioParser';
 import { tabelaHtmlParaTexto } from '../utils/cardapioClipboard';
 import { CardapioRenderOptions } from '../utils/cardapioTema';
@@ -174,6 +174,25 @@ export const CardapioA4Editor: React.FC = () => {
     }
   };
 
+  // ── Export PDF (PNG 300dpi embutido em página A4 — idêntico ao preview) ──
+  const handleExportPdf = async () => {
+    setShowExportMenu(false);
+    if (grupos.length === 0) return;
+    try {
+      setIsExporting(true); setError(null);
+      const filename = `menu-a4-${empresa.toLowerCase().replace(/\s+/g, '-') || 'menu'}`;
+      await exportMenuA4Pdf(titulo, empresa, grupos, filename, setExportStatus, {
+        ...renderOpts,
+        fontesA4,
+        forcarUmaColuna,
+      });
+    } catch (e: any) {
+      setError(e.message || 'Erro ao exportar PDF');
+    } finally {
+      setIsExporting(false); setExportStatus('');
+    }
+  };
+
 
   const headerActions = (
     <div className="flex items-center gap-2">
@@ -208,7 +227,7 @@ export const CardapioA4Editor: React.FC = () => {
           ) : (
             <>
               <DownloadIcon className="w-4 h-4" />
-              Exportar PNG
+              Exportar
               <ChevronIcon className={`w-3 h-3 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
             </>
           )}
@@ -217,7 +236,7 @@ export const CardapioA4Editor: React.FC = () => {
         {showExportMenu && !isExporting && grupos.length > 0 && (
           <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-[200px] overflow-hidden">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2.5 pb-1">
-              Qualidade de impressão
+              PNG — qualidade de impressão
             </p>
             {[
               { label: 'Prévia (1×)', scale: A4_RENDER_SCALES.PREVIEW, desc: '810×1071px' },
@@ -233,6 +252,17 @@ export const CardapioA4Editor: React.FC = () => {
                 <p className="text-xs text-slate-400">{desc}</p>
               </button>
             ))}
+
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2.5 pb-1 border-t border-slate-200">
+              PDF
+            </p>
+            <button
+              onClick={handleExportPdf}
+              className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors border-t border-slate-100"
+            >
+              <p className="text-sm font-bold text-slate-700">PDF A4 (300dpi)</p>
+              <p className="text-xs text-slate-400">Página 210×297mm — mesmo visual do preview</p>
+            </button>
           </div>
         )}
       </div>
