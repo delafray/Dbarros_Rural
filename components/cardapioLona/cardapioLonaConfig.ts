@@ -10,6 +10,7 @@
  */
 
 import { CardapioGroup, getGroupWeight, PesoFontes } from '../../utils/cardapioParser';
+import { CardapioTema, shade } from '../../utils/cardapioTema';
 
 // ─── Escalas ──────────────────────────────────────────────────────────────────
 /** Escala base do preview: 4 px/cm (lona 100×300cm → 400×1200px) */
@@ -168,6 +169,79 @@ export function calcColunasDestaque(grupos: CardapioGroup[]): number {
 
 /** Mínimo legível: itens com menos de 0,7cm de letra disparam aviso no editor */
 export const MIN_ITEM_FONT_CM = 0.7;
+
+// ─── Contraste automático ─────────────────────────────────────────────────────
+/** Modo salvo por lona: auto detecta pela arte; claro/escuro forçam a paleta */
+export type ContrasteModo = 'auto' | 'claro' | 'escuro';
+
+/** Paleta de texto: 'claro' = texto claro (fundo escuro), 'escuro' = o oposto */
+export type PaletaTexto = 'claro' | 'escuro';
+
+/** Razão de contraste mínima para leitura confortável (WCAG AA, texto normal) */
+export const CONTRASTE_MINIMO = 4.5;
+
+/** Acima desta luminância média o fundo é considerado claro → texto escuro */
+export const LIMIAR_FUNDO_CLARO = 0.4;
+
+/** Opacidade máxima do véu de contraste (scrim) atrás da área útil */
+export const SCRIM_OPACIDADE_MAX = 0.8;
+
+/** Luminância relativa WCAG (sRGB linearizado); r/g/b em 0–255 → 0..1 */
+export function luminanciaRelativa(r: number, g: number, b: number): number {
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** Luminância relativa de uma cor '#RRGGBB' (ou '#RGB') */
+export function luminanciaHex(hex: string): number {
+  let h = hex.replace('#', '').trim();
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h.slice(0, 6), 16);
+  if (Number.isNaN(n)) return 0;
+  return luminanciaRelativa((n >> 16) & 255, (n >> 8) & 255, n & 255);
+}
+
+/** Razão de contraste WCAG entre duas luminâncias (1..21) */
+export function razaoContraste(l1: number, l2: number): number {
+  const [claro, escuro] = l1 >= l2 ? [l1, l2] : [l2, l1];
+  return (claro + 0.05) / (escuro + 0.05);
+}
+
+/**
+ * Luminância do fundo depois do véu de contraste (mistura linear —
+ * aproximação suficiente para decidir aviso, não para render).
+ */
+export function luminanciaComScrim(
+  lumFundo: number,
+  paleta: PaletaTexto,
+  opacidade: number
+): number {
+  if (opacidade <= 0) return lumFundo;
+  const lumScrim = paleta === 'claro' ? 0 : 1; // scrim escuro sob texto claro
+  return lumFundo * (1 - opacidade) + lumScrim * opacidade;
+}
+
+/** Decide a paleta pela luminância média da arte na área útil */
+export function escolherPaleta(lumMediaFundo: number): PaletaTexto {
+  return lumMediaFundo > LIMIAR_FUNDO_CLARO ? 'escuro' : 'claro';
+}
+
+/**
+ * Variante do tema para texto ESCURO (fundo claro): itens quase-pretos,
+ * descrições em cinza e destaque num dourado escurecido legível sobre claro.
+ * A paleta 'claro' é o próprio tema resolvido (visual atual).
+ */
+export function paletaTextoEscuro(T: CardapioTema): CardapioTema {
+  return {
+    ...T,
+    corTexto: '#1c1c1c',
+    corTextoSuave: '#454545',
+    corDouradoClaro: shade(T.corDourado, -0.3),
+  };
+}
 
 export interface BlocoMedido {
   bloco: LonaBloco;

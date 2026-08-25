@@ -15,12 +15,16 @@ import {
   LOGO_MAX_LARGURA_CM_PADRAO,
   LOGO_MAX_ALTURA_CM_PADRAO,
   MIN_ITEM_FONT_CM,
+  ContrasteModo,
+  PaletaTexto,
+  CONTRASTE_MINIMO,
 } from '../components/cardapioLona/cardapioLonaConfig';
 import {
   renderLonaToDataURL,
   exportLonaPng,
   exportLonaPdf,
   LonaFundoModo,
+  AvisoContraste,
 } from '../components/cardapioLona/CardapioLonaRenderer';
 import { CardapioGroup } from '../utils/cardapioParser';
 import { lonaService } from '../services/lonaService';
@@ -75,11 +79,15 @@ export const CardapioLonaEditor: React.FC = () => {
   const [blocos, setBlocos] = useState<LonaBlocoConfig[]>([]);
   const [fontes, setFontes] = useState<FontesLona>({ ...FONTES_LONA_PADRAO });
   const [mostrarGuia, setMostrarGuia] = useState(true);
+  const [contrasteModo, setContrasteModo] = useState<ContrasteModo>('auto');
+  const [scrimOpacidade, setScrimOpacidade] = useState(0);
 
   // ── Preview ──────────────────────────────────────────────────────────────
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fonteCm, setFonteCm] = useState<number | null>(null);
   const [abaixoDoMinimo, setAbaixoDoMinimo] = useState(false);
+  const [paletaUsada, setPaletaUsada] = useState<PaletaTexto | null>(null);
+  const [avisosContraste, setAvisosContraste] = useState<AvisoContraste[]>([]);
 
   // ── Carga inicial ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -109,6 +117,8 @@ export const CardapioLonaEditor: React.FC = () => {
           setLogoMaxH(Number(lona.logo_max_altura_cm));
           setBlocos(lona.blocos ?? []);
           setFontes(resolveFontesLona(lona.fontes));
+          setContrasteModo(lona.contraste_modo ?? 'auto');
+          setScrimOpacidade(Number(lona.scrim_opacidade ?? 0));
         }
       })
       .catch((e) => setError(e.message || 'Erro ao carregar'))
@@ -152,12 +162,16 @@ export const CardapioLonaEditor: React.FC = () => {
         fontes,
         mostrarGuia,
         pxPerCm: PX_PER_CM,
+        contrasteModo,
+        scrimOpacidade,
       })
         .then((r) => {
           if (cancelado) return;
           setPreviewUrl(r.dataUrl);
           setFonteCm(r.fonteCm);
           setAbaixoDoMinimo(r.abaixoDoMinimo);
+          setPaletaUsada(r.paleta);
+          setAvisosContraste(r.avisosContraste);
         })
         .catch((e) => {
           if (!cancelado) setError(e.message || 'Erro no preview');
@@ -167,7 +181,7 @@ export const CardapioLonaEditor: React.FC = () => {
       cancelado = true;
       clearTimeout(t);
     };
-  }, [dim, blocosResolvidos, colunas, fundoUrl, fundoModo, fontes, mostrarGuia, projeto]);
+  }, [dim, blocosResolvidos, colunas, fundoUrl, fundoModo, fontes, mostrarGuia, projeto, contrasteModo, scrimOpacidade]);
 
   // ── Fecha menu de export em clique fora ──────────────────────────────────
   useEffect(() => {
@@ -269,6 +283,8 @@ export const CardapioLonaEditor: React.FC = () => {
         colunas,
         blocos,
         fontes: fontesLonaSaoPadrao(fontes) ? null : fontes,
+        contraste_modo: contrasteModo,
+        scrim_opacidade: scrimOpacidade,
       };
       if (isEditMode && id) {
         await lonaService.atualizar(id, payload);
@@ -298,6 +314,8 @@ export const CardapioLonaEditor: React.FC = () => {
         fundoUrl,
         fundoModo: modo,
         fontes,
+        contrasteModo,
+        scrimOpacidade,
       };
       if (formato === 'png') {
         await exportLonaPng(dim, blocosResolvidos, colunas, filename, setExportStatus, opts);
@@ -561,6 +579,59 @@ export const CardapioLonaEditor: React.FC = () => {
             </div>
           </div>
 
+          {/* Contraste do texto */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col gap-2">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Contraste do texto
+            </label>
+            <div className="flex gap-1.5">
+              {([
+                { modo: 'auto' as const, label: 'Automático' },
+                { modo: 'claro' as const, label: 'Texto claro' },
+                { modo: 'escuro' as const, label: 'Texto escuro' },
+              ]).map(({ modo, label }) => (
+                <button
+                  key={modo}
+                  onClick={() => setContrasteModo(modo)}
+                  className={`flex-1 text-xs font-bold px-2 py-2 rounded-lg border transition-all ${
+                    contrasteModo === modo
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Automático mede a luminância da arte dentro da área útil e escolhe
+              texto claro (fundo escuro) ou escuro (fundo claro).
+              {contrasteModo === 'auto' && paletaUsada && (
+                <> Detectado agora: <span className="font-bold text-slate-600">texto {paletaUsada}</span>.</>
+              )}
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">Véu de contraste</span>
+              <input
+                type="range"
+                min={0}
+                max={80}
+                step={5}
+                value={Math.round(scrimOpacidade * 100)}
+                onChange={(e) => setScrimOpacidade(Number(e.target.value) / 100)}
+                className="flex-1 accent-indigo-600"
+              />
+              <span className={`w-10 text-right text-xs font-mono ${scrimOpacidade > 0 ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
+                {Math.round(scrimOpacidade * 100)}%
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Camada semitransparente atrás da área útil que garante leitura sobre
+              artes movimentadas (escura sob texto claro, clara sob texto escuro).
+              Sai no export, inclusive no modo transparente.
+            </p>
+          </div>
+
           {/* Colunas + logos globais */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col gap-2">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -755,6 +826,22 @@ export const CardapioLonaEditor: React.FC = () => {
 
         {/* ── Painel direito — preview ─────────────────────────────────────── */}
         <div className="flex-1 flex flex-col gap-2 min-w-0">
+          {avisosContraste.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-amber-800 text-xs">
+              <p className="font-semibold mb-0.5">
+                ⚠️ Contraste abaixo de {CONTRASTE_MINIMO.toLocaleString('pt-BR')}:1 em {avisosContraste.length} bloco(s):
+              </p>
+              <p>
+                {avisosContraste
+                  .map((a) => `${a.titulo} (${a.ratio.toLocaleString('pt-BR')}:1)`)
+                  .join(' · ')}
+              </p>
+              <p className="mt-0.5 text-amber-700">
+                A arte está clara/ruidosa nessas regiões — aumente o véu de contraste
+                ou reposicione a área útil.
+              </p>
+            </div>
+          )}
           {abaixoDoMinimo && fonteCm !== null && (
             <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-amber-800 text-xs font-semibold">
               ⚠️ Fonte dos itens em {(fonteCm * 10).toFixed(1)}mm — abaixo do mínimo
@@ -784,6 +871,7 @@ export const CardapioLonaEditor: React.FC = () => {
           <p className="text-xs text-slate-400 text-center">
             Lona {dim.larguraCm}×{dim.alturaCm}cm · área útil {dim.utilLarguraCm}×{dim.utilAlturaCm}cm
             {fonteCm !== null && <> · fonte dos itens ≈ {(fonteCm * 10).toFixed(1)}mm</>}
+            {paletaUsada && <> · texto {paletaUsada}{contrasteModo === 'auto' ? ' (auto)' : ''}</>}
             {' '}· export {Math.round(dim.larguraCm * exportPxPerCm)}×{Math.round(dim.alturaCm * exportPxPerCm)}px
           </p>
         </div>

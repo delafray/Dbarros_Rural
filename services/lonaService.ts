@@ -1,7 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck - table 'cardapio_lonas' not yet in generated types (database.types.ts)
 import { supabase } from './supabaseClient';
-import type { LonaBlocoConfig } from '../components/cardapioLona/cardapioLonaConfig';
+import type { LonaBlocoConfig, ContrasteModo } from '../components/cardapioLona/cardapioLonaConfig';
 
 export interface CardapioLona {
   id: string;
@@ -20,6 +20,10 @@ export interface CardapioLona {
   blocos: LonaBlocoConfig[];
   /** Partial<FontesLona>; null = padrão */
   fontes: Record<string, number> | null;
+  /** 'auto' detecta a paleta pela arte; claro/escuro forçam */
+  contraste_modo: ContrasteModo;
+  /** Véu de contraste atrás da área útil (0 = desligado, máx 0.8) */
+  scrim_opacidade: number;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +43,8 @@ export interface CardapioLonaInput {
   colunas?: number;
   blocos?: LonaBlocoConfig[];
   fontes?: Record<string, number> | null;
+  contraste_modo?: ContrasteModo;
+  scrim_opacidade?: number;
 }
 
 const table = () => supabase.from('cardapio_lonas' as never);

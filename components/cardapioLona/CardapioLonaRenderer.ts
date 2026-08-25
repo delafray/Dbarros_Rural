@@ -38,6 +38,16 @@ import {
   LOGO_GAP_CM,
   TITULO_WEIGHT_EM,
   calcColunasDestaque,
+  RetanguloCm,
+  ContrasteModo,
+  PaletaTexto,
+  CONTRASTE_MINIMO,
+  luminanciaRelativa,
+  luminanciaHex,
+  razaoContraste,
+  luminanciaComScrim,
+  escolherPaleta,
+  paletaTextoEscuro,
 } from './cardapioLonaConfig';
 
 const FONT_REGULAR = 'Arial, Helvetica, sans-serif';
@@ -55,6 +65,17 @@ export interface LonaRenderOptions {
   mostrarGuia?: boolean;
   /** px por cm; default PX_PER_CM (preview) */
   pxPerCm?: number;
+  /** 'auto' detecta pela arte na área útil; claro/escuro forçam */
+  contrasteModo?: ContrasteModo;
+  /** Véu de contraste atrás da área útil (0 = desligado, máx 0.8) */
+  scrimOpacidade?: number;
+}
+
+export interface AvisoContraste {
+  menuId: string;
+  titulo: string;
+  /** Razão de contraste WCAG do texto contra o fundo real do bloco (1..21) */
+  ratio: number;
 }
 
 export interface LonaRenderResult {
@@ -65,6 +86,10 @@ export interface LonaRenderResult {
   abaixoDoMinimo: boolean;
   larguraPx: number;
   alturaPx: number;
+  /** Paleta de texto usada ('claro' = texto claro sobre fundo escuro) */
+  paleta: PaletaTexto;
+  /** Blocos cujo texto ficou abaixo de CONTRASTE_MINIMO contra o fundo real */
+  avisosContraste: AvisoContraste[];
 }
 
 interface LogoCarregada {
@@ -89,6 +114,57 @@ async function carregarLogos(blocos: LonaBloco[]): Promise<Map<string, LogoCarre
       })
   );
   return out;
+}
+
+// ─── Medição de luminância do fundo ──────────────────────────────────────────
+
+/**
+ * Cria um amostrador de luminância do fundo REAL da lona em baixa resolução
+ * (1 px/cm): cor do tema + arte em cover, mesma geometria do render. Devolve
+ * a luminância média (0..1) de qualquer retângulo em cm.
+ * A arte é usada na medição mesmo quando o export sai transparente — é ela
+ * que estará atrás do conteúdo na composição final no Corel.
+ */
+function criarSamplerLuminancia(
+  dim: LonaDimensoes,
+  corFundo: string,
+  fundoImg: HTMLImageElement | null
+): (rect: RetanguloCm) => number {
+  const w = Math.max(1, Math.round(dim.larguraCm));
+  const h = Math.max(1, Math.round(dim.alturaCm));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.fillStyle = corFundo;
+  ctx.fillRect(0, 0, w, h);
+  if (fundoImg) {
+    const iw = fundoImg.naturalWidth || fundoImg.width;
+    const ih = fundoImg.naturalHeight || fundoImg.height;
+    if (iw > 0 && ih > 0) {
+      const { dx, dy, dw, dh } = coverRect(iw, ih, w, h);
+      ctx.drawImage(fundoImg, dx, dy, dw, dh);
+    }
+  }
+
+  return (rect: RetanguloCm) => {
+    const x0 = Math.min(w - 1, Math.max(0, Math.floor(rect.x)));
+    const y0 = Math.min(h - 1, Math.max(0, Math.floor(rect.y)));
+    const rw = Math.max(1, Math.min(w - x0, Math.ceil(rect.w)));
+    const rh = Math.max(1, Math.min(h - y0, Math.ceil(rect.h)));
+    try {
+      const data = ctx.getImageData(x0, y0, rw, rh).data;
+      let soma = 0;
+      const n = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        soma += luminanciaRelativa(data[i], data[i + 1], data[i + 2]);
+      }
+      return n > 0 ? soma / n : 0;
+    } catch {
+      // Canvas "tainted" (arte sem CORS): assume fundo escuro (visual padrão)
+      return 0;
+    }
+  };
 }
 
 // ─── Desenho de conteúdo ─────────────────────────────────────────────────────
@@ -260,26 +336,42 @@ export async function renderLonaToDataURL(
   const F = resolveFontesLona(opts.fontes);
   const fundoModo: LonaFundoModo = opts.fundoModo ?? (opts.fundoUrl ? 'imagem' : 'cor');
 
-  // Fundo
-  if (fundoModo === 'cor') {
-    ctx.fillStyle = T.corFundo;
-    ctx.fillRect(0, 0, W, H);
-  } else if (fundoModo === 'imagem' && opts.fundoUrl) {
-    ctx.fillStyle = T.corFundo;
-    ctx.fillRect(0, 0, W, H);
+  // Arte de fundo: carregada mesmo no modo transparente — é usada na MEDIÇÃO
+  // de contraste (ela estará atrás do conteúdo na composição final).
+  let fundoImg: HTMLImageElement | null = null;
+  if (opts.fundoUrl) {
     try {
-      const img = await loadImage(opts.fundoUrl);
-      const iw = img.naturalWidth || img.width;
-      const ih = img.naturalHeight || img.height;
-      if (iw > 0 && ih > 0) {
-        const { dx, dy, dw, dh } = coverRect(iw, ih, W, H);
-        ctx.drawImage(img, dx, dy, dw, dh);
-      }
+      fundoImg = await loadImage(opts.fundoUrl);
     } catch (e) {
       console.warn('[CardapioLonaRenderer] fundo não carregou:', e);
     }
   }
+
+  // Fundo desenhado
+  if (fundoModo === 'cor') {
+    ctx.fillStyle = T.corFundo;
+    ctx.fillRect(0, 0, W, H);
+  } else if (fundoModo === 'imagem') {
+    ctx.fillStyle = T.corFundo;
+    ctx.fillRect(0, 0, W, H);
+    if (fundoImg) {
+      const iw = fundoImg.naturalWidth || fundoImg.width;
+      const ih = fundoImg.naturalHeight || fundoImg.height;
+      if (iw > 0 && ih > 0) {
+        const { dx, dy, dw, dh } = coverRect(iw, ih, W, H);
+        ctx.drawImage(fundoImg, dx, dy, dw, dh);
+      }
+    }
+  }
   // 'transparente': não pinta nada — alpha preservado para compor no Corel
+
+  // Contraste: mede a luminância do fundo real na área útil e escolhe a paleta
+  const util = resolveAreaUtil(dim);
+  const sampler = criarSamplerLuminancia(dim, T.corFundo, fundoImg);
+  const modo: ContrasteModo = opts.contrasteModo ?? 'auto';
+  const paleta: PaletaTexto = modo === 'auto' ? escolherPaleta(sampler(util)) : modo;
+  const Tcores = paleta === 'escuro' ? paletaTextoEscuro(T) : T;
+  const scrimOpacidade = Math.max(0, Math.min(0.8, opts.scrimOpacidade ?? 0));
 
   // Layout
   const logos = await carregarLogos(blocos);
@@ -289,20 +381,33 @@ export async function renderLonaToDataURL(
   const layout: LonaLayout = calcLonaLayout(medidos, nColunas, dim.utilAlturaCm);
   const fs = layout.fonteCm * pxPerCm;
 
-  const util = resolveAreaUtil(dim);
   const utilX = util.x * pxPerCm;
   const utilY = util.y * pxPerCm;
   const utilW = util.w * pxPerCm;
   const utilH = util.h * pxPerCm;
+
+  // Véu de contraste (scrim): escuro sob texto claro, claro sob texto escuro.
+  // Sai também no modo transparente — é parte do conteúdo na composição.
+  if (scrimOpacidade > 0) {
+    ctx.fillStyle = paleta === 'claro'
+      ? `rgba(0,0,0,${scrimOpacidade})`
+      : `rgba(255,255,255,${scrimOpacidade})`;
+    ctx.fillRect(utilX, utilY, utilW, utilH);
+  }
 
   const padPx = UTIL_PAD_CM * pxPerCm;
   const contentX = utilX + padPx;
   const contentW = utilW - padPx * 2;
   let y = utilY + padPx;
 
+  // Retângulos desenhados por bloco (px) para o aviso de contraste local
+  const rectsBlocos: { medido: BlocoMedido; x: number; y: number; w: number; h: number }[] = [];
+
   // Blocos destaque: largura total, empilhados no topo
   for (const medido of layout.destaques) {
-    y = drawBloco(ctx, T, F, medido, logos.get(medido.bloco.menuId), contentX, y, contentW, fs, pxPerCm);
+    const y0 = y;
+    y = drawBloco(ctx, Tcores, F, medido, logos.get(medido.bloco.menuId), contentX, y, contentW, fs, pxPerCm);
+    rectsBlocos.push({ medido, x: contentX, y: y0, w: contentW, h: y - y0 });
     y += BLOCO_GAP_CM * pxPerCm;
   }
 
@@ -314,10 +419,32 @@ export async function renderLonaToDataURL(
     const colX = contentX + c * (colW + gapPx);
     let colY = y;
     for (const medido of col) {
-      colY = drawBloco(ctx, T, F, medido, logos.get(medido.bloco.menuId), colX, colY, colW, fs, pxPerCm);
+      const y0 = colY;
+      colY = drawBloco(ctx, Tcores, F, medido, logos.get(medido.bloco.menuId), colX, colY, colW, fs, pxPerCm);
+      rectsBlocos.push({ medido, x: colX, y: y0, w: colW, h: colY - y0 });
       colY += BLOCO_GAP_CM * pxPerCm;
     }
   });
+
+  // Aviso de contraste por bloco: texto principal contra o fundo real (com scrim)
+  const lumTexto = luminanciaHex(Tcores.corTexto);
+  const avisosContraste: AvisoContraste[] = [];
+  for (const r of rectsBlocos) {
+    const lumFundo = sampler({
+      x: r.x / pxPerCm,
+      y: r.y / pxPerCm,
+      w: r.w / pxPerCm,
+      h: r.h / pxPerCm,
+    });
+    const ratio = razaoContraste(lumTexto, luminanciaComScrim(lumFundo, paleta, scrimOpacidade));
+    if (ratio < CONTRASTE_MINIMO) {
+      avisosContraste.push({
+        menuId: r.medido.bloco.menuId,
+        titulo: r.medido.bloco.titulo,
+        ratio: Math.round(ratio * 10) / 10,
+      });
+    }
+  }
 
   // Guia da área útil (preview)
   if (opts.mostrarGuia) {
@@ -335,6 +462,8 @@ export async function renderLonaToDataURL(
     abaixoDoMinimo: layout.abaixoDoMinimo,
     larguraPx: W,
     alturaPx: H,
+    paleta,
+    avisosContraste,
   };
 }
 

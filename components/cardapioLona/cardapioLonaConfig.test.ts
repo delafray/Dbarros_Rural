@@ -13,8 +13,17 @@ import {
   MAX_CANVAS_SIDE,
   MIN_ITEM_FONT_CM,
   LonaBloco,
+  luminanciaRelativa,
+  luminanciaHex,
+  razaoContraste,
+  luminanciaComScrim,
+  escolherPaleta,
+  paletaTextoEscuro,
+  LIMIAR_FUNDO_CLARO,
+  CONTRASTE_MINIMO,
 } from './cardapioLonaConfig';
 import { CardapioGroup } from '../../utils/cardapioParser';
+import { TEMA_PADRAO } from '../../utils/cardapioTema';
 
 const grupo = (n: number, categoria = 'CAT'): CardapioGroup => ({
   categoria,
@@ -107,6 +116,59 @@ describe('fontes da lona', () => {
     expect(f.preco).toBe(1);
     expect(fontesLonaSaoPadrao(f)).toBe(false);
     expect(fontesLonaSaoPadrao({ ...FONTES_LONA_PADRAO })).toBe(true);
+  });
+});
+
+describe('contraste automático', () => {
+  it('luminância relativa WCAG: preto 0, branco 1, cinza médio conhecido', () => {
+    expect(luminanciaRelativa(0, 0, 0)).toBe(0);
+    expect(luminanciaRelativa(255, 255, 255)).toBeCloseTo(1, 5);
+    // #808080 → ~0.2159 (valor de referência WCAG)
+    expect(luminanciaRelativa(128, 128, 128)).toBeCloseTo(0.2159, 3);
+  });
+
+  it('luminância de cor hex, com formato curto', () => {
+    expect(luminanciaHex('#FFFFFF')).toBeCloseTo(1, 5);
+    expect(luminanciaHex('#000')).toBe(0);
+    expect(luminanciaHex('inválido')).toBe(0);
+  });
+
+  it('razão de contraste: preto×branco = 21:1, cor×ela mesma = 1:1', () => {
+    expect(razaoContraste(1, 0)).toBeCloseTo(21, 5);
+    expect(razaoContraste(0, 1)).toBeCloseTo(21, 5); // ordem não importa
+    expect(razaoContraste(0.5, 0.5)).toBeCloseTo(1, 5);
+  });
+
+  it('escolherPaleta: fundo escuro → texto claro; fundo claro → texto escuro', () => {
+    expect(escolherPaleta(0.05)).toBe('claro');
+    expect(escolherPaleta(0.9)).toBe('escuro');
+    expect(escolherPaleta(LIMIAR_FUNDO_CLARO)).toBe('claro'); // limiar inclusivo p/ claro
+  });
+
+  it('scrim escuro sob texto claro derruba a luminância do fundo; claro sobe', () => {
+    expect(luminanciaComScrim(0.8, 'claro', 0.5)).toBeCloseTo(0.4, 5);
+    expect(luminanciaComScrim(0.1, 'escuro', 0.5)).toBeCloseTo(0.55, 5);
+    expect(luminanciaComScrim(0.8, 'claro', 0)).toBe(0.8); // desligado
+  });
+
+  it('scrim resolve um fundo claro ilegível para texto branco', () => {
+    const lumTextoBranco = luminanciaHex('#FFFFFF');
+    const fundoClaro = 0.7;
+    const sem = razaoContraste(lumTextoBranco, fundoClaro);
+    const com = razaoContraste(lumTextoBranco, luminanciaComScrim(fundoClaro, 'claro', 0.75));
+    expect(sem).toBeLessThan(CONTRASTE_MINIMO);
+    expect(com).toBeGreaterThan(CONTRASTE_MINIMO);
+  });
+
+  it('paleta de texto escuro: itens quase-pretos e dourado escurecido legível em fundo claro', () => {
+    const P = paletaTextoEscuro(TEMA_PADRAO);
+    expect(luminanciaHex(P.corTexto)).toBeLessThan(0.05);
+    expect(luminanciaHex(P.corDouradoClaro)).toBeLessThan(luminanciaHex(TEMA_PADRAO.corDourado));
+    // contraste do texto principal sobre fundo branco passa o mínimo
+    expect(razaoContraste(luminanciaHex(P.corTexto), 1)).toBeGreaterThan(CONTRASTE_MINIMO);
+    // cores não relacionadas ao texto ficam intactas
+    expect(P.corFundo).toBe(TEMA_PADRAO.corFundo);
+    expect(P.corDourado).toBe(TEMA_PADRAO.corDourado);
   });
 });
 
