@@ -9,14 +9,16 @@ import { exportCardapiosCsv } from '../services/cardapiosExportService';
 import AbaMenuA4 from '../components/cardapioProjeto/AbaMenuA4';
 import AbaBanner from '../components/cardapioProjeto/AbaBanner';
 import AbaPainelDuplo from '../components/cardapioProjeto/AbaPainelDuplo';
+import AbaLona from '../components/cardapioProjeto/AbaLona';
 import AbaConfiguracao from '../components/cardapioProjeto/AbaConfiguracao';
 
-type TabId = 'a4' | 'banner' | 'painel' | 'config';
+type TabId = 'a4' | 'banner' | 'painel' | 'lona' | 'config';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'a4',     label: 'Menu A4' },
   { id: 'banner', label: 'Banner' },
   { id: 'painel', label: 'Painel Duplo' },
+  { id: 'lona',   label: 'Lona' },
   { id: 'config', label: 'Configuração' },
 ];
 
@@ -128,6 +130,7 @@ const CardapioProjeto: React.FC = () => {
       {activeTab === 'a4' && <AbaMenuA4 projeto={projeto} />}
       {activeTab === 'banner' && <AbaBanner projeto={projeto} />}
       {activeTab === 'painel' && <AbaPainelDuplo projeto={projeto} />}
+      {activeTab === 'lona' && <AbaLona projeto={projeto} />}
       {activeTab === 'config' && (
         <AbaConfiguracao projeto={projeto} onProjetoChange={setProjeto} />
       )}

@@ -30,6 +30,7 @@ const CardapioProjeto = lazy(() => import('./pages/CardapioProjeto'));
 const CardapioEditor = lazy(() => import('./pages/CardapioEditor'));
 const CardapioA4Editor = lazy(() => import('./pages/CardapioA4Editor'));
 const A3PreviewA4 = lazy(() => import('./pages/A3PreviewA4'));
+const CardapioLonaEditor = lazy(() => import('./pages/CardapioLonaEditor'));
 const A3PreviewCardapios = lazy(() => import('./pages/A3PreviewCardapios'));
 const CentroCusto = lazy(() => import('./pages/CentroCusto'));
 const CentroCustoCadastros = lazy(() => import('./pages/CentroCustoCadastros'));
@@ -134,6 +135,8 @@ const App: React.FC = () => {
         <Route path="/cardapios/projeto/:projetoId/banner/:id" element={<ProtectedRoute><CardapioEditor /></ProtectedRoute>} />
         <Route path="/cardapios/projeto/:projetoId/a4/novo" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
         <Route path="/cardapios/projeto/:projetoId/a4/:id" element={<ProtectedRoute><CardapioA4Editor /></ProtectedRoute>} />
+        <Route path="/cardapios/projeto/:projetoId/lona/novo" element={<ProtectedRoute><CardapioLonaEditor /></ProtectedRoute>} />
+        <Route path="/cardapios/projeto/:projetoId/lona/:id" element={<ProtectedRoute><CardapioLonaEditor /></ProtectedRoute>} />
         <Route path="/a3-preview-cardapios" element={<ProtectedRoute><A3PreviewCardapios /></ProtectedRoute>} />
         <Route path="/a3-preview-a4" element={<ProtectedRoute><A3PreviewA4 /></ProtectedRoute>} />
         {/* Rotas antigas (bookmarks/PWA) → lista de projetos */}

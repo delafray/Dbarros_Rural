@@ -134,14 +134,16 @@ export const AbaConfiguracao: React.FC<AbaConfiguracaoProps> = ({ projeto, onPro
     [tema]
   );
 
-  const setterPorTipo: Record<CardapioAssetTipo, (url: string | null) => void> = {
+  // Só os assets que ficam no projeto ('fundo-lona' e 'logo' são por lona/menu)
+  type AssetProjetoTipo = Extract<CardapioAssetTipo, 'fundo-banner' | 'fundo-a4' | 'fundo-a3' | 'chancela'>;
+  const setterPorTipo: Record<AssetProjetoTipo, (url: string | null) => void> = {
     'fundo-banner': setFundoBannerUrl,
     'fundo-a4': setFundoA4Url,
     'fundo-a3': setFundoA3Url,
     'chancela': setChancelaUrl,
   };
 
-  const handleUpload = async (tipo: CardapioAssetTipo, file: File | null) => {
+  const handleUpload = async (tipo: AssetProjetoTipo, file: File | null) => {
     if (!file) return;
     try {
       setUploading(tipo);
