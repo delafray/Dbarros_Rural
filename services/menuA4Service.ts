@@ -11,6 +11,8 @@ interface MenuA4Payload {
   fontes?: Record<string, number> | null;
   /** Força coluna única mesmo acima do limiar automático de itens */
   forcar_uma_coluna?: boolean;
+  /** Logo do estabelecimento (bucket cardapio-assets) — usada na lona */
+  logo_url?: string | null;
 }
 
 export const menuA4Service = {

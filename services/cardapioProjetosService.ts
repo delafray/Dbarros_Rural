@@ -31,7 +31,13 @@ export interface CardapioProjetoInput {
   fontes_a3?: Partial<FontesA3> | null;
 }
 
-export type CardapioAssetTipo = 'fundo-banner' | 'fundo-a4' | 'fundo-a3' | 'chancela';
+export type CardapioAssetTipo =
+  | 'fundo-banner'
+  | 'fundo-a4'
+  | 'fundo-a3'
+  | 'fundo-lona'
+  | 'chancela'
+  | 'logo';
 
 export interface CardapioProjetoComContagens extends CardapioProjeto {
   totalBanners: number;
