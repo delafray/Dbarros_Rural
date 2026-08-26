@@ -17,11 +17,12 @@
 - **Segurança (auditoria F12, 14/08)**: código-fonte/histórico git fora do
   bundle público; allowlist de upload nos buckets; ban de credencial ao
   desativar usuário. Nenhum segredo vazou.
-- **Cardápio A4 — preços compostos (26/08)**: valor `Rótulo - R$ X / ...` agora
+- **Cardápios — preços compostos (26/08)**: valor `Rótulo - R$ X / ...` agora
   é estruturado pelo parser e SEMPRE vira sublinhas pontilhadas (o inline de
   2 tamanhos quebrava em cardápio pequeno/fonte grande — caso Riva Sorvetes).
-  Auto-fit conta as sublinhas. A3 e Lona ainda desenham o valor composto
-  inline (mesma limitação antiga).
+  Aplicado no A4 (preview+export, auto-fit conta as sublinhas) e no A3 Duplo
+  (EmpresaBlock + PDF vetorial). Ainda inline: Lona (CardapioLonaRenderer) e
+  o renderer antigo do módulo Cardápios (CardapioRenderer).
 
 ## Aguardando o usuário
 

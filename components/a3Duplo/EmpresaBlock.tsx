@@ -1,5 +1,9 @@
 import React from 'react';
-import { CardapioGroup } from '../../utils/cardapioParser';
+import {
+  CardapioGroup,
+  parseValorComposto,
+  VARIANTES_EMPILHA_MIN,
+} from '../../utils/cardapioParser';
 import { CardapioTema, withAlpha } from '../../utils/cardapioTema';
 import { FontesA3 } from './a3DuploLayout';
 
@@ -82,7 +86,14 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
             }}>
               {grupo.categoria}
             </h3>
-            {grupo.itens.map((item: any, ii: number) => (
+            {grupo.itens.map((item: any, ii: number) => {
+              // Valor composto (tamanhos) SEMPRE empilha: nome em linha
+              // própria + uma sublinha por tamanho (mesma regra do A4)
+              const variantes = parseValorComposto(item.valor);
+              const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
+              const valorLinha = empilhado ? '' : item.valor;
+
+              return (
               <div key={ii} style={{ marginBottom: `${5 * scale * spacing}px` }}>
                 <div style={{
                   display: 'flex',
@@ -97,7 +108,7 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                   }}>
                     {item.item}
                   </span>
-                  {item.valor && (
+                  {valorLinha && (
                     <span style={{
                       flex: 1,
                       minWidth: '12px',
@@ -106,14 +117,46 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                       alignSelf: 'baseline',
                     }} />
                   )}
-                  <span style={{
-                    fontSize: `${fontes.preco * scale}px`,
-                    color: t.corDouradoClaro,
-                    fontWeight: 900,
-                    fontFamily: '"Arial Black", Impact, sans-serif',
-                    whiteSpace: 'nowrap',
-                  }}>{item.valor}</span>
+                  {valorLinha && (
+                    <span style={{
+                      fontSize: `${fontes.preco * scale}px`,
+                      color: t.corDouradoClaro,
+                      fontWeight: 900,
+                      fontFamily: '"Arial Black", Impact, sans-serif',
+                      whiteSpace: 'nowrap',
+                    }}>{valorLinha}</span>
+                  )}
                 </div>
+                {empilhado && variantes!.map((v, vi) => (
+                  <div key={vi} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    paddingLeft: `${fontes.item * scale * 1.2}px`,
+                    lineHeight: 1.3,
+                  }}>
+                    <span style={{
+                      fontSize: `${fontes.item * scale * 0.9}px`,
+                      color: t.corTexto,
+                      fontWeight: 600,
+                      minWidth: 0,
+                    }}>{v.rotulo}</span>
+                    <span style={{
+                      flex: 1,
+                      minWidth: '12px',
+                      margin: '0 8px',
+                      borderBottom: `1px dotted ${withAlpha(t.corTextoSuave, 0.55)}`,
+                      alignSelf: 'baseline',
+                    }} />
+                    <span style={{
+                      fontSize: `${fontes.preco * scale * 0.92}px`,
+                      color: t.corDouradoClaro,
+                      fontWeight: 900,
+                      fontFamily: '"Arial Black", Impact, sans-serif',
+                      whiteSpace: 'nowrap',
+                    }}>{v.preco}</span>
+                  </div>
+                ))}
                 {/* Descrição abaixo da linha, largura total da coluna — só
                     quebra quando realmente falta espaço (antes: maxWidth 85%
                     de uma coluna auto-dimensionada forçava quebra sempre) */}
@@ -127,7 +170,8 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                   }}>{item.descricao}</div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>

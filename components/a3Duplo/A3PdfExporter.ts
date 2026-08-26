@@ -17,6 +17,11 @@
 import { jsPDF } from 'jspdf';
 import { CardapioTema } from '../../utils/cardapioTema';
 import {
+  parseValorComposto,
+  VARIANTES_EMPILHA_MIN,
+  PrecoVariante,
+} from '../../utils/cardapioParser';
+import {
   A3DuploMenuData,
   LayoutResult,
   FontesA3,
@@ -201,18 +206,24 @@ function drawEmpresaBlock(
       const precoSize = f.preco * scale;
       const descSize = f.descricao * scale;
 
+      // Valor composto (tamanhos) SEMPRE empilha: nome em linha própria +
+      // uma sublinha por tamanho (mesma regra do EmpresaBlock/A4)
+      const variantes = parseValorComposto(item.valor);
+      const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
+      const valorLinha = empilhado ? '' : item.valor;
+
       // mede o preço primeiro
       let precoW = 0;
-      if (item.valor) {
+      if (valorLinha) {
         doc.setFont('ArchivoBlack', 'normal');
         doc.setFontSize(precoSize * K);
-        precoW = doc.getTextWidth(item.valor) / K;
+        precoW = doc.getTextWidth(valorLinha) / K;
       }
 
       // nome (pode quebrar)
       doc.setFont('LiberationSans', 'bold');
       doc.setFontSize(itemSize * K);
-      const nomeMaxW = item.valor ? colWPx - precoW - 16 : colWPx;
+      const nomeMaxW = valorLinha ? colWPx - precoW - 16 : colWPx;
       const nomeLinhas = wrap(doc, item.item || '', nomeMaxW);
       const baseline1 = y + itemSize * 0.88;
 
@@ -222,7 +233,7 @@ function drawEmpresaBlock(
       });
 
       // pontilhado + preço (alinhados no baseline da 1ª linha)
-      if (item.valor) {
+      if (valorLinha) {
         doc.setFont('LiberationSans', 'bold');
         doc.setFontSize(itemSize * K);
         const nomeW = doc.getTextWidth(nomeLinhas[0]) / K;
@@ -242,10 +253,54 @@ function drawEmpresaBlock(
         doc.setFont('ArchivoBlack', 'normal');
         doc.setFontSize(precoSize * K);
         setTextColor(doc, t.corDouradoClaro);
-        doc.text(item.valor, (xPx + colWPx) * K, baseline1 * K, { align: 'right' });
+        doc.text(valorLinha, (xPx + colWPx) * K, baseline1 * K, { align: 'right' });
       }
 
-      y += Math.max(nomeLinhas.length * itemSize * 1.15, precoSize * 1.15);
+      y += valorLinha
+        ? Math.max(nomeLinhas.length * itemSize * 1.15, precoSize * 1.15)
+        : nomeLinhas.length * itemSize * 1.15;
+
+      // Sublinhas de variantes: rótulo … preço, indentadas (espelha o DOM:
+      // fontes *0.9/*0.92, indent 1.2×item, linha 1.3×)
+      if (empilhado) {
+        const rotSize = itemSize * 0.9;
+        const varPrecoSize = precoSize * 0.92;
+        const indent = itemSize * 1.2;
+        const varLh = Math.max(rotSize, varPrecoSize) * 1.3;
+        for (const v of variantes as PrecoVariante[]) {
+          const varBase = y + rotSize * 0.88;
+
+          doc.setFont('ArchivoBlack', 'normal');
+          doc.setFontSize(varPrecoSize * K);
+          const vPrecoW = doc.getTextWidth(v.preco) / K;
+
+          doc.setFont('LiberationSans', 'bold');
+          doc.setFontSize(rotSize * K);
+          setTextColor(doc, t.corTexto);
+          doc.text(v.rotulo, (xPx + indent) * K, varBase * K);
+          const rotW = doc.getTextWidth(v.rotulo) / K;
+
+          const x1 = xPx + indent + rotW + 8;
+          const x2 = xPx + colWPx - vPrecoW - 8;
+          if (x2 > x1) {
+            withOpacity(doc, 0.55, () => {
+              const [r, g, b] = hexToRgb(t.corTextoSuave);
+              doc.setDrawColor(r, g, b);
+              doc.setLineWidth(1 * K);
+              doc.setLineDashPattern([1.5 * K, 3 * K], 0);
+              doc.line(x1 * K, varBase * K, x2 * K, varBase * K);
+              doc.setLineDashPattern([], 0);
+            });
+          }
+
+          doc.setFont('ArchivoBlack', 'normal');
+          doc.setFontSize(varPrecoSize * K);
+          setTextColor(doc, t.corDouradoClaro);
+          doc.text(v.preco, (xPx + colWPx) * K, varBase * K, { align: 'right' });
+
+          y += varLh;
+        }
+      }
 
       // descrição (abaixo, largura total)
       if (item.descricao) {
