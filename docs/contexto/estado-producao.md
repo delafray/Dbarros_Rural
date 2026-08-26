@@ -33,6 +33,9 @@
   fontes ocuparem o máximo da página SEM alterar os px do usuário nem as
   proporções entre eles; reage a qualquer mudança (fontes, juntar linhas,
   categorias, topo). Status mostra a fonte efetiva (%).
+  **Bug conhecido e ACEITO pelo usuário (26/08, sem corrigir por ora)**: em
+  produção o crescimento não disparou (fonte ficou em 100% com colunas a
+  ~70%) — na prática o A3 segue manual; o usuário ajusta as fontes à mão.
 
 ## Aguardando o usuário
 
