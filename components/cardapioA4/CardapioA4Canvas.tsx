@@ -24,6 +24,9 @@ import {
   splitGroups,
   calcFontSize,
   getGroupWeight,
+  parseValorComposto,
+  formatValorInline,
+  VARIANTES_EMPILHA_MIN,
 } from '../../utils/cardapioParser';
 
 import {
@@ -108,7 +111,14 @@ const GroupList = ({
           </div>
 
           {/* Items */}
-          {group.itens.map((item, idx) => (
+          {group.itens.map((item, idx) => {
+            // Valor composto (tamanhos): 2 variantes → inline compacto;
+            // 3+ → nome em linha própria + sublinhas (mesma regra do export)
+            const variantes = parseValorComposto(item.valor);
+            const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
+            const valorLinha = empilhado ? '' : variantes ? formatValorInline(variantes) : item.valor;
+
+            return (
             <div key={idx} style={{ marginBottom: fs * 0.3 }}>
               <div
                 style={{
@@ -132,7 +142,7 @@ const GroupList = ({
                 </span>
                 {/* Pontilhado em TODOS os itens com preço — a descrição fica
                     embaixo (mesmo padrão aplicado no A3 Duplo) */}
-                {item.valor && (
+                {valorLinha && (
                   <span
                     aria-hidden="true"
                     style={{
@@ -146,19 +156,71 @@ const GroupList = ({
                     }}
                   />
                 )}
-                <span
+                {valorLinha && (
+                  <span
+                    style={{
+                      color: t.corDouradoClaro,
+                      fontSize: priceFs,
+                      fontWeight: 900,
+                      whiteSpace: 'nowrap',
+                      fontFamily: FONT_BLACK,
+                      letterSpacing: 0.4,
+                    }}
+                  >
+                    {valorLinha}
+                  </span>
+                )}
+              </div>
+
+              {empilhado && variantes!.map((v, vi) => (
+                <div
+                  key={vi}
                   style={{
-                    color: t.corDouradoClaro,
-                    fontSize: priceFs,
-                    fontWeight: 900,
-                    whiteSpace: 'nowrap',
-                    fontFamily: FONT_BLACK,
-                    letterSpacing: 0.4,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    paddingLeft: fs * 1.1,
+                    lineHeight: 1.3,
                   }}
                 >
-                  {item.valor}
-                </span>
-              </div>
+                  <span
+                    style={{
+                      color: t.corTexto,
+                      fontSize: itemFs * 0.9,
+                      fontWeight: 700,
+                      fontFamily: FONT_REGULAR,
+                      flex: '0 1 auto',
+                      minWidth: 0,
+                    }}
+                  >
+                    {v.rotulo}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      flex: '1 99999 100%',
+                      minWidth: 12,
+                      marginLeft: 8,
+                      marginRight: 8,
+                      alignSelf: 'baseline',
+                      paddingBottom: Math.max(1, Math.round(itemFs * 0.9 * 0.1)),
+                      borderBottom: `1.5px dotted ${withAlpha(t.corTextoSuave, 0.8)}`,
+                    }}
+                  />
+                  <span
+                    style={{
+                      color: t.corDouradoClaro,
+                      fontSize: priceFs * 0.92,
+                      fontWeight: 900,
+                      whiteSpace: 'nowrap',
+                      fontFamily: FONT_BLACK,
+                      letterSpacing: 0.4,
+                    }}
+                  >
+                    {v.preco}
+                  </span>
+                </div>
+              ))}
 
               {item.descricao && (
                 <div
@@ -176,7 +238,8 @@ const GroupList = ({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
 
           {/* Spacer entre categorias — ocupa o mesmo espaço que a separator linha ocupava */}
           {singleCol && gi < grupos.length - 1 && (

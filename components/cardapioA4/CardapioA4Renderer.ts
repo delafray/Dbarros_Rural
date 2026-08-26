@@ -13,6 +13,10 @@ import {
   splitGroups,
   calcFontSize,
   getGroupWeight,
+  parseValorComposto,
+  formatValorInline,
+  VARIANTES_EMPILHA_MIN,
+  PrecoVariante,
 } from '../../utils/cardapioParser';
 
 import {
@@ -188,10 +192,16 @@ function drawColumn(
 
     // ── Itens ─────────────────────────────────────────────────────────
     for (const item of group.itens) {
+      // Valor composto (tamanhos): 2 variantes → inline compacto;
+      // 3+ → nome em linha própria + sublinhas (nunca sobrepõe o nome)
+      const variantes = parseValorComposto(item.valor);
+      const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
+      const valorLinha = empilhado ? '' : variantes ? formatValorInline(variantes) : item.valor;
+
       // Medir preço primeiro pra reservar espaço
       ctx.font = `900 ${priceFs}px ${FONT_BLACK}`;
-      const priceW = item.valor ? ctx.measureText(item.valor).width : 0;
-      const nameMaxW = colW - (item.valor ? priceW + 16 : 0);
+      const priceW = valorLinha ? ctx.measureText(valorLinha).width : 0;
+      const nameMaxW = colW - (valorLinha ? priceW + 16 : 0);
 
       // Nome do item (pode quebrar se tiver descricao; senão fica em 1 linha)
       ctx.font         = `700 ${itemFs}px ${FONT_REGULAR}`;
@@ -209,7 +219,7 @@ function drawColumn(
 
       // Dotted link em TODOS os itens com preço — descrição fica embaixo
       // (mesmo padrão do A3). Alinha no baseline da 1a linha (mesmo do preço).
-      if (item.valor) {
+      if (valorLinha) {
         const nameSpanW = nameLines.length > 1
           ? nameMaxW
           : ctx.measureText(nameLines[0]).width;
@@ -218,16 +228,47 @@ function drawColumn(
       }
 
       // Preço — alinhado à direita no baseline da primeira linha do nome
-      if (item.valor) {
+      if (valorLinha) {
         ctx.font         = `900 ${priceFs}px ${FONT_BLACK}`;
         ctx.fillStyle    = T.corDouradoClaro;
         ctx.textAlign    = 'right';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillText(item.valor, colX + colW, nameBaseY);
+        ctx.fillText(valorLinha, colX + colW, nameBaseY);
         ctx.textAlign    = 'left';
       }
 
-      y += Math.max(nameBlockH, priceFs * 1.22);
+      y += valorLinha ? Math.max(nameBlockH, priceFs * 1.22) : nameBlockH;
+
+      // Sublinhas de variantes (item empilhado): rótulo … preço, indentadas
+      if (empilhado) {
+        const rotFs     = itemFs * 0.9;
+        const varPrFs   = priceFs * 0.92;
+        const indent    = Math.round(fs * 1.1);
+        const varLh     = Math.max(rotFs, varPrFs) * 1.30;
+        for (const v of variantes as PrecoVariante[]) {
+          const varBaseY = y + Math.max(rotFs, varPrFs) * 1.02;
+
+          ctx.font         = `900 ${varPrFs}px ${FONT_BLACK}`;
+          const varPriceW  = ctx.measureText(v.preco).width;
+
+          ctx.font         = `700 ${rotFs}px ${FONT_REGULAR}`;
+          ctx.fillStyle    = T.corTexto;
+          ctx.textBaseline = 'alphabetic';
+          const rotW = ctx.measureText(v.rotulo).width;
+          ctx.fillText(v.rotulo, colX + indent, varBaseY);
+
+          const linkY = varBaseY + Math.max(1, Math.round(rotFs * 0.1));
+          drawDottedLink(ctx, T, colX + indent + rotW + 8, colX + colW - varPriceW - 8, linkY);
+
+          ctx.font      = `900 ${varPrFs}px ${FONT_BLACK}`;
+          ctx.fillStyle = T.corDouradoClaro;
+          ctx.textAlign = 'right';
+          ctx.fillText(v.preco, colX + colW, varBaseY);
+          ctx.textAlign = 'left';
+
+          y += varLh;
+        }
+      }
 
       // Descrição (se houver)
       if (item.descricao) {
