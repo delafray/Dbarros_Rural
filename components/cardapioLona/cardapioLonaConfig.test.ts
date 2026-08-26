@@ -117,6 +117,33 @@ describe('fontes da lona', () => {
     expect(fontesLonaSaoPadrao(f)).toBe(false);
     expect(fontesLonaSaoPadrao({ ...FONTES_LONA_PADRAO })).toBe(true);
   });
+
+  it('juntar linhas e mostrar categorias: defaults, clamp e compat com JSON antigo', () => {
+    // lona salva antes da feature (sem os campos) → padrão
+    expect(resolveFontesLona({ item: 1.1 })).toMatchObject({ linhas: 1, mostrarCategorias: true });
+    const f = resolveFontesLona({ linhas: 0.85, mostrarCategorias: false });
+    expect(f.linhas).toBe(0.85);
+    expect(f.mostrarCategorias).toBe(false);
+    expect(resolveFontesLona({ linhas: 0.1 }).linhas).toBe(0.7);
+    expect(resolveFontesLona({ linhas: 9 }).linhas).toBe(1.3);
+    expect(fontesLonaSaoPadrao(resolveFontesLona({ mostrarCategorias: false }))).toBe(false);
+  });
+
+  it('categoria oculta e linhas juntas reduzem o peso medido do bloco', () => {
+    const grupos = [{
+      categoria: 'CAT',
+      itens: [{ item: 'X', valor: 'R$ 10,00', descricao: 'desc' }],
+    }];
+    const blocoBase = {
+      menuId: 'm1', titulo: 'T', grupos, logoUrl: null,
+      destaque: false, logoMaxLarguraCm: 14, logoMaxAlturaCm: 7,
+    };
+    const padrao = medirBloco(blocoBase, null, resolveFontesLona(null)).pesoEm;
+    const semCat = medirBloco(blocoBase, null, resolveFontesLona({ mostrarCategorias: false })).pesoEm;
+    const juntas = medirBloco(blocoBase, null, resolveFontesLona({ linhas: 0.7 })).pesoEm;
+    expect(semCat).toBeLessThan(padrao);
+    expect(juntas).toBeLessThan(padrao);
+  });
 });
 
 describe('contraste automático', () => {

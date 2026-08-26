@@ -9,7 +9,11 @@
  * e retorna a primeira em que tudo cabe nas 2 páginas A3.
  */
 
-import { CardapioGroup } from '../../utils/cardapioParser';
+import { CardapioGroup, LINHAS_MIN, LINHAS_MAX } from '../../utils/cardapioParser';
+
+// Helpers do "juntar linhas" moraram aqui; foram compartilhados com a Lona
+// e agora vivem no cardapioParser — re-export mantém os imports existentes.
+export { LINHAS_MIN, LINHAS_MAX, LINHAS_SENS, aplicarLinhas } from '../../utils/cardapioParser';
 
 export interface A3DuploMenuData {
   id?: string;
@@ -52,29 +56,6 @@ export const FONTES_A3_PADRAO: FontesA3 = {
   linhas: 1,
   mostrarCategorias: true,
 };
-
-export const LINHAS_MIN = 0.7;
-export const LINHAS_MAX = 1.3;
-
-/**
- * Sensibilidade de cada tipo de espaço ao controle "juntar linhas": espaços
- * que já são apertados (descrição colada no item) encolhem menos; espaços
- * largos (entre itens/grupos) encolhem o valor cheio do controle.
- */
-export const LINHAS_SENS = {
-  descricao: 0.5,   // marginTop e line-height da descrição/sublinhas
-  categoria: 0.75,  // respiro após o título da categoria e após o cabeçalho
-  item: 1,          // margem entre itens, entre grupos e entre empresas
-} as const;
-
-/**
- * Aplica o controle "juntar linhas" a um espaço: linhas=0.9 com sens=0.5
- * reduz 5%; com sens=1 reduz os 10% cheios. Aumentar (linhas>1) segue a
- * mesma proporção.
- */
-export function aplicarLinhas(base: number, sens: number, linhas: number): number {
-  return base * (1 - (1 - linhas) * sens);
-}
 
 export function resolveFontes(f?: Partial<FontesA3> | null): FontesA3 {
   if (!f) return { ...FONTES_A3_PADRAO };

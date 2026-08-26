@@ -20,9 +20,15 @@
 - **Cardápios — preços compostos (26/08)**: valor `Rótulo - R$ X / ...` agora
   é estruturado pelo parser e SEMPRE vira sublinhas pontilhadas (o inline de
   2 tamanhos quebrava em cardápio pequeno/fonte grande — caso Riva Sorvetes).
-  Aplicado no A4 (preview+export, auto-fit conta as sublinhas) e no A3 Duplo
-  (EmpresaBlock + PDF vetorial). Ainda inline: Lona (CardapioLonaRenderer) e
-  o renderer antigo do módulo Cardápios (CardapioRenderer).
+  Aplicado no A4 (preview+export, auto-fit conta as sublinhas), no A3 Duplo
+  (EmpresaBlock + PDF vetorial) e na Lona (renderer + peso; a fonte automática
+  já conta as sublinhas). Ainda inline: só o renderer antigo do módulo
+  Cardápios (CardapioRenderer).
+- **Lona — controles novos (26/08)**: "Juntar linhas" e "Mostrar categorias"
+  no editor, salvos no JSON `fontes` da lona (compat: JSON antigo cai no
+  padrão). Como a fonte da lona cresce até encher a área útil, compactar/
+  ocultar categorias AUMENTA a letra automaticamente. Helpers do juntar
+  linhas agora moram em `utils/cardapioParser` (A3 re-exporta).
 - **A3 Duplo — controles novos (26/08)**: "Juntar linhas" (70–130%, compressão
   ponderada: descrição encolhe metade, espaços largos o valor cheio) e
   "Mostrar categorias" (oculta DOCES/LANCHES... de todos os cardápios).

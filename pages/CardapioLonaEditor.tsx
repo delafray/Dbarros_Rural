@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { LINHAS_MIN, LINHAS_MAX } from '../utils/cardapioParser';
 import {
   PX_PER_CM,
   calcExportPxPerCm,
@@ -31,7 +32,7 @@ import { lonaService } from '../services/lonaService';
 import { menuA4Service } from '../services/menuA4Service';
 import { cardapioProjetosService, CardapioProjeto } from '../services/cardapioProjetosService';
 
-const CAMPOS_FONTES: { key: keyof FontesLona; label: string }[] = [
+const CAMPOS_FONTES: { key: 'titulo' | 'categoria' | 'item' | 'descricao' | 'preco'; label: string }[] = [
   { key: 'titulo',    label: 'Título (sem logo)' },
   { key: 'categoria', label: 'Categoria' },
   { key: 'item',      label: 'Item' },
@@ -821,6 +822,41 @@ export const CardapioLonaEditor: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {/* Juntar linhas — compressão ponderada (descrição encolhe menos) */}
+            <div className="border-t border-slate-100 pt-2 mt-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-700">Juntar linhas</span>
+                <span className={`text-xs font-mono ${fontes.linhas !== 1 ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
+                  {Math.round(fontes.linhas * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={LINHAS_MIN}
+                max={LINHAS_MAX}
+                step={0.05}
+                value={fontes.linhas}
+                onChange={(e) => setFontes((prev) => ({ ...prev, linhas: Number(e.target.value) }))}
+                className="w-full accent-indigo-600"
+              />
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Menos = itens mais juntos → a fonte automática cresce para
+                preencher a área útil. A descrição (já colada) encolhe menos que
+                os espaços largos.
+              </p>
+            </div>
+
+            {/* Categorias visíveis? (DOCES, LANCHES... de todos os blocos) */}
+            <label className="flex items-center justify-between gap-2 cursor-pointer border-t border-slate-100 pt-2">
+              <span className="text-xs font-semibold text-slate-700">Mostrar categorias</span>
+              <input
+                type="checkbox"
+                checked={fontes.mostrarCategorias}
+                onChange={(e) => setFontes((prev) => ({ ...prev, mostrarCategorias: e.target.checked }))}
+                className="w-4 h-4 accent-indigo-600 cursor-pointer"
+              />
+            </label>
           </div>
         </div>
 

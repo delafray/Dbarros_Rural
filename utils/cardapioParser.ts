@@ -70,15 +70,45 @@ export function formatValorInline(variantes: PrecoVariante[]): string {
   return variantes.map((v) => `${v.rotulo} ${v.preco}`).join(' · ');
 }
 
+// ─── Controle "juntar linhas" (compartilhado A3/Lona) ───────────────────────
+export const LINHAS_MIN = 0.7;
+export const LINHAS_MAX = 1.3;
+
+/**
+ * Sensibilidade de cada tipo de espaço ao controle "juntar linhas": espaços
+ * que já são apertados (descrição colada no item) encolhem menos; espaços
+ * largos (entre itens/grupos) encolhem o valor cheio do controle.
+ */
+export const LINHAS_SENS = {
+  descricao: 0.5,   // marginTop e line-height da descrição/sublinhas
+  categoria: 0.75,  // respiro após o título da categoria e após o cabeçalho
+  item: 1,          // margem entre itens, entre grupos e entre empresas
+} as const;
+
+/**
+ * Aplica o controle "juntar linhas" a um espaço: linhas=0.9 com sens=0.5
+ * reduz 5%; com sens=1 reduz os 10% cheios. Aumentar (linhas>1) segue a
+ * mesma proporção.
+ */
+export function aplicarLinhas(base: number, sens: number, linhas: number): number {
+  return base * (1 - (1 - linhas) * sens);
+}
+
 /**
  * Multiplicadores de fonte por elemento (1 = padrão) — permitem que o
  * auto-fit desconte fontes customizadas na estimativa de altura.
+ * `linhas`/`mostrarCategorias` (opcionais) fazem o peso acompanhar os
+ * controles "juntar linhas" e "ocultar categorias" onde eles existem.
  */
 export interface PesoFontes {
   categoria?: number;
   item?: number;
   descricao?: number;
   preco?: number;
+  /** Compressão vertical (1 = padrão; ver LINHAS_MIN/MAX) */
+  linhas?: number;
+  /** false = títulos de categoria ocultos (peso da categoria zerado) */
+  mostrarCategorias?: boolean;
 }
 
 /**
@@ -93,22 +123,25 @@ export function getItemWeight(
 ): number {
   // A linha do item tem a altura do maior entre nome e preço
   const linhaMult = Math.max(m?.item ?? 1, m?.preco ?? 1);
+  const lin = m?.linhas ?? 1;
   const variantes = parseValorComposto(item.valor);
   const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
+  const margem = aplicarLinhas(ITEM_MARGIN_WEIGHT, LINHAS_SENS.item, lin);
   let descWeight = 0;
   if (item.descricao) {
     const lines = avgCharsPerLine && avgCharsPerLine > 0
       ? Math.max(1, Math.ceil(item.descricao.length / avgCharsPerLine))
       : 1;
-    descWeight = ITEM_DESC_WEIGHT * lines * (m?.descricao ?? 1);
+    descWeight = aplicarLinhas(ITEM_DESC_WEIGHT, LINHAS_SENS.descricao, lin) *
+      lines * (m?.descricao ?? 1);
   }
   if (empilhado) {
     // Nome em linha própria (sem preço ao lado) + uma sublinha por variante
     return ITEM_WEIGHT_BASE * (m?.item ?? 1) +
-      variantes!.length * VARIANTE_WEIGHT * linhaMult +
-      descWeight + ITEM_MARGIN_WEIGHT;
+      variantes!.length * aplicarLinhas(VARIANTE_WEIGHT, LINHAS_SENS.descricao, lin) * linhaMult +
+      descWeight + margem;
   }
-  return ITEM_WEIGHT_BASE * linhaMult + descWeight + ITEM_MARGIN_WEIGHT;
+  return ITEM_WEIGHT_BASE * linhaMult + descWeight + margem;
 }
 
 /** Total weight (em units) of a category group */
@@ -117,7 +150,13 @@ export function getGroupWeight(
   avgCharsPerLine?: number,
   m?: PesoFontes
 ): number {
-  return CAT_WEIGHT * (m?.categoria ?? 1) + CAT_MARGIN_WEIGHT +
+  const lin = m?.linhas ?? 1;
+  // Categoria oculta: título e respiro dele saem do peso
+  const catWeight = m?.mostrarCategorias === false
+    ? 0
+    : CAT_WEIGHT * (m?.categoria ?? 1) +
+      aplicarLinhas(CAT_MARGIN_WEIGHT, LINHAS_SENS.categoria, lin);
+  return catWeight +
     group.itens.reduce((s, i) => s + getItemWeight(i, avgCharsPerLine, m), 0);
 }
 

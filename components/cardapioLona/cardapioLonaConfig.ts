@@ -9,7 +9,13 @@
  * (canvas → dataURL), então não existe risco de divergência preview/export.
  */
 
-import { CardapioGroup, getGroupWeight, PesoFontes } from '../../utils/cardapioParser';
+import {
+  CardapioGroup,
+  getGroupWeight,
+  PesoFontes,
+  LINHAS_MIN,
+  LINHAS_MAX,
+} from '../../utils/cardapioParser';
 import { CardapioTema, shade } from '../../utils/cardapioTema';
 
 // ─── Escalas ──────────────────────────────────────────────────────────────────
@@ -104,6 +110,10 @@ export interface FontesLona {
   item: number;
   descricao: number;
   preco: number;
+  /** Compressão vertical entre linhas/itens (1 = padrão; LINHAS_MIN..MAX) */
+  linhas: number;
+  /** Exibe os títulos de categoria (DOCES, LANCHES...) em todos os blocos */
+  mostrarCategorias: boolean;
 }
 
 export const FONTES_LONA_PADRAO: FontesLona = {
@@ -112,15 +122,19 @@ export const FONTES_LONA_PADRAO: FontesLona = {
   item: 1,
   descricao: 1,
   preco: 1,
+  linhas: 1,
+  mostrarCategorias: true,
 };
 
 export function resolveFontesLona(f?: Partial<FontesLona> | null): FontesLona {
   if (!f) return { ...FONTES_LONA_PADRAO };
   const out = { ...FONTES_LONA_PADRAO };
-  (Object.keys(FONTES_LONA_PADRAO) as (keyof FontesLona)[]).forEach((k) => {
+  (['titulo', 'categoria', 'item', 'descricao', 'preco', 'linhas'] as const).forEach((k) => {
     const v = f[k];
     if (typeof v === 'number' && v > 0) out[k] = v;
   });
+  if (typeof f.mostrarCategorias === 'boolean') out.mostrarCategorias = f.mostrarCategorias;
+  out.linhas = Math.min(LINHAS_MAX, Math.max(LINHAS_MIN, out.linhas));
   return out;
 }
 
@@ -265,6 +279,8 @@ export function medirBloco(
     item: fontes.item,
     descricao: fontes.descricao,
     preco: fontes.preco,
+    linhas: fontes.linhas,
+    mostrarCategorias: fontes.mostrarCategorias,
   };
   let fixoCm = 0;
   let pesoEm = 0;

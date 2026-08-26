@@ -11,7 +11,14 @@
  *  - 'transparente' só o conteúdo, com alpha — para compor em vetor no Corel
  */
 
-import { CardapioGroup } from '../../utils/cardapioParser';
+import {
+  CardapioGroup,
+  parseValorComposto,
+  VARIANTES_EMPILHA_MIN,
+  PrecoVariante,
+  LINHAS_SENS,
+  aplicarLinhas,
+} from '../../utils/cardapioParser';
 import {
   CardapioTema,
   resolveTema,
@@ -185,76 +192,124 @@ function drawGrupos(
   const priceFs = fs * 1.12 * F.preco;
   const descFs = fs * 0.68 * F.descricao;
 
+  // Controle "juntar linhas" — mesmos fatores do A3/A4
+  const lin = F.linhas ?? 1;
+  const gDesc = (v: number) => aplicarLinhas(v, LINHAS_SENS.descricao, lin);
+  const gCat  = (v: number) => aplicarLinhas(v, LINHAS_SENS.categoria, lin);
+  const gItem = (v: number) => aplicarLinhas(v, LINHAS_SENS.item, lin);
+  const mostrarCategorias = F.mostrarCategorias ?? true;
+
+  const desenharLinhaPontilhada = (x1: number, x2: number, linkY: number) => {
+    if (x2 <= x1) return;
+    ctx.save();
+    ctx.setLineDash([fs * 0.12, fs * 0.24]);
+    ctx.strokeStyle = withAlpha(T.corTextoSuave, 0.8);
+    ctx.lineWidth = Math.max(1, fs * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(x1, linkY);
+    ctx.lineTo(x2, linkY);
+    ctx.stroke();
+    ctx.restore();
+  };
+
   grupos.forEach((group) => {
-    // Categoria
-    ctx.font = `900 ${catFs}px ${FONT_BLACK}`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = T.corDouradoClaro;
-    const catBaseline = y + catFs * 1.05;
-    ctx.fillText(group.categoria, x, catBaseline);
-    y = catBaseline + fs * 0.5;
+    // Categoria (ocultável)
+    if (mostrarCategorias) {
+      ctx.font = `900 ${catFs}px ${FONT_BLACK}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = T.corDouradoClaro;
+      const catBaseline = y + catFs * 1.05;
+      ctx.fillText(group.categoria, x, catBaseline);
+      y = catBaseline + gCat(fs * 0.5);
+    }
 
     // Itens
     for (const item of group.itens) {
+      // Valor composto (tamanhos) SEMPRE empilha: nome em linha própria +
+      // uma sublinha por tamanho (mesma regra do A4/A3)
+      const variantes = parseValorComposto(item.valor);
+      const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
+      const valorLinha = empilhado ? '' : item.valor;
+
       ctx.font = `900 ${priceFs}px ${FONT_BLACK}`;
-      const priceW = item.valor ? ctx.measureText(item.valor).width : 0;
-      const nameMaxW = w - (item.valor ? priceW + fs * 0.8 : 0);
+      const priceW = valorLinha ? ctx.measureText(valorLinha).width : 0;
+      const nameMaxW = w - (valorLinha ? priceW + fs * 0.8 : 0);
 
       ctx.font = `700 ${itemFs}px ${FONT_REGULAR}`;
       ctx.fillStyle = T.corTexto;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
       const nameBaseY = y + itemFs * 1.05;
       const nameLines = wrapText(ctx, item.item, nameMaxW);
       const nameLh = itemFs * 1.22;
       nameLines.forEach((line, i) => ctx.fillText(line, x, nameBaseY + i * nameLh));
       const nameBlockH = nameLines.length * nameLh;
 
-      if (item.valor) {
+      if (valorLinha) {
         // Pontilhado entre nome e preço
         const nameSpanW = nameLines.length > 1
           ? nameMaxW
           : ctx.measureText(nameLines[0]).width;
         const linkY = nameBaseY + Math.max(1, Math.round(itemFs * 0.1));
-        const x1 = x + nameSpanW + fs * 0.4;
-        const x2 = x + w - priceW - fs * 0.4;
-        if (x2 > x1) {
-          ctx.save();
-          ctx.setLineDash([fs * 0.12, fs * 0.24]);
-          ctx.strokeStyle = withAlpha(T.corTextoSuave, 0.8);
-          ctx.lineWidth = Math.max(1, fs * 0.08);
-          ctx.beginPath();
-          ctx.moveTo(x1, linkY);
-          ctx.lineTo(x2, linkY);
-          ctx.stroke();
-          ctx.restore();
-        }
+        desenharLinhaPontilhada(x + nameSpanW + fs * 0.4, x + w - priceW - fs * 0.4, linkY);
 
         ctx.font = `900 ${priceFs}px ${FONT_BLACK}`;
         ctx.fillStyle = T.corDouradoClaro;
         ctx.textAlign = 'right';
-        ctx.fillText(item.valor, x + w, nameBaseY);
+        ctx.fillText(valorLinha, x + w, nameBaseY);
         ctx.textAlign = 'left';
       }
 
-      y += Math.max(nameBlockH, priceFs * 1.22);
+      y += valorLinha ? Math.max(nameBlockH, priceFs * 1.22) : nameBlockH;
+
+      // Sublinhas de variantes: rótulo … preço, indentadas
+      if (empilhado) {
+        const rotFs = itemFs * 0.9;
+        const varPrFs = priceFs * 0.92;
+        const indent = fs * 1.1;
+        const varLh = Math.max(rotFs, varPrFs) * Math.max(1.05, gDesc(1.3));
+        for (const v of variantes as PrecoVariante[]) {
+          const varBaseY = y + Math.max(rotFs, varPrFs) * 1.02;
+
+          ctx.font = `900 ${varPrFs}px ${FONT_BLACK}`;
+          const varPriceW = ctx.measureText(v.preco).width;
+
+          ctx.font = `700 ${rotFs}px ${FONT_REGULAR}`;
+          ctx.fillStyle = T.corTexto;
+          const rotW = ctx.measureText(v.rotulo).width;
+          ctx.fillText(v.rotulo, x + indent, varBaseY);
+
+          const linkY = varBaseY + Math.max(1, Math.round(rotFs * 0.1));
+          desenharLinhaPontilhada(x + indent + rotW + fs * 0.4, x + w - varPriceW - fs * 0.4, linkY);
+
+          ctx.font = `900 ${varPrFs}px ${FONT_BLACK}`;
+          ctx.fillStyle = T.corDouradoClaro;
+          ctx.textAlign = 'right';
+          ctx.fillText(v.preco, x + w, varBaseY);
+          ctx.textAlign = 'left';
+
+          y += varLh;
+        }
+      }
 
       if (item.descricao) {
         ctx.font = `italic ${descFs}px ${FONT_REGULAR}`;
         ctx.fillStyle = T.corTextoSuave;
         ctx.globalAlpha = 0.88;
         const descLines = wrapText(ctx, item.descricao, w * 0.85);
-        const descLh = descFs * 1.4;
+        const descLh = descFs * Math.max(1.05, gDesc(1.4));
         descLines.forEach((line, i) => {
-          ctx.fillText(line, x, y + fs * 0.07 + descFs * 1.18 + i * descLh);
+          ctx.fillText(line, x, y + gDesc(fs * 0.07) + descFs * 1.18 + i * descLh);
         });
-        y += fs * 0.07 + descLines.length * descLh;
+        y += gDesc(fs * 0.07) + descLines.length * descLh;
         ctx.globalAlpha = 1;
       }
 
-      y += fs * 0.5;
+      y += gItem(fs * 0.5);
     }
 
-    y += fs * 0.6;
+    y += gItem(fs * 0.6);
   });
 
   return y;

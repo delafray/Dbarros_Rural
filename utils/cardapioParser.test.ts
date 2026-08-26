@@ -4,6 +4,7 @@ import {
     gerarTextoCardapio,
     splitGroups,
     getItemWeight,
+    getGroupWeight,
     calcFontSize,
     parseValorComposto,
     formatValorInline,
@@ -139,6 +140,22 @@ describe('layout: getItemWeight / splitGroups / calcFontSize', () => {
         expect(VARIANTES_EMPILHA_MIN).toBe(2);
         expect(duasVar).toBeGreaterThan(simples + 1);
         expect(tresVar).toBeGreaterThan(duasVar);
+    });
+
+    it('juntar linhas reduz o peso; categoria oculta zera o peso do título', () => {
+        const grupo: CardapioGroup = {
+            categoria: 'CAT',
+            itens: [{ item: 'X', valor: 'R$ 10,00', descricao: 'algo' }],
+        };
+        const padrao = getGroupWeight(grupo);
+        const juntas = getGroupWeight(grupo, undefined, { linhas: 0.7 });
+        const semCat = getGroupWeight(grupo, undefined, { mostrarCategorias: false });
+        expect(juntas).toBeLessThan(padrao);
+        expect(semCat).toBeLessThan(padrao);
+        // sem categoria, o peso do grupo vira só o peso dos itens
+        expect(semCat).toBeCloseTo(getItemWeight(grupo.itens[0], undefined, { mostrarCategorias: false }));
+        // linhas=1 e mostrarCategorias=true são neutros (compatibilidade A4)
+        expect(getGroupWeight(grupo, undefined, { linhas: 1, mostrarCategorias: true })).toBeCloseTo(padrao);
     });
 
     it('descrição longa quebra em mais linhas quando avgCharsPerLine é dado', () => {
