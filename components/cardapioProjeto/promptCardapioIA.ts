@@ -85,3 +85,27 @@ BARRACA DO ZÉ
 | CAIPIRINHAS | Caipirinha | P - R$ 40,00 / G - R$ 45,00 | Sabores: limão, maracujá ou morango. Cachaça, açúcar, gelo e fruta |
 
 Confirme que entendeu as regras e aguarde o envio dos cardápios.`;
+
+// ─── Prompt 2 — variante DETALHADA (teste A/B, 26/08/2026) ───────────────────
+// Derivada do Prompt 1 por substituição nas âncoras abaixo. Diferenças:
+//   1. Variações do mesmo item com preços diferentes NÃO se agrupam — uma
+//      linha por variação, com a variação no nome (melhor leitura no A4).
+//   2. Nomes regionais/estilizados ("Café coando") não são "corrigidos".
+// O Prompt 1 (condensado) segue melhor para o A3 com todos os restaurantes.
+// promptCardapioIA.test.ts garante que as âncoras continuam existindo.
+
+const ANCORA_REGRA_5 =
+  '5. Itens com o mesmo preço que mudam só o sabor: UMA linha, com "Sabores: ..." na descrição.';
+
+const ADENDO_REGRA_5 =
+  ' Mas atenção: variações do MESMO item com PREÇOS DIFERENTES (ex: recheios que mudam o preço) NÃO se agrupam — mantenha UMA linha por variação, incorporando a variação ao nome ("Pão de Queijo com Costela" → R$ 30,00; "Pão de Queijo com Goiabada" → R$ 20,00). NUNCA repita o mesmo nome de item com preços diferentes.';
+
+const ANCORA_REGRA_6 =
+  'O texto final deve estar em português correto e profissional, pronto para impressão.';
+
+const ADENDO_REGRA_6 =
+  ' EXCEÇÃO: NÃO "corrija" nomes propositalmente regionais, dialetais ou estilizados ("Café coando", "Ocê tá bão", "Uai") — grafia de marca é voz da casa; na dúvida, mantenha o original e liste a dúvida DEPOIS de todos os blocos.';
+
+export const PROMPT_CARDAPIO_IA_V2 = PROMPT_CARDAPIO_IA
+  .replace(ANCORA_REGRA_5, ANCORA_REGRA_5 + ADENDO_REGRA_5)
+  .replace(ANCORA_REGRA_6, ANCORA_REGRA_6 + ADENDO_REGRA_6);

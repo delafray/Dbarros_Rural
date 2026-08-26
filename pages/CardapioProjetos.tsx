@@ -6,7 +6,7 @@ import {
   CardapioProjetoComContagens,
 } from '../services/cardapioProjetosService';
 import EventoEdicaoSelect from '../components/cardapioProjeto/EventoEdicaoSelect';
-import { PROMPT_CARDAPIO_IA } from '../components/cardapioProjeto/promptCardapioIA';
+import { PROMPT_CARDAPIO_IA, PROMPT_CARDAPIO_IA_V2 } from '../components/cardapioProjeto/promptCardapioIA';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -27,12 +27,17 @@ const CardapioProjetos: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // ── Modal do prompt de formatação via IA ────────────────────────────────
-  const [showPrompt, setShowPrompt] = useState(false);
+  // Prompt 1 = condensado (agrupa por preço — melhor p/ A3 com todos os
+  // restaurantes). Prompt 2 = detalhado (uma linha por variação de preço,
+  // preserva nomes regionais — em teste p/ A4).
+  const [showPrompt, setShowPrompt] = useState<null | 1 | 2>(null);
   const [promptCopiado, setPromptCopiado] = useState(false);
+
+  const promptAtivo = showPrompt === 2 ? PROMPT_CARDAPIO_IA_V2 : PROMPT_CARDAPIO_IA;
 
   const handleCopiarPrompt = async () => {
     try {
-      await navigator.clipboard.writeText(PROMPT_CARDAPIO_IA);
+      await navigator.clipboard.writeText(promptAtivo);
       setPromptCopiado(true);
       setTimeout(() => setPromptCopiado(false), 2500);
     } catch {
@@ -84,12 +89,20 @@ const CardapioProjetos: React.FC = () => {
   const headerActions = (
     <div className="flex items-center gap-3">
       <button
-        onClick={() => setShowPrompt(true)}
-        title="Prompt pronto para colar numa IA e formatar cardápios bagunçados no padrão do sistema"
+        onClick={() => setShowPrompt(1)}
+        title="Prompt pronto para colar numa IA e formatar cardápios bagunçados no padrão do sistema (versão condensada — agrupa sabores por preço)"
         className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
       >
         <SparklesIcon className="w-4 h-4" />
         Prompt p/ IA
+      </button>
+      <button
+        onClick={() => setShowPrompt(2)}
+        title="Versão detalhada em teste: uma linha por variação de preço (ex: Pão de Queijo com Costela) e preserva nomes regionais (Café coando)"
+        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
+      >
+        <SparklesIcon className="w-4 h-4" />
+        Prompt 2
       </button>
       <button
         onClick={() => { setNovoNome(''); setNovaEdicaoId(null); setShowModal(true); }}
@@ -210,7 +223,7 @@ const CardapioProjetos: React.FC = () => {
       {showPrompt && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setShowPrompt(false)}
+          onClick={() => setShowPrompt(null)}
         >
           <div
             className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col p-6"
@@ -218,13 +231,22 @@ const CardapioProjetos: React.FC = () => {
           >
             <div className="flex items-start justify-between gap-4 mb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">Prompt de formatação para IA</h2>
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  Prompt de formatação para IA
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    showPrompt === 2 ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+                  }`}>
+                    {showPrompt === 2 ? 'v2 · detalhado' : 'v1 · condensado'}
+                  </span>
+                </h2>
                 <p className="text-sm text-slate-400">
-                  Transforma cardápios bagunçados (WhatsApp, fotos) no padrão exato do sistema.
+                  {showPrompt === 2
+                    ? 'Em teste: uma linha por variação de preço e preserva nomes regionais — pensado para o A4.'
+                    : 'Transforma cardápios bagunçados (WhatsApp, fotos) no padrão exato do sistema.'}
                 </p>
               </div>
               <button
-                onClick={() => setShowPrompt(false)}
+                onClick={() => setShowPrompt(null)}
                 className="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none"
               >
                 ×
@@ -242,12 +264,12 @@ const CardapioProjetos: React.FC = () => {
             </div>
 
             <pre className="flex-1 min-h-0 overflow-auto bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap font-mono">
-              {PROMPT_CARDAPIO_IA}
+              {promptAtivo}
             </pre>
 
             <div className="flex justify-end gap-2 mt-4">
               <button
-                onClick={() => setShowPrompt(false)}
+                onClick={() => setShowPrompt(null)}
                 className="text-sm font-semibold text-slate-500 hover:text-slate-700 px-4 py-2"
               >
                 Fechar
