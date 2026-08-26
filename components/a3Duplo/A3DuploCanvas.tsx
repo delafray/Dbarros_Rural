@@ -11,6 +11,8 @@ import {
   MeasurementMatrix,
   LayoutResult,
   calcularLayout,
+  calcularFatorPreenchimento,
+  proximoFillScale,
   FontesA3,
   FonteNumKey,
   FONTES_A3_PADRAO,
@@ -66,6 +68,12 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
   const [phase, setPhase] = useState<'measuring' | 'ready'>('measuring');
   const [layout, setLayout] = useState<LayoutResult | null>(null);
   const [fontes, setFontes] = useState<FontesA3>(() => resolveFontes(fontesIniciais));
+  // Preenchimento automático: multiplicador global sobre TODAS as fontes
+  // (mantém as proporções que o usuário escolheu) que cresce até a coluna
+  // mais alta ocupar a página. Converge em poucas re-medições; nunca < 1
+  // (encolher para caber já é papel do scale do calcularLayout).
+  const [fillScale, setFillScale] = useState(1);
+  const fillIterRef = useRef(0);
   // Cores editáveis (interligadas com o tema do projeto — valem p/ banner e A4 ao salvar)
   const [temaEdit, setTemaEdit] = useState<CardapioTema>(() => resolveTema(tema));
   const [zoom, setZoom] = useState(0.45);
@@ -85,6 +93,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
   // Re-mede tudo e re-distribui (usado quando as fontes mudam)
   const remeasure = () => {
     measurementRefs.current = {};
+    fillIterRef.current = 0; // nova rodada de convergência do preenchimento
     setLayout(null);
     setPhase('measuring');
   };
@@ -135,6 +144,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
     setFontesSalvas(false);
     remeasure();
   };
+
 
   const handleVoltarPadrao = () => {
     userEditouRef.current = true;
@@ -201,15 +211,34 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
 
     lastMeasurements.current = measurements;
     const result = calcularLayout(menus, measurements, pageContentH);
+
+    // ── Preenchimento automático ──────────────────────────────────────
+    // As medições já estão em fillScale; ajusta o fator até a coluna mais
+    // alta ocupar a página (decisão pura em proximoFillScale).
+    const nextFill = proximoFillScale({
+      fillScale,
+      resultScale: result.scale,
+      fallback: result.fallback,
+      iter: fillIterRef.current,
+      fator: calcularFatorPreenchimento(menus, result, measurements, pageContentH),
+    });
+    if (nextFill !== null) {
+      fillIterRef.current += 1;
+      measurementRefs.current = {};
+      setFillScale(nextFill);
+      setLayout(null); // segue em 'measuring' com o novo fator
+      return;
+    }
+
     setLayout(result);
     setPhase('ready');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, menus, fontes]);
+  }, [phase, menus, fontes, fillScale]);
 
-  // Afastamento do topo só muda a altura útil — re-distribui sem re-medir
+  // Afastamento do topo muda a altura útil → o preenchimento re-converge
   useEffect(() => {
-    if (phase !== 'ready' || !lastMeasurements.current) return;
-    setLayout(calcularLayout(menus, lastMeasurements.current, pageContentH));
+    if (phase !== 'ready') return;
+    remeasure();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topoMm]);
 
@@ -218,7 +247,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
   // PENDENTE-PDF-VETORIAL-A3.md na raiz do repo e o commit ec6e846 para retomar.
 
   const statusTxt = layout
-    ? `Preview A3 Duplo — ${menus.length} empresa${menus.length === 1 ? '' : 's'} · ${layout.numColunas} col · fonte ${(layout.scale * 100).toFixed(0)}% · espaço ${(layout.spacing * 100).toFixed(0)}%${layout.fallback ? ' (estouro!)' : ''}`
+    ? `Preview A3 Duplo — ${menus.length} empresa${menus.length === 1 ? '' : 's'} · ${layout.numColunas} col · fonte ${(layout.scale * fillScale * 100).toFixed(0)}% · espaço ${(layout.spacing * 100).toFixed(0)}%${layout.fallback ? ' (estouro!)' : ''}`
     : 'Calculando layout…';
 
   return (
@@ -274,7 +303,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
                       empresa={menu.empresa}
                       titulo={menu.titulo}
                       grupos={menu.itens || []}
-                      scale={1}
+                      scale={fillScale}
                       spacing={spacing}
                       widthPx={colWidthPx(n)}
                       containerRef={(el) => {
@@ -404,7 +433,7 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
                                 empresa={menu.empresa}
                                 titulo={menu.titulo}
                                 grupos={bloco.grupos}
-                                scale={layout.scale}
+                                scale={layout.scale * fillScale}
                                 spacing={layout.spacing}
                                 widthPx={colWidthPx(layout.numColunas)}
                                 isContinuacao={bloco.isContinuacao}

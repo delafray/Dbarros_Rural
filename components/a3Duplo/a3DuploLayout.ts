@@ -121,6 +121,74 @@ export function resolveH(full: number, compact: number, spacing: number): number
   return full * (1 - t) + compact * t;
 }
 
+/**
+ * Botão "Preencher página": quanto as FONTES podem crescer (ou precisam
+ * encolher) para a coluna mais alta do layout atual ocupar a página inteira.
+ * Usa as medições vigentes — que já refletem "juntar linhas" e categorias
+ * ocultas. Retorna null se não houver como calcular (ex: medições ausentes).
+ */
+export function calcularFatorPreenchimento(
+  menus: A3DuploMenuData[],
+  layout: LayoutResult,
+  measurements: MeasurementMatrix,
+  pageContentH: number
+): number | null {
+  const meas = measurements[layout.numColunas];
+  if (!meas || pageContentH <= 0) return null;
+
+  let hMax = 0;
+  for (const pagina of layout.paginas) {
+    for (const coluna of pagina) {
+      let h = 0;
+      for (const bloco of coluna) {
+        const m = meas[bloco.menuIdx];
+        const menu = menus[bloco.menuIdx];
+        if (!m || !menu) return null;
+        const header = resolveH(m.headerH_full, m.headerH_compact, layout.spacing);
+        const gruposH = bloco.grupos.reduce((s, g) => {
+          const gi = (menu.itens || []).indexOf(g);
+          if (gi < 0) return s;
+          return s + resolveH(m.groupsH_full[gi] || 0, m.groupsH_compact[gi] || 0, layout.spacing);
+        }, 0);
+        h += (header + gruposH) * layout.scale;
+      }
+      if (h > hMax) hMax = h;
+    }
+  }
+
+  if (hMax <= 0) return null;
+  return pageContentH / hMax;
+}
+
+/** Teto do preenchimento automático (fillScale) — evita fontes gigantes */
+export const FILL_MAX = 1.6;
+
+/**
+ * Um passo da convergência do preenchimento automático: devolve o próximo
+ * fillScale, ou null quando está convergido/estável.
+ * - Se o auto-fit teve que encolher (resultScale < 1) com fill > 1, devolve
+ *   o excesso ao fill (mantém as medições coerentes com o que se desenha).
+ * - Senão, cresce em direção ao fator de preenchimento com folga de 3% e
+ *   passo máximo de 30% — respeitando o teto, o nº de iterações e o fallback.
+ */
+export function proximoFillScale(o: {
+  fillScale: number;
+  resultScale: number;
+  fallback?: boolean;
+  iter: number;
+  fator: number | null;
+}): number | null {
+  const { fillScale, resultScale, fallback, iter, fator } = o;
+  const mudou = (next: number) => (Math.abs(next - fillScale) / fillScale >= 0.01 ? next : null);
+
+  if (resultScale < 1 && fillScale > 1) {
+    return mudou(Math.max(1, fillScale * resultScale));
+  }
+  if (iter >= 5 || fillScale >= FILL_MAX || fallback) return null;
+  if (!fator || fator <= 1.04) return null;
+  return mudou(Math.min(FILL_MAX, fillScale * Math.min(fator * 0.97, 1.3)));
+}
+
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 export interface EmpresaMeasurement {
   blockH_full: number;
