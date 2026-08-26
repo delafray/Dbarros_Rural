@@ -23,6 +23,11 @@
   Aplicado no A4 (preview+export, auto-fit conta as sublinhas) e no A3 Duplo
   (EmpresaBlock + PDF vetorial). Ainda inline: Lona (CardapioLonaRenderer) e
   o renderer antigo do módulo Cardápios (CardapioRenderer).
+- **A3 Duplo — controles novos (26/08)**: "Juntar linhas" (70–130%, compressão
+  ponderada: descrição encolhe metade, espaços largos o valor cheio) e
+  "Mostrar categorias" (oculta DOCES/LANCHES... de todos os cardápios).
+  Salvos em `fontes_a3` (campos `linhas`/`mostrarCategorias`); JSON antigo
+  sem os campos cai no padrão.
 
 ## Aguardando o usuário
 

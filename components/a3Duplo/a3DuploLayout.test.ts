@@ -10,6 +10,13 @@ import {
   calcularLayout,
   tentarLayout,
   resolveH,
+  resolveFontes,
+  fontesSaoPadrao,
+  aplicarLinhas,
+  LINHAS_SENS,
+  LINHAS_MIN,
+  LINHAS_MAX,
+  FONTES_A3_PADRAO,
 } from './a3DuploLayout';
 import type { CardapioGroup } from '../../utils/cardapioParser';
 
@@ -95,6 +102,38 @@ function alturasColunas(
     )
   );
 }
+
+describe('juntar linhas / mostrar categorias (fontes_a3)', () => {
+  it('resolveFontes: padrão tem linhas=1 e categorias visíveis (compatível com fontes_a3 antigos)', () => {
+    expect(resolveFontes(null)).toMatchObject({ linhas: 1, mostrarCategorias: true });
+    // JSON salvo antes da feature (sem os campos novos) → defaults
+    expect(resolveFontes({ item: 14 })).toMatchObject({ item: 14, linhas: 1, mostrarCategorias: true });
+  });
+
+  it('resolveFontes: aceita os campos novos e clampa linhas no intervalo', () => {
+    const f = resolveFontes({ linhas: 0.9, mostrarCategorias: false });
+    expect(f.linhas).toBe(0.9);
+    expect(f.mostrarCategorias).toBe(false);
+    expect(resolveFontes({ linhas: 0.1 }).linhas).toBe(LINHAS_MIN);
+    expect(resolveFontes({ linhas: 5 }).linhas).toBe(LINHAS_MAX);
+  });
+
+  it('fontesSaoPadrao detecta mudança nos campos novos', () => {
+    expect(fontesSaoPadrao({ ...FONTES_A3_PADRAO })).toBe(true);
+    expect(fontesSaoPadrao({ ...FONTES_A3_PADRAO, linhas: 0.9 })).toBe(false);
+    expect(fontesSaoPadrao({ ...FONTES_A3_PADRAO, mostrarCategorias: false })).toBe(false);
+  });
+
+  it('aplicarLinhas: descrição (já colada) encolhe menos que o espaço entre itens', () => {
+    // 90% → descrição recua só 5%; espaço entre itens recua os 10% cheios
+    expect(aplicarLinhas(10, LINHAS_SENS.descricao, 0.9)).toBeCloseTo(9.5);
+    expect(aplicarLinhas(10, LINHAS_SENS.item, 0.9)).toBeCloseTo(9);
+    // aumentar segue a mesma proporção
+    expect(aplicarLinhas(10, LINHAS_SENS.item, 1.2)).toBeCloseTo(12);
+    // 100% = neutro
+    expect(aplicarLinhas(10, LINHAS_SENS.item, 1)).toBe(10);
+  });
+});
 
 const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
 

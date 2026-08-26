@@ -1,6 +1,6 @@
 import React from 'react';
 import { CardapioTema } from '../../utils/cardapioTema';
-import { FontesA3, FONTES_A3_PADRAO } from './a3DuploLayout';
+import { FontesA3, FonteNumKey, FONTES_A3_PADRAO, LINHAS_MIN, LINHAS_MAX } from './a3DuploLayout';
 
 /**
  * Painel lateral de ajustes do preview A3: fontes (px), cores do tema,
@@ -8,7 +8,7 @@ import { FontesA3, FONTES_A3_PADRAO } from './a3DuploLayout';
  * Puro-apresentação: todo estado vive no A3DuploCanvas.
  */
 
-const CAMPOS_FONTE: { key: keyof FontesA3; label: string }[] = [
+const CAMPOS_FONTE: { key: FonteNumKey; label: string }[] = [
   { key: 'empresa',   label: 'Empresa' },
   { key: 'titulo',    label: 'Título' },
   { key: 'categoria', label: 'Categoria' },
@@ -35,19 +35,24 @@ export interface A3ControlPanelProps {
   mostrarSalvar: boolean;
   isSaving: boolean;
   salvo: boolean;
-  onChangeFonte: (key: keyof FontesA3, delta: number) => void;
+  onChangeFonte: (key: FonteNumKey, delta: number) => void;
   onChangeCor: (key: keyof CardapioTema, value: string) => void;
   onVoltarPadrao: () => void;
   onSalvar: () => void;
   onZoom: (zoom: number) => void;
   onTopo: (mm: number) => void;
+  onLinhas: (linhas: number) => void;
+  onMostrarCategorias: (mostrar: boolean) => void;
 }
 
 export const A3ControlPanel: React.FC<A3ControlPanelProps> = ({
   fontes, tema, zoom, mostrarSalvar, isSaving, salvo,
   onChangeFonte, onChangeCor, onVoltarPadrao, onSalvar, onZoom, onTopo,
+  onLinhas, onMostrarCategorias,
 }) => {
   const topoMm = fontes.topoMm ?? 0;
+  const linhas = fontes.linhas ?? 1;
+  const mostrarCategorias = fontes.mostrarCategorias ?? true;
 
   return (
     <div className="no-print w-60 flex-shrink-0 sticky top-4 bg-white rounded-xl border border-slate-200 shadow-lg p-4 flex flex-col gap-3">
@@ -87,6 +92,39 @@ export const A3ControlPanel: React.FC<A3ControlPanelProps> = ({
           </div>
         </div>
       ))}
+
+      {/* Juntar linhas — compressão vertical ponderada (desc. encolhe menos) */}
+      <div className="border-t border-slate-100 pt-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Juntar linhas</span>
+          <span className={`text-xs font-mono ${linhas !== 1 ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
+            {Math.round(linhas * 100)}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={LINHAS_MIN}
+          max={LINHAS_MAX}
+          step={0.05}
+          value={linhas}
+          onChange={(e) => onLinhas(Number(e.target.value))}
+          className="w-full accent-indigo-600"
+        />
+        <p className="text-[11px] text-slate-400 mt-1">
+          Menos = itens mais juntos. A descrição (já colada) encolhe menos que os espaços largos. Salva junto.
+        </p>
+      </div>
+
+      {/* Categorias visíveis? (DOCES, LANCHES... de todos os cardápios) */}
+      <label className="flex items-center justify-between gap-2 cursor-pointer border-t border-slate-100 pt-3">
+        <span className="text-sm font-semibold text-slate-700">Mostrar categorias</span>
+        <input
+          type="checkbox"
+          checked={mostrarCategorias}
+          onChange={(e) => onMostrarCategorias(e.target.checked)}
+          className="w-4 h-4 accent-indigo-600 cursor-pointer"
+        />
+      </label>
 
       {/* Cores do tema — interligadas com o projeto (valem p/ banner e A4) */}
       <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">

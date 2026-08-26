@@ -25,6 +25,8 @@ import {
   A3DuploMenuData,
   LayoutResult,
   FontesA3,
+  LINHAS_SENS,
+  aplicarLinhas,
 } from './a3DuploLayout';
 
 // ─── Geometria (px @96dpi, igual ao canvas) → convertida para pt ─────────────
@@ -147,6 +149,13 @@ function drawEmpresaBlock(
   let y = yPx;
   const cx = xPx + colWPx / 2;
 
+  // Controle "juntar linhas" — mesmos fatores do EmpresaBlock
+  const lin = f.linhas ?? 1;
+  const gDesc = (v: number) => aplicarLinhas(v, LINHAS_SENS.descricao, lin);
+  const gCat  = (v: number) => aplicarLinhas(v, LINHAS_SENS.categoria, lin);
+  const gItem = (v: number) => aplicarLinhas(v, LINHAS_SENS.item, lin);
+  const mostrarCategorias = f.mostrarCategorias ?? true;
+
   // ── Cabeçalho (título + empresa + underline) ──────────────────────────
   if (menu.titulo && !isContinuacao) {
     const size = f.titulo * scale;
@@ -182,14 +191,14 @@ function drawEmpresaBlock(
     y += 2 + 6;
   }
 
-  y += 10 * scale * spacing; // marginBottom do cabeçalho
+  y += gCat(10 * scale * spacing); // marginBottom do cabeçalho
 
   // ── Grupos ────────────────────────────────────────────────────────────
   grupos.forEach((grupo, gi) => {
-    if (gi > 0) y += 12 * scale * spacing; // gap entre grupos
+    if (gi > 0) y += gItem(12 * scale * spacing); // gap entre grupos
 
-    // Categoria
-    {
+    // Categoria (ocultável pelo controle do painel)
+    if (mostrarCategorias) {
       const size = f.categoria * scale;
       doc.setFont('ArchivoBlack', 'normal');
       doc.setFontSize(size * K);
@@ -197,7 +206,7 @@ function drawEmpresaBlock(
       doc.setCharSpace(0.4 * K);
       doc.text((grupo.categoria || '').toUpperCase(), xPx * K, (y + size * 0.88) * K);
       doc.setCharSpace(0);
-      y += size * 1.15 + 6 * scale * spacing;
+      y += size * 1.15 + gCat(6 * scale * spacing);
     }
 
     // Itens
@@ -266,7 +275,7 @@ function drawEmpresaBlock(
         const rotSize = itemSize * 0.9;
         const varPrecoSize = precoSize * 0.92;
         const indent = itemSize * 1.2;
-        const varLh = Math.max(rotSize, varPrecoSize) * 1.3;
+        const varLh = Math.max(rotSize, varPrecoSize) * Math.max(1.05, gDesc(1.3));
         for (const v of variantes as PrecoVariante[]) {
           const varBase = y + rotSize * 0.88;
 
@@ -304,22 +313,23 @@ function drawEmpresaBlock(
 
       // descrição (abaixo, largura total)
       if (item.descricao) {
-        y += 2;
+        const descLh = descSize * Math.max(1.05, gDesc(1.3));
+        y += gDesc(2);
         doc.setFont('LiberationSans', 'italic');
         doc.setFontSize(descSize * K);
         setTextColor(doc, t.corTextoSuave);
         const descLinhas = wrap(doc, item.descricao, colWPx);
         descLinhas.forEach((l, i) => {
-          doc.text(l, xPx * K, (y + descSize * 0.88 + i * descSize * 1.3) * K);
+          doc.text(l, xPx * K, (y + descSize * 0.88 + i * descLh) * K);
         });
-        y += descLinhas.length * descSize * 1.3;
+        y += descLinhas.length * descLh;
       }
 
-      y += 5 * scale * spacing; // margem entre itens
+      y += gItem(5 * scale * spacing); // margem entre itens
     });
   });
 
-  y += 15 * scale * spacing; // marginBottom do bloco
+  y += gItem(15 * scale * spacing); // marginBottom do bloco
   return y;
 }
 

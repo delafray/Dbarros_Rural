@@ -12,6 +12,7 @@ import {
   LayoutResult,
   calcularLayout,
   FontesA3,
+  FonteNumKey,
   FONTES_A3_PADRAO,
   resolveFontes,
   fontesSaoPadrao,
@@ -110,12 +111,27 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [temaJson]);
 
-  const changeFonte = (key: keyof FontesA3, delta: number) => {
+  const changeFonte = (key: FonteNumKey, delta: number) => {
     userEditouRef.current = true;
     setFontes((prev) => ({
       ...prev,
       [key]: Math.min(FONTE_MAX, Math.max(FONTE_MIN, Math.round((prev[key] + delta) * 2) / 2)),
     }));
+    setFontesSalvas(false);
+    remeasure();
+  };
+
+  // Juntar linhas / mostrar categorias mudam alturas → re-mede e re-distribui
+  const changeLinhas = (linhas: number) => {
+    userEditouRef.current = true;
+    setFontes((prev) => ({ ...prev, linhas }));
+    setFontesSalvas(false);
+    remeasure();
+  };
+
+  const changeMostrarCategorias = (mostrar: boolean) => {
+    userEditouRef.current = true;
+    setFontes((prev) => ({ ...prev, mostrarCategorias: mostrar }));
     setFontesSalvas(false);
     remeasure();
   };
@@ -323,6 +339,8 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
               setFontes((prev) => ({ ...prev, topoMm: mm }));
               setFontesSalvas(false);
             }}
+            onLinhas={changeLinhas}
+            onMostrarCategorias={changeMostrarCategorias}
           />
 
           {/* ── Páginas lado a lado ─────────────────────────────────────── */}

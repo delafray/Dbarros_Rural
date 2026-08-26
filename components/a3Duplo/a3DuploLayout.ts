@@ -32,7 +32,14 @@ export interface FontesA3 {
   preco: number;
   /** Afastamento extra do topo das páginas, em mm (0 = padrão) */
   topoMm: number;
+  /** Compressão vertical entre linhas/itens (1 = padrão; ver LINHAS_MIN/MAX) */
+  linhas: number;
+  /** Exibe os títulos de categoria (DOCES, LANCHES...) em todos os cardápios */
+  mostrarCategorias: boolean;
 }
+
+/** Chaves numéricas de tamanho de fonte (px) — usadas nos botões ± do painel */
+export type FonteNumKey = 'empresa' | 'titulo' | 'categoria' | 'item' | 'descricao' | 'preco';
 
 export const FONTES_A3_PADRAO: FontesA3 = {
   empresa: 26,
@@ -42,19 +49,47 @@ export const FONTES_A3_PADRAO: FontesA3 = {
   descricao: 9.5,
   preco: 13,
   topoMm: 0,
+  linhas: 1,
+  mostrarCategorias: true,
 };
+
+export const LINHAS_MIN = 0.7;
+export const LINHAS_MAX = 1.3;
+
+/**
+ * Sensibilidade de cada tipo de espaço ao controle "juntar linhas": espaços
+ * que já são apertados (descrição colada no item) encolhem menos; espaços
+ * largos (entre itens/grupos) encolhem o valor cheio do controle.
+ */
+export const LINHAS_SENS = {
+  descricao: 0.5,   // marginTop e line-height da descrição/sublinhas
+  categoria: 0.75,  // respiro após o título da categoria e após o cabeçalho
+  item: 1,          // margem entre itens, entre grupos e entre empresas
+} as const;
+
+/**
+ * Aplica o controle "juntar linhas" a um espaço: linhas=0.9 com sens=0.5
+ * reduz 5%; com sens=1 reduz os 10% cheios. Aumentar (linhas>1) segue a
+ * mesma proporção.
+ */
+export function aplicarLinhas(base: number, sens: number, linhas: number): number {
+  return base * (1 - (1 - linhas) * sens);
+}
 
 export function resolveFontes(f?: Partial<FontesA3> | null): FontesA3 {
   if (!f) return { ...FONTES_A3_PADRAO };
   const out = { ...FONTES_A3_PADRAO };
-  (Object.keys(FONTES_A3_PADRAO) as (keyof FontesA3)[]).forEach((k) => {
-    const v = f[k];
-    if (typeof v === 'number' && v >= 0) out[k] = v;
-  });
+  (['empresa', 'titulo', 'categoria', 'item', 'descricao', 'preco', 'topoMm', 'linhas'] as const)
+    .forEach((k) => {
+      const v = f[k];
+      if (typeof v === 'number' && v >= 0) out[k] = v;
+    });
+  if (typeof f.mostrarCategorias === 'boolean') out.mostrarCategorias = f.mostrarCategorias;
   // Fontes precisam ser positivas (topoMm pode ser 0)
   (['empresa', 'titulo', 'categoria', 'item', 'descricao', 'preco'] as const).forEach((k) => {
     if (out[k] <= 0) out[k] = FONTES_A3_PADRAO[k];
   });
+  out.linhas = Math.min(LINHAS_MAX, Math.max(LINHAS_MIN, out.linhas));
   return out;
 }
 

@@ -5,7 +5,7 @@ import {
   VARIANTES_EMPILHA_MIN,
 } from '../../utils/cardapioParser';
 import { CardapioTema, withAlpha } from '../../utils/cardapioTema';
-import { FontesA3 } from './a3DuploLayout';
+import { FontesA3, LINHAS_SENS, aplicarLinhas } from './a3DuploLayout';
 
 /**
  * Bloco de uma empresa na página A3 (título + nome + underline + grupos de
@@ -30,16 +30,24 @@ export interface EmpresaBlockProps {
 export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
   t, fontes, empresa, titulo, grupos, scale, spacing = 1, widthPx, isContinuacao, containerRef, groupRefCallback,
 }) => {
+  // Controle "juntar linhas": cada tipo de espaço encolhe/estica conforme
+  // sua sensibilidade (descrição já é colada → mexe menos; itens → cheio)
+  const lin = fontes.linhas ?? 1;
+  const gDesc = (v: number) => aplicarLinhas(v, LINHAS_SENS.descricao, lin);
+  const gCat  = (v: number) => aplicarLinhas(v, LINHAS_SENS.categoria, lin);
+  const gItem = (v: number) => aplicarLinhas(v, LINHAS_SENS.item, lin);
+  const mostrarCategorias = fontes.mostrarCategorias ?? true;
+
   return (
     <div
       ref={containerRef}
       style={{
         width: widthPx,
-        marginBottom: `${15 * scale * spacing}px`,
+        marginBottom: `${gItem(15 * scale * spacing)}px`,
         breakInside: 'avoid',
       }}
     >
-      <div style={{ textAlign: 'center', marginBottom: `${10 * scale * spacing}px` }}>
+      <div style={{ textAlign: 'center', marginBottom: `${gCat(10 * scale * spacing)}px` }}>
         {titulo && !isContinuacao && (
           <div style={{
             fontSize: `${fontes.titulo * scale}px`,
@@ -67,25 +75,27 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
           opacity: 0.8,
         }} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: `${12 * scale * spacing}px` }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: `${gItem(12 * scale * spacing)}px` }}>
         {grupos.map((grupo, gi) => (
           <div
             key={gi}
             ref={(el) => groupRefCallback?.(el, gi)}
             style={{ breakInside: 'avoid' }}
           >
+            {mostrarCategorias && (
             <h3 style={{
               fontSize: `${fontes.categoria * scale}px`,
               fontWeight: 900,
               color: t.corDouradoClaro,
               marginTop: 0,
-              marginBottom: `${6 * scale * spacing}px`,
+              marginBottom: `${gCat(6 * scale * spacing)}px`,
               textTransform: 'uppercase',
               fontFamily: '"Arial Black", Impact, sans-serif',
               letterSpacing: '0.4px',
             }}>
               {grupo.categoria}
             </h3>
+            )}
             {grupo.itens.map((item: any, ii: number) => {
               // Valor composto (tamanhos) SEMPRE empilha: nome em linha
               // própria + uma sublinha por tamanho (mesma regra do A4)
@@ -94,7 +104,7 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
               const valorLinha = empilhado ? '' : item.valor;
 
               return (
-              <div key={ii} style={{ marginBottom: `${5 * scale * spacing}px` }}>
+              <div key={ii} style={{ marginBottom: `${gItem(5 * scale * spacing)}px` }}>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -133,7 +143,7 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                     justifyContent: 'space-between',
                     alignItems: 'baseline',
                     paddingLeft: `${fontes.item * scale * 1.2}px`,
-                    lineHeight: 1.3,
+                    lineHeight: Math.max(1.05, gDesc(1.3)),
                   }}>
                     <span style={{
                       fontSize: `${fontes.item * scale * 0.9}px`,
@@ -164,9 +174,9 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
                   <div style={{
                     fontSize: `${fontes.descricao * scale}px`,
                     color: t.corTextoSuave,
-                    marginTop: '2px',
+                    marginTop: `${gDesc(2)}px`,
                     fontStyle: 'italic',
-                    lineHeight: 1.3,
+                    lineHeight: Math.max(1.05, gDesc(1.3)),
                   }}>{item.descricao}</div>
                 )}
               </div>
