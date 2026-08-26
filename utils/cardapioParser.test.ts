@@ -5,6 +5,9 @@ import {
     splitGroups,
     getItemWeight,
     calcFontSize,
+    parseValorComposto,
+    formatValorInline,
+    VARIANTES_EMPILHA_MIN,
     type CardapioGroup,
 } from './cardapioParser';
 
@@ -74,11 +77,68 @@ describe('gerarTextoCardapio (inverso do parse)', () => {
     });
 });
 
+describe('parseValorComposto / formatValorInline', () => {
+    it('preço simples não é composto', () => {
+        expect(parseValorComposto('R$ 20,00')).toBeNull();
+        expect(parseValorComposto('')).toBeNull();
+    });
+
+    it('reconhece 2 variantes P/G', () => {
+        const v = parseValorComposto('P - R$ 30,00 / G - R$ 35,00')!;
+        expect(v).toEqual([
+            { rotulo: 'P', preco: 'R$ 30,00' },
+            { rotulo: 'G', preco: 'R$ 35,00' },
+        ]);
+    });
+
+    it('reconhece 3+ variantes com rótulos nomeados', () => {
+        const v = parseValorComposto('300ml - R$ 10,00 / 500ml - R$ 15,00 / 700ml - R$ 20,00')!;
+        expect(v.map((x) => x.rotulo)).toEqual(['300ml', '500ml', '700ml']);
+        expect(v.map((x) => x.preco)).toEqual(['R$ 10,00', 'R$ 15,00', 'R$ 20,00']);
+    });
+
+    it('reconhece 4 variantes (caso Batata no Cone)', () => {
+        const v = parseValorComposto('Pequena - R$ 15,00 / Média - R$ 25,00 / Grande - R$ 30,00 / Caixa - R$ 40,00')!;
+        expect(v).toHaveLength(4);
+        expect(v[3]).toEqual({ rotulo: 'Caixa', preco: 'R$ 40,00' });
+    });
+
+    it('normaliza "R$" colado no número e aceita en-dash', () => {
+        const v = parseValorComposto('P – R$30,00 / G – R$35,00')!;
+        expect(v[0].preco).toBe('R$ 30,00');
+    });
+
+    it('barra sem o padrão rótulo-preço não vira composto', () => {
+        expect(parseValorComposto('R$ 20,00 / kg')).toBeNull();
+        expect(parseValorComposto('meio / inteiro')).toBeNull();
+    });
+
+    it('formatValorInline junta com separador ·', () => {
+        const v = parseValorComposto('P - R$ 30,00 / G - R$ 35,00')!;
+        expect(formatValorInline(v)).toBe('P R$ 30,00 · G R$ 35,00');
+    });
+});
+
 describe('layout: getItemWeight / splitGroups / calcFontSize', () => {
     it('item com descrição pesa mais que item sem descrição', () => {
         const semDesc = getItemWeight({ item: 'X', valor: '1', descricao: '' });
         const comDesc = getItemWeight({ item: 'X', valor: '1', descricao: 'algo' });
         expect(comDesc).toBeGreaterThan(semDesc);
+    });
+
+    it('item empilhado (3+ variantes) pesa mais que item de preço simples', () => {
+        const simples = getItemWeight({ item: 'X', valor: 'R$ 10,00', descricao: '' });
+        const duasVar = getItemWeight({ item: 'X', valor: 'P - R$ 30,00 / G - R$ 35,00', descricao: '' });
+        const tresVar = getItemWeight({
+            item: 'X',
+            valor: '300ml - R$ 10,00 / 500ml - R$ 15,00 / 700ml - R$ 20,00',
+            descricao: '',
+        });
+        // 2 variantes seguem inline → mesma altura do preço simples
+        expect(duasVar).toBe(simples);
+        // 3+ variantes viram sublinhas → uma linha extra por variante
+        expect(VARIANTES_EMPILHA_MIN).toBe(3);
+        expect(tresVar).toBeGreaterThan(simples + 2);
     });
 
     it('descrição longa quebra em mais linhas quando avgCharsPerLine é dado', () => {

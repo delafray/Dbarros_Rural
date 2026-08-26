@@ -27,6 +27,44 @@ const ITEM_DESC_WEIGHT = 0.9;       // description height in em
 const ITEM_MARGIN_WEIGHT = 0.5;     // margin between items
 const CAT_WEIGHT = 2.3;             // category header height in em
 const CAT_MARGIN_WEIGHT = 0.5;      // margin after category header
+const VARIANTE_WEIGHT = 1.45;       // each stacked size/price line in em
+
+/** A partir de quantas variantes o item deixa o inline e vira sublinhas */
+export const VARIANTES_EMPILHA_MIN = 3;
+
+/** Uma opção de tamanho/preço de um valor composto (ex: "300ml" / "R$ 10,00") */
+export interface PrecoVariante {
+  rotulo: string;
+  preco: string;
+}
+
+// Convenção produzida pelo prompt da IA (promptCardapioIA regra 3):
+// "Rótulo - R$ 0,00 / Rótulo - R$ 0,00". Aceita hífen ou en-dash.
+const VARIANTE_RE = /^(.{1,24}?)\s*[-–]\s*(R\$\s?\d[\d.,]*)$/;
+
+/**
+ * Detecta valor composto (tamanhos com preços) e o devolve estruturado.
+ * Retorna null para preço simples ou formato fora da convenção — nesse
+ * caso o valor segue sendo tratado como string opaca (comportamento atual).
+ */
+export function parseValorComposto(valor: string): PrecoVariante[] | null {
+  if (!valor || !valor.includes('/')) return null;
+  const partes = valor.split('/').map((p) => p.trim());
+  if (partes.length < 2) return null;
+
+  const variantes: PrecoVariante[] = [];
+  for (const parte of partes) {
+    const m = parte.match(VARIANTE_RE);
+    if (!m) return null;
+    variantes.push({ rotulo: m[1].trim(), preco: m[2].replace(/R\$\s?/, 'R$ ').trim() });
+  }
+  return variantes;
+}
+
+/** Forma compacta de exibição inline: "P R$ 30,00 · G R$ 35,00" */
+export function formatValorInline(variantes: PrecoVariante[]): string {
+  return variantes.map((v) => `${v.rotulo} ${v.preco}`).join(' · ');
+}
 
 /**
  * Multiplicadores de fonte por elemento (1 = padrão) — permitem que o
@@ -51,12 +89,20 @@ export function getItemWeight(
 ): number {
   // A linha do item tem a altura do maior entre nome e preço
   const linhaMult = Math.max(m?.item ?? 1, m?.preco ?? 1);
+  const variantes = parseValorComposto(item.valor);
+  const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
   let descWeight = 0;
   if (item.descricao) {
     const lines = avgCharsPerLine && avgCharsPerLine > 0
       ? Math.max(1, Math.ceil(item.descricao.length / avgCharsPerLine))
       : 1;
     descWeight = ITEM_DESC_WEIGHT * lines * (m?.descricao ?? 1);
+  }
+  if (empilhado) {
+    // Nome em linha própria (sem preço ao lado) + uma sublinha por variante
+    return ITEM_WEIGHT_BASE * (m?.item ?? 1) +
+      variantes!.length * VARIANTE_WEIGHT * linhaMult +
+      descWeight + ITEM_MARGIN_WEIGHT;
   }
   return ITEM_WEIGHT_BASE * linhaMult + descWeight + ITEM_MARGIN_WEIGHT;
 }
