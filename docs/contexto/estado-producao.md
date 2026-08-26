@@ -24,6 +24,10 @@
   (EmpresaBlock + PDF vetorial) e na Lona (renderer + peso; a fonte automática
   já conta as sublinhas). Ainda inline: só o renderer antigo do módulo
   Cardápios (CardapioRenderer).
+- **A4 — nome de empresa longo + juntar linhas (26/08)**: nome acima de 28
+  caracteres quebra em 2 linhas no cabeçalho (fonte pela linha mais longa —
+  antes estourava a página); slider "Juntar linhas" no editor do menu (mesma
+  compressão ponderada; auto-fit cresce a fonte), salvo no JSON `fontes`.
 - **Lona — controles novos (26/08)**: "Juntar linhas" e "Mostrar categorias"
   no editor, salvos no JSON `fontes` da lona (compat: JSON antigo cai no
   padrão). Como a fonte da lona cresce até encher a área útil, compactar/

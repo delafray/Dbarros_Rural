@@ -27,6 +27,8 @@ import {
   parseValorComposto,
   formatValorInline,
   VARIANTES_EMPILHA_MIN,
+  LINHAS_SENS,
+  aplicarLinhas,
 } from '../../utils/cardapioParser';
 
 import {
@@ -35,7 +37,7 @@ import {
   FONT_REGULAR, FONT_BLACK,
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
   calcSingleCol,
-  calcHeaderH, calcEmpresaFs,
+  calcHeaderH, calcEmpresaFs, quebrarNomeEmpresa,
   FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
 
@@ -89,10 +91,16 @@ const GroupList = ({
   const priceFs  = Math.max(fs * 1.18 * f.preco, 11);
   const descFs   = fs * 0.68 * f.descricao;
 
+  // Controle "juntar linhas" — mesmos fatores do renderer/A3/Lona
+  const lin = f.linhas ?? 1;
+  const gDesc = (v: number) => aplicarLinhas(v, LINHAS_SENS.descricao, lin);
+  const gCat  = (v: number) => aplicarLinhas(v, LINHAS_SENS.categoria, lin);
+  const gItem = (v: number) => aplicarLinhas(v, LINHAS_SENS.item, lin);
+
   return (
     <>
       {grupos.map((group, gi) => (
-        <div key={group.categoria} style={{ marginBottom: fs * 0.42 }}>
+        <div key={group.categoria} style={{ marginBottom: gItem(fs * 0.42) }}>
           {/* Category header */}
           <div
             style={{
@@ -102,7 +110,7 @@ const GroupList = ({
               letterSpacing: 1,
               textTransform: 'uppercase',
               lineHeight: 1.08,
-              marginBottom: fs * 0.22,
+              marginBottom: gCat(fs * 0.22),
               fontFamily: FONT_BLACK,
               textShadow: `0 0 12px ${t.corDouradoClaro}45`,
             }}
@@ -119,7 +127,7 @@ const GroupList = ({
             const valorLinha = empilhado ? '' : variantes ? formatValorInline(variantes) : item.valor;
 
             return (
-            <div key={idx} style={{ marginBottom: fs * 0.3 }}>
+            <div key={idx} style={{ marginBottom: gItem(fs * 0.3) }}>
               <div
                 style={{
                   display: 'flex',
@@ -180,7 +188,7 @@ const GroupList = ({
                     justifyContent: 'space-between',
                     alignItems: 'baseline',
                     paddingLeft: fs * 1.1,
-                    lineHeight: 1.3,
+                    lineHeight: Math.max(1.05, gDesc(1.3)),
                   }}
                 >
                   <span
@@ -227,8 +235,8 @@ const GroupList = ({
                   style={{
                     color: t.corTextoSuave,
                     fontSize: descFs,
-                    lineHeight: 1.35,
-                    marginTop: fs * 0.06,
+                    lineHeight: Math.max(1.05, gDesc(1.35)),
+                    marginTop: gDesc(fs * 0.06),
                     fontFamily: FONT_REGULAR,
                     fontStyle: 'italic',
                     opacity: 0.88,
@@ -243,7 +251,7 @@ const GroupList = ({
 
           {/* Spacer entre categorias — ocupa o mesmo espaço que a separator linha ocupava */}
           {singleCol && gi < grupos.length - 1 && (
-            <div style={{ height: 1, marginTop: fs * 0.18 }} aria-hidden="true" />
+            <div style={{ height: 1, marginTop: gItem(fs * 0.18) }} aria-hidden="true" />
           )}
         </div>
       ))}
@@ -294,6 +302,9 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
     );
     const tituloFs  = Math.max(10, Math.floor(headerH * 0.115)) * f.titulo;
     const underlineW = Math.max(80, Math.min(SAFE_W * 0.62, empresa.length * 18));
+    // Nome longo quebra em 2 linhas — título/underline se afastam meia linha
+    const empresaLinhas = useMemo(() => quebrarNomeEmpresa(empresa), [empresa]);
+    const empresaExtra = empresaLinhas.length > 1 ? (empresaFs * 0.95) / 2 : 0;
 
     const availH = SAFE_H - headerH - COL_PAD_V * 2 - FOOTER_H - 10;
 
@@ -412,14 +423,16 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
                 fontWeight: 900,
                 letterSpacing: Math.max(2, 7 - empresa.length * 0.14),
                 textTransform: 'uppercase',
-                lineHeight: 0.9,
+                lineHeight: 0.95,
                 fontFamily: FONT_BLACK,
                 textShadow: `0 0 35px ${t.corDourado}60, 0 3px 10px rgba(0,0,0,0.6)`,
                 whiteSpace: 'nowrap',
                 textAlign: 'center',
               }}
             >
-              {empresa}
+              {empresaLinhas.map((l, i) => (
+                <div key={i}>{l}</div>
+              ))}
             </div>
 
             {/* Título — acima da empresa (colado na borda superior do glifo + 3px gap) */}
@@ -427,7 +440,7 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
               <div
                 style={{
                   position: 'absolute',
-                  top: `calc(50% - 5px - ${empresaFs * 0.45 + 10}px)`,
+                  top: `calc(50% - 5px - ${empresaFs * 0.45 + 10 + empresaExtra}px)`,
                   left: 0,
                   right: 0,
                   transform: 'translateY(-100%)',
@@ -445,11 +458,11 @@ export const CardapioA4Canvas = forwardRef<HTMLDivElement, CardapioA4CanvasProps
               </div>
             )}
 
-            {/* Underline — logo abaixo da empresa (mesma posição de antes) */}
+            {/* Underline — logo abaixo da última linha da empresa */}
             <div
               style={{
                 position: 'absolute',
-                top: `calc(50% + ${empresaFs * 0.45 + Math.max(4, headerH * 0.04)}px)`,
+                top: `calc(50% + ${empresaFs * 0.45 + Math.max(4, headerH * 0.04) + empresaExtra}px)`,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: underlineW,

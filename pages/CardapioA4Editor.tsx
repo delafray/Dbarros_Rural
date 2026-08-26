@@ -7,7 +7,7 @@ import {
   FontesA4, FONTES_A4_PADRAO, resolveFontesA4, fontesA4SaoPadrao,
 } from '../components/cardapioA4/cardapioA4Config';
 import { exportMenuA4, exportMenuA4Pdf, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
-import { parseCardapioText, gerarTextoCardapio, CardapioGroup } from '../utils/cardapioParser';
+import { parseCardapioText, gerarTextoCardapio, CardapioGroup, LINHAS_MIN, LINHAS_MAX } from '../utils/cardapioParser';
 import { tabelaHtmlParaTexto } from '../utils/cardapioClipboard';
 import { CardapioRenderOptions } from '../utils/cardapioTema';
 import { menuA4Service } from '../services/menuA4Service';
@@ -422,6 +422,30 @@ export const CardapioA4Editor: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {/* Juntar linhas — compressão ponderada (descrição encolhe menos) */}
+            <div className="border-t border-slate-100 pt-2 mt-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-700">Juntar linhas</span>
+                <span className={`text-xs font-mono ${fontesA4.linhas !== 1 ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
+                  {Math.round(fontesA4.linhas * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={LINHAS_MIN}
+                max={LINHAS_MAX}
+                step={0.05}
+                value={fontesA4.linhas}
+                onChange={(e) => setFontesA4((prev) => ({ ...prev, linhas: Number(e.target.value) }))}
+                className="w-full accent-indigo-600"
+              />
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Menos = itens mais juntos → a fonte automática cresce para
+                preencher a página. A descrição (já colada) encolhe menos que os
+                espaços largos. Salvo junto com o menu.
+              </p>
+            </div>
           </div>
 
           {/* Bleed legend */}

@@ -7,6 +7,8 @@
  * ⚠️  NEVER duplicate these values in either file — always import from here.
  */
 
+import { LINHAS_MIN, LINHAS_MAX } from '../../utils/cardapioParser';
+
 // ─── Canvas dimensions ────────────────────────────────────────────────────────
 // Ajustado a pedido: A4 EXATO sem sangrias extras (antigamente 810x1071 com 90px bleed).
 // Proporção final agora: 210mm * 3px = 630px. 297mm * 3px = 891px.
@@ -62,6 +64,8 @@ export interface FontesA4 {
   item: number;
   descricao: number;
   preco: number;
+  /** Compressão vertical entre linhas/itens (1 = padrão; LINHAS_MIN..MAX) */
+  linhas: number;
 }
 
 export const FONTES_A4_PADRAO: FontesA4 = {
@@ -71,6 +75,7 @@ export const FONTES_A4_PADRAO: FontesA4 = {
   item: 1,
   descricao: 1,
   preco: 1,
+  linhas: 1,
 };
 
 export function resolveFontesA4(f?: Partial<FontesA4> | null): FontesA4 {
@@ -80,6 +85,7 @@ export function resolveFontesA4(f?: Partial<FontesA4> | null): FontesA4 {
     const v = f[k];
     if (typeof v === 'number' && v > 0) out[k] = v;
   });
+  out.linhas = Math.min(LINHAS_MAX, Math.max(LINHAS_MIN, out.linhas));
   return out;
 }
 
@@ -98,10 +104,39 @@ export function calcHeaderH(totalItens: number): number {
   return 142;
 }
 
-/** Empresa name font size — scales with name length and item-count pressure. */
+/** Nome de empresa acima deste tamanho quebra em 2 linhas no cabeçalho */
+export const EMPRESA_QUEBRA_LEN = 28;
+
+/**
+ * Quebra o nome da empresa em até 2 linhas: nomes longos partem no espaço
+ * mais próximo do meio (nunca dentro de palavra). Nome curto → 1 linha.
+ */
+export function quebrarNomeEmpresa(empresa: string): string[] {
+  const nome = (empresa || '').trim();
+  if (nome.length <= EMPRESA_QUEBRA_LEN) return [nome];
+  const meio = nome.length / 2;
+  let melhor = -1;
+  for (let i = 1; i < nome.length - 1; i++) {
+    if (nome[i] === ' ' && (melhor < 0 || Math.abs(i - meio) < Math.abs(melhor - meio))) {
+      melhor = i;
+    }
+  }
+  if (melhor <= 0) return [nome];
+  return [nome.slice(0, melhor).trim(), nome.slice(melhor + 1).trim()];
+}
+
+/**
+ * Empresa name font size — scales with name length and item-count pressure.
+ * Nomes que quebram em 2 linhas usam o comprimento da linha mais longa,
+ * então o nome quebrado ganha fonte maior em vez de encolher/estourar.
+ */
 export function calcEmpresaFs(empresa: string, totalItens: number): number {
   const availW   = SAFE_W - COL_PAD_H * 2;
-  const byLength = Math.min(64, Math.floor(availW / Math.max(empresa.length, 1)));
+  const maiorLinha = Math.max(
+    ...quebrarNomeEmpresa(empresa).map((l) => l.length),
+    1
+  );
+  const byLength = Math.min(64, Math.floor(availW / maiorLinha));
   const pressure = Math.min(0.3, Math.max(0, (totalItens - 6) * 0.025));
   return Math.max(22, Math.floor(byLength * (1 - pressure)));
 }

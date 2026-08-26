@@ -17,6 +17,8 @@ import {
   formatValorInline,
   VARIANTES_EMPILHA_MIN,
   PrecoVariante,
+  LINHAS_SENS,
+  aplicarLinhas,
 } from '../../utils/cardapioParser';
 
 import {
@@ -25,7 +27,7 @@ import {
   FONT_REGULAR, FONT_BLACK,
   COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
   calcSingleCol,
-  calcHeaderH, calcEmpresaFs,
+  calcHeaderH, calcEmpresaFs, quebrarNomeEmpresa,
   FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
 
@@ -109,17 +111,20 @@ function drawHeader(
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
 
-  // Empresa com glow dourado
+  // Empresa com glow dourado — nome longo quebra em 2 linhas centradas
+  const linhas = quebrarNomeEmpresa(empresa);
+  const lh = empresaFs * 0.95;
+  const posY = linhas.length === 1 ? [midY] : [midY - lh / 2, midY + lh / 2];
   ctx.font        = `900 ${empresaFs}px ${FONT_BLACK}`;
   ctx.shadowColor = `${T.corDourado}60`;
   ctx.shadowBlur  = 35;
   ctx.fillStyle   = T.corDouradoClaro;
-  ctx.fillText(empresa, cx, midY);
+  linhas.forEach((l, i) => ctx.fillText(l, cx, posY[i]));
   ctx.shadowBlur  = 0;
 
-  // Título acima (se houver)
+  // Título acima (se houver) — ancorado no topo da primeira linha
   if (titulo) {
-    const titleY = midY - empresaFs * 0.45 - 10 - tituloFs / 2;
+    const titleY = posY[0] - empresaFs * 0.45 - 10 - tituloFs / 2;
     ctx.font        = `700 ${tituloFs}px ${FONT_REGULAR}`;
     ctx.globalAlpha = 0.88;
     ctx.fillStyle   = T.corDouradoClaro;
@@ -127,8 +132,8 @@ function drawHeader(
     ctx.globalAlpha = 1;
   }
 
-  // Underline gold abaixo do empresa
-  const underY = midY + empresaFs * 0.45 + Math.max(4, headerH * 0.04);
+  // Underline gold abaixo da última linha do empresa
+  const underY = posY[posY.length - 1] + empresaFs * 0.45 + Math.max(4, headerH * 0.04);
   const ug = ctx.createLinearGradient(cx - underlineW / 2, underY, cx + underlineW / 2, underY);
   ug.addColorStop(0,   withAlpha(T.corDourado, 0));
   ug.addColorStop(0.5, T.corDourado);
@@ -174,6 +179,12 @@ function drawColumn(
   const priceFs = Math.max(fs * 1.18 * F.preco, 11);
   const descFs  = fs * 0.68 * F.descricao;
 
+  // Controle "juntar linhas" — mesmos fatores do A3/Lona
+  const lin = F.linhas ?? 1;
+  const gDesc = (v: number) => aplicarLinhas(v, LINHAS_SENS.descricao, lin);
+  const gCat  = (v: number) => aplicarLinhas(v, LINHAS_SENS.categoria, lin);
+  const gItem = (v: number) => aplicarLinhas(v, LINHAS_SENS.item, lin);
+
   let y = startY;
 
   grupos.forEach((group, gi) => {
@@ -188,7 +199,7 @@ function drawColumn(
     ctx.fillText(group.categoria, colX, catBaseline);
     ctx.shadowBlur = 0;
     // Respiro extra: compensa baseline/line-box do canvas ser mais apertado que o DOM
-    y = catBaseline + fs * 0.46;
+    y = catBaseline + gCat(fs * 0.46);
 
     // ── Itens ─────────────────────────────────────────────────────────
     for (const item of group.itens) {
@@ -244,7 +255,7 @@ function drawColumn(
         const rotFs     = itemFs * 0.9;
         const varPrFs   = priceFs * 0.92;
         const indent    = Math.round(fs * 1.1);
-        const varLh     = Math.max(rotFs, varPrFs) * 1.30;
+        const varLh     = Math.max(rotFs, varPrFs) * Math.max(1.05, gDesc(1.30));
         for (const v of variantes as PrecoVariante[]) {
           const varBaseY = y + Math.max(rotFs, varPrFs) * 1.02;
 
@@ -279,22 +290,22 @@ function drawColumn(
 
         const descMaxW = colW * 0.85;
         const descLines = wrapText(ctx, item.descricao, descMaxW);
-        const descLh = descFs * 1.40;
+        const descLh = descFs * Math.max(1.05, gDesc(1.40));
         descLines.forEach((line, i) => {
-          ctx.fillText(line, colX, y + fs * 0.07 + descFs * 1.18 + i * descLh);
+          ctx.fillText(line, colX, y + gDesc(fs * 0.07) + descFs * 1.18 + i * descLh);
         });
-        y += fs * 0.07 + descLines.length * descLh;
+        y += gDesc(fs * 0.07) + descLines.length * descLh;
         ctx.globalAlpha = 1;
       }
 
-      y += fs * 0.50; // margin-bottom do item
+      y += gItem(fs * 0.50); // margin-bottom do item
     }
 
     // Separador/margem entre categorias
     if (singleCol && gi < grupos.length - 1) {
-      y += fs * 0.26;
+      y += gItem(fs * 0.26);
     }
-    y += fs * 0.60; // margin-bottom do grupo
+    y += gItem(fs * 0.60); // margin-bottom do grupo
   });
 }
 
