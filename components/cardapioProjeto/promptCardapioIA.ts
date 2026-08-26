@@ -24,6 +24,7 @@ REGRAS DE PREENCHIMENTO:
 3. VALOR: sempre moeda brasileira com espaço após o cifrão: R$ 20,00. Quando o item tiver tamanhos, NÃO duplique o item em várias linhas — use UMA linha com o valor composto:
    • Pequeno/Grande: P - R$ 30,00 / G - R$ 35,00
    • Tamanhos nomeados: 220ml - R$ 20,00 / 330ml - R$ 28,00 / 550ml - R$ 37,00
+   Sempre EXATAMENTE neste formato: rótulo curto, hífen, preço — opções separadas por " / ". Nunca use outro separador nem omita o hífen (o sistema lê esse padrão para diagramar os tamanhos).
 4. DESCRIÇÃO: ingredientes, sabores, acompanhamentos ("Acompanha batata") e porção ("Serve 2 pessoas"). Se não houver, deixe a célula vazia. NUNCA quebre linha dentro de uma célula.
 5. Itens com o mesmo preço que mudam só o sabor: UMA linha, com "Sabores: ..." na descrição.
 6. CORRIJA erros básicos de português em TODO o conteúdo descritivo — nomes de itens, categorias, descrições e sabores: ortografia (ex: "epetinho" → "espetinho"), acentuação ("hamburguer" → "hambúrguer", "pao" → "pão"), espaçamento após vírgulas e nomes de marcas/produtos conhecidos ("Ferreiro Rocher" → "Ferrero Rocher"). O texto final deve estar em português correto e profissional, pronto para impressão.
