@@ -16,7 +16,7 @@ import EditorItensModal from '../components/cardapioProjeto/EditorItensModal';
 
 const isEditMode_check = (id?: string) => !!id;
 
-const CAMPOS_FONTES_A4: { key: keyof FontesA4; label: string }[] = [
+const CAMPOS_FONTES_A4: { key: 'empresa' | 'titulo' | 'categoria' | 'item' | 'descricao' | 'preco'; label: string }[] = [
   { key: 'empresa',   label: 'Empresa' },
   { key: 'titulo',    label: 'Título' },
   { key: 'categoria', label: 'Categoria' },
@@ -446,6 +446,17 @@ export const CardapioA4Editor: React.FC = () => {
                 espaços largos. Salvo junto com o menu.
               </p>
             </div>
+
+            {/* Categorias visíveis? (BEBIDAS, DESTILADOS...) */}
+            <label className="flex items-center justify-between gap-2 cursor-pointer border-t border-slate-100 pt-2">
+              <span className="text-xs font-semibold text-slate-700">Mostrar categorias</span>
+              <input
+                type="checkbox"
+                checked={fontesA4.mostrarCategorias}
+                onChange={(e) => setFontesA4((prev) => ({ ...prev, mostrarCategorias: e.target.checked }))}
+                className="w-4 h-4 accent-indigo-600 cursor-pointer"
+              />
+            </label>
           </div>
 
           {/* Bleed legend */}

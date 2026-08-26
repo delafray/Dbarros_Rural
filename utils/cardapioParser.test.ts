@@ -152,8 +152,10 @@ describe('layout: getItemWeight / splitGroups / calcFontSize', () => {
         const semCat = getGroupWeight(grupo, undefined, { mostrarCategorias: false });
         expect(juntas).toBeLessThan(padrao);
         expect(semCat).toBeLessThan(padrao);
-        // sem categoria, o peso do grupo vira só o peso dos itens
-        expect(semCat).toBeCloseTo(getItemWeight(grupo.itens[0], undefined, { mostrarCategorias: false }));
+        // sem categoria: itens + peso residual das margens do grupo (0.9em)
+        expect(semCat).toBeCloseTo(
+            getItemWeight(grupo.itens[0], undefined, { mostrarCategorias: false }) + 0.9
+        );
         // linhas=1 e mostrarCategorias=true são neutros (compatibilidade A4)
         expect(getGroupWeight(grupo, undefined, { linhas: 1, mostrarCategorias: true })).toBeCloseTo(padrao);
     });

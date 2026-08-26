@@ -64,12 +64,18 @@ describe('quebrarNomeEmpresa — nome longo em 2 linhas no cabeçalho', () => {
   });
 });
 
-describe('resolveFontesA4 — juntar linhas', () => {
+describe('resolveFontesA4 — juntar linhas e mostrar categorias', () => {
   it('default 1, aceita o campo e clampa no intervalo', () => {
     expect(resolveFontesA4(null).linhas).toBe(1);
     expect(resolveFontesA4({ item: 1.2 }).linhas).toBe(1); // JSON antigo
     expect(resolveFontesA4({ linhas: 0.85 }).linhas).toBe(0.85);
     expect(resolveFontesA4({ linhas: 0.1 }).linhas).toBe(0.7);
     expect(resolveFontesA4({ linhas: 9 }).linhas).toBe(1.3);
+  });
+
+  it('mostrarCategorias: default true (JSON antigo) e aceita false', () => {
+    expect(resolveFontesA4(null).mostrarCategorias).toBe(true);
+    expect(resolveFontesA4({ item: 1.2 }).mostrarCategorias).toBe(true);
+    expect(resolveFontesA4({ mostrarCategorias: false }).mostrarCategorias).toBe(false);
   });
 });

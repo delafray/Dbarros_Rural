@@ -96,12 +96,14 @@ const GroupList = ({
   const gDesc = (v: number) => aplicarLinhas(v, LINHAS_SENS.descricao, lin);
   const gCat  = (v: number) => aplicarLinhas(v, LINHAS_SENS.categoria, lin);
   const gItem = (v: number) => aplicarLinhas(v, LINHAS_SENS.item, lin);
+  const mostrarCategorias = f.mostrarCategorias ?? true;
 
   return (
     <>
       {grupos.map((group, gi) => (
         <div key={group.categoria} style={{ marginBottom: gItem(fs * 0.42) }}>
-          {/* Category header */}
+          {/* Category header (ocultável) */}
+          {mostrarCategorias && (
           <div
             style={{
               color: t.corDouradoClaro,
@@ -117,6 +119,7 @@ const GroupList = ({
           >
             {group.categoria}
           </div>
+          )}
 
           {/* Items */}
           {group.itens.map((item, idx) => {

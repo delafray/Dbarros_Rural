@@ -184,22 +184,25 @@ function drawColumn(
   const gDesc = (v: number) => aplicarLinhas(v, LINHAS_SENS.descricao, lin);
   const gCat  = (v: number) => aplicarLinhas(v, LINHAS_SENS.categoria, lin);
   const gItem = (v: number) => aplicarLinhas(v, LINHAS_SENS.item, lin);
+  const mostrarCategorias = F.mostrarCategorias ?? true;
 
   let y = startY;
 
   grupos.forEach((group, gi) => {
-    // ── Categoria ─────────────────────────────────────────────────────
-    ctx.font         = `900 ${catFs}px ${FONT_BLACK}`;
-    ctx.textAlign    = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.shadowColor  = `${T.corDouradoClaro}45`;
-    ctx.shadowBlur   = 12;
-    ctx.fillStyle    = T.corDouradoClaro;
-    const catBaseline = y + catFs * 1.05;
-    ctx.fillText(group.categoria, colX, catBaseline);
-    ctx.shadowBlur = 0;
-    // Respiro extra: compensa baseline/line-box do canvas ser mais apertado que o DOM
-    y = catBaseline + gCat(fs * 0.46);
+    // ── Categoria (ocultável) ─────────────────────────────────────────
+    if (mostrarCategorias) {
+      ctx.font         = `900 ${catFs}px ${FONT_BLACK}`;
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.shadowColor  = `${T.corDouradoClaro}45`;
+      ctx.shadowBlur   = 12;
+      ctx.fillStyle    = T.corDouradoClaro;
+      const catBaseline = y + catFs * 1.05;
+      ctx.fillText(group.categoria, colX, catBaseline);
+      ctx.shadowBlur = 0;
+      // Respiro extra: compensa baseline/line-box do canvas mais apertado que o DOM
+      y = catBaseline + gCat(fs * 0.46);
+    }
 
     // ── Itens ─────────────────────────────────────────────────────────
     for (const item of group.itens) {
@@ -217,6 +220,7 @@ function drawColumn(
       // Nome do item (pode quebrar se tiver descricao; senão fica em 1 linha)
       ctx.font         = `700 ${itemFs}px ${FONT_REGULAR}`;
       ctx.fillStyle    = T.corTexto;
+      ctx.textAlign    = 'left'; // header desenha em 'center'; garante à esquerda
       ctx.textBaseline = 'alphabetic';
       const nameBaseY = y + itemFs * 1.05;
 

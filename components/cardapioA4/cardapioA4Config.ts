@@ -66,6 +66,8 @@ export interface FontesA4 {
   preco: number;
   /** Compressão vertical entre linhas/itens (1 = padrão; LINHAS_MIN..MAX) */
   linhas: number;
+  /** Exibe os títulos de categoria (BEBIDAS, DESTILADOS...) */
+  mostrarCategorias: boolean;
 }
 
 export const FONTES_A4_PADRAO: FontesA4 = {
@@ -76,15 +78,18 @@ export const FONTES_A4_PADRAO: FontesA4 = {
   descricao: 1,
   preco: 1,
   linhas: 1,
+  mostrarCategorias: true,
 };
 
 export function resolveFontesA4(f?: Partial<FontesA4> | null): FontesA4 {
   if (!f) return { ...FONTES_A4_PADRAO };
   const out = { ...FONTES_A4_PADRAO };
-  (Object.keys(FONTES_A4_PADRAO) as (keyof FontesA4)[]).forEach((k) => {
-    const v = f[k];
-    if (typeof v === 'number' && v > 0) out[k] = v;
-  });
+  (['empresa', 'titulo', 'categoria', 'item', 'descricao', 'preco', 'linhas'] as const)
+    .forEach((k) => {
+      const v = f[k];
+      if (typeof v === 'number' && v > 0) out[k] = v;
+    });
+  if (typeof f.mostrarCategorias === 'boolean') out.mostrarCategorias = f.mostrarCategorias;
   out.linhas = Math.min(LINHAS_MAX, Math.max(LINHAS_MIN, out.linhas));
   return out;
 }

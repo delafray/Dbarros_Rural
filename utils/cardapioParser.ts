@@ -27,6 +27,9 @@ const ITEM_DESC_WEIGHT = 0.9;       // description height in em
 const ITEM_MARGIN_WEIGHT = 0.5;     // margin between items
 const CAT_WEIGHT = 2.3;             // category header height in em
 const CAT_MARGIN_WEIGHT = 0.5;      // margin after category header
+// Com categoria OCULTA os renderers ainda gastam as margens entre grupos
+// (~0.9em somadas) — peso residual para o auto-fit não estourar a página
+const GRUPO_SEM_CAT_WEIGHT = 0.9;
 const VARIANTE_WEIGHT = 1.45;       // each stacked size/price line in em
 
 /**
@@ -151,9 +154,9 @@ export function getGroupWeight(
   m?: PesoFontes
 ): number {
   const lin = m?.linhas ?? 1;
-  // Categoria oculta: título e respiro dele saem do peso
+  // Categoria oculta: sai o título, fica o peso residual das margens do grupo
   const catWeight = m?.mostrarCategorias === false
-    ? 0
+    ? aplicarLinhas(GRUPO_SEM_CAT_WEIGHT, LINHAS_SENS.item, lin)
     : CAT_WEIGHT * (m?.categoria ?? 1) +
       aplicarLinhas(CAT_MARGIN_WEIGHT, LINHAS_SENS.categoria, lin);
   return catWeight +
