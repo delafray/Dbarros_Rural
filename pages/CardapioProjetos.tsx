@@ -98,7 +98,7 @@ const CardapioProjetos: React.FC = () => {
       </button>
       <button
         onClick={() => setShowPrompt(2)}
-        title="Versão detalhada em teste: uma linha por variação de preço (ex: Pão de Queijo com Costela) e preserva nomes regionais (Café coando)"
+        title="Versão detalhada em teste: uma linha por variação de preço (nome limpo + variação na descrição) e preserva nomes regionais (Café coando)"
         className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow transition-all"
       >
         <SparklesIcon className="w-4 h-4" />
@@ -241,7 +241,7 @@ const CardapioProjetos: React.FC = () => {
                 </h2>
                 <p className="text-sm text-slate-400">
                   {showPrompt === 2
-                    ? 'Em teste: uma linha por variação de preço e preserva nomes regionais — pensado para o A4.'
+                    ? 'Em teste: uma linha por variação de preço (nome limpo, variação na descrição) e preserva nomes regionais — pensado para o A4.'
                     : 'Transforma cardápios bagunçados (WhatsApp, fotos) no padrão exato do sistema.'}
                 </p>
               </div>
