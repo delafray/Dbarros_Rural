@@ -13,6 +13,9 @@ import {
   resolveFontes,
   fontesSaoPadrao,
   aplicarLinhas,
+  calcularFatorPreenchimento,
+  proximoFillScale,
+  FILL_MAX,
   LINHAS_SENS,
   LINHAS_MIN,
   LINHAS_MAX,
@@ -132,6 +135,100 @@ describe('juntar linhas / mostrar categorias (fontes_a3)', () => {
     expect(aplicarLinhas(10, LINHAS_SENS.item, 1.2)).toBeCloseTo(12);
     // 100% = neutro
     expect(aplicarLinhas(10, LINHAS_SENS.item, 1)).toBe(10);
+  });
+});
+
+describe('calcularFatorPreenchimento (preenchimento automático)', () => {
+  const grupo: CardapioGroup = {
+    categoria: 'CAT',
+    itens: [{ item: 'Item', valor: 'R$ 10,00', descricao: '' }],
+  };
+  const menus: A3DuploMenuData[] = [{ id: 'm0', empresa: 'X', itens: [grupo] }];
+  const matrix: MeasurementMatrix = {
+    2: [{
+      headerH_full: 50, headerH_compact: 40,
+      groupsH_full: [350], groupsH_compact: [260],
+      blockH_full: 400, blockH_compact: 300,
+    }],
+  };
+  const layoutBase: LayoutResult = {
+    scale: 1,
+    spacing: 1,
+    numColunas: 2,
+    paginas: [[[{ menuIdx: 0, grupos: [grupo], isContinuacao: false }]]],
+  };
+
+  it('página com sobra → fator > 1 (coluna de 400 numa página de 1000 → 2.5)', () => {
+    expect(calcularFatorPreenchimento(menus, layoutBase, matrix, 1000)).toBeCloseTo(2.5);
+  });
+
+  it('conteúdo estourado → fator < 1 (encolher para caber)', () => {
+    expect(calcularFatorPreenchimento(menus, layoutBase, matrix, 200)).toBeCloseTo(0.5);
+  });
+
+  it('respeita o scale já aplicado pelo layout', () => {
+    const comScale: LayoutResult = { ...layoutBase, scale: 0.8 };
+    // coluna: 400 * 0.8 = 320 → 1000/320 = 3.125
+    expect(calcularFatorPreenchimento(menus, comScale, matrix, 1000)).toBeCloseTo(3.125);
+  });
+
+  it('retorna null sem medições da configuração de colunas ou altura inválida', () => {
+    expect(calcularFatorPreenchimento(menus, { ...layoutBase, numColunas: 3 }, matrix, 1000)).toBeNull();
+    expect(calcularFatorPreenchimento(menus, layoutBase, matrix, 0)).toBeNull();
+  });
+});
+
+describe('proximoFillScale (convergência do preenchimento)', () => {
+  it('cresce com folga de 3% e passo máximo de 30%', () => {
+    // sobra grande (fator 2.5) → passo limitado a +30%
+    expect(proximoFillScale({ fillScale: 1, resultScale: 1, iter: 0, fator: 2.5 })).toBeCloseTo(1.3);
+    // sobra pequena (fator 1.1) → cresce 1.1*0.97 ≈ +6.7%
+    expect(proximoFillScale({ fillScale: 1, resultScale: 1, iter: 0, fator: 1.1 })).toBeCloseTo(1.067);
+  });
+
+  it('para quando está preenchido (fator ≤ 1.04), no teto, no limite de iterações ou em fallback', () => {
+    expect(proximoFillScale({ fillScale: 1.2, resultScale: 1, iter: 0, fator: 1.03 })).toBeNull();
+    expect(proximoFillScale({ fillScale: FILL_MAX, resultScale: 1, iter: 0, fator: 2 })).toBeNull();
+    expect(proximoFillScale({ fillScale: 1.2, resultScale: 1, iter: 5, fator: 2 })).toBeNull();
+    expect(proximoFillScale({ fillScale: 1.2, resultScale: 1, iter: 0, fator: 2, fallback: true })).toBeNull();
+    expect(proximoFillScale({ fillScale: 1, resultScale: 1, iter: 0, fator: null })).toBeNull();
+  });
+
+  it('devolve o excesso quando o auto-fit precisou encolher, sem descer de 1', () => {
+    expect(proximoFillScale({ fillScale: 1.3, resultScale: 0.9, iter: 0, fator: null })).toBeCloseTo(1.17);
+    expect(proximoFillScale({ fillScale: 1.05, resultScale: 0.5, iter: 0, fator: null })).toBe(1);
+    // fill já em 1 e conteúdo grande → não mexe (encolher é papel do scale do layout)
+    expect(proximoFillScale({ fillScale: 1, resultScale: 0.8, iter: 0, fator: null })).toBeNull();
+  });
+
+  it('a sequência converge em poucas iterações (sobra 1.5x → página quase cheia)', () => {
+    let fill = 1;
+    let iter = 0;
+    let fator = 1.5; // página 50% mais alta que o conteúdo
+    while (iter < 10) {
+      const next = proximoFillScale({ fillScale: fill, resultScale: 1, iter, fator });
+      if (next === null) break;
+      fator = fator * (fill / next); // conteúdo cresce → sobra diminui proporcionalmente
+      fill = next;
+      iter++;
+    }
+    expect(iter).toBeLessThanOrEqual(5);
+    expect(fill).toBeLessThanOrEqual(FILL_MAX);
+    expect(fator).toBeLessThanOrEqual(1.05); // página quase cheia ao convergir
+  });
+
+  it('sobra muito grande para no teto FILL_MAX (trava anti-fonte-gigante)', () => {
+    let fill = 1;
+    let iter = 0;
+    let fator = 2.5;
+    while (iter < 10) {
+      const next = proximoFillScale({ fillScale: fill, resultScale: 1, iter, fator });
+      if (next === null) break;
+      fator = fator * (fill / next);
+      fill = next;
+      iter++;
+    }
+    expect(fill).toBe(FILL_MAX);
   });
 });
 

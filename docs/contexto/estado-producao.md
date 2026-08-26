@@ -28,6 +28,11 @@
   "Mostrar categorias" (oculta DOCES/LANCHES... de todos os cardápios).
   Salvos em `fontes_a3` (campos `linhas`/`mostrarCategorias`); JSON antigo
   sem os campos cai no padrão.
+- **A3 Duplo — preenchimento automático (26/08)**: `fillScale` cresce sozinho
+  (teto 1.6×, convergência em ≤5 re-medições — `proximoFillScale`) para as
+  fontes ocuparem o máximo da página SEM alterar os px do usuário nem as
+  proporções entre eles; reage a qualquer mudança (fontes, juntar linhas,
+  categorias, topo). Status mostra a fonte efetiva (%).
 
 ## Aguardando o usuário
 
