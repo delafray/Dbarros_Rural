@@ -17,6 +17,10 @@
 - **Segurança (auditoria F12, 14/08)**: código-fonte/histórico git fora do
   bundle público; allowlist de upload nos buckets; ban de credencial ao
   desativar usuário. Nenhum segredo vazou.
+- **Cardápio A4 — preços compostos (26/08)**: valor `Rótulo - R$ X / ...` agora
+  é estruturado pelo parser; 2 tamanhos → inline compacto, 3+ → sublinhas
+  pontilhadas (nome nunca mais sobreposto/cortado; auto-fit conta as sublinhas).
+  A3 e Lona ainda desenham o valor composto inline (mesma limitação antiga).
 
 ## Aguardando o usuário
 
