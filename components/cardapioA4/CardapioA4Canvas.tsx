@@ -112,8 +112,8 @@ const GroupList = ({
 
           {/* Items */}
           {group.itens.map((item, idx) => {
-            // Valor composto (tamanhos): 2 variantes → inline compacto;
-            // 3+ → nome em linha própria + sublinhas (mesma regra do export)
+            // Valor composto (tamanhos) SEMPRE empilha: nome em linha própria
+            // + uma sublinha por tamanho (mesma regra do export)
             const variantes = parseValorComposto(item.valor);
             const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
             const valorLinha = empilhado ? '' : variantes ? formatValorInline(variantes) : item.valor;

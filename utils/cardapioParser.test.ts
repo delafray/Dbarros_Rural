@@ -126,7 +126,7 @@ describe('layout: getItemWeight / splitGroups / calcFontSize', () => {
         expect(comDesc).toBeGreaterThan(semDesc);
     });
 
-    it('item empilhado (3+ variantes) pesa mais que item de preço simples', () => {
+    it('todo valor composto empilha e pesa mais que preço simples', () => {
         const simples = getItemWeight({ item: 'X', valor: 'R$ 10,00', descricao: '' });
         const duasVar = getItemWeight({ item: 'X', valor: 'P - R$ 30,00 / G - R$ 35,00', descricao: '' });
         const tresVar = getItemWeight({
@@ -134,11 +134,11 @@ describe('layout: getItemWeight / splitGroups / calcFontSize', () => {
             valor: '300ml - R$ 10,00 / 500ml - R$ 15,00 / 700ml - R$ 20,00',
             descricao: '',
         });
-        // 2 variantes seguem inline → mesma altura do preço simples
-        expect(duasVar).toBe(simples);
-        // 3+ variantes viram sublinhas → uma linha extra por variante
-        expect(VARIANTES_EMPILHA_MIN).toBe(3);
-        expect(tresVar).toBeGreaterThan(simples + 2);
+        // Composto SEMPRE vira sublinhas — inline de 2 variantes quebrava
+        // em cardápios pequenos (fonte grande)
+        expect(VARIANTES_EMPILHA_MIN).toBe(2);
+        expect(duasVar).toBeGreaterThan(simples + 1);
+        expect(tresVar).toBeGreaterThan(duasVar);
     });
 
     it('descrição longa quebra em mais linhas quando avgCharsPerLine é dado', () => {

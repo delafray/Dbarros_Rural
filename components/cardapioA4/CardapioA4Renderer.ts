@@ -192,8 +192,8 @@ function drawColumn(
 
     // ── Itens ─────────────────────────────────────────────────────────
     for (const item of group.itens) {
-      // Valor composto (tamanhos): 2 variantes → inline compacto;
-      // 3+ → nome em linha própria + sublinhas (nunca sobrepõe o nome)
+      // Valor composto (tamanhos) SEMPRE empilha: nome em linha própria +
+      // uma sublinha por tamanho (inline quebrava com fonte grande)
       const variantes = parseValorComposto(item.valor);
       const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
       const valorLinha = empilhado ? '' : variantes ? formatValorInline(variantes) : item.valor;

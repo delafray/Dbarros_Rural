@@ -29,8 +29,12 @@ const CAT_WEIGHT = 2.3;             // category header height in em
 const CAT_MARGIN_WEIGHT = 0.5;      // margin after category header
 const VARIANTE_WEIGHT = 1.45;       // each stacked size/price line in em
 
-/** A partir de quantas variantes o item deixa o inline e vira sublinhas */
-export const VARIANTES_EMPILHA_MIN = 3;
+/**
+ * A partir de quantas variantes o item vira sublinhas. 2 = TODO valor
+ * composto empilha — o inline de 2 variantes quebrava em cardápios pequenos
+ * (fonte grande → preço engole a coluna e o nome quebra palavra a palavra).
+ */
+export const VARIANTES_EMPILHA_MIN = 2;
 
 /** Uma opção de tamanho/preço de um valor composto (ex: "300ml" / "R$ 10,00") */
 export interface PrecoVariante {
