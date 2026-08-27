@@ -43,88 +43,19 @@ const GAP_PX = COL_GAP_MM * MM_TO_PX;
 
 const K = 72 / 96; // px → pt
 
-// ─── Fontes (cache do base64 por sessão) ─────────────────────────────────────
-const FONT_FILES = [
-  { file: 'LiberationSans-Regular.ttf', family: 'LiberationSans', style: 'normal' },
-  { file: 'LiberationSans-Bold.ttf',    family: 'LiberationSans', style: 'bold' },
-  { file: 'LiberationSans-Italic.ttf',  family: 'LiberationSans', style: 'italic' },
-  { file: 'ArchivoBlack-Regular.ttf',   family: 'ArchivoBlack',   style: 'normal' },
-] as const;
-
-const fontCache = new Map<string, string>();
-
-async function fetchFontBase64(file: string): Promise<string> {
-  const cached = fontCache.get(file);
-  if (cached) return cached;
-  const res = await fetch(`/fonts/${file}`);
-  if (!res.ok) throw new Error(`Fonte não encontrada: /fonts/${file}`);
-  const buf = await res.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let bin = '';
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  const b64 = btoa(bin);
-  fontCache.set(file, b64);
-  return b64;
-}
-
-async function registrarFontes(doc: jsPDF): Promise<void> {
-  for (const f of FONT_FILES) {
-    const b64 = await fetchFontBase64(f.file);
-    doc.addFileToVFS(f.file, b64);
-    doc.addFont(f.file, f.family, f.style);
-  }
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function hexToRgb(hex: string): [number, number, number] {
-  let h = hex.replace('#', '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  const n = parseInt(h.slice(0, 6), 16) || 0;
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function setTextColor(doc: jsPDF, hex: string) {
-  const [r, g, b] = hexToRgb(hex);
-  doc.setTextColor(r, g, b);
-}
-
-function withOpacity(doc: jsPDF, opacity: number, fn: () => void) {
-  doc.saveGraphicsState();
-  doc.setGState(new (doc as any).GState({ opacity, 'stroke-opacity': opacity }));
-  fn();
-  doc.restoreGraphicsState();
-}
+// ─── Fontes e helpers compartilhados (utils/pdfVetorial) ─────────────────────
+import {
+  registrarFontesPdf as registrarFontes,
+  hexToRgb,
+  setTextColorPdf as setTextColor,
+  withOpacityPdf as withOpacity,
+  carregarImagemPdf as carregarFundo,
+} from '../../utils/pdfVetorial';
 
 /** Quebra texto na largura (px), com a fonte/tamanho já configurados no doc. */
 function wrap(doc: jsPDF, text: string, maxWidthPx: number): string[] {
   const lines = doc.splitTextToSize(text, maxWidthPx * K) as string[];
   return lines.length ? lines : [''];
-}
-
-async function carregarFundo(url: string): Promise<{ data: string; w: number; h: number } | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const data = await new Promise<string>((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result as string);
-      r.onerror = reject;
-      r.readAsDataURL(blob);
-    });
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = reject;
-      i.src = data;
-    });
-    return { data, w: img.naturalWidth, h: img.naturalHeight };
-  } catch {
-    return null;
-  }
 }
 
 // ─── Desenho de um bloco de empresa (espelha EmpresaBlock) ───────────────────

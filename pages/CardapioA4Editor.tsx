@@ -7,6 +7,7 @@ import {
   FontesA4, FONTES_A4_PADRAO, resolveFontesA4, fontesA4SaoPadrao,
 } from '../components/cardapioA4/cardapioA4Config';
 import { exportMenuA4, exportMenuA4Pdf, A4_RENDER_SCALES } from '../components/cardapioA4/CardapioA4Renderer';
+import { exportMenuA4PdfVetorial } from '../components/cardapioA4/A4PdfExporter';
 import { parseCardapioText, gerarTextoCardapio, CardapioGroup, LINHAS_MIN, LINHAS_MAX } from '../utils/cardapioParser';
 import { tabelaHtmlParaTexto } from '../utils/cardapioClipboard';
 import { CardapioRenderOptions } from '../utils/cardapioTema';
@@ -174,14 +175,15 @@ export const CardapioA4Editor: React.FC = () => {
     }
   };
 
-  // ── Export PDF (PNG 300dpi embutido em página A4 — idêntico ao preview) ──
-  const handleExportPdf = async () => {
+  // ── Export PDF — vetorial (texto em vetor) ou raster (PNG 300dpi) ────────
+  const handleExportPdf = async (vetorial: boolean) => {
     setShowExportMenu(false);
     if (grupos.length === 0) return;
     try {
       setIsExporting(true); setError(null);
       const filename = `menu-a4-${empresa.toLowerCase().replace(/\s+/g, '-') || 'menu'}`;
-      await exportMenuA4Pdf(titulo, empresa, grupos, filename, setExportStatus, {
+      const exportar = vetorial ? exportMenuA4PdfVetorial : exportMenuA4Pdf;
+      await exportar(titulo, empresa, grupos, filename, setExportStatus, {
         ...renderOpts,
         fontesA4,
         forcarUmaColuna,
@@ -257,11 +259,18 @@ export const CardapioA4Editor: React.FC = () => {
               PDF
             </p>
             <button
-              onClick={handleExportPdf}
+              onClick={() => handleExportPdf(true)}
               className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors border-t border-slate-100"
             >
-              <p className="text-sm font-bold text-slate-700">PDF A4 (300dpi)</p>
-              <p className="text-xs text-slate-400">Página 210×297mm — mesmo visual do preview</p>
+              <p className="text-sm font-bold text-slate-700">PDF A4 vetorial</p>
+              <p className="text-xs text-slate-400">Texto em vetor (nítido em qualquer zoom) — como o A3</p>
+            </button>
+            <button
+              onClick={() => handleExportPdf(false)}
+              className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors border-t border-slate-100"
+            >
+              <p className="text-sm font-bold text-slate-700">PDF A4 (300dpi raster)</p>
+              <p className="text-xs text-slate-400">PNG embutido — pixel-idêntico ao preview</p>
             </button>
           </div>
         )}

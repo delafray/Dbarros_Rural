@@ -24,6 +24,11 @@
   (EmpresaBlock + PDF vetorial) e na Lona (renderer + peso; a fonte automática
   já conta as sublinhas). Ainda inline: só o renderer antigo do módulo
   Cardápios (CardapioRenderer).
+- **A4 — PDF vetorial (27/08)**: exportador jsPDF com fontes embutidas
+  (Liberation Sans/Archivo Black, mesmas do A3) espelhando o renderer —
+  texto selecionável/nítido; opção principal no menu de export (o raster
+  300dpi segue como alternativa). Helpers de PDF em `utils/pdfVetorial.ts`
+  (A3PdfExporter refatorado para usá-los).
 - **A4 — nome de empresa longo + juntar linhas (26/08)**: nome acima de 28
   caracteres quebra em 2 linhas no cabeçalho (fonte pela linha mais longa —
   antes estourava a página); slider "Juntar linhas" no editor do menu (mesma
