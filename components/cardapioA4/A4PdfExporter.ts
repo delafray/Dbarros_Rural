@@ -6,9 +6,10 @@
  * Archivo Black ≈ Arial Black).
  *
  * O desenho espelha o CardapioA4Renderer (mesmas medidas em px @3px/mm,
- * convertidas para pt). Efeitos raster (vignette, glow dos textos e o
- * degradê das linhas) não existem em vetor — saem como cor sólida, mais
- * limpos na impressão. Fundo custom e chancela entram como imagem.
+ * convertidas para pt), mas sai APENAS O CONTEÚDO sobre fundo chapado na
+ * cor do tema: sem arte de fundo, sem chancela e sem decoração (parafusos
+ * e linhas de destaque) — rápido de gerar e pronto para compor a arte no
+ * Corel (o retângulo de fundo é vetor, fácil de remover/trocar lá).
  */
 
 import { jsPDF } from 'jspdf';
@@ -24,21 +25,20 @@ import {
   aplicarLinhas,
 } from '../../utils/cardapioParser';
 import {
-  CANVAS_W, CANVAS_H, BLEED_PX,
+  CANVAS_W, CANVAS_H,
   SAFE_L, SAFE_T, SAFE_W, SAFE_H,
-  COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W, SCREW_SIZE, SCREW_INSET,
+  COL_PAD_H, COL_PAD_V, FOOTER_H, DIVIDER_W,
   calcSingleCol,
   calcHeaderH, calcEmpresaFs, quebrarNomeEmpresa,
   FontesA4, resolveFontesA4,
 } from './cardapioA4Config';
-import { CardapioTema, resolveTema, coverRect } from '../../utils/cardapioTema';
+import { CardapioTema, resolveTema } from '../../utils/cardapioTema';
 import {
   registrarFontesPdf,
   hexToRgb,
   setTextColorPdf,
   setFillColorPdf,
   withOpacityPdf,
-  carregarImagemPdf,
 } from '../../utils/pdfVetorial';
 import type { A4RenderOptions } from './CardapioA4Renderer';
 
@@ -69,15 +69,6 @@ function linhaPontilhada(
     doc.setLineDashPattern([1.5 * K, 3 * K], 0);
     doc.line(x1 * K, y * K, x2 * K, y * K);
     doc.setLineDashPattern([], 0);
-  });
-}
-
-function drawParafuso(doc: jsPDF, T: CardapioTema, cx: number, cy: number) {
-  setFillColorPdf(doc, T.corDourado);
-  doc.circle(cx * K, cy * K, (SCREW_SIZE / 2) * K, 'F');
-  withOpacityPdf(doc, 0.65, () => {
-    doc.setFillColor(26, 14, 0);
-    doc.circle(cx * K, cy * K, 2.5 * K, 'F');
   });
 }
 
@@ -219,31 +210,11 @@ export async function gerarPdfMenuA4(
   const T = resolveTema(opts.tema);
   const F = resolveFontesA4(opts.fontesA4);
 
-  // ── Fundo: cor sólida + arte em cover (mesmo layering do renderer) ──
+  // ── Fundo CHAPADO na cor do tema — sem arte, sem decoração ──
+  // (a arte/chancela entram depois na composição no Corel; o retângulo é
+  // vetor e pode ser removido/trocado lá em um clique)
   setFillColorPdf(doc, T.corFundo);
   doc.rect(0, 0, CANVAS_W * K, CANVAS_H * K, 'F');
-  if (opts.fundoUrl) {
-    const fundo = await carregarImagemPdf(opts.fundoUrl);
-    if (fundo && fundo.w > 0 && fundo.h > 0) {
-      const { dx, dy, dw, dh } = coverRect(fundo.w, fundo.h, CANVAS_W, CANVAS_H);
-      const fmt = fundo.data.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-      doc.addImage(fundo.data, fmt, dx * K, dy * K, dw * K, dh * K);
-    }
-  }
-
-  // ── Linhas de destaque (degradê vira sólido com alpha) ──
-  withOpacityPdf(doc, 0.8, () => {
-    setFillColorPdf(doc, T.corDourado);
-    doc.rect(SAFE_L * K, (SAFE_T + 8) * K, SAFE_W * K, 3 * K, 'F');
-    doc.rect(SAFE_L * K, (CANVAS_H - BLEED_PX - 8 - 3) * K, SAFE_W * K, 3 * K, 'F');
-  });
-
-  // ── Parafusos decorativos ──
-  const screwOff = BLEED_PX + SCREW_INSET + SCREW_SIZE / 2;
-  drawParafuso(doc, T, screwOff, screwOff);
-  drawParafuso(doc, T, CANVAS_W - screwOff, screwOff);
-  drawParafuso(doc, T, screwOff, CANVAS_H - screwOff);
-  drawParafuso(doc, T, CANVAS_W - screwOff, CANVAS_H - screwOff);
 
   // ── Layout (idêntico ao renderer) ──
   const totalItens = grupos.reduce((s, g) => s + g.itens.length, 0);
@@ -322,21 +293,7 @@ export async function gerarPdfMenuA4(
     });
   }
 
-  // ── Rodapé: linha de separação + chancela (imagem contain) ──
-  withOpacityPdf(doc, 0.094, () => {
-    setFillColorPdf(doc, T.corDourado);
-    doc.rect(SAFE_L * K, footerTop * K, SAFE_W * K, 1 * K, 'F');
-  });
-  const chancela = await carregarImagemPdf(opts.chancelaUrl || '/chancela.png');
-  if (chancela && chancela.w > 0 && chancela.h > 0) {
-    const s = Math.min(SAFE_W / chancela.w, FOOTER_H / chancela.h);
-    const dw = chancela.w * s;
-    const dh = chancela.h * s;
-    const dx = SAFE_L + (SAFE_W - dw) / 2;
-    const dy = footerTop + (FOOTER_H - dh) / 2;
-    const fmt = chancela.data.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-    doc.addImage(chancela.data, fmt, dx * K, dy * K, dw * K, dh * K);
-  }
+  // Rodapé: sem chancela — a faixa fica livre para a composição no Corel
 
   return doc.output('blob');
 }

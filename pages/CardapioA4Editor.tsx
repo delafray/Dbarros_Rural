@@ -263,7 +263,7 @@ export const CardapioA4Editor: React.FC = () => {
               className="w-full text-left px-3 py-2.5 hover:bg-amber-50 transition-colors border-t border-slate-100"
             >
               <p className="text-sm font-bold text-slate-700">PDF A4 vetorial</p>
-              <p className="text-xs text-slate-400">Texto em vetor (nítido em qualquer zoom) — como o A3</p>
+              <p className="text-xs text-slate-400">Só o conteúdo em vetor, fundo chapado — sem arte/chancela (p/ Corel)</p>
             </button>
             <button
               onClick={() => handleExportPdf(false)}

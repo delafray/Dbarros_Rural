@@ -27,7 +27,10 @@
 - **A4 — PDF vetorial (27/08)**: exportador jsPDF com fontes embutidas
   (Liberation Sans/Archivo Black, mesmas do A3) espelhando o renderer —
   texto selecionável/nítido; opção principal no menu de export (o raster
-  300dpi segue como alternativa). Helpers de PDF em `utils/pdfVetorial.ts`
+  300dpi segue como alternativa). A pedido do usuário sai SÓ O CONTEÚDO
+  sobre fundo chapado do tema: sem arte, sem chancela, sem decoração
+  (parafusos/linhas — que saíam com contorno escuro) — geração rápida,
+  composição da arte fica no Corel. Helpers em `utils/pdfVetorial.ts`
   (A3PdfExporter refatorado para usá-los).
 - **A4 — nome de empresa longo + juntar linhas (26/08)**: nome acima de 28
   caracteres quebra em 2 linhas no cabeçalho (fonte pela linha mais longa —
