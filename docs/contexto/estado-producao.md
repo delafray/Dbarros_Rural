@@ -24,6 +24,11 @@
   (EmpresaBlock + PDF vetorial) e na Lona (renderer + peso; a fonte automática
   já conta as sublinhas). Ainda inline: só o renderer antigo do módulo
   Cardápios (CardapioRenderer).
+- **A3 — botão "PDF p/ Corel" (27/08)**: o PDF do "Salvar como PDF" do
+  navegador não abre no CorelDRAW ("arquivo danificado"); reativado o
+  A3PdfExporter (jsPDF) como download direto — fundo chapado sem arte,
+  com sublinhas/juntar linhas/categorias. O botão de imprimir segue para
+  o visual completo.
 - **A4 — PDF vetorial (27/08)**: exportador jsPDF com fontes embutidas
   (Liberation Sans/Archivo Black, mesmas do A3) espelhando o renderer —
   texto selecionável/nítido; opção principal no menu de export (o raster

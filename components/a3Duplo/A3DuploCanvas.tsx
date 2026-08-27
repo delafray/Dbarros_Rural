@@ -4,6 +4,7 @@ import Layout from '../Layout';
 import { CardapioTema, TEMA_PADRAO, resolveTema, temaEhPadrao } from '../../utils/cardapioTema';
 import EmpresaBlock from './EmpresaBlock';
 import A3ControlPanel from './A3ControlPanel';
+import { gerarPdfA3, nomeArquivoPdfA3 } from './A3PdfExporter';
 import {
   A3DuploMenuData,
   COL_CHOICES,
@@ -243,8 +244,36 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
   }, [topoMm]);
 
   const handlePrint = () => window.print();
-  // NOTA: o gerador de PDF vetorial (A3PdfExporter) está pausado — ver
-  // PENDENTE-PDF-VETORIAL-A3.md na raiz do repo e o commit ec6e846 para retomar.
+
+  // PDF p/ Corel: jsPDF direto (o "Salvar como PDF" do navegador gera um
+  // arquivo que o CorelDRAW acusa como danificado). Sai fundo chapado, sem
+  // a arte — a composição fica no Corel, como no A4 vetorial.
+  const [isGerandoPdf, setIsGerandoPdf] = useState(false);
+  const handleBaixarPdfCorel = async () => {
+    if (!layout) return;
+    try {
+      setIsGerandoPdf(true);
+      const blob = await gerarPdfA3({
+        menus,
+        layout: { ...layout, scale: layout.scale * fillScale },
+        fontes,
+        tema: temaEdit,
+        fundoUrl: null,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = nomeArquivoPdfA3(nomeProjeto, menus.length);
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert('Erro ao gerar o PDF: ' + (e?.message || e));
+    } finally {
+      setIsGerandoPdf(false);
+    }
+  };
 
   const statusTxt = layout
     ? `Preview A3 Duplo — ${menus.length} empresa${menus.length === 1 ? '' : 's'} · ${layout.numColunas} col · fonte ${(layout.scale * fillScale * 100).toFixed(0)}% · espaço ${(layout.spacing * 100).toFixed(0)}%${layout.fallback ? ' (estouro!)' : ''}`
@@ -335,12 +364,28 @@ export const A3DuploCanvas: React.FC<A3DuploCanvasProps> = ({
               ← Voltar
             </button>
             {layout && (
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
-              >
-                🖨️ Imprimir / Salvar PDF Vetorial
-              </button>
+              <>
+                <button
+                  onClick={handleBaixarPdfCorel}
+                  disabled={isGerandoPdf}
+                  title="PDF vetorial gerado direto (jsPDF) — abre no CorelDRAW. Fundo chapado, sem a arte: a composição fica no Corel."
+                  className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-300 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+                >
+                  {isGerandoPdf ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    '⬇'
+                  )}
+                  {isGerandoPdf ? 'Gerando...' : 'PDF p/ Corel'}
+                </button>
+                <button
+                  onClick={handlePrint}
+                  title="Impressão do navegador — visual completo (arte, brilhos). O PDF salvo aqui NÃO abre no Corel."
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all animate-in fade-in"
+                >
+                  🖨️ Imprimir / Salvar PDF
+                </button>
+              </>
             )}
           </div>
         }

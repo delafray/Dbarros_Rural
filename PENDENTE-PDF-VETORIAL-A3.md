@@ -1,4 +1,16 @@
-# PENDENTE — PDF Vetorial do A3 Duplo (pausado em 10/07/2026)
+# PDF Vetorial do A3 Duplo — REATIVADO em 27/08/2026
+
+> **RESOLVIDO 27/08/2026:** o "Salvar como PDF" do navegador gera um arquivo
+> que o **CorelDRAW acusa como danificado** (limitação do filtro de importação
+> do Corel com PDFs do Chromium). O exportador jsPDF foi reativado como botão
+> **"PDF p/ Corel"** no preview do A3 — fundo chapado sem arte (a composição
+> fica no Corel, mesmo padrão do A4 vetorial), com tudo que o EmpresaBlock
+> ganhou desde a pausa: sublinhas de preços compostos, juntar linhas e
+> categorias ocultáveis. O botão "Imprimir / Salvar PDF" continua para o
+> visual completo (esse PDF não abre no Corel). Teste em
+> `components/a3Duplo/A3PdfExporter.test.ts`.
+
+# Histórico — PENDENTE (pausado em 10/07/2026)
 
 > **ATUALIZAÇÃO 10/07 22h:** usuário testou o destino **"Salvar como PDF" do
 > Chrome** no diálogo de impressão e ficou perfeito — vetorial, com brilhos,
