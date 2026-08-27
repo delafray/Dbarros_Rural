@@ -50,6 +50,7 @@ import {
   setTextColorPdf as setTextColor,
   withOpacityPdf as withOpacity,
   carregarImagemPdf as carregarFundo,
+  linhaDegradePdf,
 } from '../../utils/pdfVetorial';
 
 /** Quebra texto na largura (px), com a fonte/tamanho já configurados no doc. */
@@ -110,15 +111,11 @@ function drawEmpresaBlock(
     y += linhas.length * size * 1.05;
   }
 
-  // Underline dourado (gradiente vira linha sólida com alpha)
+  // Underline dourado com pontas esvanecidas (mesmo degradê do preview)
   {
     const w = colWPx * 0.6;
     y += 6;
-    withOpacity(doc, 0.8, () => {
-      const [r, g, b] = hexToRgb(t.corDourado);
-      doc.setFillColor(r, g, b);
-      doc.rect((cx - w / 2) * K, y * K, w * K, 2 * K, 'F');
-    });
+    linhaDegradePdf(doc, t.corDourado, (cx - w / 2) * K, y * K, w * K, 2 * K, 0.8);
     y += 2 + 6;
   }
 

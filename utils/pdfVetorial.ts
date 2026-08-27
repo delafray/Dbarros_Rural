@@ -70,6 +70,41 @@ export function withOpacityPdf(doc: jsPDF, opacity: number, fn: () => void) {
   doc.restoreGraphicsState();
 }
 
+/**
+ * Linha horizontal com pontas esvanecidas (o "degradê" do preview) em vetor
+ * puro: centro sólido + fatias de opacidade decrescente nas laterais.
+ * Funciona sobre qualquer fundo/arte (é alpha, não cor interpolada).
+ * Coordenadas já em pt.
+ */
+export function linhaDegradePdf(
+  doc: jsPDF,
+  hex: string,
+  xPt: number,
+  yPt: number,
+  wPt: number,
+  hPt: number,
+  opacidadeMax: number
+) {
+  const FADE = 0.2;  // fração da largura que esvanece em cada ponta
+  const STEPS = 8;
+  const [r, g, b] = hexToRgb(hex);
+  doc.setFillColor(r, g, b);
+
+  const fadeW = wPt * FADE;
+  const stepW = fadeW / STEPS;
+  withOpacityPdf(doc, opacidadeMax, () => {
+    doc.rect(xPt + fadeW, yPt, wPt - 2 * fadeW, hPt, 'F');
+  });
+  for (let i = 0; i < STEPS; i++) {
+    const o = opacidadeMax * ((i + 0.5) / STEPS);
+    withOpacityPdf(doc, o, () => {
+      // +0.15pt de sobreposição para não aparecer emenda entre as fatias
+      doc.rect(xPt + i * stepW, yPt, stepW + 0.15, hPt, 'F');
+      doc.rect(xPt + wPt - (i + 1) * stepW, yPt, stepW + 0.15, hPt, 'F');
+    });
+  }
+}
+
 export interface ImagemPdf {
   data: string;
   w: number;

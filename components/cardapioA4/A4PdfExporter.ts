@@ -39,6 +39,7 @@ import {
   setTextColorPdf,
   setFillColorPdf,
   withOpacityPdf,
+  linhaDegradePdf,
 } from '../../utils/pdfVetorial';
 import type { A4RenderOptions } from './CardapioA4Renderer';
 
@@ -265,10 +266,7 @@ export async function gerarPdfMenuA4(
   }
 
   const underY = posY[posY.length - 1] + empresaFs * 0.45 + Math.max(4, headerH * 0.04);
-  withOpacityPdf(doc, 0.7, () => {
-    setFillColorPdf(doc, T.corDourado);
-    doc.rect((cx - underlineW / 2) * K, underY * K, underlineW * K, 1.5 * K, 'F');
-  });
+  linhaDegradePdf(doc, T.corDourado, (cx - underlineW / 2) * K, underY * K, underlineW * K, 1.5 * K, 0.7);
 
   // ── Conteúdo ──
   if (singleCol) {
