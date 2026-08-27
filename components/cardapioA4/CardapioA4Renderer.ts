@@ -520,7 +520,7 @@ export async function exportMenuA4Pdf(
   onProgress?.('Gerando PDF...');
   const { jsPDF } = await import('jspdf');
   // Canvas de 630×891px a 3px/mm mapeia exato na página A4 (210×297mm)
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true });
   doc.addImage(dataUrl, 'PNG', 0, 0, 210, 297);
   doc.save(`${filename}.pdf`);
 

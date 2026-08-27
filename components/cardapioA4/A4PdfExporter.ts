@@ -205,7 +205,9 @@ export async function gerarPdfMenuA4(
   grupos: CardapioGroup[],
   opts: A4RenderOptions = {}
 ): Promise<Blob> {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true });
+  // putOnlyUsedFonts: sem ela o jsPDF declara as fontes-padrão do PDF
+  // (Times/Symbol/ZapfDingbats) mesmo sem uso e o Corel pede substituição
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true, putOnlyUsedFonts: true });
   await registrarFontesPdf(doc);
 
   const T = resolveTema(opts.tema);

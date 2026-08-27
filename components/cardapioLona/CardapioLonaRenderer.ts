@@ -581,6 +581,9 @@ export async function exportLonaPdf(
     unit: 'mm',
     format: [wMm, hMm],
     compress: true,
+    // Sem isso o jsPDF declara Times/Symbol/ZapfDingbats sem uso e o
+    // Corel pede substituição de fontes ao importar
+    putOnlyUsedFonts: true,
   });
   doc.addImage(r.dataUrl, 'PNG', 0, 0, wMm, hMm);
   doc.save(`${filename}.pdf`);

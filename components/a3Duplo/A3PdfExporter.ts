@@ -271,7 +271,9 @@ export interface GerarPdfA3Options {
 }
 
 export async function gerarPdfA3(o: GerarPdfA3Options): Promise<Blob> {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a3', compress: true });
+  // putOnlyUsedFonts: sem ela o jsPDF declara as fontes-padrão do PDF
+  // (Times/Symbol/ZapfDingbats) mesmo sem uso e o Corel pede substituição
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a3', compress: true, putOnlyUsedFonts: true });
   await registrarFontes(doc);
 
   const fundo = o.fundoUrl ? await carregarFundo(o.fundoUrl) : null;

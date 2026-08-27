@@ -44,6 +44,9 @@ describe('gerarPdfMenuA4 (PDF vetorial do menu A4)', () => {
         expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
         // fontes TTF embutidas (subset) → arquivo bem maior que um PDF vazio
         expect(buf.length).toBeGreaterThan(50_000);
+        // Sem fontes-padrão não usadas — o Corel pedia substituição delas
+        expect(buf.includes('ZapfDingbats')).toBe(false);
+        expect(buf.includes('Times-Roman')).toBe(false);
     }, 30_000);
 
     it('gera também com juntar linhas e categorias ocultas', async () => {
