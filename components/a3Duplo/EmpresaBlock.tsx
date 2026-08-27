@@ -57,12 +57,13 @@ export const EmpresaBlock: React.FC<EmpresaBlockProps> = ({
             fontWeight: 'bold',
           }}>{titulo}</div>
         )}
+        {/* Sem text-shadow: no PDF ele vira um retângulo raster que o Corel
+            importa como objeto extra (um por empresa) — pedido do usuário */}
         <div style={{
           fontSize: `${fontes.empresa * scale}px`,
           color: t.corDouradoClaro,
           fontFamily: '"Arial Black", Impact, sans-serif',
           textTransform: 'uppercase',
-          textShadow: `0 0 10px ${t.corDourado}55`,
           lineHeight: 1.05,
         }}>
           {empresa}{isContinuacao ? ' ›' : ''}
