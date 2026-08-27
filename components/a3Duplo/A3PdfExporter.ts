@@ -43,20 +43,32 @@ const GAP_PX = COL_GAP_MM * MM_TO_PX;
 
 const K = 72 / 96; // px → pt
 
-// ─── Fontes e helpers compartilhados (utils/pdfVetorial) ─────────────────────
+// ─── Helpers compartilhados (utils/pdfVetorial + texto em curvas) ────────────
 import {
-  registrarFontesPdf as registrarFontes,
   hexToRgb,
-  setTextColorPdf as setTextColor,
   withOpacityPdf as withOpacity,
   carregarImagemPdf as carregarFundo,
   linhaDegradePdf,
 } from '../../utils/pdfVetorial';
+import {
+  carregarFontesVetor,
+  medirTextoVetor,
+  quebrarTextoVetor,
+  textoVetorPdf,
+  FonteVetor,
+} from '../../utils/pdfTextoVetor';
 
-/** Quebra texto na largura (px), com a fonte/tamanho já configurados no doc. */
-function wrap(doc: jsPDF, text: string, maxWidthPx: number): string[] {
-  const lines = doc.splitTextToSize(text, maxWidthPx * K) as string[];
-  return lines.length ? lines : [''];
+// TODO O TEXTO sai como CURVAS (sem fontes no arquivo): o Corel abre sem
+// diálogo de substituição e sem cortar pontas de letras na conversão.
+
+/** Quebra texto na largura (px) usando as métricas reais da fonte. */
+function wrap(fonte: FonteVetor, sizePx: number, text: string, maxWidthPx: number): string[] {
+  return quebrarTextoVetor(text, fonte, sizePx * K, maxWidthPx * K);
+}
+
+/** Largura do texto em px. */
+function medir(fonte: FonteVetor, sizePx: number, text: string): number {
+  return medirTextoVetor(text, fonte, sizePx * K) / K;
 }
 
 // ─── Desenho de um bloco de empresa (espelha EmpresaBlock) ───────────────────
@@ -91,22 +103,18 @@ function drawEmpresaBlock(
   // ── Cabeçalho (título + empresa + underline) ──────────────────────────
   if (menu.titulo && !isContinuacao) {
     const size = f.titulo * scale;
-    doc.setFont('LiberationSans', 'bold');
-    doc.setFontSize(size * K);
-    setTextColor(doc, t.corDouradoClaro);
-    doc.text((menu.titulo || '').toUpperCase(), cx * K, (y + size * 0.95) * K, { align: 'center' });
+    textoVetorPdf(doc, (menu.titulo || '').toUpperCase(), 'bold', size * K,
+      cx * K, (y + size * 0.95) * K, { align: 'center', corHex: t.corDouradoClaro });
     y += size * 1.15 + 2;
   }
 
   {
     const size = f.empresa * scale;
-    doc.setFont('ArchivoBlack', 'normal');
-    doc.setFontSize(size * K);
-    setTextColor(doc, t.corDouradoClaro);
     const nome = `${(menu.empresa || '').toUpperCase()}${isContinuacao ? ' ›' : ''}`;
-    const linhas = wrap(doc, nome, colWPx);
+    const linhas = wrap('black', size, nome, colWPx);
     linhas.forEach((l, i) => {
-      doc.text(l, cx * K, (y + size * 0.88 + i * size * 1.05) * K, { align: 'center' });
+      textoVetorPdf(doc, l, 'black', size * K,
+        cx * K, (y + size * 0.88 + i * size * 1.05) * K, { align: 'center', corHex: t.corDouradoClaro });
     });
     y += linhas.length * size * 1.05;
   }
@@ -128,12 +136,8 @@ function drawEmpresaBlock(
     // Categoria (ocultável pelo controle do painel)
     if (mostrarCategorias) {
       const size = f.categoria * scale;
-      doc.setFont('ArchivoBlack', 'normal');
-      doc.setFontSize(size * K);
-      setTextColor(doc, t.corDouradoClaro);
-      doc.setCharSpace(0.4 * K);
-      doc.text((grupo.categoria || '').toUpperCase(), xPx * K, (y + size * 0.88) * K);
-      doc.setCharSpace(0);
+      textoVetorPdf(doc, (grupo.categoria || '').toUpperCase(), 'black', size * K,
+        xPx * K, (y + size * 0.88) * K, { corHex: t.corDouradoClaro });
       y += size * 1.15 + gCat(6 * scale * spacing);
     }
 
@@ -150,30 +154,21 @@ function drawEmpresaBlock(
       const valorLinha = empilhado ? '' : item.valor;
 
       // mede o preço primeiro
-      let precoW = 0;
-      if (valorLinha) {
-        doc.setFont('ArchivoBlack', 'normal');
-        doc.setFontSize(precoSize * K);
-        precoW = doc.getTextWidth(valorLinha) / K;
-      }
+      const precoW = valorLinha ? medir('black', precoSize, valorLinha) : 0;
 
       // nome (pode quebrar)
-      doc.setFont('LiberationSans', 'bold');
-      doc.setFontSize(itemSize * K);
       const nomeMaxW = valorLinha ? colWPx - precoW - 16 : colWPx;
-      const nomeLinhas = wrap(doc, item.item || '', nomeMaxW);
+      const nomeLinhas = wrap('bold', itemSize, item.item || '', nomeMaxW);
       const baseline1 = y + itemSize * 0.88;
 
-      setTextColor(doc, t.corTexto);
       nomeLinhas.forEach((l, i) => {
-        doc.text(l, xPx * K, (baseline1 + i * itemSize * 1.15) * K);
+        textoVetorPdf(doc, l, 'bold', itemSize * K,
+          xPx * K, (baseline1 + i * itemSize * 1.15) * K, { corHex: t.corTexto });
       });
 
       // pontilhado + preço (alinhados no baseline da 1ª linha)
       if (valorLinha) {
-        doc.setFont('LiberationSans', 'bold');
-        doc.setFontSize(itemSize * K);
-        const nomeW = doc.getTextWidth(nomeLinhas[0]) / K;
+        const nomeW = medir('bold', itemSize, nomeLinhas[0]);
         const x1 = xPx + nomeW + 8;
         const x2 = xPx + colWPx - precoW - 8;
         if (x2 > x1) {
@@ -187,10 +182,8 @@ function drawEmpresaBlock(
           });
         }
 
-        doc.setFont('ArchivoBlack', 'normal');
-        doc.setFontSize(precoSize * K);
-        setTextColor(doc, t.corDouradoClaro);
-        doc.text(valorLinha, (xPx + colWPx) * K, baseline1 * K, { align: 'right' });
+        textoVetorPdf(doc, valorLinha, 'black', precoSize * K,
+          (xPx + colWPx) * K, baseline1 * K, { align: 'right', corHex: t.corDouradoClaro });
       }
 
       y += valorLinha
@@ -207,15 +200,10 @@ function drawEmpresaBlock(
         for (const v of variantes as PrecoVariante[]) {
           const varBase = y + rotSize * 0.88;
 
-          doc.setFont('ArchivoBlack', 'normal');
-          doc.setFontSize(varPrecoSize * K);
-          const vPrecoW = doc.getTextWidth(v.preco) / K;
-
-          doc.setFont('LiberationSans', 'bold');
-          doc.setFontSize(rotSize * K);
-          setTextColor(doc, t.corTexto);
-          doc.text(v.rotulo, (xPx + indent) * K, varBase * K);
-          const rotW = doc.getTextWidth(v.rotulo) / K;
+          const vPrecoW = medir('black', varPrecoSize, v.preco);
+          const rotW = medir('bold', rotSize, v.rotulo);
+          textoVetorPdf(doc, v.rotulo, 'bold', rotSize * K,
+            (xPx + indent) * K, varBase * K, { corHex: t.corTexto });
 
           const x1 = xPx + indent + rotW + 8;
           const x2 = xPx + colWPx - vPrecoW - 8;
@@ -230,10 +218,8 @@ function drawEmpresaBlock(
             });
           }
 
-          doc.setFont('ArchivoBlack', 'normal');
-          doc.setFontSize(varPrecoSize * K);
-          setTextColor(doc, t.corDouradoClaro);
-          doc.text(v.preco, (xPx + colWPx) * K, varBase * K, { align: 'right' });
+          textoVetorPdf(doc, v.preco, 'black', varPrecoSize * K,
+            (xPx + colWPx) * K, varBase * K, { align: 'right', corHex: t.corDouradoClaro });
 
           y += varLh;
         }
@@ -243,12 +229,10 @@ function drawEmpresaBlock(
       if (item.descricao) {
         const descLh = descSize * Math.max(1.05, gDesc(1.3));
         y += gDesc(2);
-        doc.setFont('LiberationSans', 'italic');
-        doc.setFontSize(descSize * K);
-        setTextColor(doc, t.corTextoSuave);
-        const descLinhas = wrap(doc, item.descricao, colWPx);
+        const descLinhas = wrap('italic', descSize, item.descricao, colWPx);
         descLinhas.forEach((l, i) => {
-          doc.text(l, xPx * K, (y + descSize * 0.88 + i * descLh) * K);
+          textoVetorPdf(doc, l, 'italic', descSize * K,
+            xPx * K, (y + descSize * 0.88 + i * descLh) * K, { corHex: t.corTextoSuave });
         });
         y += descLinhas.length * descLh;
       }
@@ -274,7 +258,7 @@ export async function gerarPdfA3(o: GerarPdfA3Options): Promise<Blob> {
   // putOnlyUsedFonts: sem ela o jsPDF declara as fontes-padrão do PDF
   // (Times/Symbol/ZapfDingbats) mesmo sem uso e o Corel pede substituição
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a3', compress: true, putOnlyUsedFonts: true });
-  await registrarFontes(doc);
+  await carregarFontesVetor();
 
   const fundo = o.fundoUrl ? await carregarFundo(o.fundoUrl) : null;
   const topoPx = (o.fontes.topoMm ?? 0) * MM_TO_PX;

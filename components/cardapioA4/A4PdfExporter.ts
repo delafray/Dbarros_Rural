@@ -34,25 +34,34 @@ import {
 } from './cardapioA4Config';
 import { CardapioTema, resolveTema } from '../../utils/cardapioTema';
 import {
-  registrarFontesPdf,
   hexToRgb,
-  setTextColorPdf,
   setFillColorPdf,
   withOpacityPdf,
   linhaDegradePdf,
 } from '../../utils/pdfVetorial';
+import {
+  carregarFontesVetor,
+  medirTextoVetor,
+  quebrarTextoVetor,
+  textoVetorPdf,
+  FonteVetor,
+} from '../../utils/pdfTextoVetor';
 import type { A4RenderOptions } from './CardapioA4Renderer';
 
 // px do renderer (3 px/mm) → pt do PDF (72 pt/in ÷ 25.4 mm/in ÷ 3)
 const K = 72 / 25.4 / 3;
 
-const FONTE_REGULAR = 'LiberationSans';
-const FONTE_BLACK = 'ArchivoBlack';
+// TODO O TEXTO sai como CURVAS (sem fontes no arquivo): o Corel abre sem
+// diálogo de substituição e sem cortar pontas de letras na conversão.
 
-/** Quebra texto na largura (px), com a fonte/tamanho já configurados no doc. */
-function wrap(doc: jsPDF, text: string, maxWidthPx: number): string[] {
-  const lines = doc.splitTextToSize(text, maxWidthPx * K) as string[];
-  return lines.length ? lines : [''];
+/** Quebra texto na largura (px) usando as métricas reais da fonte. */
+function wrap(fonte: FonteVetor, sizePx: number, text: string, maxWidthPx: number): string[] {
+  return quebrarTextoVetor(text, fonte, sizePx * K, maxWidthPx * K);
+}
+
+/** Largura do texto em px. */
+function medir(fonte: FonteVetor, sizePx: number, text: string): number {
+  return medirTextoVetor(text, fonte, sizePx * K) / K;
 }
 
 function linhaPontilhada(
@@ -99,11 +108,9 @@ function drawColumnPdf(
 
   grupos.forEach((group, gi) => {
     if (mostrarCategorias) {
-      doc.setFont(FONTE_BLACK, 'normal');
-      doc.setFontSize(catFs * K);
-      setTextColorPdf(doc, T.corDouradoClaro);
       const catBaseline = y + catFs * 1.05;
-      doc.text(group.categoria, colX * K, catBaseline * K);
+      textoVetorPdf(doc, group.categoria, 'black', catFs * K,
+        colX * K, catBaseline * K, { corHex: T.corDouradoClaro });
       y = catBaseline + gCat(fs * 0.46);
     }
 
@@ -112,33 +119,27 @@ function drawColumnPdf(
       const empilhado = !!variantes && variantes.length >= VARIANTES_EMPILHA_MIN;
       const valorLinha = empilhado ? '' : item.valor;
 
-      doc.setFont(FONTE_BLACK, 'normal');
-      doc.setFontSize(priceFs * K);
-      const priceW = valorLinha ? doc.getTextWidth(valorLinha) / K : 0;
+      const priceW = valorLinha ? medir('black', priceFs, valorLinha) : 0;
       const nameMaxW = colW - (valorLinha ? priceW + 16 : 0);
 
-      doc.setFont(FONTE_REGULAR, 'bold');
-      doc.setFontSize(itemFs * K);
-      setTextColorPdf(doc, T.corTexto);
       const nameBaseY = y + itemFs * 1.05;
-      const nameLines = wrap(doc, item.item, nameMaxW);
+      const nameLines = wrap('bold', itemFs, item.item, nameMaxW);
       const nameLh = itemFs * 1.22;
       nameLines.forEach((line, i) => {
-        doc.text(line, colX * K, (nameBaseY + i * nameLh) * K);
+        textoVetorPdf(doc, line, 'bold', itemFs * K,
+          colX * K, (nameBaseY + i * nameLh) * K, { corHex: T.corTexto });
       });
       const nameBlockH = nameLines.length * nameLh;
 
       if (valorLinha) {
         const nameSpanW = nameLines.length > 1
           ? nameMaxW
-          : doc.getTextWidth(nameLines[0]) / K;
+          : medir('bold', itemFs, nameLines[0]);
         const linkY = nameBaseY + Math.max(1, Math.round(itemFs * 0.1));
         linhaPontilhada(doc, T, colX + nameSpanW + 8, colX + colW - priceW - 8, linkY);
 
-        doc.setFont(FONTE_BLACK, 'normal');
-        doc.setFontSize(priceFs * K);
-        setTextColorPdf(doc, T.corDouradoClaro);
-        doc.text(valorLinha, (colX + colW) * K, nameBaseY * K, { align: 'right' });
+        textoVetorPdf(doc, valorLinha, 'black', priceFs * K,
+          (colX + colW) * K, nameBaseY * K, { align: 'right', corHex: T.corDouradoClaro });
       }
 
       y += valorLinha ? Math.max(nameBlockH, priceFs * 1.22) : nameBlockH;
@@ -151,38 +152,30 @@ function drawColumnPdf(
         for (const v of variantes as PrecoVariante[]) {
           const varBaseY = y + Math.max(rotFs, varPrFs) * 1.02;
 
-          doc.setFont(FONTE_BLACK, 'normal');
-          doc.setFontSize(varPrFs * K);
-          const varPriceW = doc.getTextWidth(v.preco) / K;
-
-          doc.setFont(FONTE_REGULAR, 'bold');
-          doc.setFontSize(rotFs * K);
-          setTextColorPdf(doc, T.corTexto);
-          const rotW = doc.getTextWidth(v.rotulo) / K;
-          doc.text(v.rotulo, (colX + indent) * K, varBaseY * K);
+          const varPriceW = medir('black', varPrFs, v.preco);
+          const rotW = medir('bold', rotFs, v.rotulo);
+          textoVetorPdf(doc, v.rotulo, 'bold', rotFs * K,
+            (colX + indent) * K, varBaseY * K, { corHex: T.corTexto });
 
           const linkY = varBaseY + Math.max(1, Math.round(rotFs * 0.1));
           linhaPontilhada(doc, T, colX + indent + rotW + 8, colX + colW - varPriceW - 8, linkY);
 
-          doc.setFont(FONTE_BLACK, 'normal');
-          doc.setFontSize(varPrFs * K);
-          setTextColorPdf(doc, T.corDouradoClaro);
-          doc.text(v.preco, (colX + colW) * K, varBaseY * K, { align: 'right' });
+          textoVetorPdf(doc, v.preco, 'black', varPrFs * K,
+            (colX + colW) * K, varBaseY * K, { align: 'right', corHex: T.corDouradoClaro });
 
           y += varLh;
         }
       }
 
       if (item.descricao) {
-        doc.setFont(FONTE_REGULAR, 'italic');
-        doc.setFontSize(descFs * K);
-        setTextColorPdf(doc, T.corTextoSuave);
         const descMaxW = colW * 0.85;
-        const descLines = wrap(doc, item.descricao, descMaxW);
+        const descLines = wrap('italic', descFs, item.descricao, descMaxW);
         const descLh = descFs * Math.max(1.05, gDesc(1.40));
         withOpacityPdf(doc, 0.88, () => {
           descLines.forEach((line, i) => {
-            doc.text(line, colX * K, (y + gDesc(fs * 0.07) + descFs * 1.18 + i * descLh) * K);
+            textoVetorPdf(doc, line, 'italic', descFs * K,
+              colX * K, (y + gDesc(fs * 0.07) + descFs * 1.18 + i * descLh) * K,
+              { corHex: T.corTextoSuave });
           });
         });
         y += gDesc(fs * 0.07) + descLines.length * descLh;
@@ -208,7 +201,7 @@ export async function gerarPdfMenuA4(
   // putOnlyUsedFonts: sem ela o jsPDF declara as fontes-padrão do PDF
   // (Times/Symbol/ZapfDingbats) mesmo sem uso e o Corel pede substituição
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true, putOnlyUsedFonts: true });
-  await registrarFontesPdf(doc);
+  await carregarFontesVetor();
 
   const T = resolveTema(opts.tema);
   const F = resolveFontesA4(opts.fontesA4);
@@ -251,19 +244,17 @@ export async function gerarPdfMenuA4(
   const lhNome = empresaFs * 0.95;
   const posY = linhasNome.length === 1 ? [midY] : [midY - lhNome / 2, midY + lhNome / 2];
 
-  doc.setFont(FONTE_BLACK, 'normal');
-  doc.setFontSize(empresaFs * K);
-  setTextColorPdf(doc, T.corDouradoClaro);
+  // Baseline ≈ centro vertical + 0.36em (equivale ao textBaseline 'middle')
   linhasNome.forEach((l, i) => {
-    doc.text(l, cx * K, posY[i] * K, { align: 'center', baseline: 'middle' });
+    textoVetorPdf(doc, l, 'black', empresaFs * K,
+      cx * K, (posY[i] + empresaFs * 0.36) * K, { align: 'center', corHex: T.corDouradoClaro });
   });
 
   if (titulo) {
     const titleY = posY[0] - empresaFs * 0.45 - 10 - tituloFs / 2;
-    doc.setFont(FONTE_REGULAR, 'bold');
-    doc.setFontSize(tituloFs * K);
     withOpacityPdf(doc, 0.88, () => {
-      doc.text(titulo, cx * K, titleY * K, { align: 'center', baseline: 'middle' });
+      textoVetorPdf(doc, titulo, 'bold', tituloFs * K,
+        cx * K, (titleY + tituloFs * 0.36) * K, { align: 'center', corHex: T.corDouradoClaro });
     });
   }
 

@@ -29,6 +29,12 @@
   A3PdfExporter (jsPDF) como download direto — fundo chapado sem arte,
   com sublinhas/juntar linhas/categorias. O botão de imprimir segue para
   o visual completo.
+- **PDFs p/ Corel — texto em CURVAS (27/08)**: o Corel cortava pontas de
+  letras ao converter as fontes embutidas; agora A3 "PDF p/ Corel" e A4
+  vetorial desenham cada glifo como caminho vetorial via opentype.js
+  (`utils/pdfTextoVetor.ts`) — o arquivo não contém NENHUMA fonte (testes
+  garantem) e abre no Corel como desenho puro. Trade-off aceito: texto
+  não é mais selecionável nesses dois PDFs.
 - **A4 — PDF vetorial (27/08)**: exportador jsPDF com fontes embutidas
   (Liberation Sans/Archivo Black, mesmas do A3) espelhando o renderer —
   texto selecionável/nítido; opção principal no menu de export (o raster

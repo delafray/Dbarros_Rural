@@ -47,10 +47,14 @@ describe('gerarPdfA3 (PDF vetorial p/ Corel)', () => {
         });
         const buf = Buffer.from(await blob.arrayBuffer());
         expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
-        expect(buf.length).toBeGreaterThan(50_000); // fontes TTF embutidas
-        // Sem fontes-padrão não usadas — o Corel pedia substituição delas
+        expect(buf.length).toBeGreaterThan(5_000);
+        // Texto vira CURVAS: o arquivo não pode conter NENHUMA fonte —
+        // é o que faz o Corel abrir sem substituição e sem cortar letras
         expect(buf.includes('ZapfDingbats')).toBe(false);
         expect(buf.includes('Times-Roman')).toBe(false);
+        expect(buf.includes('LiberationSans')).toBe(false);
+        expect(buf.includes('ArchivoBlack')).toBe(false);
+        expect(buf.includes('FontFile')).toBe(false);
     }, 30_000);
 
     it('nomeArquivoPdfA3 monta o nome amigável e remove caracteres inválidos', () => {
