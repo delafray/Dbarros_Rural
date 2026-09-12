@@ -12,6 +12,13 @@
   + rota) e RLS (`custos_papel` → `sem_acesso` para os demais). Todos os outros
   usuários veem o sistema como antes. Liberação geral: reversão pronta no
   `scripts/bloco25-acesso-exclusivo-custos.sql`.
+- **Dashboard — botão "XLS" (12/09, V0.2026.09.0001)**: planilha de vendas
+  em Excel ao lado do "PDF", mesmo layout, mas com cálculos em FÓRMULA:
+  PREÇO BASE lê a marca do combo ("x" = preço, "*" = 0), OPCIONAIS por
+  linha de preços editável, SUBTOTAL/TOTAL/resumo vivos. Aba "Resumo" com
+  quantidades por tipo e abertura stand × merchandising (combos e avulso).
+  Lógica pura em `utils/relatorioVendasXlsx.ts` (25 testes); exceljs só
+  carrega ao clicar. Aguarda validação do usuário com edição real.
 - **Botão de simulação de visão** no Dashboard (só o dono): cicla Super Admin →
   Admin → Usuário sem trocar de login (só a UI; RLS segue real).
 - **Segurança (auditoria F12, 14/08)**: código-fonte/histórico git fora do
