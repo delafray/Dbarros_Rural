@@ -236,8 +236,11 @@ const DARK = 'FF1F497D';
 const MED = 'FF3466A3';
 const WHITE = 'FFFFFFFF';
 const TOT_BG = 'FF0F2A55';
-const GREEN_X = 'FF16A34A';
-const CYAN_S = 'FF0694A2';
+// Mesmas cores das marcas na tela da planilha (pages/TempPlanilha.tsx): "x" verde, "*" azul
+const GREEN_X = 'FF00B050';
+const CYAN_S = 'FF00B0F0';
+const CINZA_ZERO = 'FFA0A0B4';
+const TEXTO = 'FF1E1E28';
 const BORDER = 'FFB4C4D6';
 const AMARELO_EDIT = 'FFFFF3C4';
 const CAT_PALETTES = ['E2DFF8', 'FFFFD2', 'D2F0D2', 'FFE4D2', 'D2EBFF', 'F0D2F0'];
@@ -250,6 +253,15 @@ function clarear(hex: string): string {
 }
 
 const fill = (argb: string): ExcelJS.Fill => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+// Preenchimento para formatação condicional (dxf): o Excel lê a cor sólida do bgColor
+const cfFill = (argb: string): ExcelJS.Fill => ({ type: 'pattern', pattern: 'solid', fgColor: { argb }, bgColor: { argb } });
+/** Estilo condicional de marca: fundo colorido + texto branco em negrito (igual à tela). */
+const cfMarca = (argb: string): Partial<ExcelJS.Style> => ({ fill: cfFill(argb), font: { bold: true, color: { argb: WHITE } } });
+/** Lista suspensa "x" / "*" nas células de marca — o equivalente ao clique na tela. */
+const validacaoMarca: ExcelJS.DataValidation = {
+    type: 'list', allowBlank: true, formulae: ['"x,*"'], showErrorMessage: true,
+    errorTitle: 'Marca inválida', error: 'Use "x" (vendido/marcado) ou "*" (cortesia/permuta), ou deixe em branco.',
+};
 const bordaFina: ExcelJS.Borders = {
     top: { style: 'thin', color: { argb: BORDER } },
     left: { style: 'thin', color: { argb: BORDER } },
@@ -362,7 +374,7 @@ export async function gerarPlanilhaVendasXlsx(p: ParamsRelatorioVendas): Promise
         const c = ws.getCell(LINHA_RESUMO_2, col);
         c.value = { formula: `COUNTIFS(${rng(col)},"x",${rng(C.isStand)},1)`, result: cnt };
         c.font = { bold: true, size: 9, color: { argb: WHITE } };
-        c.fill = fill(cnt > 0 ? GREEN_X : MED);
+        c.fill = fill(MED);   // verde quando > 0: formatação condicional
         c.alignment = { vertical: 'middle', horizontal: 'center' };
         c.border = bordaFina;
     });
@@ -373,7 +385,7 @@ export async function gerarPlanilhaVendasXlsx(p: ParamsRelatorioVendas): Promise
         // "~*" — o asterisco é curinga no COUNTIF; escapado conta o caractere literal
         c.value = { formula: `COUNTIF(${rng(col)},"x")+COUNTIF(${rng(col)},"~*")`, result: cnt };
         c.font = { bold: true, size: 9, color: { argb: WHITE } };
-        c.fill = fill(cnt > 0 ? CYAN_S : MED);
+        c.fill = fill(MED);   // azul quando > 0: formatação condicional
         c.alignment = { vertical: 'middle', horizontal: 'center' };
         c.border = bordaFina;
     });
@@ -476,22 +488,19 @@ export async function gerarPlanilhaVendasXlsx(p: ParamsRelatorioVendas): Promise
         }
         cCli.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
 
+        // Marcas: só o valor — a cor vem da formatação condicional (troca junto com a marca)
         d.comboLabels.forEach((lbl, k) => {
             const c = ws.getCell(r, C.comboIni + k);
-            if (ln.comboBase === lbl && !ln.isAvail) {
-                c.value = ln.isStar ? '*' : 'x';
-                c.fill = fill(ln.isStar ? CYAN_S : GREEN_X);
-                c.font = { bold: true, size: 9, color: { argb: WHITE } };
-            }
+            if (ln.comboBase === lbl && !ln.isAvail) c.value = ln.isStar ? '*' : 'x';
+            c.font = { bold: true, size: 9 };
+            c.dataValidation = validacaoMarca;
         });
         opcionaisAtivos.forEach((o, k) => {
             const c = ws.getCell(r, C.optIni + k);
             const val = sel[o.nome] || '';
-            if (val === 'x' || val === '*') {
-                c.value = val;
-                c.fill = fill(CYAN_S);
-                c.font = { bold: true, size: 9, color: { argb: WHITE } };
-            }
+            if (val === 'x' || val === '*') c.value = val;
+            c.font = { bold: true, size: 9 };
+            c.dataValidation = validacaoMarca;
         });
 
         const t = ln.totais;
@@ -503,32 +512,28 @@ export async function gerarPlanilhaVendasXlsx(p: ParamsRelatorioVendas): Promise
             result: t.precoBase,
         };
         cBase.numFmt = FMT_MOEDA;
-        cBase.font = { size: 8, color: { argb: t.precoBase > 0 ? 'FF1E1E28' : 'FFA0A0B4' } };
+        cBase.font = { size: 8, color: { argb: TEXTO } };
 
         const cOpc = ws.getCell(r, C.opc);
         cOpc.value = { formula: fOpcionais(r), result: t.totalOpcionais };
         cOpc.numFmt = FMT_MOEDA;
-        cOpc.font = { size: 8, color: { argb: t.totalOpcionais > 0 ? 'FF1E1E28' : 'FFA0A0B4' } };
+        cOpc.font = { size: 8, color: { argb: TEXTO } };
 
         const cSub = ws.getCell(r, C.sub);
         cSub.value = { formula: `${L(C.base)}${r}+${L(C.opc)}${r}`, result: t.subTotal };
         cSub.numFmt = FMT_MOEDA;
-        cSub.font = { size: 8, color: { argb: t.subTotal > 0 ? 'FF1E1E28' : 'FFA0A0B4' } };
+        cSub.font = { size: 8, color: { argb: TEXTO } };
 
+        // Desconto: destaque laranja quando > 0 vem da formatação condicional
         const cDesc = ws.getCell(r, C.desc);
         cDesc.value = t.desconto;
         cDesc.numFmt = FMT_MOEDA;
-        if (t.desconto > 0) {
-            cDesc.fill = fill('FFFFEBD2');
-            cDesc.font = { bold: true, size: 8, color: { argb: 'FFA03C00' } };
-        } else {
-            cDesc.font = { size: 8, color: { argb: 'FFA0A0B4' } };
-        }
+        cDesc.font = { size: 8, color: { argb: CINZA_ZERO } };
 
         const cTot = ws.getCell(r, C.total);
         cTot.value = { formula: `${L(C.sub)}${r}-${L(C.desc)}${r}`, result: t.totalVenda };
         cTot.numFmt = FMT_MOEDA;
-        cTot.font = { bold: true, size: 8, color: { argb: t.totalVenda > 0 ? DARK : 'FFA0A0B4' } };
+        cTot.font = { bold: true, size: 8, color: { argb: DARK } };
 
         // Colunas auxiliares (ocultas) que alimentam o resumo
         ws.getCell(r, C.tipo).value = ln.row.tipo_venda;
@@ -545,6 +550,36 @@ export async function gerarPlanilhaVendasXlsx(p: ParamsRelatorioVendas): Promise
             result: ln.merchCombo,
         };
     });
+
+    // ── 6b. Formatação condicional (igual à tela: a cor segue a marca/valor) ──
+    if (nLinhas > 0) {
+        const faixa = (c1: number, c2: number) => `${L(c1)}${primeira}:${L(c2)}${ultimaDados}`;
+        const regrasMarca: ExcelJS.ConditionalFormattingRule[] = [
+            { type: 'cellIs', operator: 'equal', formulae: ['"x"'], style: cfMarca(GREEN_X), priority: 1 },
+            { type: 'cellIs', operator: 'equal', formulae: ['"*"'], style: cfMarca(CYAN_S), priority: 2 },
+        ];
+        ws.addConditionalFormatting({ ref: faixa(C.comboIni, C.comboIni + nCombos - 1), rules: regrasMarca });
+        if (nOpts > 0) ws.addConditionalFormatting({ ref: faixa(C.optIni, C.optIni + nOpts - 1), rules: regrasMarca });
+        // Valores zerados em cinza (base, opcionais, subtotal, total)
+        ws.addConditionalFormatting({
+            ref: `${faixa(C.base, C.sub)} ${faixa(C.total, C.total)}`,
+            rules: [{ type: 'cellIs', operator: 'equal', formulae: [0], style: { font: { color: { argb: CINZA_ZERO } } }, priority: 3 }],
+        });
+        // Desconto > 0: fundo laranja claro + texto laranja escuro em negrito
+        ws.addConditionalFormatting({
+            ref: faixa(C.desc, C.desc),
+            rules: [{ type: 'cellIs', operator: 'greaterThan', formulae: [0], style: { fill: cfFill('FFFFEBD2'), font: { bold: true, color: { argb: 'FFA03C00' } } }, priority: 4 }],
+        });
+        // Resumo geral: contagem > 0 acende (verde nos combos, azul nos opcionais)
+        ws.addConditionalFormatting({
+            ref: `${L(C.comboIni)}${LINHA_RESUMO_2}:${L(C.comboIni + nCombos - 1)}${LINHA_RESUMO_2}`,
+            rules: [{ type: 'cellIs', operator: 'greaterThan', formulae: [0], style: { fill: cfFill(GREEN_X) }, priority: 5 }],
+        });
+        if (nOpts > 0) ws.addConditionalFormatting({
+            ref: `${L(C.optIni)}${LINHA_RESUMO_2}:${L(C.optIni + nOpts - 1)}${LINHA_RESUMO_2}`,
+            rules: [{ type: 'cellIs', operator: 'greaterThan', formulae: [0], style: { fill: cfFill(CYAN_S) }, priority: 6 }],
+        });
+    }
 
     // ── 7. Linha de totais ─────────────────────────────────────────────────
     const somaBase = d.linhas.reduce((s, l) => addMonetario(s, l.totais.precoBase), 0);

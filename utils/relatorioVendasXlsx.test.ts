@@ -347,3 +347,58 @@ describe('aba Resumo (quantidades + abertura stand × merchandising, ligada por 
         expect(total.valor.formula).toMatch(/^C\d+\+C\d+\+C\d+\+C\d+$/);
     });
 });
+
+describe('formatação condicional e lista suspensa (a cor segue a marca, como na tela)', () => {
+    async function gerar() {
+        const buf = await gerarPlanilhaVendasXlsx(params);
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buf as Buffer);
+        return wb.worksheets[0];
+    }
+    const C = mapaColunas(3, 2);
+    const d = montarDadosRelatorioVendas(params);
+    type CF = { ref: string; rules: { type: string; operator?: string; formulae?: unknown[]; style?: { fill?: { bgColor?: { argb?: string }; fgColor?: { argb?: string } }; font?: { color?: { argb?: string }; bold?: boolean } } }[] };
+    const cfs = (ws: ExcelJS.Worksheet) => (ws as unknown as { conditionalFormattings: CF[] }).conditionalFormattings;
+    const cor = (s: CF['rules'][0]['style']) => s?.fill?.bgColor?.argb ?? s?.fill?.fgColor?.argb;
+
+    it('combos e opcionais: "x" fica verde 00B050 e "*" azul 00B0F0, texto branco (cores do sistema)', async () => {
+        const ws = await gerar();
+        const ultima = PRIMEIRA_LINHA_DADOS + d.linhas.length - 1;
+        const faixaCombos = `${colLetra(C.comboIni)}${PRIMEIRA_LINHA_DADOS}:${colLetra(C.comboIni + 2)}${ultima}`;
+        const faixaOpts = `${colLetra(C.optIni)}${PRIMEIRA_LINHA_DADOS}:${colLetra(C.optIni + 1)}${ultima}`;
+        for (const ref of [faixaCombos, faixaOpts]) {
+            const cf = cfs(ws).find(c => c.ref === ref);
+            expect(cf, `faixa ${ref}`).toBeDefined();
+            const x = cf!.rules.find(r => JSON.stringify(r.formulae) === JSON.stringify(['"x"']));
+            const star = cf!.rules.find(r => JSON.stringify(r.formulae) === JSON.stringify(['"*"']));
+            expect(x?.type).toBe('cellIs');
+            expect(x?.operator).toBe('equal');
+            expect(cor(x?.style)).toBe('FF00B050');
+            expect(x?.style?.font?.color?.argb).toBe('FFFFFFFF');
+            expect(cor(star?.style)).toBe('FF00B0F0');
+        }
+    });
+
+    it('células de marca não têm cor fixa (só a condicional) e têm lista suspensa x / *', async () => {
+        const ws = await gerar();
+        const rN10 = PRIMEIRA_LINHA_DADOS + d.linhas.findIndex(l => l.row.stand_nr === 'Naming 10');
+        const cX = ws.getCell(rN10, C.comboIni + 1);
+        expect(cX.value).toBe('x');
+        expect((cX.fill as { fgColor?: { argb?: string } })?.fgColor?.argb).not.toBe('FF00B050');   // fundo = cor da categoria
+        expect(cX.dataValidation?.type).toBe('list');
+        expect(cX.dataValidation?.formulae).toEqual(['"x,*"']);
+        expect(ws.getCell(rN10, C.optIni).dataValidation?.formulae).toEqual(['"x,*"']);
+    });
+
+    it('desconto > 0 acende laranja e o resumo acende os contadores > 0', async () => {
+        const ws = await gerar();
+        const ultima = PRIMEIRA_LINHA_DADOS + d.linhas.length - 1;
+        const desc = cfs(ws).find(c => c.ref === `${colLetra(C.desc)}${PRIMEIRA_LINHA_DADOS}:${colLetra(C.desc)}${ultima}`);
+        expect(desc?.rules[0].operator).toBe('greaterThan');
+        expect(cor(desc?.rules[0].style)).toBe('FFFFEBD2');
+        const resumoCombos = cfs(ws).find(c => c.ref === `${colLetra(C.comboIni)}${LINHA_RESUMO_2}:${colLetra(C.comboIni + 2)}${LINHA_RESUMO_2}`);
+        expect(cor(resumoCombos?.rules[0].style)).toBe('FF00B050');
+        const resumoOpts = cfs(ws).find(c => c.ref === `${colLetra(C.optIni)}${LINHA_RESUMO_2}:${colLetra(C.optIni + 1)}${LINHA_RESUMO_2}`);
+        expect(cor(resumoOpts?.rules[0].style)).toBe('FF00B0F0');
+    });
+});
