@@ -114,8 +114,8 @@ const Atendimentos: React.FC = () => {
     const handleGenerateReport = async () => {
         setGeneratingReport(true);
         try {
-            const url = await generateAtendimentosReport(filtered, edicaoTitulo);
-            setDocModal({ tipo: 'relatorio_atendimentos', url, edicaoTitulo, isPdfBlob: true });
+            const { url, blob } = await generateAtendimentosReport(filtered, edicaoTitulo);
+            setDocModal({ tipo: 'relatorio_atendimentos', url, blob, edicaoTitulo, isPdfBlob: true });
         } finally {
             setGeneratingReport(false);
         }

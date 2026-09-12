@@ -478,7 +478,8 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
             setPdfProgress(100);
             await new Promise(r => setTimeout(r, 500));
             setPdfProgress(null);
-            setDocModal({ tipo: 'relatorio_pdf', url, edicaoTitulo: edicao.titulo, isPdfBlob: true });
+            // blob junto: Baixar/Compartilhar não podem refazer fetch em URL blob: (CSP)
+            setDocModal({ tipo: 'relatorio_pdf', url, blob, edicaoTitulo: edicao.titulo, isPdfBlob: true });
         } catch (err: any) {
             setPdfProgress(null);
             await appDialog.alert({ title: 'Erro ao gerar PDF', message: err?.message || 'Erro desconhecido.', type: 'danger' });

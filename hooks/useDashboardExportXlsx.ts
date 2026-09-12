@@ -63,7 +63,7 @@ export const useDashboardExportXlsx = (setDocModal: React.Dispatch<React.SetStat
             setXlsxProgress(100);
             await new Promise(r => setTimeout(r, 400));
             setXlsxProgress(null);
-            setDocModal({ tipo: 'relatorio_xlsx', url, edicaoTitulo: edicao.titulo, isPdfBlob: false });
+            setDocModal({ tipo: 'relatorio_xlsx', url, blob, edicaoTitulo: edicao.titulo, isPdfBlob: false });
         } catch (err: any) {
             setXlsxProgress(null);
             await appDialog.alert({ title: 'Erro ao gerar Excel', message: err?.message || 'Erro desconhecido.', type: 'danger' });

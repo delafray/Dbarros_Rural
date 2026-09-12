@@ -6,6 +6,9 @@ export type DocModalState = {
     url: string;
     edicaoTitulo: string;
     isPdfBlob?: boolean;
+    /** Arquivo gerado no navegador (PDF/Excel). Quando presente, Baixar/Compartilhar
+     *  usam direto — `fetch` em URL blob: é bloqueado pela CSP (connect-src). */
+    blob?: Blob;
 } | null;
 
 interface DocModalProps {
@@ -48,10 +51,16 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
     const baseFileName = `${prefix}_${nomeEdicao}`;
     let fileName = `${baseFileName}.${ext}`;
 
+    // Arquivo local já em memória → sem fetch; documento do Storage (proposta/planta) → fetch normal
+    const obterBlob = async (): Promise<Blob> => {
+        if (docModal.blob) return docModal.blob;
+        const response = await fetch(url);
+        return response.blob();
+    };
+
     const handleDownload = async () => {
         try {
-            const response = await fetch(url);
-            const blob = await response.blob();
+            const blob = await obterBlob();
             
             // Adjust extension based on actual mimetype if we defaulted to pdf incorrectly
             if (blob.type && !docModal.isPdfBlob && !isXlsx) {
@@ -79,8 +88,7 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
 
     const handleShare = async () => {
         try {
-            const response = await fetch(url);
-            const blob = await response.blob();
+            const blob = await obterBlob();
             
             // Adjust extension based on actual mimetype
             if (blob.type && !docModal.isPdfBlob && !isXlsx) {

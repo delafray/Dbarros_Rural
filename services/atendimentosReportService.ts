@@ -69,7 +69,7 @@ function trunc(text: string | null | undefined, limit: number): string {
 export async function generateAtendimentosReport(
     atendimentos: Atendimento[],
     edicaoTitulo: string,
-): Promise<string> {
+): Promise<{ url: string; blob: Blob }> {
     const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -259,7 +259,8 @@ export async function generateAtendimentosReport(
 
     const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
-    return url;
+    // blob junto: o DocModal não pode refazer fetch em URL blob: (CSP)
+    return { url, blob };
 }
 
 /** Converte hex (#RRGGBB) para [r, g, b] */
