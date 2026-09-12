@@ -8,6 +8,7 @@ interface EdicaoCardProps {
     user: any;
     onOpenPromoModal: (e: React.MouseEvent, edicao: any) => void;
     onExportPdf: (e: React.MouseEvent, edicao: any) => void;
+    onExportXlsx: (e: React.MouseEvent, edicao: any) => void;
     setDocModal: React.Dispatch<React.SetStateAction<any>>;
 }
 
@@ -16,6 +17,7 @@ export const EdicaoCard: React.FC<EdicaoCardProps> = ({
     user,
     onOpenPromoModal,
     onExportPdf,
+    onExportXlsx,
     setDocModal
 }) => {
     const navigate = useNavigate();
@@ -153,6 +155,14 @@ export const EdicaoCard: React.FC<EdicaoCardProps> = ({
                         onClick={(e) => onExportPdf(e, edicao)}
                         title="Exportar como PDF"
                         icon={<span className="text-[8px] font-bold tracking-tighter">PDF</span>}
+                    />
+
+                    {/* Exportar Excel (mesmo layout do PDF, com fórmulas) */}
+                    <DashboardActionButton
+                        color="blue"
+                        onClick={(e) => onExportXlsx(e, edicao)}
+                        title="Exportar como Excel (com fórmulas)"
+                        icon={<span className="text-[8px] font-bold tracking-tighter">XLS</span>}
                     />
                 </div>
             </div>

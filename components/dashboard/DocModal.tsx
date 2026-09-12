@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppDialog } from '../../context/DialogContext';
 
 export type DocModalState = {
-    tipo: 'proposta_comercial' | 'planta_baixa' | 'relatorio_pdf' | 'relatorio_atendimentos';
+    tipo: 'proposta_comercial' | 'planta_baixa' | 'relatorio_pdf' | 'relatorio_atendimentos' | 'relatorio_xlsx';
     url: string;
     edicaoTitulo: string;
     isPdfBlob?: boolean;
@@ -18,16 +18,19 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
     const label = docModal.tipo === 'proposta_comercial' ? 'Proposta Comercial'
         : docModal.tipo === 'planta_baixa' ? 'Planta Baixa'
         : docModal.tipo === 'relatorio_atendimentos' ? 'Relatório de Atendimentos'
+        : docModal.tipo === 'relatorio_xlsx' ? 'Planilha Excel'
         : 'Relatório PDF';
+    const isXlsx = docModal.tipo === 'relatorio_xlsx';
     const url = docModal.url;
     const nomeEdicao = docModal.edicaoTitulo.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
     const prefix = docModal.tipo === 'proposta_comercial' ? 'PROPOSTA_COMERCIAL'
         : docModal.tipo === 'planta_baixa' ? 'PLANTA_BAIXA'
         : docModal.tipo === 'relatorio_atendimentos' ? 'RELATORIO_ATENDIMENTOS'
+        : isXlsx ? 'PLANILHA_VENDAS'
         : 'RELATORIO_PDF';
     // Extracted extension logic
-    let tempExt = 'pdf';
-    if (!docModal.isPdfBlob && url) {
+    let tempExt = isXlsx ? 'xlsx' : 'pdf';
+    if (!docModal.isPdfBlob && !isXlsx && url) {
         // Tenta pegar a extensão correta da URL (ex: .png, .jpg, .pdf)
         const pathSegments = url.split('?')[0].split('/');
         const lastSegment = pathSegments[pathSegments.length - 1];
@@ -51,7 +54,7 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
             const blob = await response.blob();
             
             // Adjust extension based on actual mimetype if we defaulted to pdf incorrectly
-            if (blob.type && !docModal.isPdfBlob) {
+            if (blob.type && !docModal.isPdfBlob && !isXlsx) {
                 const mimeExt = blob.type.split('/')[1]?.split('+')[0]; // image/jpeg -> jpeg, application/pdf -> pdf
                 if (mimeExt && mimeExt !== ext && mimeExt !== 'octet-stream') {
                    // map common mime parts to proper extension
@@ -80,7 +83,7 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
             const blob = await response.blob();
             
             // Adjust extension based on actual mimetype
-            if (blob.type && !docModal.isPdfBlob) {
+            if (blob.type && !docModal.isPdfBlob && !isXlsx) {
                 const mimeExt = blob.type.split('/')[1]?.split('+')[0];
                 if (mimeExt && mimeExt !== ext && mimeExt !== 'octet-stream') {
                    const mapExe: Record<string, string> = {
@@ -125,13 +128,14 @@ export const DocModal: React.FC<DocModalProps> = ({ docModal, onClose }) => {
                     <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[250px]">{docModal.edicaoTitulo}</p>
                 </div>
                 <div className="w-full flex flex-col gap-2">
-                    <button
+                    {/* Excel não tem prévia no navegador: só Baixar / Compartilhar */}
+                    {!isXlsx && <button
                         onClick={() => window.open(url, '_blank')}
                         className="w-full py-3 rounded-xl bg-blue-600 text-white font-black text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                         Visualizar
-                    </button>
+                    </button>}
                     <button
                         onClick={handleDownload}
                         className="w-full py-3 rounded-xl bg-slate-800 text-white font-black text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-900 transition-colors"

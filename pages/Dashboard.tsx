@@ -11,6 +11,7 @@ import { ehDonoDoSistema } from '../utils/acessoCustos';
 import { rotuloNivel } from '../utils/simulacaoAcesso';
 import { usePresence } from '../context/PresenceContext';
 import { useDashboardExportPDF } from '../hooks/useDashboardExportPDF';
+import { useDashboardExportXlsx } from '../hooks/useDashboardExportXlsx';
 import { EdicaoCard } from '../components/dashboard/EdicaoCard';
 import { DocModal, DocModalState } from '../components/dashboard/DocModal';
 import { PromoModal } from '../components/dashboard/PromoModal';
@@ -35,6 +36,11 @@ const Dashboard: React.FC = () => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [docModal, setDocModal] = useState<DocModalState>(null);
     const { pdfProgress, pdfTitle, handleExportPdf } = useDashboardExportPDF(setDocModal);
+    const { xlsxProgress, xlsxTitle, handleExportXlsx } = useDashboardExportXlsx(setDocModal);
+    // Modal de progresso compartilhado entre PDF e Excel (um de cada vez)
+    const exportProgress = pdfProgress ?? xlsxProgress;
+    const exportTitle = pdfProgress !== null ? pdfTitle : xlsxTitle;
+    const exportLabel = pdfProgress !== null ? 'Gerando PDF' : 'Gerando Excel';
 
     // Hook para modal do promotor
     const {
@@ -191,6 +197,7 @@ const Dashboard: React.FC = () => {
                                             user={user}
                                             onOpenPromoModal={handleOpenPromoModal}
                                             onExportPdf={handleExportPdf}
+                                            onExportXlsx={handleExportXlsx}
                                             setDocModal={setDocModal}
                                         />
                                     ))}
@@ -215,7 +222,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Modal: Progresso de Geração de PDF */}
-                {pdfProgress !== null && (
+                {exportProgress !== null && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                         <div className="bg-white rounded-2xl shadow-2xl w-[340px] p-7 flex flex-col items-center gap-5">
                             <div className="w-14 h-14 rounded-full bg-emerald-50 border-4 border-emerald-100 flex items-center justify-center">
@@ -225,25 +232,25 @@ const Dashboard: React.FC = () => {
                                 </svg>
                             </div>
                             <div className="text-center w-full">
-                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1">Gerando PDF</p>
-                                <p className="text-[13px] font-black text-slate-800 truncate max-w-[280px] text-center">{pdfTitle}</p>
+                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1">{exportLabel}</p>
+                                <p className="text-[13px] font-black text-slate-800 truncate max-w-[280px] text-center">{exportTitle}</p>
                             </div>
                             <div className="w-full">
                                 <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1.5">
                                     <span>Processando...</span>
-                                    <span className="text-emerald-600 font-black">{pdfProgress}%</span>
+                                    <span className="text-emerald-600 font-black">{exportProgress}%</span>
                                 </div>
                                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-300 ease-out"
-                                        style={{ width: `${pdfProgress}%` }}
+                                        style={{ width: `${exportProgress}%` }}
                                     />
                                 </div>
                             </div>
                             <p className="text-[10px] text-slate-400 text-center">
-                                {pdfProgress < 30 ? 'Carregando dados da planilha...' :
-                                    pdfProgress < 60 ? 'Organizando estandes...' :
-                                        pdfProgress < 90 ? 'Montando tabela PDF...' :
+                                {exportProgress < 30 ? 'Carregando dados da planilha...' :
+                                    exportProgress < 60 ? 'Organizando estandes...' :
+                                        exportProgress < 90 ? 'Montando tabela...' :
                                             'Finalizando documento...'}
                             </p>
                         </div>
