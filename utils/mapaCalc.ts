@@ -80,13 +80,13 @@ export interface EstiloStatus {
 }
 
 /**
- * Cores: verde e azul iguais aos da planilha (x e *). Livre em LILÁS — a planta do
- * Corel é cheia de cinzas (corredores, pavilhões) e amarelos (células), então o
- * livre precisa de um matiz que não existe nela para bater o olho e ver o que
- * está vago; reservado em laranja pelo mesmo motivo (amarelo se confundia).
+ * Cores: verde e azul iguais aos da planilha (x e *). Livre em BRANCO com contorno
+ * escuro — a planta do Corel é cheia de cinzas e amarelos, então o vago fica
+ * "vazio" e só o ocupado carrega cor (bate o olho e vê vendido/cortesia).
+ * Reservado em laranja (amarelo se confundia com as células da planta).
  */
 export const ESTILO_STATUS: Record<StatusEstande, EstiloStatus> = {
-    livre:        { fill: '#E4DCFF', stroke: '#6D5BD0', texto: '#2E1065', label: 'Livre' },
+    livre:        { fill: '#FFFFFF', stroke: '#334155', texto: '#1E293B', label: 'Livre' },
     reservado:    { fill: '#FDBA74', stroke: '#C2410C', texto: '#431407', label: 'Reservado' },
     vendido:      { fill: '#00B050', stroke: '#14532D', texto: '#FFFFFF', label: 'Vendido' },
     cortesia:     { fill: '#00B0F0', stroke: '#075985', texto: '#FFFFFF', label: 'Cortesia / permuta' },
