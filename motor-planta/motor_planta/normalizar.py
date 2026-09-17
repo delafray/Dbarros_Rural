@@ -1,6 +1,6 @@
 """Normalização de códigos, áreas e medidas. Funções puras.
 
-Regra única de ida e volta entre a planta e a planilha:
+Família = 1 a 3 letras maiúsculas (P, PR, AL). Regra única de ida e volta entre a planta e a planilha:
     planta   "P-01"  ⇄  planilha "P 01"   (buildStandNr do sistema: PREFIXO + espaço + 2 dígitos)
 """
 
@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import re
 
-RE_CODIGO_ESTRITO = re.compile(r"^([A-Z])-(\d{2})$")
-RE_CODIGO_LENIENTE = re.compile(r"^([A-Z])-?(\d{1,3})$")
+RE_CODIGO_ESTRITO = re.compile(r"^([A-Z]{1,3})-(\d{2})$")
+RE_CODIGO_LENIENTE = re.compile(r"^([A-Z]{1,3})-?(\d{1,3})$")
 RE_AREA = re.compile(r"^(\d+(?:[.,]\d+)?)\s*m(?:²|2|�)?$", re.IGNORECASE)
 RE_MEDIDA = re.compile(r"(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*m?", re.IGNORECASE)
 

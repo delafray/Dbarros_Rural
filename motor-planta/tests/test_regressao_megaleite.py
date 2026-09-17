@@ -34,6 +34,13 @@ def test_sem_erros_bloqueantes(resultado):
     assert not tem_erro(alertas), [a.mensagem for a in alertas if a.nivel == "erro"]
 
 
+def test_familias_ignoradas_incluem_pavilhoes_e_pr_pendente(resultado):
+    _, _, ignorados = resultado
+    fams = Counter(x.split("-")[0] for x in ignorados)
+    assert fams["B"] == 17 and fams["E"] == 12
+    assert fams["PR"] == 20  # pendente de decisão (ver manifesto "_pendente")
+
+
 def test_areas_conhecidas(resultado):
     estandes, _, _ = resultado
     por = {e.codigo: e for e in estandes}

@@ -29,7 +29,7 @@ def relatorio_md(estandes: list[Estande], alertas: list[Alerta], ignorados: list
     linhas.append("")
 
     if ignorados:
-        c = Counter(x[0] for x in ignorados)
+        c = Counter(x.split("-")[0] for x in ignorados)
         linhas += ["Ignorados (pavilhões/não comercializados): " + ", ".join(f"{k} ({n})" for k, n in sorted(c.items())), ""]
 
     for titulo, lista in (("## Erros", erros), ("## Avisos", avisos)):

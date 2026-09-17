@@ -28,6 +28,7 @@ def associar(pagina: PaginaExtraida, manifesto: Manifesto) -> tuple[list[Estande
     estandes: list[Estande] = []
     alertas: list[Alerta] = []
     ignorados: list[str] = []
+    pontos_ignorados: list[tuple[float, float]] = []
     rets_ordenados = sorted(pagina.retangulos, key=lambda r: r.area)
     palavras = _sem_duplicatas(pagina.palavras)
 
@@ -39,6 +40,7 @@ def associar(pagina: PaginaExtraida, manifesto: Manifesto) -> tuple[list[Estande
         familia, numero, estrito = parsed
         if familia in manifesto.ignorar_familias:
             ignorados.append(texto)
+            pontos_ignorados.append((p.cx, p.cy))
             continue
 
         ret = _menor_retangulo_contendo(rets_ordenados, p.cx, p.cy)
@@ -64,7 +66,7 @@ def associar(pagina: PaginaExtraida, manifesto: Manifesto) -> tuple[list[Estande
         estandes.append(est)
 
     _reatribuir_retangulos_compartilhados(estandes, rets_ordenados)
-    alertas.extend(_alertas_retangulos(estandes, pagina.retangulos))
+    alertas.extend(_alertas_retangulos(estandes, pagina.retangulos, pontos_ignorados))
     return estandes, alertas, ignorados
 
 
@@ -176,7 +178,8 @@ def _rotulos_abaixo(palavras: list[Palavra], codigo: Palavra, ret: Retangulo | N
     return [" ".join(w.texto for w in sorted(l, key=lambda w: w.x0)) for l in linhas]
 
 
-def _alertas_retangulos(estandes: list[Estande], retangulos: list[Retangulo]) -> list[Alerta]:
+def _alertas_retangulos(estandes: list[Estande], retangulos: list[Retangulo],
+                        pontos_ignorados: list[tuple[float, float]] | None = None) -> list[Alerta]:
     alertas: list[Alerta] = []
     por_ret: dict[tuple[float, float, float, float], list[Estande]] = defaultdict(list)
     for e in estandes:
@@ -201,7 +204,10 @@ def _alertas_retangulos(estandes: list[Estande], retangulos: list[Retangulo]) ->
     for r in retangulos:
         if r.cor in cores_validas and (r.x0, r.y0, r.x1, r.y1) not in usados                 and 0.5 * area_tipica[r.cor] <= r.area <= 2.0 * area_tipica[r.cor]:
             # ignora se algum estande está contido nele (ex.: lote 15x7 em volta do M)
+            # ou se o código dentro é de família ignorada (pavilhão, família pendente)
             if any(r.contem(e.cx, e.cy) for e in estandes):
+                continue
+            if any(r.contem(x, y) for x, y in (pontos_ignorados or [])):
                 continue
             orfaos[r.cor].append(r)
     for cor, lista in orfaos.items():
