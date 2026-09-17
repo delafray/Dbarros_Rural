@@ -9,7 +9,8 @@
 --   • Promotor: Girolando – Associação Brasileira dos Criadores de Girolando,
 --     Rua Orlando Vieira do Nascimento, 74 – Vila São Cristóvão, CEP 38040-280,
 --     Uberaba/MG · (34) 3331-6032 · www.girolando.com.br · @associacaogirolando
---   • Famílias, preços, merchandising e combos: planta baixa ALT 01 (17/09/2026)
+--   • Famílias, preços, merchandising e combos: planta baixa ALT 01 (17/09/2026);
+--     PR = Patrocinadores (20 na pista, sem custo — decisão do usuário 17/09)
 --     e prints da tabela de preços na pasta H:\...\MEGALEITE\PLANTA BAIXA.
 --
 -- Como rodar: Supabase → SQL Editor → colar tudo → Run.
@@ -150,7 +151,8 @@ BEGIN
       (5, 'ÁREA LIVRE',            'L', 20, 'area_livre',    NULL,  425.00),
       (6, 'MAQUINÁRIOS',           'M',  8, 'fixo',       20002.50, NULL),
       (7, 'PRÉ-MONTADOS',          'P', 33, 'fixo',       23500.00, NULL),
-      (8, 'RUBIS',                 'R', 19, 'area_livre',    NULL,  400.00)
+      (8, 'PATROCINADORES',        'PR', 20, 'fixo',           0.00, NULL), -- pista, sem custo
+      (9, 'RUBIS',                 'R', 19, 'area_livre',    NULL,  400.00)
     ) AS t(ordem, tag, prefix, qtd, tipo, base, m2)
     ORDER BY ordem
   LOOP
@@ -220,8 +222,8 @@ SELECT split_part(e.stand_nr, ' ', 1) AS familia,
   JOIN public.eventos_edicoes ed ON ed.id = pc.edicao_id
  WHERE ed.ano = 2027 AND ed.titulo ILIKE 'Megaleite%'
  GROUP BY 1 ORDER BY 1;
--- Esperado: C 17 · D 4 · F 16 · G 22 · L 20 (20 com área, 3.375 m²) · M 8 · P 33 · R 19 (19 com área, 475 m²)
--- Total: 139 estandes.
+-- Esperado: C 17 · D 4 · F 16 · G 22 · L 20 (20 com área, 3.375 m²) · M 8 · P 33 · PR 20 · R 19 (19 com área, 475 m²)
+-- Total: 159 estandes.
 
 -- ── ROLLBACK (só se precisar desfazer; descomente e rode) ───────────────────
 -- DELETE FROM public.planilha_vendas_estandes WHERE config_id IN

@@ -10,8 +10,7 @@
   },
   "ignorar_familias": [
     "B",
-    "E",
-    "PR"
+    "E"
   ],
   "combos": {
     "nomes": [
@@ -75,6 +74,12 @@
       "tipo": "area_livre",
       "preco_m2": 400,
       "area_padrao": 25
+    },
+    "PR": {
+      "tag": "PATROCINADORES",
+      "tipo": "fixo",
+      "preco": 0,
+      "area_padrao": 25
     }
   },
   "estandes": {
@@ -93,8 +98,5 @@
   },
   "renomear": {
     "L-00": "L-20"
-  },
-  "_pendente": {
-    "PR": "20 estandes PR-01..PR-20 na pista de julgamento (25m² 5x5) apareceram na planta de 17/09 17:43 — nome/preço não definidos; ao decidir, tirar de ignorar_familias e criar em familias"
   }
 }

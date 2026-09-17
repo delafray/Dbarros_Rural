@@ -26,7 +26,7 @@ def resultado():
 
 def test_contagem_por_familia(resultado):
     estandes, _, _ = resultado
-    assert Counter(e.familia for e in estandes) == {"C": 17, "D": 4, "F": 16, "G": 22, "L": 20, "M": 8, "P": 33, "R": 19}
+    assert Counter(e.familia for e in estandes) == {"C": 17, "D": 4, "F": 16, "G": 22, "L": 20, "M": 8, "P": 33, "PR": 20, "R": 19}
 
 
 def test_sem_erros_bloqueantes(resultado):
@@ -34,11 +34,16 @@ def test_sem_erros_bloqueantes(resultado):
     assert not tem_erro(alertas), [a.mensagem for a in alertas if a.nivel == "erro"]
 
 
-def test_familias_ignoradas_incluem_pavilhoes_e_pr_pendente(resultado):
+def test_familias_ignoradas_sao_so_os_pavilhoes(resultado):
     _, _, ignorados = resultado
     fams = Counter(x.split("-")[0] for x in ignorados)
-    assert fams["B"] == 17 and fams["E"] == 12
-    assert fams["PR"] == 20  # pendente de decisão (ver manifesto "_pendente")
+    assert fams == {"B": 17, "E": 12}
+
+
+def test_patrocinadores_custo_zero_com_area_25(resultado):
+    estandes, _, _ = resultado
+    pr = [e for e in estandes if e.familia == "PR"]
+    assert len(pr) == 20 and all(e.area == 25 for e in pr)
 
 
 def test_areas_conhecidas(resultado):

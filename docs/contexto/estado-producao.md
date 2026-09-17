@@ -86,8 +86,7 @@
   em tempo real. Para o piloto Megaleite 2027 o usuário precisa: (1) rodar a
   migration `20260917000001_planilha_mapa.sql`, (2) `scripts/seed-megaleite-2027.sql`,
   (3) `publicar.sql` do motor, (4) subir `fundo.png` — roteiro em
-  `motor-planta/RODAR-NO-SUPABASE.md`. Decisão pendente: família **PR** (20
-  estandes na pista) sem nome/preço. Depois: testar na branch, merge, push.
+  `motor-planta/RODAR-NO-SUPABASE.md`. Depois: testar na branch, merge, push.
 
 ## Notas
 

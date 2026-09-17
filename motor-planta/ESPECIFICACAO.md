@@ -205,6 +205,6 @@ Cada passo termina com `npm test` (e `pytest` no motor) verdes e commit reportad
 
 - [ ] Rodar `scripts/seed-megaleite-2027.sql` no Supabase (usuário) — o mapa depende da planilha existir.
 - [x] `L-00` → `L-20` resolvido via `renomear` no manifesto (planta pode ficar como está).
-- [ ] **Família PR** (20 estandes na pista, planta de 17/09 17:43): definir nome/preço; está em `ignorar_familias` até lá.
+- [x] Família **PR = Patrocinadores** (20 na pista, preço zero) — decidido 17/09, incluída no manifesto e no seed.
 - [x] "Vendido" = `x`; cortesia = `*`; ambos ocupam. `valor_pago` só no painel. (confirmado 17/09)
 - [ ] Quando o mapa for aberto a clientes (futuro): nova policy de leitura sem preço + página pública separada. Fora deste escopo.
