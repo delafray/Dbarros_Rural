@@ -34,6 +34,9 @@ class Retangulo:
     x1: float
     y1: float
     cor: str | None = None  # "#rrggbb" do preenchimento
+    # Traçado real (curvas já convertidas em pontos), quando o desenho não é um
+    # retângulo puro — ex.: estandes com um lado curvo acompanhando a pista.
+    tracado: tuple[tuple[float, float], ...] | None = None
 
     @property
     def largura(self) -> float:
@@ -59,7 +62,13 @@ class Retangulo:
         return self.x0 <= x <= self.x1 and self.y0 <= y <= self.y1
 
     def pontos(self) -> list[list[float]]:
+        if self.tracado and len(self.tracado) >= 3:
+            return [[round(x, 2), round(y, 2)] for x, y in self.tracado]
         return [[self.x0, self.y0], [self.x1, self.y0], [self.x1, self.y1], [self.x0, self.y1]]
+
+    @property
+    def e_curvo(self) -> bool:
+        return bool(self.tracado) and len(self.tracado) > 4
 
 
 @dataclass

@@ -124,3 +124,29 @@ class TestValidar:
     def test_regras_puras_aceitam_lista_vazia(self):
         assert r_codigo_duplicado([], manifesto_basico(), {}) == []
         assert r_numeracao([], manifesto_basico(), {}) == []
+
+
+class TestTracadoCurvo:
+    def test_estande_com_lado_curvo_vira_poligono_com_mais_de_4_pontos(self, tmp_path):
+        import fitz
+        doc = fitz.open(); page = doc.new_page(width=300, height=300)
+        sh = page.new_shape()
+        sh.draw_line(fitz.Point(50, 50), fitz.Point(150, 50))
+        sh.draw_line(fitz.Point(150, 50), fitz.Point(150, 150))
+        sh.draw_bezier(fitz.Point(150, 150), fitz.Point(120, 190), fitz.Point(80, 190), fitz.Point(50, 150))
+        sh.draw_line(fitz.Point(50, 150), fitz.Point(50, 50))
+        sh.finish(color=(0, 0, 0), fill=(0.2, 0.4, 0.8), closePath=True); sh.commit()
+        page.insert_text(fitz.Point(70, 90), "L-01", fontsize=8, fontname="helv")
+        page.insert_text(fitz.Point(70, 105), "150m²", fontsize=6, fontname="helv")
+        pdf = tmp_path / "curvo.pdf"; doc.save(str(pdf)); doc.close()
+        estandes, alertas, _ = _rodar(pdf)
+        e = estandes[0]
+        assert e.codigo == "L-01" and e.ret is not None and e.ret.e_curvo
+        pts = e.ret.pontos()
+        assert len(pts) > 4
+        # o lado curvo desce abaixo de y=150 (barriga da curva), o resto é o retângulo
+        assert max(y for _, y in pts) > 160 and min(x for x, _ in pts) >= 49
+
+    def test_retangulo_puro_continua_com_4_pontos(self, pdf_basico):
+        estandes, _, _ = _rodar(pdf_basico)
+        assert all(len(e.ret.pontos()) == 4 and not e.ret.e_curvo for e in estandes if e.ret)
