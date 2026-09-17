@@ -1,6 +1,7 @@
 # Motor de Planta → Mapa de Vendas — Especificação
 
-> Status: **ESPECIFICAÇÃO APROVANDO** (17/09/2026). Nada codado ainda.
+> Status: **APROVADA 17/09/2026 — EM CONSTRUÇÃO** na branch `feature-mapa-vendas` (não mergeada).
+> Feito: motor Python completo (passos 1-4), migration + RLS + mapaCalc + serviço (5-6). Em curso: UI (7). Piloto (8) depende do usuário rodar `RODAR-NO-SUPABASE.md`.
 > Piloto: Megaleite 2027 (planta ALT 01 em `H:\PROJETOS\2027 - PROJETOS\DBARROS 27\MEGALEITE\PLANTA BAIXA`).
 > Regras do repositório valem integralmente: `PADRAO-NOVOS-SISTEMAS.md` (teste + RLS
 > desde o zero), páginas não importam `supabase`, commits pequenos e reversíveis.
@@ -188,14 +189,14 @@ Fase posterior: botão "Importar mapa" na própria página, lendo o `mapa.json` 
 
 | # | Entrega | Quem |
 | --- | --- | --- |
-| 0 | Esta especificação + manifesto do Megaleite 2027 | forte |
-| 1 | Motor: `extrair` + `associar` + `normalizar` com testes-molde | forte |
-| 2 | Motor: `validar` (regras) + `relatorio` | forte escreve 3 regras + molde; **agente menor** completa as demais regras e testes |
-| 3 | Motor: `comparar` (diff) | forte |
-| 4 | Motor: `gerar_mapa` (`mapa.json` + `fundo.png`) e `gerar_planilha` (JSON + SQL) | forte (SQL) · **agente menor** (render/boilerplate) |
-| 5 | Migration `planilha_mapa` + RLS + teste de segurança + `mapaVendasService` | forte |
-| 6 | `mapaCalc.ts` + testes | forte escreve funções + molde; **agente menor** expande casos |
-| 7 | Hook, componentes e página (rota, link na planilha) | **agente menor** com o padrão dos módulos existentes; forte revisa |
+| 0 | Esta especificação + manifesto do Megaleite 2027 | forte ✅ f452f7d |
+| 1 | Motor: `extrair` + `associar` + `normalizar` com testes-molde | forte ✅ aa85615 |
+| 2 | Motor: `validar` (regras) + `relatorio` | forte ✅ aa85615 (8 regras, feitas junto por serem pequenas) |
+| 3 | Motor: `comparar` (diff) | forte ✅ aa85615 |
+| 4 | Motor: `gerar_mapa` (`mapa.json` + `fundo.png`) e `gerar_planilha` (JSON + SQL) | forte ✅ aa85615 / 4c0901a |
+| 5 | Migration `planilha_mapa` + RLS + teste de segurança + `mapaVendasService` | forte ✅ 318a405 (RLS provada em Postgres local) |
+| 6 | `mapaCalc.ts` + testes | forte ✅ 318a405 |
+| 7 | Hook, componentes e página (rota, link na planilha) | **agente menor (sonnet)** ⏳ em curso; forte revisa |
 | 8 | Publicar piloto Megaleite 2027; atualizar `docs/contexto/estado-producao.md` e memória | forte |
 
 Cada passo termina com `npm test` (e `pytest` no motor) verdes e commit reportado com hash + versão.
@@ -203,6 +204,7 @@ Cada passo termina com `npm test` (e `pytest` no motor) verdes e commit reportad
 ## 9. Pendências / perguntas abertas
 
 - [ ] Rodar `scripts/seed-megaleite-2027.sql` no Supabase (usuário) — o mapa depende da planilha existir.
-- [ ] Na planta: renomear `L-00` → `L-20` (ou manter via `renomear` no manifesto).
+- [x] `L-00` → `L-20` resolvido via `renomear` no manifesto (planta pode ficar como está).
+- [ ] **Família PR** (20 estandes na pista, planta de 17/09 17:43): definir nome/preço; está em `ignorar_familias` até lá.
 - [x] "Vendido" = `x`; cortesia = `*`; ambos ocupam. `valor_pago` só no painel. (confirmado 17/09)
 - [ ] Quando o mapa for aberto a clientes (futuro): nova policy de leitura sem preço + página pública separada. Fora deste escopo.

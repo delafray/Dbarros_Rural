@@ -80,6 +80,14 @@
 - Ban retroativo das 9 contas temporárias inativas antigas (UPDATE opcional em
   `scripts/bloco27-ban-credencial-desativado.sql`).
 - Fases R4 (Julgamento/Diversos) e R5 (redesenho do fluxo) do módulo de custos.
+- **Mapa de Vendas / motor de planta (17/09, branch `feature-mapa-vendas`, NÃO
+  mergeada)**: motor Python (`motor-planta/`) lê a planta do Corel e gera
+  planilha + mapa; página `/mapa-vendas/:edicaoId` pinta estandes pela planilha
+  em tempo real. Para o piloto Megaleite 2027 o usuário precisa: (1) rodar a
+  migration `20260917000001_planilha_mapa.sql`, (2) `scripts/seed-megaleite-2027.sql`,
+  (3) `publicar.sql` do motor, (4) subir `fundo.png` — roteiro em
+  `motor-planta/RODAR-NO-SUPABASE.md`. Decisão pendente: família **PR** (20
+  estandes na pista) sem nome/preço. Depois: testar na branch, merge, push.
 
 ## Notas
 
