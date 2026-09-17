@@ -79,10 +79,15 @@ export interface EstiloStatus {
     label: string;
 }
 
-/** Cores: verde e azul iguais aos da planilha; demais escolhidas p/ contraste em fundo claro. */
+/**
+ * Cores: verde e azul iguais aos da planilha (x e *). Livre em LILÁS — a planta do
+ * Corel é cheia de cinzas (corredores, pavilhões) e amarelos (células), então o
+ * livre precisa de um matiz que não existe nela para bater o olho e ver o que
+ * está vago; reservado em laranja pelo mesmo motivo (amarelo se confundia).
+ */
 export const ESTILO_STATUS: Record<StatusEstande, EstiloStatus> = {
-    livre:        { fill: '#E5E7EB', stroke: '#6B7280', texto: '#111827', label: 'Livre' },
-    reservado:    { fill: '#FDE047', stroke: '#A16207', texto: '#111827', label: 'Reservado' },
+    livre:        { fill: '#E4DCFF', stroke: '#6D5BD0', texto: '#2E1065', label: 'Livre' },
+    reservado:    { fill: '#FDBA74', stroke: '#C2410C', texto: '#431407', label: 'Reservado' },
     vendido:      { fill: '#00B050', stroke: '#14532D', texto: '#FFFFFF', label: 'Vendido' },
     cortesia:     { fill: '#00B0F0', stroke: '#075985', texto: '#FFFFFF', label: 'Cortesia / permuta' },
     sem_planilha: { fill: '#FCA5A5', stroke: '#B91C1C', texto: '#111827', label: 'Sem linha na planilha' },
