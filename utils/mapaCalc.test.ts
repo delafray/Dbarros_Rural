@@ -64,10 +64,11 @@ describe('statusDoEstande (marcas da planilha)', () => {
 });
 
 describe('estilos', () => {
-    it('todo status tem estilo e verde/azul iguais aos da planilha', () => {
+    it('todo status tem estilo; vendido = verde e livre = azul da planilha', () => {
         for (const s of ORDEM_STATUS) expect(ESTILO_STATUS[s].fill).toMatch(/^#[0-9A-F]{6}$/i);
         expect(ESTILO_STATUS.vendido.fill).toBe('#00B050');
-        expect(ESTILO_STATUS.cortesia.fill).toBe('#00B0F0');
+        expect(ESTILO_STATUS.livre.fill).toBe('#00B0F0');
+        expect(new Set(ORDEM_STATUS.map((s) => ESTILO_STATUS[s].fill)).size).toBe(ORDEM_STATUS.length);
     });
 });
 

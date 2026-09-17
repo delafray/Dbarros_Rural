@@ -5,9 +5,9 @@
  * status de um estande a partir da linha da planilha, cores por status e
  * resumos por família. Espelha as marcas da planilha:
  *   x  = venda (tipo_venda sem "*")      → vendido  (verde #00B050, igual à planilha)
- *   *  = cortesia/permuta (com "*")      → cortesia (azul  #00B0F0, igual à planilha)
+ *   *  = cortesia/permuta (com "*")      → cortesia (roxo claro)
  *   cliente anotado sem x/*              → reservado
- *   DISPONÍVEL sem cliente               → livre
+ *   DISPONÍVEL sem cliente               → livre    (azul #00B0F0 da planilha)
  *   código do mapa ausente na planilha   → sem_planilha (alerta de sincronização)
  */
 
@@ -80,16 +80,15 @@ export interface EstiloStatus {
 }
 
 /**
- * Cores: verde e azul iguais aos da planilha (x e *). Livre em BRANCO com contorno
- * escuro — a planta do Corel é cheia de cinzas e amarelos, então o vago fica
- * "vazio" e só o ocupado carrega cor (bate o olho e vê vendido/cortesia).
- * Reservado em laranja (amarelo se confundia com as células da planta).
+ * Cores (decisão do usuário 17/09): LIVRE = azul da planilha (#00B0F0), VENDIDO =
+ * verde da planilha (#00B050). Cortesia/permuta em roxo claro e reservado em
+ * laranja para não competir com azul/verde nem com os cinzas/amarelos da planta.
  */
 export const ESTILO_STATUS: Record<StatusEstande, EstiloStatus> = {
-    livre:        { fill: '#FFFFFF', stroke: '#334155', texto: '#1E293B', label: 'Livre' },
+    livre:        { fill: '#00B0F0', stroke: '#075985', texto: '#082F49', label: 'Livre' },
     reservado:    { fill: '#FDBA74', stroke: '#C2410C', texto: '#431407', label: 'Reservado' },
     vendido:      { fill: '#00B050', stroke: '#14532D', texto: '#FFFFFF', label: 'Vendido' },
-    cortesia:     { fill: '#00B0F0', stroke: '#075985', texto: '#FFFFFF', label: 'Cortesia / permuta' },
+    cortesia:     { fill: '#C084FC', stroke: '#6B21A8', texto: '#3B0764', label: 'Cortesia / permuta' },
     sem_planilha: { fill: '#FCA5A5', stroke: '#B91C1C', texto: '#111827', label: 'Sem linha na planilha' },
 };
 
