@@ -1,7 +1,7 @@
 # Motor de Planta → Mapa de Vendas — Especificação
 
 > Status: **APROVADA 17/09/2026 — EM CONSTRUÇÃO** na branch `feature-mapa-vendas` (não mergeada).
-> Feito: motor Python completo (passos 1-4), migration + RLS + mapaCalc + serviço (5-6). Em curso: UI (7). Piloto (8) depende do usuário rodar `RODAR-NO-SUPABASE.md`.
+> Feito: motor Python (1-4), migration + RLS + mapaCalc + serviço (5-6) e a página do mapa (7). Piloto (8) depende do usuário rodar `RODAR-NO-SUPABASE.md`, testar a branch e autorizar merge/push.
 > Piloto: Megaleite 2027 (planta ALT 01 em `H:\PROJETOS\2027 - PROJETOS\DBARROS 27\MEGALEITE\PLANTA BAIXA`).
 > Regras do repositório valem integralmente: `PADRAO-NOVOS-SISTEMAS.md` (teste + RLS
 > desde o zero), páginas não importam `supabase`, commits pequenos e reversíveis.
@@ -196,7 +196,7 @@ Fase posterior: botão "Importar mapa" na própria página, lendo o `mapa.json` 
 | 4 | Motor: `gerar_mapa` (`mapa.json` + `fundo.png`) e `gerar_planilha` (JSON + SQL) | forte ✅ aa85615 / 4c0901a |
 | 5 | Migration `planilha_mapa` + RLS + teste de segurança + `mapaVendasService` | forte ✅ 318a405 (RLS provada em Postgres local) |
 | 6 | `mapaCalc.ts` + testes | forte ✅ 318a405 |
-| 7 | Hook, componentes e página (rota, link na planilha) | **agente menor (sonnet)** ⏳ em curso; forte revisa |
+| 7 | Hook, componentes e página (rota, link na planilha) | agente menor (sonnet) ✅ revisado pelo forte (472 testes, build ok) |
 | 8 | Publicar piloto Megaleite 2027; atualizar `docs/contexto/estado-producao.md` e memória | forte |
 
 Cada passo termina com `npm test` (e `pytest` no motor) verdes e commit reportado com hash + versão.
