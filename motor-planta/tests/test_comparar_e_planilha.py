@@ -76,3 +76,20 @@ class TestGerarPlanilha:
         assert "d''Água" in sql
         assert "NOT EXISTS" in sql  # nunca apaga estande existente
         assert "DELETE" not in sql.upper().replace("-- ", "")
+
+
+class TestCentroDoEstande:
+    def test_retangulo_centro_e_o_meio_da_caixa(self):
+        r = Retangulo(10, 20, 30, 60, "#000")
+        assert r.centro() == (20, 40)
+
+    def test_poligono_curvo_usa_centroide(self):
+        # "L" invertido: o centroide fica dentro da massa, não no meio da caixa
+        r = Retangulo(0, 0, 10, 10, "#000", tracado=((0, 0), (10, 0), (10, 2), (2, 2), (2, 10), (0, 10)))
+        cx, cy = r.centro()
+        assert cx < 5 and cy < 5
+
+    def test_para_dict_usa_centro_do_retangulo_e_guarda_posicao_do_texto(self):
+        e = _estande("P-01"); e.ret = Retangulo(100, 100, 120, 120, "#000"); e.cx, e.cy = 104, 103
+        d = e.para_dict()
+        assert d["centro"] == [110, 110] and d["pos_codigo"] == [104, 103]

@@ -70,6 +70,25 @@ class Retangulo:
     def e_curvo(self) -> bool:
         return bool(self.tracado) and len(self.tracado) > 4
 
+    def centro(self) -> tuple[float, float]:
+        """Centro geométrico: centroide do polígono (shoelace) quando há traçado,
+        senão o centro da caixa. É onde o rótulo do estande é desenhado."""
+        pts = self.pontos()
+        if len(pts) < 3:
+            return (self.cx, self.cy)
+        a = cx = cy = 0.0
+        for i in range(len(pts)):
+            x0, y0 = pts[i]
+            x1, y1 = pts[(i + 1) % len(pts)]
+            cross = x0 * y1 - x1 * y0
+            a += cross
+            cx += (x0 + x1) * cross
+            cy += (y0 + y1) * cross
+        if abs(a) < 1e-9:
+            return (self.cx, self.cy)
+        a *= 0.5
+        return (cx / (6 * a), cy / (6 * a))
+
 
 @dataclass
 class PaginaExtraida:
@@ -89,7 +108,7 @@ class Estande:
     stand_nr: str               # "P 01" (formato da planilha)
     estrito: bool               # True se o texto original já era LETRA-NN
     ret: Retangulo | None
-    cx: float
+    cx: float                   # posição do TEXTO do código na planta
     cy: float
     area_planta: float | None = None
     medidas: list[str] = field(default_factory=list)
@@ -108,7 +127,9 @@ class Estande:
             "numero": self.numero,
             "stand_nr": self.stand_nr,
             "pontos": self.ret.pontos() if self.ret else None,
-            "centro": [round(self.cx, 2), round(self.cy, 2)],
+            # rótulo sempre no centro do estande, não onde o texto estava no Corel
+            "centro": [round(c, 2) for c in (self.ret.centro() if self.ret else (self.cx, self.cy))],
+            "pos_codigo": [round(self.cx, 2), round(self.cy, 2)],
             "cor": self.cor,
             "area_planta": self.area_planta,
             "area": self.area,
