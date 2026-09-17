@@ -6,6 +6,7 @@ import {
   tamanhoFonteRotulo,
   clampZoom,
   zoomComRoda,
+  panParaZoomNoPonto,
 } from "../../utils/mapaCalc";
 import type { ItemMapa } from "../../hooks/useMapaVendas";
 
@@ -31,14 +32,29 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
 
   const box = useMemo(() => parseViewBox(viewBox), [viewBox]);
 
-  // Roda do mouse: precisa de listener nativo (não-passivo) para poder
-  // preventDefault e não rolar a página junto com o zoom do mapa.
+  // Ponto do cursor em unidades do viewBox (antes do translate/scale do <g>).
+  const pontoNoSvg = (el: SVGSVGElement, clientX: number, clientY: number) => {
+    const ctm = el.getScreenCTM();
+    if (!ctm) return null;
+    const pt = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
+    return { x: pt.x, y: pt.y };
+  };
+
+  // Roda do mouse: listener nativo (não-passivo) para poder preventDefault e não
+  // rolar a página. Zoom ancorado no cursor: o ponto sob o mouse fica parado.
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
+  zoomRef.current = zoom;
+  panRef.current = pan;
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      setZoom((z) => zoomComRoda(z, e.deltaY));
+      const novo = zoomComRoda(zoomRef.current, e.deltaY);
+      const p = pontoNoSvg(el, e.clientX, e.clientY);
+      if (p) setPan(panParaZoomNoPonto(panRef.current, zoomRef.current, novo, p));
+      setZoom(novo);
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
@@ -49,14 +65,24 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
     setArrastando(true);
   };
   const onMouseMove = (e: React.MouseEvent) => {
-    if (!dragRef.current) return;
-    const dx = (e.clientX - dragRef.current.x) / zoom;
-    const dy = (e.clientY - dragRef.current.y) / zoom;
+    if (!dragRef.current || !svgRef.current) return;
+    const ctm = svgRef.current.getScreenCTM();
+    const escala = ctm ? 1 / ctm.a : 1; // px de tela → unidades do viewBox
+    const dx = (e.clientX - dragRef.current.x) * escala;
+    const dy = (e.clientY - dragRef.current.y) * escala;
     setPan({ x: dragRef.current.panX + dx, y: dragRef.current.panY + dy });
   };
   const pararArraste = () => {
     dragRef.current = null;
     setArrastando(false);
+  };
+
+  const zoomBotao = (fator: number) => {
+    if (!box) return;
+    const centro = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+    const novo = clampZoom(zoom * fator);
+    setPan(panParaZoomNoPonto(pan, zoom, novo, centro));
+    setZoom(novo);
   };
 
   const resetView = () => {
@@ -140,7 +166,7 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
       <div className="absolute bottom-3 right-3 flex flex-col gap-1 bg-white/90 border border-slate-200 rounded shadow-sm overflow-hidden text-slate-700">
         <button
           className="w-8 h-8 hover:bg-slate-100 font-bold"
-          onClick={() => setZoom((z) => clampZoom(z * 1.25))}
+          onClick={() => zoomBotao(1.25)}
           title="Aproximar"
           type="button"
         >
@@ -148,7 +174,7 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
         </button>
         <button
           className="w-8 h-8 hover:bg-slate-100 font-bold border-t border-slate-200"
-          onClick={() => setZoom((z) => clampZoom(z / 1.25))}
+          onClick={() => zoomBotao(1 / 1.25)}
           title="Afastar"
           type="button"
         >

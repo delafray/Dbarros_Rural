@@ -229,3 +229,16 @@ export function zoomComRoda(zoomAtual: number, deltaY: number, min = 0.5, max = 
     const fator = deltaY < 0 ? 1.1 : 1 / 1.1;
     return clampZoom(zoomAtual * fator, min, max);
 }
+
+/**
+ * Pan novo para que o ponto `p` (em unidades do viewBox, ANTES da transformação
+ * translate(pan) scale(zoom)) continue debaixo do cursor ao trocar o zoom.
+ * Conta: p = pan + zoom·q  ⇒  pan' = p − (p − pan)·(zoomNovo/zoom).
+ */
+export function panParaZoomNoPonto(
+    pan: { x: number; y: number }, zoom: number, zoomNovo: number, p: { x: number; y: number },
+): { x: number; y: number } {
+    if (!(zoom > 0) || !Number.isFinite(zoomNovo)) return pan;
+    const k = zoomNovo / zoom;
+    return { x: p.x - (p.x - pan.x) * k, y: p.y - (p.y - pan.y) * k };
+}

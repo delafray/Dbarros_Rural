@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     normalizarCodigo, codigoDaPlanta, statusDoEstande, indexarPlanilha, linhaDoEstande,
     resumoPorFamilia, resumoGeral, estandesForaDoMapa, parseViewBox, pontosParaAtributo,
-    nomeClienteDaLinha, bboxDePontos, tamanhoFonteRotulo, clampZoom, zoomComRoda,
+    nomeClienteDaLinha, bboxDePontos, tamanhoFonteRotulo, clampZoom, zoomComRoda, panParaZoomNoPonto,
     ESTILO_STATUS, ORDEM_STATUS, type EstandeMapa, type LinhaPlanilhaMapa, type ClienteNome,
 } from './mapaCalc';
 
@@ -188,5 +188,19 @@ describe('clampZoom / zoomComRoda (pan/zoom do mapa)', () => {
     it('zoomComRoda nunca sai do intervalo', () => {
         expect(zoomComRoda(8, -100)).toBe(8);
         expect(zoomComRoda(0.5, 100)).toBe(0.5);
+    });
+});
+
+describe('panParaZoomNoPonto (zoom ancorado no cursor)', () => {
+    it('o ponto sob o cursor não se move ao dobrar o zoom', () => {
+        const pan = { x: 10, y: 20 }, zoom = 1, p = { x: 300, y: 200 };
+        const q = { x: (p.x - pan.x) / zoom, y: (p.y - pan.y) / zoom }; // coordenada de conteúdo sob o cursor
+        const pan2 = panParaZoomNoPonto(pan, zoom, 2, p);
+        expect(pan2.x + 2 * q.x).toBeCloseTo(p.x);
+        expect(pan2.y + 2 * q.y).toBeCloseTo(p.y);
+    });
+    it('zoom igual não altera o pan; zoom inválido devolve o pan atual', () => {
+        expect(panParaZoomNoPonto({ x: 5, y: 5 }, 1.5, 1.5, { x: 100, y: 100 })).toEqual({ x: 5, y: 5 });
+        expect(panParaZoomNoPonto({ x: 5, y: 5 }, 0, 2, { x: 100, y: 100 })).toEqual({ x: 5, y: 5 });
     });
 });
