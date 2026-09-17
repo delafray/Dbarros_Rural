@@ -220,6 +220,9 @@ const PlanilhaVendas: React.FC = () => {
               <Button variant="outline" size="sm" onClick={() => navigate(`/atendimentos/${edicaoId}`)}>
                 📋 Atendimentos
               </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/mapa-vendas/${edicaoId}`)}>
+                🗺️ Mapa
+              </Button>
             </div>
           ) : (
             <>
@@ -228,6 +231,9 @@ const PlanilhaVendas: React.FC = () => {
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/controle-imagens', { state: { edicaoId } })}>
                 🖼 Controle de Imagens
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/mapa-vendas/${edicaoId}`)}>
+                🗺️ Mapa
               </Button>
             </>
           )}

@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
     normalizarCodigo, codigoDaPlanta, statusDoEstande, indexarPlanilha, linhaDoEstande,
     resumoPorFamilia, resumoGeral, estandesForaDoMapa, parseViewBox, pontosParaAtributo,
-    ESTILO_STATUS, ORDEM_STATUS, type EstandeMapa, type LinhaPlanilhaMapa,
+    nomeClienteDaLinha, bboxDePontos, tamanhoFonteRotulo, clampZoom, zoomComRoda,
+    ESTILO_STATUS, ORDEM_STATUS, type EstandeMapa, type LinhaPlanilhaMapa, type ClienteNome,
 } from './mapaCalc';
 
 const est = (codigo: string, familia = codigo[0]): EstandeMapa => ({
@@ -15,6 +16,12 @@ describe('normalizarCodigo (planta "P-01" ⇄ planilha "P 01")', () => {
         expect(normalizarCodigo('p01')).toBe('P 01');
         expect(normalizarCodigo('P 1')).toBe('P 01');
         expect(normalizarCodigo(' L-20 ')).toBe('L 20');
+    });
+    it('aceita família com 2 ou 3 letras (PR-01 da pista, AL 03)', () => {
+        expect(normalizarCodigo('PR-01')).toBe('PR 01');
+        expect(normalizarCodigo('pr01')).toBe('PR 01');
+        expect(normalizarCodigo('AL 3')).toBe('AL 03');
+        expect(normalizarCodigo('ABCD-01')).toBeNull();
     });
     it('devolve null para o que não é código', () => {
         expect(normalizarCodigo('')).toBeNull();
@@ -111,5 +118,74 @@ describe('geometria', () => {
         expect(pontosParaAtributo([[1, 2], [3, 4], [5, 6]])).toBe('1,2 3,4 5,6');
         expect(pontosParaAtributo(null)).toBe('');
         expect(pontosParaAtributo([[1, 2]])).toBe('');
+    });
+});
+
+describe('nomeClienteDaLinha (painel do estande)', () => {
+    const mapa = new Map<string, ClienteNome>([
+        ['c1', { nome_fantasia: 'Fazenda Boa Vista', tipo_pessoa: 'PJ', razao_social: 'Boa Vista LTDA' }],
+        ['c2', { tipo_pessoa: 'PJ', razao_social: 'Agro Sul LTDA' }],
+        ['c3', { tipo_pessoa: 'PF', nome_completo: 'João da Silva' }],
+        ['c4', {}],
+    ]);
+    it('sem linha → null', () => {
+        expect(nomeClienteDaLinha(null, mapa)).toBeNull();
+        expect(nomeClienteDaLinha(undefined, mapa)).toBeNull();
+    });
+    it('prioriza nome_fantasia quando existe', () => {
+        expect(nomeClienteDaLinha({ cliente_id: 'c1' }, mapa)).toBe('Fazenda Boa Vista');
+    });
+    it('sem nome_fantasia, usa razao_social (PJ) ou nome_completo (PF)', () => {
+        expect(nomeClienteDaLinha({ cliente_id: 'c2' }, mapa)).toBe('Agro Sul LTDA');
+        expect(nomeClienteDaLinha({ cliente_id: 'c3' }, mapa)).toBe('João da Silva');
+    });
+    it('cliente sem nenhum nome e sem nome livre → null', () => {
+        expect(nomeClienteDaLinha({ cliente_id: 'c4' }, mapa)).toBeNull();
+    });
+    it('sem cliente_id, usa cliente_nome_livre (aparado); vazio vira null', () => {
+        expect(nomeClienteDaLinha({ cliente_nome_livre: '  Reserva Feira  ' }, mapa)).toBe('Reserva Feira');
+        expect(nomeClienteDaLinha({ cliente_nome_livre: '   ' }, mapa)).toBeNull();
+    });
+    it('cliente_id que não está no mapa cai para o nome livre', () => {
+        expect(nomeClienteDaLinha({ cliente_id: 'inexistente', cliente_nome_livre: 'Fulano' }, mapa)).toBe('Fulano');
+    });
+});
+
+describe('bboxDePontos / tamanhoFonteRotulo (rótulo do polígono)', () => {
+    it('bboxDePontos calcula largura/altura do polígono', () => {
+        expect(bboxDePontos([[0, 0], [10, 0], [10, 5], [0, 5]])).toEqual({ w: 10, h: 5 });
+    });
+    it('bboxDePontos rejeita polígono degenerado ou insuficiente', () => {
+        expect(bboxDePontos(null)).toBeNull();
+        expect(bboxDePontos([[0, 0], [1, 0]])).toBeNull();
+        expect(bboxDePontos([[0, 0], [0, 0], [0, 0]])).toBeNull(); // área zero
+    });
+    it('tamanhoFonteRotulo é proporcional ao menor lado, com teto', () => {
+        expect(tamanhoFonteRotulo([[0, 0], [20, 0], [20, 20], [0, 20]])).toBe(6); // 20*0.35=7 → teto 6
+        expect(tamanhoFonteRotulo([[0, 0], [10, 0], [10, 10], [0, 10]])).toBeCloseTo(3.5);
+    });
+    it('estande minúsculo devolve 0 (esconder o rótulo)', () => {
+        expect(tamanhoFonteRotulo([[0, 0], [2, 0], [2, 2], [0, 2]])).toBe(0);
+        expect(tamanhoFonteRotulo(null)).toBe(0);
+    });
+});
+
+describe('clampZoom / zoomComRoda (pan/zoom do mapa)', () => {
+    it('clampZoom limita ao intervalo [min, max]', () => {
+        expect(clampZoom(1)).toBe(1);
+        expect(clampZoom(0.1)).toBe(0.5);
+        expect(clampZoom(100)).toBe(8);
+        expect(clampZoom(NaN)).toBe(0.5);
+    });
+    it('respeita min/max customizados', () => {
+        expect(clampZoom(50, 1, 10)).toBe(10);
+    });
+    it('zoomComRoda aumenta com deltaY negativo (aproxima) e diminui com positivo', () => {
+        expect(zoomComRoda(1, -100)).toBeCloseTo(1.1);
+        expect(zoomComRoda(1, 100)).toBeCloseTo(1 / 1.1);
+    });
+    it('zoomComRoda nunca sai do intervalo', () => {
+        expect(zoomComRoda(8, -100)).toBe(8);
+        expect(zoomComRoda(0.5, 100)).toBe(0.5);
     });
 });

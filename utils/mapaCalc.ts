@@ -45,11 +45,11 @@ export const DISPONIVEL = 'DISPONÍVEL';
 
 /**
  * Normaliza qualquer grafia para o formato da planilha: "P-01", "p01", "P 1" → "P 01".
- * Devolve null se não for um código LETRA+NÚMERO.
+ * Família = 1 a 3 letras (P, PR, AL). Devolve null se não for um código LETRAS+NÚMERO.
  */
 export function normalizarCodigo(texto: string | null | undefined): string | null {
     if (!texto) return null;
-    const m = texto.trim().toUpperCase().match(/^([A-Z])[\s-]?(\d{1,3})$/);
+    const m = texto.trim().toUpperCase().match(/^([A-Z]{1,3})[\s-]?(\d{1,3})$/);
     if (!m) return null;
     return `${m[1]} ${m[2].padStart(2, '0')}`;
 }
@@ -154,4 +154,74 @@ export function parseViewBox(viewBox: string): { x: number; y: number; w: number
 export function pontosParaAtributo(pontos: number[][] | null | undefined): string {
     if (!pontos || pontos.length < 3) return '';
     return pontos.map(([x, y]) => `${x},${y}`).join(' ');
+}
+
+/**
+ * Subconjunto de ClienteComContatos (services/clientesService.ts) usado só
+ * para resolver o nome de exibição — mantém este módulo sem depender do
+ * client Supabase.
+ */
+export interface ClienteNome {
+    nome_fantasia?: string | null;
+    razao_social?: string | null;
+    nome_completo?: string | null;
+    tipo_pessoa?: string | null;
+}
+
+/**
+ * Nome de exibição do cliente vinculado a uma linha da planilha — mesma
+ * prioridade usada na tela da planilha (TempPlanilha): nome_fantasia, senão
+ * razão social (PJ) ou nome completo (PF), senão o nome livre digitado.
+ */
+export function nomeClienteDaLinha(
+    linha: { cliente_id?: string | null; cliente_nome_livre?: string | null } | null | undefined,
+    clienteMap: Map<string, ClienteNome>,
+): string | null {
+    if (!linha) return null;
+    const cliente = linha.cliente_id ? clienteMap.get(linha.cliente_id) : undefined;
+    if (cliente) {
+        return (
+            cliente.nome_fantasia ||
+            (cliente.tipo_pessoa === 'PJ' ? cliente.razao_social : cliente.nome_completo) ||
+            null
+        );
+    }
+    return linha.cliente_nome_livre?.trim() || null;
+}
+
+/** Caixa delimitadora (largura/altura) de um polígono, em unidades do viewBox. */
+export function bboxDePontos(pontos: number[][] | null | undefined): { w: number; h: number } | null {
+    if (!pontos || pontos.length < 3) return null;
+    const xs = pontos.map((p) => p[0]);
+    const ys = pontos.map((p) => p[1]);
+    const w = Math.max(...xs) - Math.min(...xs);
+    const h = Math.max(...ys) - Math.min(...ys);
+    if (!(w > 0) || !(h > 0)) return null;
+    return { w, h };
+}
+
+/**
+ * Tamanho de fonte (unidades do viewBox) do rótulo do código dentro do
+ * polígono do estande — proporcional ao menor lado. 0 = estande pequeno
+ * demais para caber texto legível; o SVG deve esconder o <text> nesse caso.
+ */
+export function tamanhoFonteRotulo(pontos: number[][] | null | undefined): number {
+    const box = bboxDePontos(pontos);
+    if (!box) return 0;
+    const menorLado = Math.min(box.w, box.h);
+    const fonte = menorLado * 0.35;
+    if (fonte < 1.2) return 0;
+    return Math.min(fonte, 6);
+}
+
+/** Limita o zoom do mapa a um intervalo razoável (evita zoom negativo/infinito). */
+export function clampZoom(zoom: number, min = 0.5, max = 8): number {
+    if (!Number.isFinite(zoom)) return min;
+    return Math.min(max, Math.max(min, zoom));
+}
+
+/** Próximo zoom a partir da roda do mouse (deltaY negativo = aproxima ~10% por "tick"). */
+export function zoomComRoda(zoomAtual: number, deltaY: number, min = 0.5, max = 8): number {
+    const fator = deltaY < 0 ? 1.1 : 1 / 1.1;
+    return clampZoom(zoomAtual * fator, min, max);
 }
