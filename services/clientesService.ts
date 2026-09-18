@@ -72,6 +72,8 @@ export interface ClienteSelectorRow {
 /** Payload para criação rápida de cliente PJ com contato principal */
 export interface CreateClienteRapidoInput {
     nome: string;
+    /** Nome fantasia (o que aparece no mapa); se vazio, usa `nome`. */
+    nomeFantasia?: string;
     contato: string;
     cargo?: string;
     telefone?: string;
@@ -428,7 +430,7 @@ export const clientesService = {
             .insert({
                 tipo_pessoa: 'PJ',
                 razao_social: input.nome.trim(),
-                nome_fantasia: input.nome.trim(),
+                nome_fantasia: (input.nomeFantasia?.trim() || input.nome.trim()),
                 user_id: user?.id || null,
             })
             .select()
