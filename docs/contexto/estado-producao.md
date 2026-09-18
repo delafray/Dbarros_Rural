@@ -16,6 +16,12 @@
   livre gravando `tipo_venda` na mesma linha da planilha (visitante só lê).
   Motor da planta (PDF do Corel → geometria) em `motor-planta/` (Python, 62 pytest).
   Pendente: campo `nome` da categoria separado da tag curta (pedido do usuário).
+- **Histórico da planilha de vendas (18/09, aplicado em produção)**: gatilho grava todo
+  INSERT/UPDATE/DELETE de `planilha_vendas_estandes` em `planilha_vendas_estandes_historico`
+  (linha antes/depois, só os campos que mudaram, quem, quando). Leitura só master; ninguém
+  escreve direto (gatilho SECURITY DEFINER). Recuperação = consultas no fim da migration
+  `20260918000002_planilha_historico.sql`. Também em produção: `mapa_rotulo` (nome no mapa por
+  estande, zerado por gatilho quando o cliente muda — migration `20260918000001`).
 - Sistema de vendas/eventos completo: dashboard, clientes, eventos/edições,
   planilhas de venda, atendimentos, cardápios, controle de imagens.
 - **Centro de Custo (módulo de custos)**: MERGEADO e deployado, mas com
