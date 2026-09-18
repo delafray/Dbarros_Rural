@@ -1,7 +1,7 @@
 {
   "name": "dbarro-rural",
   "private": true,
-  "version": "0.2026.09.0040",
+  "version": "0.2026.09.0041",
   "type": "module",
   "scripts": {
     "dev": "vite",

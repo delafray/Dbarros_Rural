@@ -9,7 +9,9 @@ import MapaSvg from "../components/mapa/MapaSvg";
 import PainelEstande from "../components/mapa/PainelEstande";
 import LegendaCores from "../components/mapa/LegendaCores";
 import ResumoFamilias from "../components/mapa/ResumoFamilias";
-import MapaImpressao from "../components/mapa/MapaImpressao";
+import { PdfActionsModal, PdfProgressModal } from "../components/photos/PdfModals";
+import { gerarMapaPdf } from "../utils/mapaPdf";
+import { carregarImagemPdf } from "../utils/pdfVetorial";
 
 const CHAVE_RESUMO_ABERTO = "mapa-vendas:resumo-aberto";
 const CHAVE_MOSTRAR_NOMES = "mapa-vendas:mostrar-nomes";
@@ -50,12 +52,30 @@ const MapaVendas: React.FC = () => {
       return !v;
     });
   };
-  // Imprimir: A3 deitado, só o mapa (fundo imagem + estandes/textos em vetor), como está na tela.
-  const imprimirMapa = () => {
-    document.body.classList.add("imprimindo-mapa");
-    const limpar = () => { document.body.classList.remove("imprimindo-mapa"); window.removeEventListener("afterprint", limpar); };
-    window.addEventListener("afterprint", limpar);
-    window.print();
+  // Imprimir: gera PDF A3 deitado VETORIAL (fundo em imagem) do que está na tela e abre o modal
+  // Visualizar / Baixar / Compartilhar (mesmo das fotos) — nada de diálogo do navegador.
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [pdfPronto, setPdfPronto] = useState<{ blob: Blob; fileName: string } | null>(null);
+  const imprimirMapa = async () => {
+    if (!mapa) return;
+    try {
+      setGerandoPdf(true);
+      const img = fundoUrl ? await carregarImagemPdf(fundoUrl) : null;
+      const blob = await gerarMapaPdf({
+        viewBox: mapa.view_box,
+        itens: itensFiltrados,
+        mostrarNomes,
+        fundo: img ? { data: img.data, formato: img.data.startsWith("data:image/jpeg") ? "JPEG" : "PNG" } : null,
+        titulo: `Mapa de Vendas — ${edicao?.titulo ?? ""} (${mapa.versao})`,
+      });
+      const slug = (edicao?.titulo ?? "mapa").replace(/[^\w\-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+      setPdfPronto({ blob, fileName: `mapa-vendas-${slug}-${mostrarNomes ? "nomes" : "numeros"}.pdf` });
+    } catch (err) {
+      console.error("Erro ao gerar PDF do mapa:", err);
+      void appDialog.alert({ title: "Erro", message: "Não foi possível gerar o PDF do mapa.", type: "danger" });
+    } finally {
+      setGerandoPdf(false);
+    }
   };
   const alternarResumo = () => {
     setResumoAberto((v) => {
@@ -222,13 +242,6 @@ const MapaVendas: React.FC = () => {
             />
           )}
 
-          <MapaImpressao
-            viewBox={mapa.view_box}
-            fundoUrl={fundoUrl}
-            itens={itensFiltrados}
-            mostrarNomes={mostrarNomes}
-          />
-
           <ResumoFamilias
             resumoFamilias={resumoFamilias}
             resumoTotal={resumoTotal}
@@ -241,6 +254,13 @@ const MapaVendas: React.FC = () => {
         </div>
       </div>
 
+      <PdfProgressModal isExporting={gerandoPdf} exportProgress="Desenhando o mapa em vetor (A3 deitado)…" />
+      <PdfActionsModal
+        isOpen={!!pdfPronto}
+        blob={pdfPronto?.blob ?? null}
+        fileName={pdfPronto?.fileName ?? "mapa-vendas.pdf"}
+        onClose={() => setPdfPronto(null)}
+      />
     </Layout>
   );
 };
