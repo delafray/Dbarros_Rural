@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { marcarEscritaLocal } from '../utils/escritasLocais';
 import { Database, Json } from '../database.types';
 
 export type PlanilhaConfig = Database['public']['Tables']['planilha_configuracoes']['Row'];
@@ -66,6 +67,8 @@ export const planilhaVendasService = {
     },
 
     async updateEstande(id: string, updates: Partial<PlanilhaEstande>) {
+        // Escrita otimista: o eco do realtime não pode sobrescrever estes campos por alguns segundos.
+        marcarEscritaLocal(id, updates);
         const { data, error } = await supabase
             .from('planilha_vendas_estandes')
             .update(updates)

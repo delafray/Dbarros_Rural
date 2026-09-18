@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { PlanilhaEstande } from "../services/planilhaVendasService";
 import { supabase } from "../services/supabaseClient";
+import { mesclarEcoRealtime } from "../utils/escritasLocais";
 
 export function usePlanilhaRealtime(
   configId: string | undefined,
@@ -29,13 +30,18 @@ export function usePlanilhaRealtime(
               return [...prev, payload.new as PlanilhaEstande];
             });
           } else if (payload.eventType === "UPDATE") {
-            setRows((prev) =>
-              prev.map((r) =>
-                r.id === (payload.new as any).id
-                  ? { ...r, ...payload.new } as PlanilhaEstande
-                  : r,
-              ),
-            );
+            // Campos que ESTE navegador acabou de gravar não são sobrescritos pelo eco
+            // (evita o vai-e-volta em cliques rápidos na célula/estande).
+            setRows((prev) => {
+              let mudou = false;
+              const prox = prev.map((r) => {
+                if (r.id !== (payload.new as any).id) return r;
+                const m = mesclarEcoRealtime(r, payload.new as Partial<PlanilhaEstande>);
+                if (m !== r) mudou = true;
+                return m;
+              });
+              return mudou ? prox : prev;
+            });
           } else if (payload.eventType === "DELETE") {
             setRows((prev) =>
               prev.filter((r) => r.id !== (payload.old as { id: string }).id),
