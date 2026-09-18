@@ -24,7 +24,7 @@ vi.mock('./supabaseClient', () => ({
     },
 }));
 
-import { mapaVendasService } from './mapaVendasService';
+import { mapaVendasService, chaveCacheFundo, FUNDO_ASSINATURA_S } from './mapaVendasService';
 
 beforeEach(() => { state.results = []; state.calls = []; vi.clearAllMocks(); });
 
@@ -54,6 +54,15 @@ describe('getMapaAtivo', () => {
 });
 
 describe('getFundoUrl', () => {
+    // localStorage falso (vitest roda em node)
+    const store = new Map<string, string>();
+    beforeEach(() => {
+        store.clear();
+        (globalThis as any).localStorage = {
+            getItem: (k: string) => store.get(k) ?? null,
+            setItem: (k: string, v: string) => { store.set(k, v); },
+        };
+    });
     it('sem path devolve null sem tocar o storage', async () => {
         expect(await mapaVendasService.getFundoUrl(null)).toBeNull();
         expect(storage.createSignedUrl).not.toHaveBeenCalled();
@@ -61,7 +70,34 @@ describe('getFundoUrl', () => {
     it('gera URL assinada do bucket edicao-docs', async () => {
         storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/fundo' }, error: null });
         expect(await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png')).toBe('https://x/fundo');
-        expect(storage.createSignedUrl).toHaveBeenCalledWith('ed1/mapa-fundo.png', 3600);
+        expect(storage.createSignedUrl).toHaveBeenCalledWith('ed1/mapa-fundo.png', FUNDO_ASSINATURA_S);
+    });
+    it('reaproveita a URL assinada guardada (navegador não baixa o fundo de novo)', async () => {
+        storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/fundo?token=1' }, error: null });
+        expect(await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png', '2026-09-18')).toBe('https://x/fundo?token=1');
+        storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/fundo?token=2' }, error: null });
+        expect(await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png', '2026-09-18')).toBe('https://x/fundo?token=1');
+        expect(storage.createSignedUrl).toHaveBeenCalledTimes(1);
+    });
+    it('mapa republicado (gerado_em novo) ganha URL nova', async () => {
+        storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/fundo?token=1' }, error: null });
+        await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png', 'v1');
+        storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/fundo?token=2' }, error: null });
+        expect(await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png', 'v2')).toBe('https://x/fundo?token=2');
+        expect(storage.createSignedUrl).toHaveBeenCalledTimes(2);
+    });
+    it('cache vencido ou corrompido é ignorado e a URL é reassinada', async () => {
+        store.set(chaveCacheFundo('ed1/mapa-fundo.png', 'v1'), JSON.stringify({ url: 'https://x/velha', exp: Date.now() - 1 }));
+        store.set(chaveCacheFundo('ed1/mapa-fundo.png', 'v2'), '{lixo');
+        storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/nova' }, error: null });
+        expect(await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png', 'v1')).toBe('https://x/nova');
+        expect(await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png', 'v2')).toBe('https://x/nova');
+        expect(storage.createSignedUrl).toHaveBeenCalledTimes(2);
+    });
+    it('sem localStorage (bloqueado) funciona igual, só sem cache', async () => {
+        (globalThis as any).localStorage = { getItem: () => { throw new Error('bloqueado'); }, setItem: () => { throw new Error('bloqueado'); } };
+        storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/fundo' }, error: null });
+        expect(await mapaVendasService.getFundoUrl('ed1/mapa-fundo.png')).toBe('https://x/fundo');
     });
     it('fundo ausente não derruba o mapa (devolve null)', async () => {
         storage.createSignedUrl.mockResolvedValue({ data: null, error: new Error('not found') });
