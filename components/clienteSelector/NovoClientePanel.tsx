@@ -15,7 +15,7 @@ interface NovoClientePanelProps {
  */
 export const NovoClientePanel: React.FC<NovoClientePanelProps> = ({ onSaved, onCancel }) => {
     const appDialog = useAppDialog();
-    const [form, setForm] = useState({ nome: '', contato: '', cargo: '', telefone: '', email: '' });
+    const [form, setForm] = useState({ nome: '', nomeFantasia: '', contato: '', cargo: '', telefone: '', email: '' });
     const [saving, setSaving] = useState(false);
 
     const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -35,6 +35,7 @@ export const NovoClientePanel: React.FC<NovoClientePanelProps> = ({ onSaved, onC
             setSaving(true);
             const raw = await clientesService.createClienteRapido({
                 nome: form.nome,
+                nomeFantasia: form.nomeFantasia,
                 contato: form.contato,
                 cargo: form.cargo,
                 telefone: form.telefone,
@@ -88,6 +89,18 @@ export const NovoClientePanel: React.FC<NovoClientePanelProps> = ({ onSaved, onC
                             placeholder="Ex: Indústria Brasileira S/A"
                             value={form.nome}
                             onChange={set('nome')}
+                        />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">
+                            Nome fantasia <span className="text-slate-400 normal-case font-normal">(aparece no mapa; se vazio, usa a razão social)</span>
+                        </label>
+                        <input
+                            type="text"
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Ex: Indústria Brasileira"
+                            value={form.nomeFantasia}
+                            onChange={set('nomeFantasia')}
                         />
                     </div>
                     <div>

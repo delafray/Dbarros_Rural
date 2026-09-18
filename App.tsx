@@ -19,6 +19,7 @@ const Eventos = lazy(() => import('./pages/Eventos'));
 const CadastroEvento = lazy(() => import('./pages/CadastroEvento'));
 const TempPlanilha = lazy(() => import('./pages/TempPlanilha'));
 const ConfiguracaoVendas = lazy(() => import('./pages/ConfiguracaoVendas'));
+const MapaVendas = lazy(() => import('./pages/MapaVendas'));
 const PlanilhaAreaLivre = lazy(() => import('./pages/PlanilhaAreaLivre'));
 const ItensOpcionais = lazy(() => import('./pages/ItensOpcionais'));
 const Atendimentos = lazy(() => import('./pages/Atendimentos'));
@@ -113,6 +114,7 @@ const App: React.FC = () => {
 
         <Route path="/planilha-vendas/:edicaoId" element={<ProtectedRoute><TempPlanilha /></ProtectedRoute>} />
         <Route path="/configuracao-vendas/:edicaoId" element={<ProtectedRoute><ConfiguracaoVendas /></ProtectedRoute>} />
+        <Route path="/mapa-vendas/:edicaoId" element={<ProtectedRoute><MapaVendas /></ProtectedRoute>} />
         <Route path="/planilha-area-livre/:edicaoId/:categoriaTag" element={<ProtectedRoute><PlanilhaAreaLivre /></ProtectedRoute>} />
         <Route path="/atendimentos/:edicaoId" element={<ProtectedRoute><Atendimentos /></ProtectedRoute>} />
         <Route path="/controle-imagens" element={<ProtectedRoute><ControleImagens /></ProtectedRoute>} />

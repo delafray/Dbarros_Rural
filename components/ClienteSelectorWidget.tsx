@@ -56,7 +56,7 @@ export const ClienteSelectorWidget: React.FC<ClienteSelectorWidgetProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full w-full bg-white overflow-hidden rounded-lg">
+        <div className="flex flex-col flex-1 min-h-0 h-full w-full bg-white overflow-hidden rounded-lg">
             {/* Header: contagem total */}
             <div className="bg-slate-100 border-b border-slate-200 px-5 py-2 flex items-center justify-between shrink-0">
                 <div>

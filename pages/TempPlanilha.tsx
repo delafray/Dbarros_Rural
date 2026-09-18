@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import { Button } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import { useAppDialog } from "../context/DialogContext";
+import { isReservado, reservadoDe } from "../utils/planilhaCalc";
 import { edicaoDocsService } from "../services/edicaoDocsService";
 import { ImagemConfig } from "../services/imagensService";
 import { Atendimento } from "../services/atendimentosService";
@@ -108,7 +109,7 @@ const PlanilhaVendas: React.FC = () => {
     rows.forEach((row) => {
       const isStand = getCategoriaOfRow(row)?.is_stand !== false;
       const tipo = row.tipo_venda;
-      if (tipo !== "DISPONÍVEL" && isStand) {
+      if (tipo !== "DISPONÍVEL" && !isReservado(tipo) && isStand) {
         const isStar = tipo.endsWith("*");
         const baseLabel = tipo.replace("*", "").trim();
         if (isStar) comboStarCounts[baseLabel] = (comboStarCounts[baseLabel] || 0) + 1;
@@ -220,6 +221,9 @@ const PlanilhaVendas: React.FC = () => {
               <Button variant="outline" size="sm" onClick={() => navigate(`/atendimentos/${edicaoId}`)}>
                 📋 Atendimentos
               </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/mapa-vendas/${edicaoId}`)}>
+                🗺️ Mapa
+              </Button>
             </div>
           ) : (
             <>
@@ -228,6 +232,9 @@ const PlanilhaVendas: React.FC = () => {
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/controle-imagens', { state: { edicaoId } })}>
                 🖼 Controle de Imagens
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/mapa-vendas/${edicaoId}`)}>
+                🗺️ Mapa
               </Button>
             </>
           )}
@@ -366,7 +373,27 @@ const PlanilhaVendas: React.FC = () => {
             {/* ── Row 3: Column headers ── */}
             <tr className="bg-[#1F497D]">
               <th className={`${thStyle} w-16`}>Stand</th>
-              <th className={`${thStyle} min-w-[180px]`}>Cliente</th>
+              {/* Legenda na sobra do cabeçalho CLIENTE. Posição absoluta = fora do fluxo: nunca muda
+                  altura nem largura da célula (tela compacta). O tamanho da fonte acompanha a largura
+                  da célula (container query): cresce até 13px quando sobra espaço e encolhe até 9px
+                  quando falta; afastamento mínimo fixo entre os itens; excesso é cortado, sem vazar. */}
+              <th className={`${thStyle} min-w-[180px] relative`}>
+                Cliente
+                <div
+                  className="absolute left-1 right-1 bottom-1 overflow-hidden pointer-events-none"
+                  style={{ containerType: "inline-size" }}
+                  title="Clique na célula do combo: 1º seleciona · depois x venda → * reservado → * cortesia → vazio"
+                >
+                  <div
+                    className="flex justify-between gap-x-2 normal-case font-normal leading-none text-white/90 whitespace-nowrap"
+                    style={{ fontSize: "clamp(9px, 4.2cqw, 13px)" }}
+                  >
+                    <span className="flex items-center gap-[0.35em] min-w-0 truncate"><span className="inline-block w-[1.1em] h-[1.1em] shrink-0 rounded-sm bg-[#00B050] text-white text-[0.85em] font-black leading-[1.1em] text-center">x</span>venda</span>
+                    <span className="flex items-center gap-[0.35em] min-w-0 truncate"><span className="inline-block w-[1.1em] h-[1.1em] shrink-0 rounded-sm bg-[#FDBA74] text-[#431407] text-[0.85em] font-black leading-[1.1em] text-center">*</span>reservado</span>
+                    <span className="flex items-center gap-[0.35em] min-w-0 truncate"><span className="inline-block w-[1.1em] h-[1.1em] shrink-0 rounded-sm bg-[#C084FC] text-white text-[0.85em] font-black leading-[1.1em] text-center">*</span>cortesia</span>
+                  </div>
+                </div>
+              </th>
               {comboLabels.map((label) => (
                 <th key={label} className={`${thStyle} w-6 p-0 font-normal`} title={label} style={{ verticalAlign: 'bottom' }}>
                   <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: comboNamesDisplay[label].length > 10 ? '7px' : '8px', lineHeight: 1, padding: '4px 2px', textAlign: 'left', display: 'block' }}>
@@ -461,26 +488,39 @@ const PlanilhaVendas: React.FC = () => {
                   {/* Combo columns */}
                   {comboLabels.map((label) => {
                     const isX = row.tipo_venda === label;
+                    const isRes = row.tipo_venda === reservadoDe(label);
                     const isStar = row.tipo_venda === label + "*";
                     const isPending = pendingAction?.rowId === row.id && pendingAction?.field === label;
+                    // 1º clique seleciona a célula; os seguintes: x → reservado → * → vazio (mesmo gesto do mapa).
+                    // Asterisco sempre que não há preço (reservado e cortesia).
+                    const marca = isX ? "x" : (isRes || isStar) ? "*" : "";
+                    const proximo = isX ? "reservado" : isRes ? "cortesia" : isStar ? "limpar" : `vender ${comboNamesDisplay[label]}`;
+                    // Marcado SEM cliente: atenção sutil — mesma cor, mais clara (o vendedor ainda precisa anotar o cliente).
+                    const semCliente = !row.cliente_id && !(row.cliente_nome_livre && row.cliente_nome_livre.trim());
+                    const corMarca = isX
+                      ? (semCliente ? "!bg-[#8ADBA8] !text-white" : "!bg-[#00B050] !text-white")
+                      : isRes
+                        ? (semCliente ? "!bg-[#FEE0C2] !text-[#7C2D12]" : "!bg-[#FDBA74] !text-[#431407]")
+                        : isStar
+                          ? (semCliente ? "!bg-[#E2C6FE] !text-white" : "!bg-[#C084FC] !text-white")
+                          : "!bg-white hover:bg-blue-100/50 text-transparent";
+                    const dicaCliente = marca && semCliente ? " · sem cliente" : "";
                     return (
                       <td
                         key={label}
                         className={`${tdStyle} text-center font-black select-none w-6 h-5 leading-none px-0
                           ${!isVisitor ? "cursor-pointer" : ""}
-                          ${isPending ? "!bg-slate-400 !text-white"
-                            : isX ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
-                            : isStar ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
-                            : "!bg-white hover:bg-blue-100/50 text-transparent"}`}
+                          ${corMarca}
+                          ${isPending ? "ring-2 ring-inset ring-slate-900" : (isX || isRes || isStar) ? "ring-1 ring-inset ring-black/10" : ""}`}
                         onClick={() => {
                           if (isVisitor) return;
-                          if (isPending) { handleSelectCombo(row.id, label); setPendingAction(null); }
-                          else { setPendingAction({ rowId: row.id, field: label }); }
+                          if (!isPending) { setPendingAction({ rowId: row.id, field: label }); return; }
+                          void handleSelectCombo(row.id, label);
                         }}
-                        title={isPending ? "Clique novamente para confirmar" : isX ? `${comboNamesDisplay[label]} (clique para cortesia)` : isStar ? `${comboNamesDisplay[label]} - Cortesia (clique para limpar)` : comboNamesDisplay[label]}
+                        title={(isPending ? `Clique de novo: ${proximo}` : `${comboNamesDisplay[label]} (clique para selecionar)`) + dicaCliente}
                       >
                         <span className="flex items-center justify-center w-full h-full text-[11px]">
-                          {isPending ? "?" : isX ? "x" : isStar ? "*" : ""}
+                          {marca}
                         </span>
                       </td>
                     );
@@ -495,19 +535,19 @@ const PlanilhaVendas: React.FC = () => {
                         key={opt.id}
                         className={`${tdStyle} text-center font-black w-6 h-5 leading-none select-none px-0
                           ${!isVisitor ? "cursor-pointer" : ""}
-                          ${isPending ? "!bg-slate-400 !text-white"
-                            : status === "x" ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
-                            : status === "*" ? "!bg-[#00B0F0] !text-white ring-1 ring-inset ring-black/10"
-                            : "!bg-white hover:bg-slate-100/50 text-transparent"}`}
+                          ${status === "x" ? "!bg-[#00B050] !text-white"
+                            : status === "*" ? "!bg-[#C084FC] !text-white"
+                            : "!bg-white hover:bg-slate-100/50 text-transparent"}
+                          ${isPending ? "ring-2 ring-inset ring-slate-900" : status ? "ring-1 ring-inset ring-black/10" : ""}`}
                         onClick={() => {
                           if (isVisitor) return;
-                          if (isPending) { handleToggleOpcional(row.id, opt.nome); setPendingAction(null); }
-                          else { setPendingAction({ rowId: row.id, field: opt.nome }); }
+                          if (!isPending) { setPendingAction({ rowId: row.id, field: opt.nome }); return; }
+                          handleToggleOpcional(row.id, opt.nome);
                         }}
-                        title={isPending ? "Clique novamente para confirmar" : opt.nome}
+                        title={isPending ? `${opt.nome} (clique de novo: troca)` : `${opt.nome} (clique para selecionar)`}
                       >
                         <span className="flex items-center justify-center w-full h-full text-[11px]">
-                          {isPending ? "?" : status}
+                          {status}
                         </span>
                       </td>
                     );

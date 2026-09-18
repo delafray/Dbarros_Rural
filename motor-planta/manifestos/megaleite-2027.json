@@ -1,0 +1,102 @@
+{
+  "edicao": {
+    "slug": "megaleite-2027",
+    "titulo": "Megaleite 2027",
+    "ano": 2027
+  },
+  "planta": {
+    "arquivo": "H:/PROJETOS/2027 - PROJETOS/DBARROS 27/MEGALEITE/PLANTA BAIXA/MEGALEITE 2026 - PLANTA BAIXA - ALT 01.pdf",
+    "versao": "ALT 01"
+  },
+  "ignorar_familias": [
+    "B",
+    "E"
+  ],
+  "combos": {
+    "nomes": [
+      "COMBO 01",
+      "COMBO 02",
+      "COMBO 03",
+      "COMBO 04"
+    ],
+    "precos": [
+      5500,
+      8350,
+      10500,
+      18000
+    ]
+  },
+  "familias": {
+    "C": {
+      "tag": "CAMAROTES",
+      "tipo": "fixo",
+      "preco": 18800,
+      "area_padrao": 20
+    },
+    "D": {
+      "tag": "PRÉ-MONTADO 40M²",
+      "tipo": "fixo",
+      "preco": 37600,
+      "area_padrao": 40
+    },
+    "F": {
+      "tag": "ESPAÇO CRIADORES",
+      "tipo": "fixo",
+      "preco": 12000,
+      "area_padrao": 16
+    },
+    "G": {
+      "tag": "PRAÇA DE ALIMENTAÇÃO",
+      "tipo": "fixo",
+      "preco": 0,
+      "area_padrao": 25
+    },
+    "L": {
+      "tag": "ÁREA LIVRE",
+      "tipo": "area_livre",
+      "preco_m2": 425
+    },
+    "M": {
+      "tag": "MAQUINÁRIOS",
+      "tipo": "fixo",
+      "preco": 20002.5,
+      "area_padrao": 105,
+      "area_planta_ignorar": true
+    },
+    "P": {
+      "tag": "PRÉ-MONTADOS",
+      "tipo": "fixo",
+      "preco": 23500,
+      "area_padrao": 25
+    },
+    "R": {
+      "tag": "RUBIS",
+      "tipo": "area_livre",
+      "preco_m2": 400,
+      "area_padrao": 25
+    },
+    "PR": {
+      "tag": "PATROCINADORES",
+      "tipo": "fixo",
+      "preco": 0,
+      "area_padrao": 25
+    }
+  },
+  "estandes": {
+    "L-16": {
+      "area": 40,
+      "obs": "Pode usar +40 m² (7x5) nos fundos sem custo"
+    },
+    "L-17": {
+      "area": 40,
+      "obs": "Pode usar +40 m² (7x5) nos fundos sem custo"
+    },
+    "L-18": {
+      "area": 40,
+      "obs": "Pode usar +40 m² (7x5) nos fundos sem custo"
+    }
+  },
+  "renomear": {
+    "L-00": "L-20"
+  }
+}

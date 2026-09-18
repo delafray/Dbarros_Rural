@@ -5,6 +5,23 @@
 
 ## No ar (produção — `main` → Vercel `dbarros-rural.vercel.app`)
 
+- **Mapa de Vendas — piloto Megaleite 2027 (18/09)**: planta baixa interativa
+  dentro do sistema (`/mapa-vendas/<edição>`, botão **Mapa** na planilha).
+  Banco de produção já tem: tabela `planilha_mapa` + RLS (leitura equipe com
+  isolamento master, escrita só master), edição `22fe2573…` com 9 famílias /
+  159 estandes (PR = patrocinadores, custo zero) e mapa ALT 01 ativo; fundo
+  `mapa-fundo.png` no bucket `edicao-docs`. Cores = as da planilha (livre azul,
+  vendido verde, cortesia roxo, reservado laranja, sem linha vermelho). Clique:
+  1º seleciona (painel), 2º no mesmo estande cicla livre → vendido → cortesia →
+  livre gravando `tipo_venda` na mesma linha da planilha (visitante só lê).
+  Motor da planta (PDF do Corel → geometria) em `motor-planta/` (Python, 62 pytest).
+  Pendente: campo `nome` da categoria separado da tag curta (pedido do usuário).
+- **Histórico da planilha de vendas (18/09, aplicado em produção)**: gatilho grava todo
+  INSERT/UPDATE/DELETE de `planilha_vendas_estandes` em `planilha_vendas_estandes_historico`
+  (linha antes/depois, só os campos que mudaram, quem, quando). Leitura só master; ninguém
+  escreve direto (gatilho SECURITY DEFINER). Recuperação = consultas no fim da migration
+  `20260918000002_planilha_historico.sql`. Também em produção: `mapa_rotulo` (nome no mapa por
+  estande, zerado por gatilho quando o cliente muda — migration `20260918000001`).
 - Sistema de vendas/eventos completo: dashboard, clientes, eventos/edições,
   planilhas de venda, atendimentos, cardápios, controle de imagens.
 - **Centro de Custo (módulo de custos)**: MERGEADO e deployado, mas com
@@ -80,6 +97,13 @@
 - Ban retroativo das 9 contas temporárias inativas antigas (UPDATE opcional em
   `scripts/bloco27-ban-credencial-desativado.sql`).
 - Fases R4 (Julgamento/Diversos) e R5 (redesenho do fluxo) do módulo de custos.
+- **Mapa de Vendas / motor de planta (17/09, branch `feature-mapa-vendas`, NÃO
+  mergeada)**: motor Python (`motor-planta/`) lê a planta do Corel e gera
+  planilha + mapa; página `/mapa-vendas/:edicaoId` pinta estandes pela planilha
+  em tempo real. Para o piloto Megaleite 2027 o usuário precisa: (1) rodar a
+  migration `20260917000001_planilha_mapa.sql`, (2) `scripts/seed-megaleite-2027.sql`,
+  (3) `publicar.sql` do motor, (4) subir `fundo.png` — roteiro em
+  `motor-planta/RODAR-NO-SUPABASE.md`. Depois: testar na branch, merge, push.
 
 ## Notas
 

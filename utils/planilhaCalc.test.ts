@@ -5,6 +5,7 @@ import {
     calculateRowTotals,
     CategoriaCalc,
     EstandeCalc,
+    reservadoDe, rotuloDaMarca, isReservado, ocupaEstande, isVenda,
 } from './planilhaCalc';
 
 const catFixa: CategoriaCalc = {
@@ -219,5 +220,40 @@ describe('casos de borda extras', () => {
         const cat = { tag: 'AL', prefix: 'AL', tipo_precificacao: 'area_livre' as const, preco_m2: 100, combos_adicionais: [500] };
         const row = { stand_nr: 'AL 01', tipo_venda: 'COMBO 01', area_m2: 10, combo_overrides: null };
         expect(getPrecoForCombo(cat, row, 'COMBO 01')).toBe(1500);
+    });
+});
+
+describe('marcas de tipo_venda (18/09: RESERVADO* vale zero; só x gera valor)', () => {
+    it('reservadoDe / isReservado / rotuloDaMarca: reservado amarrado à coluna', () => {
+        expect(reservadoDe('COMBO 01')).toBe('RESERVADO COMBO 01*');
+        expect(isReservado('RESERVADO COMBO 01*')).toBe(true);
+        expect(isReservado(' RESERVADO STAND PADRÃO* ')).toBe(true);
+        expect(isReservado('STAND PADRÃO*')).toBe(false);
+        expect(isReservado('DISPONÍVEL')).toBe(false);
+        expect(isReservado(null)).toBe(false);
+        expect(rotuloDaMarca('RESERVADO COMBO 01*')).toBe('COMBO 01');
+        expect(rotuloDaMarca('COMBO 01*')).toBe('COMBO 01');
+        expect(rotuloDaMarca('COMBO 01')).toBe('COMBO 01');
+    });
+    it('ocupaEstande: venda, cortesia e reservado ocupam; DISPONÍVEL/vazio não', () => {
+        expect(ocupaEstande('STAND PADRÃO')).toBe(true);
+        expect(ocupaEstande('COMBO 02*')).toBe(true);
+        expect(ocupaEstande(reservadoDe('COMBO 01'))).toBe(true);
+        expect(ocupaEstande('DISPONÍVEL')).toBe(false);
+        expect(ocupaEstande('')).toBe(false);
+        expect(ocupaEstande(undefined)).toBe(false);
+    });
+    it('isVenda: só a marca sem * gera valor', () => {
+        expect(isVenda('STAND PADRÃO')).toBe(true);
+        expect(isVenda('COMBO 01')).toBe(true);
+        expect(isVenda('COMBO 01*')).toBe(false);
+        expect(isVenda(reservadoDe('COMBO 01'))).toBe(false);
+        expect(isVenda('DISPONÍVEL')).toBe(false);
+    });
+    it('getPrecoForCombo devolve 0 para reservado (leva *), como cortesia', () => {
+        const cat = { tag: 'P', prefix: 'P', count: 1, standBase: 23500, combos: [29000] } as any;
+        const row = { stand_nr: 'P 01', tipo_venda: reservadoDe('STAND PADRÃO') } as any;
+        expect(getPrecoForCombo(cat, row, reservadoDe('STAND PADRÃO'))).toBe(0);
+        expect(getPrecoForCombo(cat, row, 'STAND PADRÃO')).toBe(23500);
     });
 });

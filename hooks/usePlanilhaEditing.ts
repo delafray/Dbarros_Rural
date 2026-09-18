@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { planilhaVendasService, PlanilhaEstande } from "../services/planilhaVendasService";
+import { TIPO_DISPONIVEL, reservadoDe } from "../utils/planilhaCalc";
 
 interface AppDialog {
   alert: (opts: { title: string; message: string; type: string }) => Promise<void>;
@@ -32,13 +33,21 @@ export function usePlanilhaEditing(
     });
   };
 
-  const handleSelectCombo = async (rowId: string, comboLabel: string) => {
+  /**
+   * Ciclo da célula (mesmo do mapa, decisão do usuário 18/09), sempre na coluna clicada:
+   *   vazio → x (rótulo) → reservado (RESERVADO rótulo*) → * (rótulo*) → vazio.
+   * Status não exige cliente e não mexe no cliente. Clicar num combo diferente do marcado
+   * troca o combo direto (regra antiga preservada). Devolve o tipo gravado.
+   */
+  const handleSelectCombo = async (rowId: string, comboLabel: string): Promise<string | undefined> => {
     const row = rows.find((r) => r.id === rowId);
     if (!row) return;
     const oldTipo = row.tipo_venda;
+    const tipo = (row.tipo_venda || "").trim();
     let newTipo: string;
-    if (row.tipo_venda === comboLabel) newTipo = comboLabel + "*";
-    else if (row.tipo_venda === comboLabel + "*") newTipo = "DISPONÍVEL";
+    if (tipo === comboLabel) newTipo = reservadoDe(comboLabel);
+    else if (tipo === reservadoDe(comboLabel)) newTipo = comboLabel + "*";
+    else if (tipo === comboLabel + "*") newTipo = TIPO_DISPONIVEL;
     else newTipo = comboLabel;
     setRows((prev) =>
       prev.map((r) => (r.id === rowId ? { ...r, tipo_venda: newTipo } : r)),
@@ -49,6 +58,7 @@ export function usePlanilhaEditing(
         setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, tipo_venda: oldTipo } : r)));
         showSaveError("combo");
       });
+    return newTipo;
   };
 
   const handleToggleOpcional = async (rowId: string, optNome: string) => {
@@ -101,20 +111,22 @@ export function usePlanilhaEditing(
     const row = rows.find((r) => r.id === rowId);
     const oldClienteId = row?.cliente_id ?? null;
     const oldNomeLivre = row?.cliente_nome_livre ?? null;
+    const oldRotulo = row?.mapa_rotulo ?? null;
     setRows((prev) =>
       prev.map((r) =>
         r.id === rowId
-          ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre }
+          ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre, mapa_rotulo: null }
           : r,
       ),
     );
+    // Cliente mudou → o "nome no mapa" do estande volta ao padrão (gatilho no banco faz o mesmo).
     planilhaVendasService
-      .updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre })
+      .updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre, mapa_rotulo: null })
       .catch(() => {
         setRows((prev) =>
           prev.map((r) =>
             r.id === rowId
-              ? { ...r, cliente_id: oldClienteId, cliente_nome_livre: oldNomeLivre }
+              ? { ...r, cliente_id: oldClienteId, cliente_nome_livre: oldNomeLivre, mapa_rotulo: oldRotulo }
               : r,
           ),
         );

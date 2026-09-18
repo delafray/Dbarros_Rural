@@ -560,6 +560,7 @@ export type Database = {
           area_m2: number | null
           cliente_id: string | null
           cliente_nome_livre: string | null
+          mapa_rotulo: string | null
           combo_overrides: Json | null
           config_id: string | null
           created_at: string | null
@@ -578,6 +579,7 @@ export type Database = {
           area_m2?: number | null
           cliente_id?: string | null
           cliente_nome_livre?: string | null
+          mapa_rotulo?: string | null
           combo_overrides?: Json | null
           config_id?: string | null
           created_at?: string | null
@@ -596,6 +598,7 @@ export type Database = {
           area_m2?: number | null
           cliente_id?: string | null
           cliente_nome_livre?: string | null
+          mapa_rotulo?: string | null
           combo_overrides?: Json | null
           config_id?: string | null
           created_at?: string | null
