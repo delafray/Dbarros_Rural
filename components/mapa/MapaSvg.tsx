@@ -133,7 +133,9 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
               : isSelecionado
                 ? `clique de novo: ${ESTILO_STATUS[proximoStatus].label}`
                 : "clique para selecionar";
-            const tituloTooltip = [estande.codigo, estilo.label, clienteNome, dica].filter(Boolean).join(" · ");
+            // Marcado sem cliente: oscila devagar entre a cor cheia e a clara (mesma atenção sutil da planilha).
+            const oscilaSemCliente = !!estilo.semCliente && !clienteNome;
+            const tituloTooltip = [estande.codigo, estilo.label, clienteNome ?? (oscilaSemCliente ? "sem cliente" : null), dica].filter(Boolean).join(" · ");
             return (
               <g key={estande.codigo}>
                 <polygon
@@ -154,6 +156,14 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                       attributeName="fill"
                       values={`${estilo.fill};${estilo.piscaAte};${estilo.fill}`}
                       dur="1.4s"
+                      repeatCount="indefinite"
+                    />
+                  )}
+                  {oscilaSemCliente && (
+                    <animate
+                      attributeName="fill"
+                      values={`${estilo.fill};${estilo.semCliente};${estilo.fill}`}
+                      dur="1.6s"
                       repeatCount="indefinite"
                     />
                   )}
