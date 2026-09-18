@@ -239,6 +239,7 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
           >
             <div className="flex items-center gap-1.5">
               <span className="font-black">{item.estande.codigo}</span>
+              {item.estande.area != null && <span className="text-slate-300">{item.estande.area} m²</span>}
               <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: est.fill }} />
               <span>{est.label}</span>
             </div>
