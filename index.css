@@ -45,3 +45,22 @@ input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/* ─── Mapa de Vendas — impressão A3 deitado (botão 🖨️ Imprimir) ───────────────
+   A folha (MapaImpressao) fica num portal direto no <body> e só existe para a impressão. */
+.mapa-impressao-root { display: none; }
+@media print {
+  body.imprimindo-mapa { margin: 0; }
+  body.imprimindo-mapa > *:not(.mapa-impressao-root) { display: none !important; }
+  body.imprimindo-mapa .mapa-impressao-root {
+    display: block;
+    width: 420mm;
+    height: 297mm;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.imprimindo-mapa .mapa-impressao-root svg { width: 420mm; height: 297mm; display: block; }
+}
+@page mapa-a3 { size: A3 landscape; margin: 0; }
+body.imprimindo-mapa .mapa-impressao-root { page: mapa-a3; }
