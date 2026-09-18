@@ -179,6 +179,13 @@ Enquanto a IA não tem login no sistema: o motor gera `saida/<edicao>/publicar.s
 pela tela da edição (campo novo "Fundo do mapa", reusando `edicaoDocsService`).
 Fase posterior: botão "Importar mapa" na própria página, lendo o `mapa.json` do disco.
 
+**Guarda de vendas (18/09).** O `publicar.sql` gerado cruza, no banco, a geometria nova com a
+planilha: estande ocupado (venda/reservado/cortesia) que sumiu, mudou de área ou de lugar
+(> `TOL_POSICAO_PT`) bloqueia a publicação (`RAISE EXCEPTION`, transação desfeita) e lista os
+casos com o cliente; o usuário decide e, se aceitar, muda `v_confirmar_impactos := true`.
+"Só trocou de número" (código novo no mesmo lugar) é perguntado e, confirmado, renumera a linha.
+Vendas nunca são apagadas nem têm `area_m2` sobrescrita.
+
 ## 7. Testes (nascem com o código)
 
 - **Motor (pytest, já instalado):** fixtures com PDFs mínimos gerados em teste (PyMuPDF cria PDF) cobrindo cada regra de validação, o diff e a normalização. A planta real do Megaleite entra como teste de regressão (contagens conhecidas: 139 estandes, 8 famílias).

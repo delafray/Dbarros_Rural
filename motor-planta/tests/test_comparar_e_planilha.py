@@ -75,7 +75,27 @@ class TestGerarPlanilha:
         assert "regenerate_estandes" in sql and "planilha_mapa" in sql
         assert "d''Água" in sql
         assert "NOT EXISTS" in sql  # nunca apaga estande existente
-        assert "DELETE" not in sql.upper().replace("-- ", "")
+        # único DELETE permitido: linha VAZIA que cede o número numa renumeração confirmada
+        corpo = sql.upper().replace("-- ", "")
+        assert corpo.count("DELETE FROM") == 1 and "AND X.CLIENTE_ID IS NULL" in corpo
+
+    def test_sql_tem_guarda_de_estandes_ocupados(self):
+        # Trocar a planta não pode mexer em venda/reservado/cortesia sem o usuário decidir.
+        m = manifesto_basico()
+        pl = montar_planilha([_estande("P-01", None)], m)
+        sql = gerar_sql(pl, {"view_box": "0 0 1 1", "estandes": []}, m)
+        assert "v_confirmar_impactos boolean := false" in sql
+        assert "RAISE EXCEPTION" in sql and "NADA foi gravado" in sql
+        assert "SUMIU da planta" in sql and "ÁREA na planta" in sql and "MUDOU DE LUGAR" in sql
+        assert "NOT IN ('', 'DISPONÍVEL')" in sql  # ocupado = venda, reservado ou cortesia
+        assert "v_tol_pos numeric := 8" in sql  # mesma tolerância do diff offline
+        # a guarda vem ANTES de qualquer gravação
+        assert sql.index("RAISE EXCEPTION E'Planta") < sql.index("INSERT INTO public.planilha_vendas_estandes")
+        assert sql.index("RAISE EXCEPTION E'Planta") < sql.index("UPDATE public.planilha_mapa SET ativo = false")
+        # "só trocou de número, mesmo lugar": pergunta e, confirmado, renumera a linha (nunca apaga linha ocupada)
+        assert "só TROCOU DE NÚMERO" in sql and "Renumerado" in sql
+        assert "SET stand_nr = v_ren_para[i]" in sql
+        assert "COALESCE(x.tipo_venda, '') IN ('', 'DISPONÍVEL') AND x.cliente_id IS NULL" in sql
 
 
 class TestCentroDoEstande:

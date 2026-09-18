@@ -22,6 +22,16 @@ ou na URL da planilha (`/planilha-vendas/<uuid>`).
 3. Ler `relatorio.md` (erros bloqueiam) e `diff.md` (o que mudou).
 4. Rodar o novo `publicar.sql` (passo 3) e subir o novo `fundo.png` (passo 4). Estandes vendidos
    não são apagados nem alterados; só entram códigos novos e o mapa ativo é trocado.
+5. **Guarda de vendas.** Se a planta nova mexer em estande OCUPADO (venda, reservado ou
+   cortesia) — sumiu, mudou de área ou mudou de lugar — o `publicar.sql` **para sem gravar
+   nada** e mostra a lista (erro em vermelho no SQL Editor, um estande por linha, com o cliente).
+   Decida:
+   - corrigir a planta no Corel (ou a planilha na tela) e gerar de novo; **ou**
+   - aceitar: mudar `v_confirmar_impactos := true` na 1ª linha do `DECLARE` e rodar de novo.
+   Mesmo aceitando, a área que está na planilha NÃO é sobrescrita (ajuste na tela se precisar).
+   Caso especial: estande ocupado que **só trocou de número** (novo código no mesmo lugar) aparece
+   como "só TROCOU DE NÚMERO → P-09. Tudo certo?"; ao confirmar, a linha da planilha é renumerada
+   sozinha (a linha vazia que existia com o número novo sai; linha ocupada nunca é apagada).
 
 ## Reverter
 
