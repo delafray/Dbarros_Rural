@@ -278,11 +278,13 @@ export function bboxDePontos(pontos: number[][] | null | undefined): { w: number
  * polígono do estande — proporcional ao menor lado. 0 = estande pequeno
  * demais para caber texto legível; o SVG deve esconder o <text> nesse caso.
  */
-export function tamanhoFonteRotulo(pontos: number[][] | null | undefined): number {
+export function tamanhoFonteRotulo(pontos: number[][] | null | undefined, texto = 'P-01'): number {
     const box = bboxDePontos(pontos);
     if (!box) return 0;
     const menorLado = Math.min(box.w, box.h);
-    const fonte = menorLado * 0.35;
+    // Também limita pela LARGURA do texto: "PR-01" (5 chars) invadia o vizinho no mesmo 5x5 (18/09).
+    const porLargura = (box.w * 0.9) / (Math.max(1, texto.length) * 0.62);
+    const fonte = Math.min(menorLado * 0.35, porLargura);
     if (fonte < 1.2) return 0;
     return Math.min(fonte, 6);
 }

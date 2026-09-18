@@ -238,6 +238,11 @@ describe('bboxDePontos / tamanhoFonteRotulo (rótulo do polígono)', () => {
     it('tamanhoFonteRotulo é proporcional ao menor lado, com teto', () => {
         expect(tamanhoFonteRotulo([[0, 0], [20, 0], [20, 20], [0, 20]])).toBe(6); // 20*0.35=7 → teto 6
         expect(tamanhoFonteRotulo([[0, 0], [10, 0], [10, 10], [0, 10]])).toBeCloseTo(3.5);
+        // código de 5 chars ("PR-01") no estande padrão 17.4x17.4: limitado pela largura, cabe dentro
+        const pr = tamanhoFonteRotulo([[0, 0], [17.4, 0], [17.4, 17.4], [0, 17.4]], 'PR-01');
+        expect(pr).toBeLessThan(6);
+        expect(5 * pr * 0.62).toBeLessThanOrEqual(17.4 * 0.9 + 1e-9);
+        expect(tamanhoFonteRotulo([[0, 0], [17.4, 0], [17.4, 17.4], [0, 17.4]], 'P-01')).toBe(6);
     });
     it('estande minúsculo devolve 0 (esconder o rótulo)', () => {
         expect(tamanhoFonteRotulo([[0, 0], [2, 0], [2, 2], [0, 2]])).toBe(0);
