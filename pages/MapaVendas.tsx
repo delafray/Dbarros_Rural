@@ -11,6 +11,7 @@ import LegendaCores from "../components/mapa/LegendaCores";
 import ResumoFamilias from "../components/mapa/ResumoFamilias";
 
 const CHAVE_RESUMO_ABERTO = "mapa-vendas:resumo-aberto";
+const CHAVE_MOSTRAR_NOMES = "mapa-vendas:mostrar-nomes";
 
 // Mesmo helper de período usado em TempPlanilha.tsx (cabeçalho no mesmo estilo).
 const formatPeriodo = (ini: string | null, fim: string | null): string => {
@@ -38,6 +39,16 @@ const MapaVendas: React.FC = () => {
   const [resumoAberto, setResumoAberto] = useState<boolean>(() => {
     try { return localStorage.getItem(CHAVE_RESUMO_ABERTO) === "1"; } catch { return false; }
   });
+  // Botão "Nomes": estandes ocupados mostram o nome fantasia do cliente no lugar do código.
+  const [mostrarNomes, setMostrarNomes] = useState<boolean>(() => {
+    try { return localStorage.getItem(CHAVE_MOSTRAR_NOMES) === "1"; } catch { return false; }
+  });
+  const alternarNomes = () => {
+    setMostrarNomes((v) => {
+      try { localStorage.setItem(CHAVE_MOSTRAR_NOMES, v ? "0" : "1"); } catch { /* sem storage */ }
+      return !v;
+    });
+  };
   const alternarResumo = () => {
     setResumoAberto((v) => {
       try { localStorage.setItem(CHAVE_RESUMO_ABERTO, v ? "0" : "1"); } catch { /* sem storage: só não lembra */ }
@@ -62,6 +73,7 @@ const MapaVendas: React.FC = () => {
     setEstandeSelecionado,
     alternarStatus,
     definirCliente,
+    definirRotuloMapa,
     estandeAtual,
     linhaAtual,
     statusAtual,
@@ -82,6 +94,14 @@ const MapaVendas: React.FC = () => {
           {mapa.versao}
         </span>
       )}
+      <Button
+        variant={mostrarNomes ? "primary" : "outline"}
+        size="sm"
+        onClick={alternarNomes}
+        title={mostrarNomes ? "Mostrando o nome do cliente nos estandes ocupados — clique para voltar aos números" : "Mostrar o nome do cliente nos estandes vendidos, reservados e cortesia"}
+      >
+        🏷️ {mostrarNomes ? "Números" : "Nomes"}
+      </Button>
       <Button variant="outline" size="sm" onClick={() => navigate(`/planilha-vendas/${edicaoId}`)}>
         📋 Planilha
       </Button>
@@ -157,6 +177,7 @@ const MapaVendas: React.FC = () => {
             selecionado={estandeSelecionado}
             onSelect={setEstandeSelecionado}
             onAlternarStatus={isVisitor ? undefined : alternarStatus}
+            mostrarNomes={mostrarNomes}
           />
         </div>
 
@@ -176,6 +197,9 @@ const MapaVendas: React.FC = () => {
               onClose={() => setEstandeSelecionado(null)}
               onSelecionarCliente={
                 isVisitor ? undefined : (id, nome) => definirCliente(estandeAtual.codigo, id, nome)
+              }
+              onDefinirRotuloMapa={
+                isVisitor ? undefined : (rotulo) => definirRotuloMapa(estandeAtual.codigo, rotulo)
               }
             />
           )}

@@ -23,6 +23,8 @@ import {
   resumoGeral as calcResumoGeral,
   estandesForaDoMapa,
   nomeClienteDaLinha,
+  rotuloMapaDaLinha,
+  MAX_CHARS_ROTULO_MAPA,
   ResumoFamilia,
 } from "../utils/mapaCalc";
 import {
@@ -38,6 +40,8 @@ export interface ItemMapa {
   estande: EstandeMapa;
   status: StatusEstande;
   clienteNome: string | null;
+  /** Texto desenhado no modo "Nomes": rótulo editado do estande ou o nome do cliente. */
+  rotuloMapa: string | null;
   /** Status que o estande passa a ter se o usuário clicar de novo nele (null = não editável). */
   proximoStatus: StatusEstande | null;
 }
@@ -164,6 +168,7 @@ export function useMapaVendas(
           estande,
           status: statusDoEstande(linha),
           clienteNome: nomeClienteDaLinha(linha, clienteMap),
+          rotuloMapa: rotuloMapaDaLinha(linha, clienteMap),
           proximoStatus: !isVisitor && linha ? statusAposClique(linha) : null,
         };
       }),
@@ -264,8 +269,9 @@ export function useMapaVendas(
       if (!estande) return;
       const linha = linhaDoEstande(estande, indice) as PlanilhaEstande | undefined;
       if (!linha) return;
-      const anterior = { cliente_id: linha.cliente_id ?? null, cliente_nome_livre: linha.cliente_nome_livre ?? null };
-      const updates: Partial<PlanilhaEstande> = { cliente_id: clienteId, cliente_nome_livre: nomeLivre };
+      const anterior = { cliente_id: linha.cliente_id ?? null, cliente_nome_livre: linha.cliente_nome_livre ?? null, mapa_rotulo: linha.mapa_rotulo ?? null };
+      // Cliente mudou → o "nome no mapa" volta ao padrão (o gatilho no banco faz o mesmo).
+      const updates: Partial<PlanilhaEstande> = { cliente_id: clienteId, cliente_nome_livre: nomeLivre, mapa_rotulo: null };
       setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, ...updates } : r)));
       try {
         await planilhaVendasService.updateEstande(linha.id, updates);
@@ -275,6 +281,32 @@ export function useMapaVendas(
         void appDialog?.alert({
           title: "Erro ao salvar",
           message: `Não foi possível gravar o cliente do estande ${codigo}. O valor foi revertido.`,
+          type: "danger",
+        });
+      }
+    },
+    [isVisitor, estandes, indice, appDialog],
+  );
+
+  // ─── "Nome no mapa" do estande (só para o desenho; null = volta ao nome fantasia) ──
+  const definirRotuloMapa = useCallback(
+    async (codigo: string, rotulo: string | null) => {
+      if (isVisitor) return;
+      const estande = estandes.find((e) => e.codigo === codigo);
+      if (!estande) return;
+      const linha = linhaDoEstande(estande, indice) as PlanilhaEstande | undefined;
+      if (!linha) return;
+      const novo = rotulo?.trim().slice(0, MAX_CHARS_ROTULO_MAPA) || null;
+      const anterior = linha.mapa_rotulo ?? null;
+      setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, mapa_rotulo: novo } : r)));
+      try {
+        await planilhaVendasService.updateEstande(linha.id, { mapa_rotulo: novo });
+      } catch (err) {
+        console.error("Erro ao gravar nome no mapa:", err);
+        setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, mapa_rotulo: anterior } : r)));
+        void appDialog?.alert({
+          title: "Erro ao salvar",
+          message: `Não foi possível gravar o nome no mapa do estande ${codigo}. O valor foi revertido.`,
           type: "danger",
         });
       }
@@ -306,6 +338,7 @@ export function useMapaVendas(
     setEstandeSelecionado,
     alternarStatus,
     definirCliente,
+    definirRotuloMapa,
     estandeAtual,
     linhaAtual,
     statusAtual,

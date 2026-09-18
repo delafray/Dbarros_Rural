@@ -4,6 +4,7 @@ import {
     resumoPorFamilia, resumoGeral, estandesForaDoMapa, parseViewBox, pontosParaAtributo,
     nomeClienteDaLinha, bboxDePontos, tamanhoFonteRotulo, clampZoom, zoomComRoda, panParaZoomNoPonto,
     proximoTipoVenda, statusAposClique, transicaoCliqueMapa, STAND_PADRAO,
+    abreviarNomeCliente, quebrarEmDuasLinhas, layoutNomeEstande, rotuloMapaDaLinha,
     ESTILO_STATUS, ORDEM_STATUS, type EstandeMapa, type LinhaPlanilhaMapa, type ClienteNome,
 } from './mapaCalc';
 
@@ -275,5 +276,59 @@ describe('panParaZoomNoPonto (zoom ancorado no cursor)', () => {
     it('zoom igual não altera o pan; zoom inválido devolve o pan atual', () => {
         expect(panParaZoomNoPonto({ x: 5, y: 5 }, 1.5, 1.5, { x: 100, y: 100 })).toEqual({ x: 5, y: 5 });
         expect(panParaZoomNoPonto({ x: 5, y: 5 }, 0, 2, { x: 100, y: 100 })).toEqual({ x: 5, y: 5 });
+    });
+});
+
+describe('modo "Nomes": abreviação e encaixe do nome no estande (18/09)', () => {
+    const rect = (w: number, h: number) => [[0, 0], [w, 0], [w, h], [0, h]];
+
+    it('abreviarNomeCliente tira sufixo societário e corta por palavras inteiras', () => {
+        expect(abreviarNomeCliente('Haras Canaan LTDA')).toBe('Haras Canaan');
+        expect(abreviarNomeCliente('Meta Agronegócios S/A', 40)).toBe('Meta Agronegócios');
+        expect(abreviarNomeCliente('Meta Agronegócios S/A')).toBe('Meta'); // 17 chars > 14: fica a 1ª palavra
+        expect(abreviarNomeCliente('Cooperativa Agropecuária Vale do Rio Grande LTDA')).toBe('Cooperativa');
+        expect(abreviarNomeCliente('Agroindustrialíssima', 10)).toBe('Agroindus…');
+        expect(abreviarNomeCliente('   ')).toBe('');
+        expect(abreviarNomeCliente(null)).toBe('');
+    });
+
+    it('quebrarEmDuasLinhas equilibra as linhas; nome simples não quebra', () => {
+        expect(quebrarEmDuasLinhas('Haras Canaan')).toEqual(['Haras', 'Canaan']);
+        expect(quebrarEmDuasLinhas('Cooperativa Vale do Rio')).toEqual(['Cooperativa', 'Vale do Rio']);
+        expect(quebrarEmDuasLinhas('Nestlé')).toBeNull();
+    });
+
+    it('estande padrão 5x5 (17.4x14 pt): nome composto vai em duas linhas horizontais, fonte maior', () => {
+        const l = layoutNomeEstande(rect(17.4, 14), 'Haras Canaan')!;
+        expect(l.linhas).toEqual(['Haras', 'Canaan']);
+        expect(l.rotacao).toBe(0);
+        const umaLinha = layoutNomeEstande(rect(17.4, 14), 'Nestlé')!;
+        expect(umaLinha.linhas).toEqual(['Nestlé']);
+        expect(l.fonte).toBeGreaterThan(2);
+    });
+
+    it('estande estreito e alto: texto na vertical; quase quadrado pequeno: diagonal com corte', () => {
+        expect(layoutNomeEstande(rect(8, 20), 'Nestlé')!.rotacao).toBe(-90);
+        const d = layoutNomeEstande(rect(10, 10), 'Agroindustrial Sul')!;
+        expect(d.rotacao).toBe(-45);
+        expect(d.linhas[0].endsWith('…')).toBe(true);
+    });
+
+    it('nunca sai do polígono: fonte × comprimento cabe na caixa; estande minúsculo devolve null', () => {
+        const l = layoutNomeEstande(rect(17.4, 14), 'Cooperativa Agropecuária Vale do Rio Grande LTDA')!;
+        const maior = Math.max(...l.linhas.map((s) => s.length));
+        expect(maior * l.fonte * 0.62).toBeLessThanOrEqual(17.4 * 0.88 + 1e-9);
+        expect(layoutNomeEstande(rect(2, 2), 'Nestlé')).toBeNull();
+        expect(layoutNomeEstande(rect(17.4, 14), '')).toBeNull();
+        expect(layoutNomeEstande(null, 'X')).toBeNull();
+    });
+
+    it('rotuloMapaDaLinha: rótulo editado do estande vence; senão nome fantasia; senão nome livre', () => {
+        const clientes = new Map([['c1', { nome_fantasia: 'META AGRONEGOCIOS', razao_social: 'META AGRO LTDA', tipo_pessoa: 'PJ' }]]);
+        expect(rotuloMapaDaLinha({ cliente_id: 'c1', mapa_rotulo: 'META AGRONEG' }, clientes)).toBe('META AGRONEG');
+        expect(rotuloMapaDaLinha({ cliente_id: 'c1', mapa_rotulo: '   ' }, clientes)).toBe('META AGRONEGOCIOS');
+        expect(rotuloMapaDaLinha({ cliente_id: 'c1' }, clientes)).toBe('META AGRONEGOCIOS');
+        expect(rotuloMapaDaLinha({ cliente_nome_livre: 'Fulano' }, clientes)).toBe('Fulano');
+        expect(rotuloMapaDaLinha({ cliente_id: null }, clientes)).toBeNull();
     });
 });

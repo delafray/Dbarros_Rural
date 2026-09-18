@@ -41,6 +41,8 @@ export interface LinhaPlanilhaMapa {
     tipo_venda: string | null;
     cliente_id?: string | null;
     cliente_nome_livre?: string | null;
+    /** "Nome no mapa" editado para ESTE estande (18/09); null = nome fantasia do cliente. */
+    mapa_rotulo?: string | null;
 }
 
 export const DISPONIVEL = TIPO_DISPONIVEL;
@@ -244,6 +246,23 @@ export function nomeClienteDaLinha(
 }
 
 /** Caixa delimitadora (largura/altura) de um polígono, em unidades do viewBox. */
+export const MAX_CHARS_ROTULO_MAPA = 40;
+
+/**
+ * Texto desenhado no estande no modo "Nomes": o rótulo editado para o estande, se houver,
+ * senão o nome do cliente (fantasia → razão social/nome → nome livre). O rótulo mora na
+ * linha da planilha e o banco o zera quando o cliente da linha muda.
+ */
+export function rotuloMapaDaLinha(
+    linha: { cliente_id?: string | null; cliente_nome_livre?: string | null; mapa_rotulo?: string | null } | null | undefined,
+    clienteMap: Map<string, ClienteNome>,
+): string | null {
+    if (!linha) return null;
+    const r = linha.mapa_rotulo?.trim();
+    if (r) return r;
+    return nomeClienteDaLinha(linha, clienteMap);
+}
+
 export function bboxDePontos(pontos: number[][] | null | undefined): { w: number; h: number } | null {
     if (!pontos || pontos.length < 3) return null;
     const xs = pontos.map((p) => p[0]);
@@ -266,6 +285,111 @@ export function tamanhoFonteRotulo(pontos: number[][] | null | undefined): numbe
     const fonte = menorLado * 0.35;
     if (fonte < 1.2) return 0;
     return Math.min(fonte, 6);
+}
+
+// ─── Nome do cliente dentro do estande (botão "Nomes", 18/09) ───────────────────
+
+export const MAX_CHARS_NOME_ESTANDE = 14;
+/** Largura média de um caractere em negrito ≈ 0,62 × tamanho da fonte. */
+const LARGURA_CHAR = 0.62;
+const FONTE_MIN_NOME = 1.5;
+const FONTE_MAX_NOME = 6;
+const SUFIXOS_EMPRESA = /\s+(LTDA\.?|S\.?\/?A\.?|ME|EPP|EIRELI|MEI|S\.?S\.?)$/i;
+
+/**
+ * Abrevia o nome (fantasia) para caber num estande: tira sufixos societários, junta
+ * palavras enquanto couber em `max` e, se nem a primeira couber, corta com "…".
+ */
+export function abreviarNomeCliente(nome: string | null | undefined, max = MAX_CHARS_NOME_ESTANDE): string {
+    let n = (nome || '').replace(/\s+/g, ' ').trim();
+    if (!n) return '';
+    n = n.replace(SUFIXOS_EMPRESA, '').trim();
+    if (n.length <= max) return n;
+    const palavras = n.split(' ');
+    let saida = '';
+    for (const p of palavras) {
+        const tentativa = saida ? `${saida} ${p}` : p;
+        if (tentativa.length > max) break;
+        saida = tentativa;
+    }
+    if (saida) return saida;
+    return `${palavras[0].slice(0, Math.max(1, max - 1))}…`;
+}
+
+export type RotacaoRotulo = 0 | -90 | -45;
+
+export interface LayoutNomeEstande {
+    /** 1 ou 2 linhas (nome composto quebra em duas quando isso deixa a fonte maior). */
+    linhas: string[];
+    fonte: number;          // unidades do viewBox
+    rotacao: RotacaoRotulo; // 0 = horizontal, -90 = vertical (lê de baixo p/ cima), -45 = diagonal
+}
+
+const ENTRELINHA = 1.1;
+
+/** Melhor quebra de um nome composto em duas linhas: a que deixa a linha mais longa mais curta. */
+export function quebrarEmDuasLinhas(texto: string): [string, string] | null {
+    const palavras = texto.split(' ');
+    if (palavras.length < 2) return null;
+    let melhor: [string, string] | null = null;
+    let maiorLinha = Infinity;
+    for (let i = 1; i < palavras.length; i++) {
+        const a = palavras.slice(0, i).join(' ');
+        const b = palavras.slice(i).join(' ');
+        const m = Math.max(a.length, b.length);
+        if (m < maiorLinha) { maiorLinha = m; melhor = [a, b]; }
+    }
+    return melhor;
+}
+
+/**
+ * Escolhe, para o polígono do estande, a direção (horizontal, vertical ou diagonal), o número de
+ * linhas (1 ou 2) e o tamanho de fonte em que o nome cabe DENTRO do estande sem invadir o
+ * vizinho. Se nem abreviando cabe legível, devolve null (o mapa mostra o código). Só geometria.
+ */
+export function layoutNomeEstande(pontos: number[][] | null | undefined, nome: string | null | undefined): LayoutNomeEstande | null {
+    const box = bboxDePontos(pontos);
+    if (!box) return null;
+    // Parte do nome inteiro (sem sufixo societário, até 40 chars): estande largo pode mostrar mais que 14.
+    const base = abreviarNomeCliente(nome, 40);
+    if (!base) return null;
+    const folga = 0.88; // margem para não encostar na borda
+    const opcoes: { rotacao: RotacaoRotulo; comprimento: number; transversal: number; duasLinhas: boolean }[] = [
+        { rotacao: 0, comprimento: box.w * folga, transversal: box.h * 0.75, duasLinhas: true },
+        { rotacao: -90, comprimento: box.h * folga, transversal: box.w * 0.75, duasLinhas: true },
+        { rotacao: -45, comprimento: Math.hypot(box.w, box.h) * 0.72, transversal: Math.min(box.w, box.h) * 0.55, duasLinhas: false },
+    ];
+    // Tenta o texto inteiro; se não couber legível, encurta progressivamente.
+    const candidatos = [base];
+    for (let max = base.length - 1; max >= 5; max--) {
+        const c = abreviarNomeCliente(base, max);
+        if (c !== candidatos[candidatos.length - 1]) candidatos.push(c);
+    }
+    for (const texto of candidatos) {
+        let melhor: LayoutNomeEstande | null = null;
+        const considerar = (cand: LayoutNomeEstande) => {
+            // Horizontal/1 linha é o padrão; só troca se a alternativa render fonte ao menos 15% maior.
+            if (cand.fonte >= FONTE_MIN_NOME && (!melhor || cand.fonte > melhor.fonte * 1.15)) melhor = cand;
+        };
+        const duas = quebrarEmDuasLinhas(texto);
+        for (const o of opcoes) {
+            considerar({
+                linhas: [texto],
+                fonte: Math.min(FONTE_MAX_NOME, o.comprimento / (texto.length * LARGURA_CHAR), o.transversal),
+                rotacao: o.rotacao,
+            });
+            if (duas && o.duasLinhas) {
+                const maior = Math.max(duas[0].length, duas[1].length);
+                considerar({
+                    linhas: duas,
+                    fonte: Math.min(FONTE_MAX_NOME, o.comprimento / (maior * LARGURA_CHAR), o.transversal / (2 * ENTRELINHA)),
+                    rotacao: o.rotacao,
+                });
+            }
+        }
+        if (melhor) return melhor;
+    }
+    return null;
 }
 
 /** Limita o zoom do mapa a um intervalo razoável (evita zoom negativo/infinito). */

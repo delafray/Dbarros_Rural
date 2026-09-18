@@ -4,6 +4,7 @@ import {
   parseViewBox,
   pontosParaAtributo,
   tamanhoFonteRotulo,
+  layoutNomeEstande,
   clampZoom,
   zoomComRoda,
   panParaZoomNoPonto,
@@ -18,6 +19,8 @@ interface MapaSvgProps {
   onSelect: (codigo: string) => void;
   /** Clique de novo no estande já selecionado: cicla o status (ausente = somente leitura). */
   onAlternarStatus?: (codigo: string) => void;
+  /** true = estandes ocupados mostram o nome (fantasia) do cliente no lugar do código. */
+  mostrarNomes?: boolean;
 }
 
 /**
@@ -25,12 +28,19 @@ interface MapaSvgProps {
  * coloridos por status) com pan (arrastar) e zoom (roda / botões) simples.
  * Toda a lógica de status/resumo já veio pronta em `itens` (hooks/useMapaVendas).
  */
-const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado, onSelect, onAlternarStatus }) => {
+const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado, onSelect, onAlternarStatus, mostrarNomes = false }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [arrastando, setArrastando] = useState(false);
+  // Balão próprio (instantâneo, com negrito) no lugar do <title> nativo, que demora ~0,5s e é só texto.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<{ codigo: string; x: number; y: number } | null>(null);
+  const moverBalao = (codigo: string, e: React.MouseEvent) => {
+    const r = wrapRef.current?.getBoundingClientRect();
+    setHover({ codigo, x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) });
+  };
 
   const box = useMemo(() => parseViewBox(viewBox), [viewBox]);
 
@@ -101,7 +111,7 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
   }
 
   return (
-    <div className="relative w-full h-full bg-slate-50">
+    <div ref={wrapRef} className="relative w-full h-full bg-slate-50">
       <svg
         ref={svgRef}
         viewBox={viewBox}
@@ -122,11 +132,14 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
               preserveAspectRatio="xMidYMid meet"
             />
           )}
-          {itens.map(({ estande, status, clienteNome, proximoStatus }) => {
+          {itens.map(({ estande, status, clienteNome, rotuloMapa, proximoStatus }) => {
             if (!estande.pontos || estande.pontos.length < 3) return null;
             const estilo = ESTILO_STATUS[status];
             const isSelecionado = estande.codigo === selecionado;
             const fonte = tamanhoFonteRotulo(estande.pontos);
+            // Modo "Nomes": estande ocupado com cliente mostra o nome abreviado, na direção em que cabe.
+            const ocupado = status === "vendido" || status === "reservado" || status === "cortesia";
+            const nome = mostrarNomes && ocupado && rotuloMapa ? layoutNomeEstande(estande.pontos, rotuloMapa) : null;
             const editavel = !!onAlternarStatus && proximoStatus !== null && proximoStatus !== "sem_planilha";
             const dica = !editavel
               ? null
@@ -135,7 +148,6 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                 : "clique para selecionar";
             // Marcado sem cliente: oscila devagar entre a cor cheia e a clara (mesma atenção sutil da planilha).
             const oscilaSemCliente = !!estilo.semCliente && !clienteNome;
-            const tituloTooltip = [estande.codigo, estilo.label, clienteNome ?? (oscilaSemCliente ? "sem cliente" : null), dica].filter(Boolean).join(" · ");
             return (
               <g key={estande.codigo}>
                 <polygon
@@ -150,6 +162,9 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                     if (isSelecionado && editavel) onAlternarStatus!(estande.codigo);
                     else onSelect(estande.codigo);
                   }}
+                  onMouseEnter={(e) => moverBalao(estande.codigo, e)}
+                  onMouseMove={(e) => moverBalao(estande.codigo, e)}
+                  onMouseLeave={() => setHover(null)}
                 >
                   {estilo.piscaAte && (
                     <animate
@@ -167,9 +182,27 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                       repeatCount="indefinite"
                     />
                   )}
-                  <title>{tituloTooltip}</title>
                 </polygon>
-                {fonte > 0 && (
+                {nome ? (
+                  <text
+                    x={estande.centro[0]}
+                    y={estande.centro[1]}
+                    fontSize={nome.fonte}
+                    fill={estilo.texto}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    transform={nome.rotacao ? `rotate(${nome.rotacao} ${estande.centro[0]} ${estande.centro[1]})` : undefined}
+                    className="pointer-events-none select-none"
+                    style={{ fontWeight: 700 }}
+                  >
+                    {nome.linhas.length === 1 ? nome.linhas[0] : (
+                      <>
+                        <tspan x={estande.centro[0]} dy="-0.55em">{nome.linhas[0]}</tspan>
+                        <tspan x={estande.centro[0]} dy="1.1em">{nome.linhas[1]}</tspan>
+                      </>
+                    )}
+                  </text>
+                ) : fonte > 0 && (
                   <text
                     x={estande.centro[0]}
                     y={estande.centro[1]}
@@ -188,6 +221,36 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
           })}
         </g>
       </svg>
+
+      {/* Balão do estande sob o mouse: instantâneo, cliente em negrito */}
+      {hover && (() => {
+        const item = itens.find((i) => i.estande.codigo === hover.codigo);
+        if (!item) return null;
+        const est = ESTILO_STATUS[item.status];
+        const editavel = !!onAlternarStatus && item.proximoStatus !== null && item.proximoStatus !== "sem_planilha";
+        const dica = !editavel ? null : hover.codigo === selecionado
+          ? `clique de novo: ${ESTILO_STATUS[item.proximoStatus!].label}`
+          : "clique para selecionar";
+        const semCliente = !!est.semCliente && !item.clienteNome;
+        return (
+          <div
+            className="absolute z-20 pointer-events-none bg-slate-900/95 text-white rounded shadow-lg px-2.5 py-1.5 text-xs leading-snug whitespace-nowrap"
+            style={{ left: hover.x + 14, top: hover.y + 14 }}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="font-black">{item.estande.codigo}</span>
+              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: est.fill }} />
+              <span>{est.label}</span>
+            </div>
+            {item.clienteNome ? (
+              <div className="font-black text-[13px] mt-0.5">{item.clienteNome}</div>
+            ) : semCliente ? (
+              <div className="font-bold text-amber-300 mt-0.5">sem cliente</div>
+            ) : null}
+            {dica && <div className="text-slate-300 mt-0.5">{dica}</div>}
+          </div>
+        );
+      })()}
 
       {/* Controles de zoom */}
       <div className="absolute bottom-3 right-3 flex flex-col gap-1 bg-white/90 border border-slate-200 rounded shadow-sm overflow-hidden text-slate-700">

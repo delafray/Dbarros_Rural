@@ -111,20 +111,22 @@ export function usePlanilhaEditing(
     const row = rows.find((r) => r.id === rowId);
     const oldClienteId = row?.cliente_id ?? null;
     const oldNomeLivre = row?.cliente_nome_livre ?? null;
+    const oldRotulo = row?.mapa_rotulo ?? null;
     setRows((prev) =>
       prev.map((r) =>
         r.id === rowId
-          ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre }
+          ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre, mapa_rotulo: null }
           : r,
       ),
     );
+    // Cliente mudou → o "nome no mapa" do estande volta ao padrão (gatilho no banco faz o mesmo).
     planilhaVendasService
-      .updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre })
+      .updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre, mapa_rotulo: null })
       .catch(() => {
         setRows((prev) =>
           prev.map((r) =>
             r.id === rowId
-              ? { ...r, cliente_id: oldClienteId, cliente_nome_livre: oldNomeLivre }
+              ? { ...r, cliente_id: oldClienteId, cliente_nome_livre: oldNomeLivre, mapa_rotulo: oldRotulo }
               : r,
           ),
         );
