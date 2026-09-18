@@ -1,46 +1,46 @@
 import React from "react";
 import { ORDEM_STATUS, ESTILO_STATUS, ResumoFamilia } from "../../utils/mapaCalc";
 
-interface LegendaMapaProps {
+interface ResumoFamiliasProps {
   resumoFamilias: ResumoFamilia[];
   resumoTotal: ResumoFamilia;
   foraDoMapa: string[];
   familiaSelecionada: string | null;
   onSelecionarFamilia: (familia: string | null) => void;
+  /** Tabela do resumo por família aberta? (a legenda de cores fica sempre visível) */
+  resumoAberto: boolean;
+  onAlternarResumo: () => void;
 }
 
-/** Legenda de cores + resumo por família (clicável para filtrar o mapa). Só visual. */
-const LegendaMapa: React.FC<LegendaMapaProps> = ({
+/** Resumo por família (clicável para filtrar o mapa), recolhível. Fica embaixo do painel do estande. Só visual. */
+const ResumoFamilias: React.FC<ResumoFamiliasProps> = ({
   resumoFamilias,
   resumoTotal,
   foraDoMapa,
   familiaSelecionada,
   onSelecionarFamilia,
+  resumoAberto,
+  onAlternarResumo,
 }) => {
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-3 space-y-3 text-xs">
-      {/* Legenda de cores */}
+      {/* Resumo por família (recolhível; fechado por padrão — pedido do usuário 18/09) */}
       <div>
-        <div className="font-bold text-slate-400 uppercase text-[10px] mb-1.5 tracking-wide">Legenda</div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {ORDEM_STATUS.map((s) => (
-            <div key={s} className="flex items-center gap-1.5">
-              <span
-                className="w-3 h-3 rounded-sm border flex-shrink-0"
-                style={{ background: ESTILO_STATUS[s].fill, borderColor: ESTILO_STATUS[s].stroke }}
-              />
-              <span className="text-slate-600">{ESTILO_STATUS[s].label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Resumo por família */}
-      <div>
-        <div className="font-bold text-slate-400 uppercase text-[10px] mb-1.5 tracking-wide">
-          Resumo por família
-        </div>
-        <div className="overflow-x-auto">
+        <button
+          type="button"
+          onClick={onAlternarResumo}
+          aria-expanded={resumoAberto}
+          className="w-full flex items-center justify-between font-bold text-slate-400 uppercase text-[10px] tracking-wide hover:text-slate-600"
+          title={resumoAberto ? "Recolher resumo por família" : "Mostrar resumo por família"}
+        >
+          <span>{resumoAberto ? "▾" : "▸"} Resumo por família</span>
+          <span className="font-normal normal-case tracking-normal">
+            {resumoTotal.total} estandes
+            {!resumoAberto && familiaSelecionada && ` · filtro: ${familiaSelecionada}`}
+          </span>
+        </button>
+        {resumoAberto && (
+        <div className="overflow-x-auto mt-1.5">
           <table className="w-full text-[11px] border-collapse">
             <thead>
               <tr className="text-slate-400 uppercase text-[9px]">
@@ -84,6 +84,7 @@ const LegendaMapa: React.FC<LegendaMapaProps> = ({
             </tbody>
           </table>
         </div>
+        )}
         {familiaSelecionada && (
           <button
             className="mt-1.5 text-blue-600 hover:underline text-[10px]"
@@ -105,4 +106,4 @@ const LegendaMapa: React.FC<LegendaMapaProps> = ({
   );
 };
 
-export default LegendaMapa;
+export default ResumoFamilias;

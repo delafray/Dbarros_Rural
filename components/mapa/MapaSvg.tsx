@@ -149,6 +149,14 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                     else onSelect(estande.codigo);
                   }}
                 >
+                  {estilo.piscaAte && (
+                    <animate
+                      attributeName="fill"
+                      values={`${estilo.fill};${estilo.piscaAte};${estilo.fill}`}
+                      dur="1.4s"
+                      repeatCount="indefinite"
+                    />
+                  )}
                   <title>{tituloTooltip}</title>
                 </polygon>
                 {fonte > 0 && (

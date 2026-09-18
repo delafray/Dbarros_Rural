@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../UI";
+import ClienteSelectorPopup from "../ClienteSelectorPopup";
 import { EstandeMapa, StatusEstande, ESTILO_STATUS } from "../../utils/mapaCalc";
 import { CategoriaSetup, PlanilhaEstande } from "../../services/planilhaVendasService";
 import { TotaisRow } from "../../utils/planilhaCalc";
@@ -16,6 +17,8 @@ interface PainelEstandeProps {
   totais: TotaisRow | null;
   isVisitor: boolean;
   onClose: () => void;
+  /** Grava cliente cadastrado (id) ou não cadastrado (nome livre) na linha; ausente = só leitura. */
+  onSelecionarCliente?: (clienteId: string | null, nomeLivre: string | null) => void;
 }
 
 /** Painel lateral do estande selecionado no mapa — visual, sem lógica de negócio. */
@@ -29,9 +32,17 @@ const PainelEstande: React.FC<PainelEstandeProps> = ({
   totais,
   isVisitor,
   onClose,
+  onSelecionarCliente,
 }) => {
   const navigate = useNavigate();
   const estilo = ESTILO_STATUS[status];
+  const [popupCliente, setPopupCliente] = useState(false);
+  const podeEditarCliente = !isVisitor && !!linha && !!onSelecionarCliente;
+  // Mesma regra da planilha: linha com venda/opcionais pede confirmação antes de limpar o cliente.
+  const linhaTemDados =
+    !!linha &&
+    ((!!linha.tipo_venda && linha.tipo_venda !== "DISPONÍVEL") ||
+      Object.values((linha.opcionais_selecionados as Record<string, string>) || {}).some((v) => !!v));
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-4 space-y-3">
@@ -56,15 +67,45 @@ const PainelEstande: React.FC<PainelEstandeProps> = ({
 
       <span
         className="inline-block px-2.5 py-1 rounded text-xs font-bold uppercase"
-        style={{ background: estilo.fill, color: estilo.texto }}
+        style={{
+          background: estilo.piscaAte
+            ? `linear-gradient(135deg, ${estilo.fill} 45%, ${estilo.piscaAte} 55%)`
+            : estilo.fill,
+          color: estilo.texto,
+        }}
       >
         {estilo.label}
       </span>
 
       <div className="text-sm space-y-1.5">
-        <div>
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-slate-500">Cliente: </span>
-          <span className="font-semibold text-slate-800">{clienteNome || "—"}</span>
+          {clienteNome ? (
+            <>
+              <span className="font-semibold text-slate-800">{clienteNome}</span>
+              {podeEditarCliente && (
+                <button
+                  type="button"
+                  onClick={() => setPopupCliente(true)}
+                  className="text-[11px] text-blue-600 hover:underline"
+                  title="Trocar ou limpar o cliente deste estande"
+                >
+                  trocar
+                </button>
+              )}
+            </>
+          ) : podeEditarCliente ? (
+            <button
+              type="button"
+              onClick={() => setPopupCliente(true)}
+              className="px-2.5 py-1 rounded text-xs font-bold uppercase bg-red-600 hover:bg-red-700 text-white shadow-sm"
+              title="Escolher cliente cadastrado, não cadastrado ou limpar"
+            >
+              Selecionar cliente
+            </button>
+          ) : (
+            <span className="font-semibold text-slate-800">—</span>
+          )}
         </div>
         <div>
           <span className="text-slate-500">Tipo de venda: </span>
@@ -125,6 +166,20 @@ const PainelEstande: React.FC<PainelEstandeProps> = ({
           Fechar
         </Button>
       </div>
+
+      {popupCliente && onSelecionarCliente && (
+        <ClienteSelectorPopup
+          currentClienteId={linha?.cliente_id}
+          currentNomeLivre={linha?.cliente_nome_livre}
+          currentClienteNome={clienteNome}
+          rowHasData={linhaTemDados}
+          onSelect={(clienteId, nomeLivre) => {
+            onSelecionarCliente(clienteId, nomeLivre);
+            setPopupCliente(false);
+          }}
+          onClose={() => setPopupCliente(false)}
+        />
+      )}
     </div>
   );
 };

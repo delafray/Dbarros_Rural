@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { Button } from "../components/UI";
@@ -7,7 +7,11 @@ import { useAppDialog } from "../context/DialogContext";
 import { useMapaVendas } from "../hooks/useMapaVendas";
 import MapaSvg from "../components/mapa/MapaSvg";
 import PainelEstande from "../components/mapa/PainelEstande";
-import LegendaMapa from "../components/mapa/LegendaMapa";
+import LegendaCores from "../components/mapa/LegendaCores";
+import ResumoFamilias from "../components/mapa/ResumoFamilias";
+import ClienteSelectorPopup from "../components/ClienteSelectorPopup";
+
+const CHAVE_RESUMO_ABERTO = "mapa-vendas:resumo-aberto";
 
 // Mesmo helper de período usado em TempPlanilha.tsx (cabeçalho no mesmo estilo).
 const formatPeriodo = (ini: string | null, fim: string | null): string => {
@@ -30,6 +34,18 @@ const MapaVendas: React.FC = () => {
   const isVisitor = user?.isVisitor ?? false;
   const appDialog = useAppDialog();
 
+  // Resumo por família/legenda: recolhido por padrão (pedido do usuário 18/09) para o
+  // painel do estande ficar no topo; a escolha fica no navegador.
+  const [resumoAberto, setResumoAberto] = useState<boolean>(() => {
+    try { return localStorage.getItem(CHAVE_RESUMO_ABERTO) === "1"; } catch { return false; }
+  });
+  const alternarResumo = () => {
+    setResumoAberto((v) => {
+      try { localStorage.setItem(CHAVE_RESUMO_ABERTO, v ? "0" : "1"); } catch { /* sem storage: só não lembra */ }
+      return !v;
+    });
+  };
+
   const {
     loading,
     error,
@@ -46,6 +62,9 @@ const MapaVendas: React.FC = () => {
     estandeSelecionado,
     setEstandeSelecionado,
     alternarStatus,
+    definirCliente,
+    pedindoClientePara,
+    setPedindoClientePara,
     estandeAtual,
     linhaAtual,
     statusAtual,
@@ -145,13 +164,7 @@ const MapaVendas: React.FC = () => {
         </div>
 
         <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-3">
-          <LegendaMapa
-            resumoFamilias={resumoFamilias}
-            resumoTotal={resumoTotal}
-            foraDoMapa={foraDoMapa}
-            familiaSelecionada={filtroFamilia}
-            onSelecionarFamilia={setFiltroFamilia}
-          />
+          <LegendaCores />
 
           {estandeAtual && (
             <PainelEstande
@@ -164,10 +177,35 @@ const MapaVendas: React.FC = () => {
               totais={totaisAtual}
               isVisitor={isVisitor}
               onClose={() => setEstandeSelecionado(null)}
+              onSelecionarCliente={
+                isVisitor ? undefined : (id, nome) => definirCliente(estandeAtual.codigo, id, nome)
+              }
             />
           )}
+
+          <ResumoFamilias
+            resumoFamilias={resumoFamilias}
+            resumoTotal={resumoTotal}
+            foraDoMapa={foraDoMapa}
+            familiaSelecionada={filtroFamilia}
+            onSelecionarFamilia={setFiltroFamilia}
+            resumoAberto={resumoAberto}
+            onAlternarResumo={alternarResumo}
+          />
         </div>
       </div>
+
+      {/* Clique pediu RESERVADO num estande sem cliente: escolhe o cliente e reserva em seguida. */}
+      {pedindoClientePara && !isVisitor && (
+        <ClienteSelectorPopup
+          onSelect={(clienteId, nomeLivre) => {
+            const codigo = pedindoClientePara;
+            setPedindoClientePara(null);
+            void definirCliente(codigo, clienteId, nomeLivre, { reservar: true });
+          }}
+          onClose={() => setPedindoClientePara(null)}
+        />
+      )}
     </Layout>
   );
 };

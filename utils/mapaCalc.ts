@@ -6,12 +6,14 @@
  * resumos por família. Espelha as marcas da planilha:
  *   x  = venda (tipo_venda sem "*")      → vendido  (verde #00B050, igual à planilha)
  *   *  = cortesia/permuta (com "*")      → cortesia (roxo claro)
- *   cliente anotado sem x/*              → reservado
+ *   RESERVADO*                           → reservado (laranja; vale zero, por isso leva *)
+ *   cliente anotado sem marca nenhuma    → cliente_sem_status (ERRO: pisca azul claro/escuro até corrigir)
  *   DISPONÍVEL sem cliente               → livre    (azul #00B0F0 da planilha)
  *   código do mapa ausente na planilha   → sem_planilha (alerta de sincronização)
  */
+import { TIPO_DISPONIVEL, TIPO_RESERVADO, isReservado } from './planilhaCalc';
 
-export type StatusEstande = 'livre' | 'reservado' | 'vendido' | 'cortesia' | 'sem_planilha';
+export type StatusEstande = 'livre' | 'reservado' | 'vendido' | 'cortesia' | 'cliente_sem_status' | 'sem_planilha';
 
 export interface EstandeMapa {
     codigo: string;              // "P-01" (como na planta)
@@ -41,7 +43,8 @@ export interface LinhaPlanilhaMapa {
     cliente_nome_livre?: string | null;
 }
 
-export const DISPONIVEL = 'DISPONÍVEL';
+export const DISPONIVEL = TIPO_DISPONIVEL;
+export const RESERVADO = TIPO_RESERVADO;
 
 /**
  * Normaliza qualquer grafia para o formato da planilha: "P-01", "p01", "P 1" → "P 01".
@@ -63,11 +66,12 @@ export function codigoDaPlanta(standNr: string): string {
 export function statusDoEstande(linha: LinhaPlanilhaMapa | undefined | null): StatusEstande {
     if (!linha) return 'sem_planilha';
     const tipo = (linha.tipo_venda || '').trim();
+    if (isReservado(tipo)) return 'reservado';
     if (tipo && tipo !== DISPONIVEL) {
         return tipo.includes('*') ? 'cortesia' : 'vendido';
     }
     if (linha.cliente_id || (linha.cliente_nome_livre && linha.cliente_nome_livre.trim())) {
-        return 'reservado';
+        return 'cliente_sem_status';
     }
     return 'livre';
 }
@@ -77,44 +81,101 @@ export interface EstiloStatus {
     stroke: string;
     texto: string;   // cor do rótulo dentro do polígono
     label: string;
+    /** Se presente, o polígono OSCILA entre `fill` e esta cor (chama atenção: decisão pendente). */
+    piscaAte?: string;
 }
 
 /**
  * Cores (decisão do usuário 17/09): LIVRE = azul da planilha (#00B0F0), VENDIDO =
- * verde da planilha (#00B050). Cortesia/permuta em roxo claro e reservado em
- * laranja para não competir com azul/verde nem com os cinzas/amarelos da planta.
+ * verde da planilha (#00B050). Cortesia/permuta em roxo claro, RESERVADO em laranja.
+ * CLIENTE SEM STATUS (18/09) = cliente escolhido na planilha sem marca nenhuma: é erro e
+ * oscila entre azul claro e azul escuro até alguém decidir — clique no mapa/célula e dê um
+ * status, ou volte a "disponível" pelo modal da planilha (a planilha é o cérebro).
  */
 export const ESTILO_STATUS: Record<StatusEstande, EstiloStatus> = {
     livre:        { fill: '#00B0F0', stroke: '#075985', texto: '#082F49', label: 'Livre' },
     reservado:    { fill: '#FDBA74', stroke: '#C2410C', texto: '#431407', label: 'Reservado' },
     vendido:      { fill: '#00B050', stroke: '#14532D', texto: '#FFFFFF', label: 'Vendido' },
     cortesia:     { fill: '#C084FC', stroke: '#6B21A8', texto: '#3B0764', label: 'Cortesia / permuta' },
+    cliente_sem_status: { fill: '#00B0F0', piscaAte: '#1E3A8A', stroke: '#1E3A8A', texto: '#FFFFFF', label: 'Cliente sem status (corrigir)' },
     sem_planilha: { fill: '#FCA5A5', stroke: '#B91C1C', texto: '#111827', label: 'Sem linha na planilha' },
 };
 
-export const ORDEM_STATUS: StatusEstande[] = ['livre', 'reservado', 'vendido', 'cortesia', 'sem_planilha'];
+export const ORDEM_STATUS: StatusEstande[] = ['livre', 'reservado', 'vendido', 'cortesia', 'cliente_sem_status', 'sem_planilha'];
 
 /** Rótulo da venda do estande sem combo (mesma 1ª coluna da planilha). */
 export const STAND_PADRAO = 'STAND PADRÃO';
 
 /**
- * Próximo tipo_venda ao clicar de novo no estande já selecionado — espelha o
- * ciclo da célula da planilha (usePlanilhaEditing.handleSelectCombo):
- *   vazio/DISPONÍVEL → STAND PADRÃO (vendido) → STAND PADRÃO* (cortesia) → DISPONÍVEL.
+ * Próximo tipo_venda ao clicar de novo no estande já selecionado — mesmo ciclo da
+ * célula da planilha (usePlanilhaEditing.handleSelectCombo):
+ *   vazio/DISPONÍVEL → RESERVADO* → STAND PADRÃO (vendido) → STAND PADRÃO* (cortesia) → DISPONÍVEL.
  * Se a linha já tem um COMBO, o ciclo segue com o mesmo combo (COMBO 02 → COMBO 02* → DISPONÍVEL),
  * sem trocar a escolha feita na planilha. Cliente anotado não é tocado (reservado volta sozinho).
  */
 export function proximoTipoVenda(tipoAtual: string | null | undefined): string {
     const tipo = (tipoAtual || '').trim();
-    if (!tipo || tipo === DISPONIVEL) return STAND_PADRAO;
+    if (!tipo || tipo === DISPONIVEL) return RESERVADO;
+    if (isReservado(tipo)) return STAND_PADRAO;
     if (tipo.endsWith('*')) return DISPONIVEL;
     return `${tipo}*`;
 }
 
-/** Status que o estande passa a ter depois de `proximoTipoVenda` (para o tooltip "clique de novo: …"). */
-export function statusAposClique(linha: LinhaPlanilhaMapa | undefined | null): StatusEstande {
+/** Cliente tirado da linha quando o estande volta a livre pelo mapa — fica em espera para voltar junto com a venda. */
+export interface ClienteEmEspera {
+    cliente_id: string | null;
+    cliente_nome_livre: string | null;
+}
+
+export interface TransicaoClique {
+    /** Campos a gravar na linha da planilha (vazio quando `precisaCliente`). */
+    updates: { tipo_venda?: string; cliente_id?: string | null; cliente_nome_livre?: string | null };
+    /** Cliente em espera depois do clique (null = nenhum). */
+    emEspera: ClienteEmEspera | null;
+    /** true = o próximo passo é RESERVADO e não há cliente (nem em espera): abrir o modal de cliente antes. */
+    precisaCliente?: boolean;
+}
+
+function temCliente(linha: LinhaPlanilhaMapa): boolean {
+    return !!linha.cliente_id || !!(linha.cliente_nome_livre && linha.cliente_nome_livre.trim());
+}
+
+/**
+ * Clique de novo no estande selecionado, pela planta: livre → vendido → cortesia → livre, SEMPRE
+ * fechando em azul (decisão do usuário 18/09). Ao voltar a livre, o cliente sai da linha e fica
+ * em espera; ao vender de novo pelo mapa um estande sem cliente, o cliente em espera volta junto.
+ * Reservado (cliente sem venda) → vendido mantém o cliente. A célula da planilha não muda nada disso.
+ */
+export function transicaoCliqueMapa(linha: LinhaPlanilhaMapa, emEspera: ClienteEmEspera | null | undefined): TransicaoClique {
+    const novoTipo = proximoTipoVenda(linha.tipo_venda);
+    if (novoTipo === DISPONIVEL) {
+        if (temCliente(linha)) {
+            return {
+                updates: { tipo_venda: novoTipo, cliente_id: null, cliente_nome_livre: null },
+                emEspera: { cliente_id: linha.cliente_id ?? null, cliente_nome_livre: linha.cliente_nome_livre ?? null },
+            };
+        }
+        return { updates: { tipo_venda: novoTipo }, emEspera: emEspera ?? null };
+    }
+    if (novoTipo === RESERVADO && !temCliente(linha)) {
+        // Reservado exige cliente: usa o que ficou em espera; senão pede o modal.
+        if (emEspera && (emEspera.cliente_id || emEspera.cliente_nome_livre)) {
+            return {
+                updates: { tipo_venda: novoTipo, cliente_id: emEspera.cliente_id, cliente_nome_livre: emEspera.cliente_nome_livre },
+                emEspera: null,
+            };
+        }
+        return { updates: {}, emEspera: null, precisaCliente: true };
+    }
+    return { updates: { tipo_venda: novoTipo }, emEspera: emEspera ?? null };
+}
+
+/** Status que o estande passa a ter depois do clique (para o tooltip "clique de novo: …"). */
+export function statusAposClique(linha: LinhaPlanilhaMapa | undefined | null, emEspera?: ClienteEmEspera | null): StatusEstande {
     if (!linha) return 'sem_planilha';
-    return statusDoEstande({ ...linha, tipo_venda: proximoTipoVenda(linha.tipo_venda) });
+    const t = transicaoCliqueMapa(linha, emEspera);
+    if (t.precisaCliente) return 'reservado'; // depois de escolher o cliente no modal
+    return statusDoEstande({ ...linha, ...t.updates });
 }
 
 /** Índice stand_nr normalizado → linha da planilha. */
@@ -139,7 +200,7 @@ export interface ResumoFamilia {
 }
 
 function contadorVazio(): Record<StatusEstande, number> {
-    return { livre: 0, reservado: 0, vendido: 0, cortesia: 0, sem_planilha: 0 };
+    return { livre: 0, reservado: 0, vendido: 0, cortesia: 0, cliente_sem_status: 0, sem_planilha: 0 };
 }
 
 export function resumoPorFamilia(estandes: EstandeMapa[], indice: Map<string, LinhaPlanilhaMapa>): ResumoFamilia[] {

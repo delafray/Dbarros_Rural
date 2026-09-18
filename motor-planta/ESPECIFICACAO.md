@@ -154,7 +154,7 @@ Segue o padrão hooks + orquestrador + components por módulo:
 | `hooks/useMapaVendas.ts` | Carrega mapa + estandes da planilha (`planilhaVendasService`), assina realtime de `planilha_vendas_estandes` (já publicado), expõe estado. |
 | `components/mapa/MapaSvg.tsx` | `<svg viewBox>` com `<image>` do fundo + `<polygon>` por estande, cor por status, clique → painel. Pan/zoom simples. |
 | `components/mapa/PainelEstande.tsx` | Cliente, tipo de venda, valor, área, observação (ex.: bônus L-16..18). |
-| `components/mapa/LegendaMapa.tsx` | Cores e contagem por família (vendidos / livres). |
+| `components/mapa/LegendaCores + ResumoFamilias.tsx` | Cores e contagem por família (vendidos / livres). |
 | `pages/MapaVendas.tsx` | Orquestrador. Rota `/mapa-vendas/:edicaoId` em `App.tsx` (ProtectedRoute). Link a partir da planilha. |
 
 Status e cor (definidos em `mapaCalc.ts`, uma fonte só):
