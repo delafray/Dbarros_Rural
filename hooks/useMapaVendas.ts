@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { mapaVendasService } from "../services/mapaVendasService";
 import {
   planilhaVendasService,
@@ -16,6 +16,8 @@ import {
   StatusEstande,
   indexarPlanilha,
   statusDoEstande,
+  statusAposClique,
+  proximoTipoVenda,
   linhaDoEstande,
   resumoPorFamilia,
   resumoGeral as calcResumoGeral,
@@ -36,9 +38,19 @@ export interface ItemMapa {
   estande: EstandeMapa;
   status: StatusEstande;
   clienteNome: string | null;
+  /** Status que o estande passa a ter se o usuário clicar de novo nele (null = não editável). */
+  proximoStatus: StatusEstande | null;
 }
 
-export function useMapaVendas(edicaoId: string | undefined, isVisitor = false) {
+interface AppDialogMapa {
+  alert: (opts: { title: string; message: string; type: string }) => Promise<void>;
+}
+
+export function useMapaVendas(
+  edicaoId: string | undefined,
+  isVisitor = false,
+  appDialog?: AppDialogMapa,
+) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,9 +164,38 @@ export function useMapaVendas(edicaoId: string | undefined, isVisitor = false) {
           estande,
           status: statusDoEstande(linha),
           clienteNome: nomeClienteDaLinha(linha, clienteMap),
+          proximoStatus: !isVisitor && linha ? statusAposClique(linha) : null,
         };
       }),
-    [estandes, indice, clienteMap],
+    [estandes, indice, clienteMap, isVisitor],
+  );
+
+  // ─── Clique de novo no estande selecionado: cicla o status na MESMA linha da
+  // planilha (tipo_venda), pelo mesmo serviço e com o mesmo otimismo/rollback de
+  // usePlanilhaEditing.handleSelectCombo. O realtime propaga para a planilha aberta.
+  const alternarStatus = useCallback(
+    async (codigo: string) => {
+      if (isVisitor) return;
+      const estande = estandes.find((e) => e.codigo === codigo);
+      if (!estande) return;
+      const linha = linhaDoEstande(estande, indice) as PlanilhaEstande | undefined;
+      if (!linha) return; // sem linha na planilha: nada a gravar (estande fica vermelho)
+      const oldTipo = linha.tipo_venda;
+      const newTipo = proximoTipoVenda(oldTipo);
+      setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, tipo_venda: newTipo } : r)));
+      try {
+        await planilhaVendasService.updateEstande(linha.id, { tipo_venda: newTipo });
+      } catch (err) {
+        console.error("Erro ao alterar status pelo mapa:", err);
+        setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, tipo_venda: oldTipo } : r)));
+        void appDialog?.alert({
+          title: "Erro ao salvar",
+          message: `Não foi possível alterar o status do estande ${codigo}. O valor foi revertido.`,
+          type: "danger",
+        });
+      }
+    },
+    [isVisitor, estandes, indice, appDialog],
   );
 
   const itensFiltrados = useMemo(
@@ -237,6 +278,7 @@ export function useMapaVendas(edicaoId: string | undefined, isVisitor = false) {
 
     estandeSelecionado,
     setEstandeSelecionado,
+    alternarStatus,
     estandeAtual,
     linhaAtual,
     statusAtual,

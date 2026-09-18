@@ -5,6 +5,17 @@
 
 ## No ar (produção — `main` → Vercel `dbarros-rural.vercel.app`)
 
+- **Mapa de Vendas — piloto Megaleite 2027 (18/09)**: planta baixa interativa
+  dentro do sistema (`/mapa-vendas/<edição>`, botão **Mapa** na planilha).
+  Banco de produção já tem: tabela `planilha_mapa` + RLS (leitura equipe com
+  isolamento master, escrita só master), edição `22fe2573…` com 9 famílias /
+  159 estandes (PR = patrocinadores, custo zero) e mapa ALT 01 ativo; fundo
+  `mapa-fundo.png` no bucket `edicao-docs`. Cores = as da planilha (livre azul,
+  vendido verde, cortesia roxo, reservado laranja, sem linha vermelho). Clique:
+  1º seleciona (painel), 2º no mesmo estande cicla livre → vendido → cortesia →
+  livre gravando `tipo_venda` na mesma linha da planilha (visitante só lê).
+  Motor da planta (PDF do Corel → geometria) em `motor-planta/` (Python, 62 pytest).
+  Pendente: campo `nome` da categoria separado da tag curta (pedido do usuário).
 - Sistema de vendas/eventos completo: dashboard, clientes, eventos/edições,
   planilhas de venda, atendimentos, cardápios, controle de imagens.
 - **Centro de Custo (módulo de custos)**: MERGEADO e deployado, mas com

@@ -16,6 +16,8 @@ interface MapaSvgProps {
   itens: ItemMapa[];
   selecionado: string | null;
   onSelect: (codigo: string) => void;
+  /** Clique de novo no estande já selecionado: cicla o status (ausente = somente leitura). */
+  onAlternarStatus?: (codigo: string) => void;
 }
 
 /**
@@ -23,7 +25,7 @@ interface MapaSvgProps {
  * coloridos por status) com pan (arrastar) e zoom (roda / botões) simples.
  * Toda a lógica de status/resumo já veio pronta em `itens` (hooks/useMapaVendas).
  */
-const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado, onSelect }) => {
+const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado, onSelect, onAlternarStatus }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -120,12 +122,18 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
               preserveAspectRatio="xMidYMid meet"
             />
           )}
-          {itens.map(({ estande, status, clienteNome }) => {
+          {itens.map(({ estande, status, clienteNome, proximoStatus }) => {
             if (!estande.pontos || estande.pontos.length < 3) return null;
             const estilo = ESTILO_STATUS[status];
             const isSelecionado = estande.codigo === selecionado;
             const fonte = tamanhoFonteRotulo(estande.pontos);
-            const tituloTooltip = [estande.codigo, estilo.label, clienteNome].filter(Boolean).join(" · ");
+            const editavel = !!onAlternarStatus && proximoStatus !== null && proximoStatus !== "sem_planilha";
+            const dica = !editavel
+              ? null
+              : isSelecionado
+                ? `clique de novo: ${ESTILO_STATUS[proximoStatus].label}`
+                : "clique para selecionar";
+            const tituloTooltip = [estande.codigo, estilo.label, clienteNome, dica].filter(Boolean).join(" · ");
             return (
               <g key={estande.codigo}>
                 <polygon
@@ -137,7 +145,8 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                   className="cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSelect(estande.codigo);
+                    if (isSelecionado && editavel) onAlternarStatus!(estande.codigo);
+                    else onSelect(estande.codigo);
                   }}
                 >
                   <title>{tituloTooltip}</title>

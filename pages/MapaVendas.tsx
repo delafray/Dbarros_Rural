@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { Button } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
+import { useAppDialog } from "../context/DialogContext";
 import { useMapaVendas } from "../hooks/useMapaVendas";
 import MapaSvg from "../components/mapa/MapaSvg";
 import PainelEstande from "../components/mapa/PainelEstande";
@@ -27,6 +28,7 @@ const MapaVendas: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isVisitor = user?.isVisitor ?? false;
+  const appDialog = useAppDialog();
 
   const {
     loading,
@@ -43,13 +45,14 @@ const MapaVendas: React.FC = () => {
     setFiltroFamilia,
     estandeSelecionado,
     setEstandeSelecionado,
+    alternarStatus,
     estandeAtual,
     linhaAtual,
     statusAtual,
     clienteNomeAtual,
     categoriaAtual,
     totaisAtual,
-  } = useMapaVendas(edicaoId, isVisitor);
+  } = useMapaVendas(edicaoId, isVisitor, appDialog);
 
   const periodo = edicao ? formatPeriodo(edicao.data_inicio, edicao.data_fim) : "";
   const titulo = edicao
@@ -137,6 +140,7 @@ const MapaVendas: React.FC = () => {
             itens={itensFiltrados}
             selecionado={estandeSelecionado}
             onSelect={setEstandeSelecionado}
+            onAlternarStatus={isVisitor ? undefined : alternarStatus}
           />
         </div>
 

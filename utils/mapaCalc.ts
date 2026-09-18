@@ -94,6 +94,29 @@ export const ESTILO_STATUS: Record<StatusEstande, EstiloStatus> = {
 
 export const ORDEM_STATUS: StatusEstande[] = ['livre', 'reservado', 'vendido', 'cortesia', 'sem_planilha'];
 
+/** Rótulo da venda do estande sem combo (mesma 1ª coluna da planilha). */
+export const STAND_PADRAO = 'STAND PADRÃO';
+
+/**
+ * Próximo tipo_venda ao clicar de novo no estande já selecionado — espelha o
+ * ciclo da célula da planilha (usePlanilhaEditing.handleSelectCombo):
+ *   vazio/DISPONÍVEL → STAND PADRÃO (vendido) → STAND PADRÃO* (cortesia) → DISPONÍVEL.
+ * Se a linha já tem um COMBO, o ciclo segue com o mesmo combo (COMBO 02 → COMBO 02* → DISPONÍVEL),
+ * sem trocar a escolha feita na planilha. Cliente anotado não é tocado (reservado volta sozinho).
+ */
+export function proximoTipoVenda(tipoAtual: string | null | undefined): string {
+    const tipo = (tipoAtual || '').trim();
+    if (!tipo || tipo === DISPONIVEL) return STAND_PADRAO;
+    if (tipo.endsWith('*')) return DISPONIVEL;
+    return `${tipo}*`;
+}
+
+/** Status que o estande passa a ter depois de `proximoTipoVenda` (para o tooltip "clique de novo: …"). */
+export function statusAposClique(linha: LinhaPlanilhaMapa | undefined | null): StatusEstande {
+    if (!linha) return 'sem_planilha';
+    return statusDoEstande({ ...linha, tipo_venda: proximoTipoVenda(linha.tipo_venda) });
+}
+
 /** Índice stand_nr normalizado → linha da planilha. */
 export function indexarPlanilha<T extends LinhaPlanilhaMapa>(linhas: T[]): Map<string, T> {
     const idx = new Map<string, T>();
