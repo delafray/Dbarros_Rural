@@ -40,12 +40,24 @@ function hex(doc: jsPDF, h: string): [number, number, number] {
     return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
 }
 
-/** Desenha um texto centralizado em (cx, cy), com rotação opcional (graus, sentido do SVG). */
+/**
+ * Desenha um texto centralizado em (cx, cy), com rotação opcional (graus, sentido do SVG).
+ * O jsPDF aplica `align`/`baseline` ANTES de girar (no eixo da página), o que desloca o texto
+ * virado. Por isso o ponto de partida (esquerda, linha-base) é calculado aqui no eixo girado.
+ */
 function textoCentrado(doc: jsPDF, texto: string, cx: number, cy: number, size: number, cor: string, rotacaoSvg = 0) {
     doc.setFontSize(size);
     doc.setTextColor(...hex(doc, cor));
-    // jsPDF: angle positivo = anti-horário; SVG rotate(-45) também é anti-horário na tela → inverte o sinal.
-    doc.text(texto, cx, cy, { align: 'center', baseline: 'middle', angle: -rotacaoSvg });
+    const angulo = -rotacaoSvg; // jsPDF: positivo = anti-horário; SVG rotate(-45) é anti-horário na tela
+    const a = (angulo * Math.PI) / 180;
+    const w = doc.getTextWidth(texto);
+    // direção do texto na página (y para baixo) e "para baixo" no quadro do texto (do meio até a linha-base)
+    const dx = Math.cos(a), dy = -Math.sin(a);
+    const nx = Math.sin(a), ny = Math.cos(a);
+    const meio = size * 0.35; // altura-x/2 aproximada: leva o meio visual do texto até a linha-base
+    const x = cx - dx * (w / 2) + nx * meio;
+    const y = cy - dy * (w / 2) + ny * meio;
+    doc.text(texto, x, y, { angle: angulo });
 }
 
 /**
