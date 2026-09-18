@@ -3,14 +3,12 @@ import {
   ESTILO_STATUS,
   parseViewBox,
   pontosParaAtributo,
-  tamanhoFonteRotulo,
-  layoutNomeEstande,
-  bboxDePontos,
   clampZoom,
   zoomComRoda,
   panParaZoomNoPonto,
 } from "../../utils/mapaCalc";
 import type { ItemMapa } from "../../hooks/useMapaVendas";
+import RotuloEstande from "./RotuloEstande";
 
 interface MapaSvgProps {
   viewBox: string;
@@ -137,10 +135,6 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
             if (!estande.pontos || estande.pontos.length < 3) return null;
             const estilo = ESTILO_STATUS[status];
             const isSelecionado = estande.codigo === selecionado;
-            const fonte = tamanhoFonteRotulo(estande.pontos, estande.codigo);
-            // Modo "Nomes": todo estande COM cliente mostra o nome abreviado, na direção em que cabe
-            // (inclusive "cliente sem status", que continua piscando para chamar atenção).
-            const nome = mostrarNomes && rotuloMapa ? layoutNomeEstande(estande.pontos, rotuloMapa) : null;
             const editavel = !!onAlternarStatus && proximoStatus !== null && proximoStatus !== "sem_planilha";
             const dica = !editavel
               ? null
@@ -184,53 +178,7 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                     />
                   )}
                 </polygon>
-                {nome ? (
-                  <text
-                    x={estande.centro[0]}
-                    y={estande.centro[1]}
-                    fontSize={nome.fonte}
-                    fill={estilo.texto}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    transform={nome.rotacao ? `rotate(${nome.rotacao} ${estande.centro[0]} ${estande.centro[1]})` : undefined}
-                    className="pointer-events-none select-none"
-                    style={{ fontWeight: 700 }}
-                  >
-                    {nome.linhas.length === 1 ? nome.linhas[0] : (
-                      <>
-                        <tspan x={estande.centro[0]} dy="-0.55em">{nome.linhas[0]}</tspan>
-                        <tspan x={estande.centro[0]} dy="1.1em">{nome.linhas[1]}</tspan>
-                      </>
-                    )}
-                  </text>
-                ) : fonte > 0 && (() => {
-                  // Metragem abaixo do código, menor, só quando cabe (altura do estande ≥ 2 linhas).
-                  const box = bboxDePontos(estande.pontos);
-                  const comArea = estande.area != null && !!box && box.h >= fonte * 2.1;
-                  return (
-                    <text
-                      x={estande.centro[0]}
-                      y={estande.centro[1]}
-                      fontSize={fonte}
-                      fill={estilo.texto}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      className="pointer-events-none select-none"
-                      style={{ fontWeight: 700 }}
-                    >
-                      {comArea ? (
-                        <>
-                          <tspan x={estande.centro[0]} dy="-0.42em">{estande.codigo}</tspan>
-                          <tspan x={estande.centro[0]} dy="1.15em" fontSize={fonte * 0.62} style={{ fontWeight: 600 }}>
-                            {estande.area} m²
-                          </tspan>
-                        </>
-                      ) : (
-                        estande.codigo
-                      )}
-                    </text>
-                  );
-                })()}
+                <RotuloEstande estande={estande} estilo={estilo} mostrarNomes={mostrarNomes} rotuloMapa={rotuloMapa} />
               </g>
             );
           })}

@@ -9,6 +9,7 @@ import MapaSvg from "../components/mapa/MapaSvg";
 import PainelEstande from "../components/mapa/PainelEstande";
 import LegendaCores from "../components/mapa/LegendaCores";
 import ResumoFamilias from "../components/mapa/ResumoFamilias";
+import MapaImpressao from "../components/mapa/MapaImpressao";
 
 const CHAVE_RESUMO_ABERTO = "mapa-vendas:resumo-aberto";
 const CHAVE_MOSTRAR_NOMES = "mapa-vendas:mostrar-nomes";
@@ -48,6 +49,13 @@ const MapaVendas: React.FC = () => {
       try { localStorage.setItem(CHAVE_MOSTRAR_NOMES, v ? "0" : "1"); } catch { /* sem storage */ }
       return !v;
     });
+  };
+  // Imprimir: A3 deitado, só o mapa (fundo imagem + estandes/textos em vetor), como está na tela.
+  const imprimirMapa = () => {
+    document.body.classList.add("imprimindo-mapa");
+    const limpar = () => { document.body.classList.remove("imprimindo-mapa"); window.removeEventListener("afterprint", limpar); };
+    window.addEventListener("afterprint", limpar);
+    window.print();
   };
   const alternarResumo = () => {
     setResumoAberto((v) => {
@@ -102,6 +110,16 @@ const MapaVendas: React.FC = () => {
       >
         🏷️ {mostrarNomes ? "Números" : "Nomes"}
       </Button>
+      {mapa && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={imprimirMapa}
+          title="Imprimir o mapa em A3 deitado, como está na tela (fundo em imagem, estandes e textos em vetor)"
+        >
+          🖨️ Imprimir
+        </Button>
+      )}
       <Button variant="outline" size="sm" onClick={() => navigate(`/planilha-vendas/${edicaoId}`)}>
         📋 Planilha
       </Button>
@@ -203,6 +221,13 @@ const MapaVendas: React.FC = () => {
               }
             />
           )}
+
+          <MapaImpressao
+            viewBox={mapa.view_box}
+            fundoUrl={fundoUrl}
+            itens={itensFiltrados}
+            mostrarNomes={mostrarNomes}
+          />
 
           <ResumoFamilias
             resumoFamilias={resumoFamilias}
