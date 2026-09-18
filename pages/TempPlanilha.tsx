@@ -489,7 +489,6 @@ const PlanilhaVendas: React.FC = () => {
                           ${!isVisitor ? "cursor-pointer" : ""}
                           ${isX ? "!bg-[#00B050] !text-white"
                             : isStar ? "!bg-[#C084FC] !text-white"
-                            : isPending ? "!bg-slate-400 !text-white"
                             : "!bg-white hover:bg-blue-100/50 text-transparent"}
                           ${isPending ? "ring-2 ring-inset ring-slate-900" : (isX || isStar) ? "ring-1 ring-inset ring-black/10" : ""}`}
                         onClick={() => {
@@ -502,7 +501,7 @@ const PlanilhaVendas: React.FC = () => {
                         title={isPending ? `Clique de novo: ${proximo}` : `${comboNamesDisplay[label]} (clique para selecionar)`}
                       >
                         <span className="flex items-center justify-center w-full h-full text-[11px]">
-                          {marca || (isPending ? "?" : "")}
+                          {marca}
                         </span>
                       </td>
                     );
@@ -517,19 +516,19 @@ const PlanilhaVendas: React.FC = () => {
                         key={opt.id}
                         className={`${tdStyle} text-center font-black w-6 h-5 leading-none select-none px-0
                           ${!isVisitor ? "cursor-pointer" : ""}
-                          ${isPending ? "!bg-slate-400 !text-white"
-                            : status === "x" ? "!bg-[#00B050] !text-white ring-1 ring-inset ring-black/10"
-                            : status === "*" ? "!bg-[#C084FC] !text-white ring-1 ring-inset ring-black/10"
-                            : "!bg-white hover:bg-slate-100/50 text-transparent"}`}
+                          ${status === "x" ? "!bg-[#00B050] !text-white"
+                            : status === "*" ? "!bg-[#C084FC] !text-white"
+                            : "!bg-white hover:bg-slate-100/50 text-transparent"}
+                          ${isPending ? "ring-2 ring-inset ring-slate-900" : status ? "ring-1 ring-inset ring-black/10" : ""}`}
                         onClick={() => {
                           if (isVisitor) return;
-                          if (isPending) { handleToggleOpcional(row.id, opt.nome); setPendingAction(null); }
-                          else { setPendingAction({ rowId: row.id, field: opt.nome }); }
+                          if (!isPending) { setPendingAction({ rowId: row.id, field: opt.nome }); return; }
+                          handleToggleOpcional(row.id, opt.nome);
                         }}
-                        title={isPending ? "Clique novamente para confirmar" : opt.nome}
+                        title={isPending ? `${opt.nome} (clique de novo: troca)` : `${opt.nome} (clique para selecionar)`}
                       >
                         <span className="flex items-center justify-center w-full h-full text-[11px]">
-                          {isPending ? "?" : status}
+                          {status}
                         </span>
                       </td>
                     );
