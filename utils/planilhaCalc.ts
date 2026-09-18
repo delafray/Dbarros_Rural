@@ -21,6 +21,30 @@ export interface CategoriaCalc {
     preco_m2?: number;
 }
 
+/**
+ * Marcas de `tipo_venda` (planilha é o cérebro; mapa e relatórios só leem):
+ *   'DISPONÍVEL'      → livre
+ *   '<rótulo>'        → venda (x) — ÚNICA marca que gera valor
+ *   '<rótulo>*'       → cortesia/permuta (*), vale zero
+ *   'RESERVADO*'      → reservado (18/09): estande segurado para um cliente, vale zero (leva * por isso)
+ * Cliente anotado SEM marca nenhuma = pendência a corrigir (pisca no mapa e na planilha).
+ */
+export const TIPO_DISPONIVEL = 'DISPONÍVEL';
+export const TIPO_RESERVADO = 'RESERVADO*';
+
+export function isReservado(tipoVenda: string | null | undefined): boolean {
+    return (tipoVenda || '').trim() === TIPO_RESERVADO;
+}
+/** Marca presente (venda, cortesia ou reservado) — o estande não está livre. */
+export function ocupaEstande(tipoVenda: string | null | undefined): boolean {
+    const t = (tipoVenda || '').trim();
+    return !!t && t !== TIPO_DISPONIVEL;
+}
+/** Venda de verdade (x): ocupa e não tem *. */
+export function isVenda(tipoVenda: string | null | undefined): boolean {
+    return ocupaEstande(tipoVenda) && !(tipoVenda || '').includes('*');
+}
+
 export interface EstandeCalc {
     stand_nr: string;
     tipo_venda: string;

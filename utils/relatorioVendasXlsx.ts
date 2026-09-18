@@ -347,7 +347,8 @@ export async function gerarPlanilhaVendasXlsx(p: ParamsRelatorioVendas): Promise
 
     // ── 3. Resumo geral (linha 2: contagens e totais — FÓRMULAS) ───────────
     const fStands = `COUNTIF(${rng(C.isStand)},1)`;
-    const fVendas = `COUNTIFS(${rng(C.isStand)},1,${rng(C.tipo)},"<>DISPONÍVEL")`;
+    // RESERVADO* (estande segurado, vale zero) não entra na contagem de vendas. "~*" = * literal no COUNTIFS.
+    const fVendas = `COUNTIFS(${rng(C.isStand)},1,${rng(C.tipo)},"<>DISPONÍVEL",${rng(C.tipo)},"<>RESERVADO~*")`;
     const pct = d.totalStands > 0 ? Math.round((d.vendasCount / d.totalStands) * 100) : 0;
 
     ws.mergeCells(LINHA_RESUMO_2, C.cat, LINHA_RESUMO_2, C.stand);
