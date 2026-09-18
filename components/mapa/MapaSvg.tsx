@@ -5,6 +5,7 @@ import {
   pontosParaAtributo,
   tamanhoFonteRotulo,
   layoutNomeEstande,
+  bboxDePontos,
   clampZoom,
   zoomComRoda,
   panParaZoomNoPonto,
@@ -202,20 +203,34 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
                       </>
                     )}
                   </text>
-                ) : fonte > 0 && (
-                  <text
-                    x={estande.centro[0]}
-                    y={estande.centro[1]}
-                    fontSize={fonte}
-                    fill={estilo.texto}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    className="pointer-events-none select-none"
-                    style={{ fontWeight: 700 }}
-                  >
-                    {estande.codigo}
-                  </text>
-                )}
+                ) : fonte > 0 && (() => {
+                  // Metragem abaixo do código, menor, só quando cabe (altura do estande ≥ 2 linhas).
+                  const box = bboxDePontos(estande.pontos);
+                  const comArea = estande.area != null && !!box && box.h >= fonte * 2.1;
+                  return (
+                    <text
+                      x={estande.centro[0]}
+                      y={estande.centro[1]}
+                      fontSize={fonte}
+                      fill={estilo.texto}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      className="pointer-events-none select-none"
+                      style={{ fontWeight: 700 }}
+                    >
+                      {comArea ? (
+                        <>
+                          <tspan x={estande.centro[0]} dy="-0.42em">{estande.codigo}</tspan>
+                          <tspan x={estande.centro[0]} dy="1.15em" fontSize={fonte * 0.62} style={{ fontWeight: 600 }}>
+                            {estande.area} m²
+                          </tspan>
+                        </>
+                      ) : (
+                        estande.codigo
+                      )}
+                    </text>
+                  );
+                })()}
               </g>
             );
           })}
