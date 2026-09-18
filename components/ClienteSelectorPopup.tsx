@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ClienteSelectorWidget, ClienteComContato } from './ClienteSelectorWidget';
 
 type Step = 'menu' | 'buscar' | 'nome_livre' | 'confirmar_limpar' | 'bloqueado';
@@ -12,14 +12,25 @@ interface Props {
     rowHasData?: boolean;
 }
 
-const Overlay: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => (
-    <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        onClick={e => e.target === e.currentTarget && onClose()}
-    >
-        {children}
-    </div>
-);
+const Overlay: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => {
+    // Trava a rolagem da página atrás do modal (a roda do mouse não pode mexer na planilha/mapa).
+    useEffect(() => {
+        const anterior = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = anterior; };
+    }, []);
+    // Fecha só se o clique COMEÇOU e TERMINOU no fundo: selecionar texto arrastando para fora não fecha.
+    const fundoRef = useRef(false);
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overscroll-contain"
+            onMouseDown={e => { fundoRef.current = e.target === e.currentTarget; }}
+            onClick={e => { if (fundoRef.current && e.target === e.currentTarget) onClose(); fundoRef.current = false; }}
+        >
+            {children}
+        </div>
+    );
+};
 
 const CloseBtn: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     <button
@@ -76,7 +87,7 @@ const ClienteSelectorPopup: React.FC<Props> = ({
                         </div>
                         <CloseBtn onClose={onClose} />
                     </div>
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                         <ClienteSelectorWidget
                             onSelect={handleWidgetSelect}
                             currentClienteId={currentClienteId}

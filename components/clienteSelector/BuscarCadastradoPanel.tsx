@@ -36,7 +36,7 @@ export const BuscarCadastradoPanel: React.FC<BuscarCadastradoPanelProps> = ({
     } = search;
 
     return (
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {/* Barra de Busca + Novo Cliente */}
             <div className="px-5 py-4 border-b border-slate-200 bg-white shrink-0 flex items-center gap-4">
                 <div className="relative flex-1">
@@ -72,9 +72,9 @@ export const BuscarCadastradoPanel: React.FC<BuscarCadastradoPanelProps> = ({
             </div>
 
             {/* Tabela de Resultados */}
-            <div ref={listRef} className="flex-1 overflow-auto bg-slate-50 p-4">
-                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm h-full flex flex-col min-h-[300px]">
-                    <div className="flex-1 overflow-auto">
+            <div ref={listRef} className="flex-1 min-h-0 overflow-auto overscroll-contain bg-slate-50 p-4">
+                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm flex flex-col">
+                    <div>
                         <table className="w-full text-left border-collapse table-fixed">
                             <thead className="sticky top-0 z-10 bg-slate-200 shadow-sm">
                                 <tr className="text-slate-700 text-[11px] font-bold uppercase tracking-tight">
