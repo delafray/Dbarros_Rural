@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { planilhaVendasService, PlanilhaEstande } from "../services/planilhaVendasService";
+import { TIPO_DISPONIVEL, TIPO_RESERVADO, isReservado } from "../utils/planilhaCalc";
 
 interface AppDialog {
   alert: (opts: { title: string; message: string; type: string }) => Promise<void>;
@@ -32,13 +33,26 @@ export function usePlanilhaEditing(
     });
   };
 
-  const handleSelectCombo = async (rowId: string, comboLabel: string) => {
+  /**
+   * Ciclo da célula (mesmo do mapa, 18/09): vazio → RESERVADO* → x (rótulo) → * (rótulo*) → vazio.
+   * Reservado exige cliente: sem cliente devolve "precisa_cliente" e a tela abre o modal
+   * (depois grava RESERVADO* junto com o cliente). Clicar num combo diferente do marcado troca
+   * o combo direto (regra antiga preservada). Devolve o tipo gravado ou "precisa_cliente".
+   */
+  const handleSelectCombo = async (rowId: string, comboLabel: string): Promise<string | "precisa_cliente" | undefined> => {
     const row = rows.find((r) => r.id === rowId);
     if (!row) return;
     const oldTipo = row.tipo_venda;
+    const tipo = (row.tipo_venda || "").trim();
+    const temCliente = !!row.cliente_id || !!(row.cliente_nome_livre && row.cliente_nome_livre.trim());
     let newTipo: string;
-    if (row.tipo_venda === comboLabel) newTipo = comboLabel + "*";
-    else if (row.tipo_venda === comboLabel + "*") newTipo = "DISPONÍVEL";
+    if (!tipo || tipo === TIPO_DISPONIVEL) {
+      if (!temCliente) return "precisa_cliente";
+      newTipo = TIPO_RESERVADO;
+    }
+    else if (isReservado(tipo)) newTipo = comboLabel;
+    else if (tipo === comboLabel) newTipo = comboLabel + "*";
+    else if (tipo === comboLabel + "*") newTipo = TIPO_DISPONIVEL;
     else newTipo = comboLabel;
     setRows((prev) =>
       prev.map((r) => (r.id === rowId ? { ...r, tipo_venda: newTipo } : r)),
@@ -49,6 +63,7 @@ export function usePlanilhaEditing(
         setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, tipo_venda: oldTipo } : r)));
         showSaveError("combo");
       });
+    return newTipo;
   };
 
   const handleToggleOpcional = async (rowId: string, optNome: string) => {
@@ -97,24 +112,23 @@ export function usePlanilhaEditing(
       .catch(() => showSaveError("observações"));
   };
 
-  const handleClienteSelect = (rowId: string, clienteId: string | null, nomeLivre: string | null) => {
+  const handleClienteSelect = (rowId: string, clienteId: string | null, nomeLivre: string | null, opts?: { reservar?: boolean }) => {
     const row = rows.find((r) => r.id === rowId);
     const oldClienteId = row?.cliente_id ?? null;
     const oldNomeLivre = row?.cliente_nome_livre ?? null;
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === rowId
-          ? { ...r, cliente_id: clienteId, cliente_nome_livre: nomeLivre }
-          : r,
-      ),
-    );
+    const oldTipo = row?.tipo_venda ?? TIPO_DISPONIVEL;
+    const temCliente = !!clienteId || !!(nomeLivre && nomeLivre.trim());
+    const updates: Partial<PlanilhaEstande> = { cliente_id: clienteId, cliente_nome_livre: nomeLivre };
+    // Veio do clique "reservar" numa linha sem cliente: com cliente escolhido, grava RESERVADO* junto.
+    if (opts?.reservar && temCliente && (!oldTipo || oldTipo === TIPO_DISPONIVEL)) updates.tipo_venda = TIPO_RESERVADO;
+    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, ...updates } : r)));
     planilhaVendasService
-      .updateEstande(rowId, { cliente_id: clienteId, cliente_nome_livre: nomeLivre })
+      .updateEstande(rowId, updates)
       .catch(() => {
         setRows((prev) =>
           prev.map((r) =>
             r.id === rowId
-              ? { ...r, cliente_id: oldClienteId, cliente_nome_livre: oldNomeLivre }
+              ? { ...r, cliente_id: oldClienteId, cliente_nome_livre: oldNomeLivre, tipo_venda: oldTipo }
               : r,
           ),
         );

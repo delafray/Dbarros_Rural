@@ -45,3 +45,13 @@ input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/* Planilha: cliente anotado sem marca nenhuma (erro a corrigir) — mesma oscilação do mapa */
+@keyframes planilha-sem-status {
+  0%, 100% { background-color: #00B0F0; color: #082F49; }
+  50%      { background-color: #1E3A8A; color: #FFFFFF; }
+}
+td.planilha-cliente-sem-status {
+  animation: planilha-sem-status 1.4s ease-in-out infinite;
+}
+td.planilha-cliente-sem-status span { color: inherit !important; }
