@@ -4,7 +4,7 @@ import Layout from "../components/Layout";
 import { Button } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import { useAppDialog } from "../context/DialogContext";
-import { isReservado, ocupaEstande } from "../utils/planilhaCalc";
+import { isReservado, reservadoDe } from "../utils/planilhaCalc";
 import { edicaoDocsService } from "../services/edicaoDocsService";
 import { ImagemConfig } from "../services/imagensService";
 import { Atendimento } from "../services/atendimentosService";
@@ -68,8 +68,6 @@ const PlanilhaVendas: React.FC = () => {
   const [viewFilter, setViewFilter] = useState<'todos' | 'vendidos' | 'disponivel'>('todos');
   const [docModal, setDocModal] = useState<DocModalState>(null);
   const [popupRowId, setPopupRowId] = useState<string | null>(null);
-  /** true = o popup de cliente abriu porque a célula pediu RESERVADO numa linha sem cliente. */
-  const [popupReservar, setPopupReservar] = useState(false);
   const [atendimentoModal, setAtendimentoModal] = useState<Atendimento | null>(null);
 
   // ─── Filtered + sorted rows ────────────────────────────────
@@ -375,7 +373,27 @@ const PlanilhaVendas: React.FC = () => {
             {/* ── Row 3: Column headers ── */}
             <tr className="bg-[#1F497D]">
               <th className={`${thStyle} w-16`}>Stand</th>
-              <th className={`${thStyle} min-w-[180px]`}>Cliente</th>
+              {/* Legenda na sobra do cabeçalho CLIENTE. Posição absoluta = fora do fluxo: nunca muda
+                  altura nem largura da célula (tela compacta). O tamanho da fonte acompanha a largura
+                  da célula (container query): cresce até 13px quando sobra espaço e encolhe até 9px
+                  quando falta; afastamento mínimo fixo entre os itens; excesso é cortado, sem vazar. */}
+              <th className={`${thStyle} min-w-[180px] relative`}>
+                Cliente
+                <div
+                  className="absolute left-1 right-1 bottom-1 overflow-hidden pointer-events-none"
+                  style={{ containerType: "inline-size" }}
+                  title="Clique na célula do combo: 1º seleciona · depois x venda → * reservado → * cortesia → vazio"
+                >
+                  <div
+                    className="flex justify-between gap-x-2 normal-case font-normal leading-none text-white/90 whitespace-nowrap"
+                    style={{ fontSize: "clamp(9px, 4.2cqw, 13px)" }}
+                  >
+                    <span className="flex items-center gap-[0.35em] min-w-0 truncate"><span className="inline-block w-[1.1em] h-[1.1em] shrink-0 rounded-sm bg-[#00B050] text-white text-[0.85em] font-black leading-[1.1em] text-center">x</span>venda</span>
+                    <span className="flex items-center gap-[0.35em] min-w-0 truncate"><span className="inline-block w-[1.1em] h-[1.1em] shrink-0 rounded-sm bg-[#FDBA74] text-[#431407] text-[0.85em] font-black leading-[1.1em] text-center">*</span>reservado</span>
+                    <span className="flex items-center gap-[0.35em] min-w-0 truncate"><span className="inline-block w-[1.1em] h-[1.1em] shrink-0 rounded-sm bg-[#C084FC] text-white text-[0.85em] font-black leading-[1.1em] text-center">*</span>cortesia</span>
+                  </div>
+                </div>
+              </th>
               {comboLabels.map((label) => (
                 <th key={label} className={`${thStyle} w-6 p-0 font-normal`} title={label} style={{ verticalAlign: 'bottom' }}>
                   <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: comboNamesDisplay[label].length > 10 ? '7px' : '8px', lineHeight: 1, padding: '4px 2px', textAlign: 'left', display: 'block' }}>
@@ -450,16 +468,11 @@ const PlanilhaVendas: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* Cliente — reservado em laranja; cliente sem marca nenhuma pisca (erro a corrigir) */}
-                  {(() => {
-                    const temClienteRow = !!row.cliente_id || !!(row.cliente_nome_livre && row.cliente_nome_livre.trim());
-                    const reservadoRow = isReservado(row.tipo_venda);
-                    const semStatusRow = temClienteRow && !ocupaEstande(row.tipo_venda);
-                    return (
+                  {/* Cliente */}
                   <td
-                    className={`${tdStyle} min-w-[200px] ${isVisitor ? '' : 'cursor-pointer'} group px-2 ${reservadoRow ? "!bg-[#FDBA74]" : ""} ${semStatusRow ? "planilha-cliente-sem-status" : ""}`}
+                    className={`${tdStyle} min-w-[200px] ${isVisitor ? '' : 'cursor-pointer'} group px-2`}
                     onClick={() => !isVisitor && setPopupRowId(row.id)}
-                    title={reservadoRow ? "Reservado — clique na célula do combo para vender" : semStatusRow ? "Cliente sem status: marque reservado, venda ou cortesia, ou volte a disponível" : isVisitor ? undefined : "Clique para selecionar cliente"}
+                    title={isVisitor ? undefined : "Clique para selecionar cliente"}
                   >
                     {(() => {
                       const cliente = clienteMap.get(row.cliente_id ?? "");
@@ -471,34 +484,40 @@ const PlanilhaVendas: React.FC = () => {
                       return <span className="text-slate-400 italic text-[11px] group-hover:text-blue-500 transition-colors uppercase">Disponível</span>;
                     })()}
                   </td>
-                    );
-                  })()}
 
                   {/* Combo columns */}
                   {comboLabels.map((label) => {
                     const isX = row.tipo_venda === label;
+                    const isRes = row.tipo_venda === reservadoDe(label);
                     const isStar = row.tipo_venda === label + "*";
                     const isPending = pendingAction?.rowId === row.id && pendingAction?.field === label;
-                    // 1º clique seleciona a célula; os seguintes vão trocando o status (mesmo gesto do mapa).
-                    const marca = isX ? "x" : isStar ? "*" : "";
-                    const proximo = !ocupaEstande(row.tipo_venda) ? "reservar" : isReservado(row.tipo_venda) ? "vender" : isX ? "cortesia" : isStar ? "limpar" : `vender ${comboNamesDisplay[label]}`;
+                    // 1º clique seleciona a célula; os seguintes: x → reservado → * → vazio (mesmo gesto do mapa).
+                    // Asterisco sempre que não há preço (reservado e cortesia).
+                    const marca = isX ? "x" : (isRes || isStar) ? "*" : "";
+                    const proximo = isX ? "reservado" : isRes ? "cortesia" : isStar ? "limpar" : `vender ${comboNamesDisplay[label]}`;
+                    // Marcado SEM cliente: atenção sutil — mesma cor, mais clara (o vendedor ainda precisa anotar o cliente).
+                    const semCliente = !row.cliente_id && !(row.cliente_nome_livre && row.cliente_nome_livre.trim());
+                    const corMarca = isX
+                      ? (semCliente ? "!bg-[#8ADBA8] !text-white" : "!bg-[#00B050] !text-white")
+                      : isRes
+                        ? (semCliente ? "!bg-[#FEE0C2] !text-[#7C2D12]" : "!bg-[#FDBA74] !text-[#431407]")
+                        : isStar
+                          ? (semCliente ? "!bg-[#E2C6FE] !text-white" : "!bg-[#C084FC] !text-white")
+                          : "!bg-white hover:bg-blue-100/50 text-transparent";
+                    const dicaCliente = marca && semCliente ? " · sem cliente" : "";
                     return (
                       <td
                         key={label}
                         className={`${tdStyle} text-center font-black select-none w-6 h-5 leading-none px-0
                           ${!isVisitor ? "cursor-pointer" : ""}
-                          ${isX ? "!bg-[#00B050] !text-white"
-                            : isStar ? "!bg-[#C084FC] !text-white"
-                            : "!bg-white hover:bg-blue-100/50 text-transparent"}
-                          ${isPending ? "ring-2 ring-inset ring-slate-900" : (isX || isStar) ? "ring-1 ring-inset ring-black/10" : ""}`}
+                          ${corMarca}
+                          ${isPending ? "ring-2 ring-inset ring-slate-900" : (isX || isRes || isStar) ? "ring-1 ring-inset ring-black/10" : ""}`}
                         onClick={() => {
                           if (isVisitor) return;
                           if (!isPending) { setPendingAction({ rowId: row.id, field: label }); return; }
-                          void handleSelectCombo(row.id, label).then((r) => {
-                            if (r === "precisa_cliente") { setPopupReservar(true); setPopupRowId(row.id); }
-                          });
+                          void handleSelectCombo(row.id, label);
                         }}
-                        title={isPending ? `Clique de novo: ${proximo}` : `${comboNamesDisplay[label]} (clique para selecionar)`}
+                        title={(isPending ? `Clique de novo: ${proximo}` : `${comboNamesDisplay[label]} (clique para selecionar)`) + dicaCliente}
                       >
                         <span className="flex items-center justify-center w-full h-full text-[11px]">
                           {marca}
@@ -714,8 +733,8 @@ const PlanilhaVendas: React.FC = () => {
             currentNomeLivre={popupRow?.cliente_nome_livre}
             currentClienteNome={popupClienteNome}
             rowHasData={rowHasData}
-            onSelect={(clienteId, nomeLivre) => { handleClienteSelect(popupRowId, clienteId, nomeLivre, { reservar: popupReservar }); setPopupReservar(false); }}
-            onClose={() => { setPopupRowId(null); setPopupReservar(false); }}
+            onSelect={(clienteId, nomeLivre) => handleClienteSelect(popupRowId, clienteId, nomeLivre)}
+            onClose={() => setPopupRowId(null)}
           />
         );
       })()}

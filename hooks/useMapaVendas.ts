@@ -18,8 +18,6 @@ import {
   statusDoEstande,
   statusAposClique,
   transicaoCliqueMapa,
-  ClienteEmEspera,
-  RESERVADO,
   linhaDoEstande,
   resumoPorFamilia,
   resumoGeral as calcResumoGeral,
@@ -34,20 +32,6 @@ import {
   OpcionalCalc,
   TotaisRow,
 } from "../utils/planilhaCalc";
-
-const chaveEspera = (edicaoId: string | undefined) => `mapa-vendas:cliente-espera:${edicaoId ?? ""}`;
-function lerEspera(edicaoId: string | undefined): Record<string, ClienteEmEspera> {
-  try {
-    const raw = localStorage.getItem(chaveEspera(edicaoId));
-    const obj = raw ? JSON.parse(raw) : null;
-    return obj && typeof obj === "object" ? obj : {};
-  } catch {
-    return {};
-  }
-}
-function gravarEspera(edicaoId: string | undefined, valor: Record<string, ClienteEmEspera>) {
-  try { localStorage.setItem(chaveEspera(edicaoId), JSON.stringify(valor)); } catch { /* sem storage: só não lembra */ }
-}
 
 /** Um item pronto para o MapaSvg desenhar: geometria + status já resolvido. */
 export interface ItemMapa {
@@ -81,23 +65,6 @@ export function useMapaVendas(
   const [allItensOpcionais, setAllItensOpcionais] = useState<ItemOpcional[]>([]);
 
   const [estandeSelecionado, setEstandeSelecionado] = useState<string | null>(null);
-  /** Código do estande cujo clique pediu RESERVADO sem cliente — a página abre o modal de cliente. */
-  const [pedindoClientePara, setPedindoClientePara] = useState<string | null>(null);
-
-  // Cliente em espera por estande (stand_nr → cliente): sai da linha quando o estande volta a
-  // livre pelo mapa e volta junto na próxima venda pelo mapa. Guardado no navegador por edição.
-  const [emEspera, setEmEspera] = useState<Record<string, ClienteEmEspera>>(() =>
-    lerEspera(edicaoId),
-  );
-  useEffect(() => { setEmEspera(lerEspera(edicaoId)); }, [edicaoId]);
-  const atualizarEspera = (standNr: string, valor: ClienteEmEspera | null) => {
-    setEmEspera((prev) => {
-      const prox = { ...prev };
-      if (valor) prox[standNr] = valor; else delete prox[standNr];
-      gravarEspera(edicaoId, prox);
-      return prox;
-    });
-  };
   const [filtroFamilia, setFiltroFamilia] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<StatusEstande | null>(null);
 
@@ -197,15 +164,15 @@ export function useMapaVendas(
           estande,
           status: statusDoEstande(linha),
           clienteNome: nomeClienteDaLinha(linha, clienteMap),
-          proximoStatus: !isVisitor && linha ? statusAposClique(linha, emEspera[estande.stand_nr]) : null,
+          proximoStatus: !isVisitor && linha ? statusAposClique(linha) : null,
         };
       }),
-    [estandes, indice, clienteMap, isVisitor, emEspera],
+    [estandes, indice, clienteMap, isVisitor],
   );
 
   // ─── Clique de novo no estande selecionado: cicla o status na MESMA linha da
   // planilha (tipo_venda), pelo mesmo serviço e com o mesmo otimismo/rollback de
-  // usePlanilhaEditing.handleSelectCombo. O realtime propaga para a planilha aberta.
+  // usePlanilhaEditing.handleSelectCombo. Nunca toca no cliente (regra 18/09).
   const alternarStatus = useCallback(
     async (codigo: string) => {
       if (isVisitor) return;
@@ -213,22 +180,14 @@ export function useMapaVendas(
       if (!estande) return;
       const linha = linhaDoEstande(estande, indice) as PlanilhaEstande | undefined;
       if (!linha) return; // sem linha na planilha: nada a gravar (estande fica vermelho)
-      const anterior = { tipo_venda: linha.tipo_venda, cliente_id: linha.cliente_id, cliente_nome_livre: linha.cliente_nome_livre };
-      const esperaAntes = emEspera[estande.stand_nr] ?? null;
-      const { updates, emEspera: esperaDepois, precisaCliente } = transicaoCliqueMapa(linha, esperaAntes);
-      if (precisaCliente) {
-        // Reservado exige cliente: a página abre o modal; ao escolher, `definirCliente(..., { reservar: true })`.
-        setPedindoClientePara(codigo);
-        return;
-      }
+      const anterior = { tipo_venda: linha.tipo_venda };
+      const { updates } = transicaoCliqueMapa(linha);
       setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, ...updates } : r)));
-      atualizarEspera(estande.stand_nr, esperaDepois);
       try {
         await planilhaVendasService.updateEstande(linha.id, updates);
       } catch (err) {
         console.error("Erro ao alterar status pelo mapa:", err);
         setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, ...anterior } : r)));
-        atualizarEspera(estande.stand_nr, esperaAntes);
         void appDialog?.alert({
           title: "Erro ao salvar",
           message: `Não foi possível alterar o status do estande ${codigo}. O valor foi revertido.`,
@@ -236,7 +195,7 @@ export function useMapaVendas(
         });
       }
     },
-    [isVisitor, estandes, indice, appDialog, emEspera],
+    [isVisitor, estandes, indice, appDialog],
   );
 
   const itensFiltrados = useMemo(
@@ -299,19 +258,14 @@ export function useMapaVendas(
 
   // ─── Cliente do estande pelo painel (mesmo modal e mesma gravação da planilha) ──
   const definirCliente = useCallback(
-    async (codigo: string, clienteId: string | null, nomeLivre: string | null, opts?: { reservar?: boolean }) => {
+    async (codigo: string, clienteId: string | null, nomeLivre: string | null) => {
       if (isVisitor) return;
       const estande = estandes.find((e) => e.codigo === codigo);
       if (!estande) return;
       const linha = linhaDoEstande(estande, indice) as PlanilhaEstande | undefined;
       if (!linha) return;
-      const anterior = { cliente_id: linha.cliente_id ?? null, cliente_nome_livre: linha.cliente_nome_livre ?? null, tipo_venda: linha.tipo_venda };
-      const temCliente = !!clienteId || !!(nomeLivre && nomeLivre.trim());
+      const anterior = { cliente_id: linha.cliente_id ?? null, cliente_nome_livre: linha.cliente_nome_livre ?? null };
       const updates: Partial<PlanilhaEstande> = { cliente_id: clienteId, cliente_nome_livre: nomeLivre };
-      // Veio do clique "reservar" sem cliente: com cliente escolhido, grava RESERVADO* junto.
-      if (opts?.reservar && temCliente && (!linha.tipo_venda || linha.tipo_venda === "DISPONÍVEL")) {
-        updates.tipo_venda = RESERVADO;
-      }
       setRows((prev) => prev.map((r) => (r.id === linha.id ? { ...r, ...updates } : r)));
       try {
         await planilhaVendasService.updateEstande(linha.id, updates);
@@ -352,8 +306,6 @@ export function useMapaVendas(
     setEstandeSelecionado,
     alternarStatus,
     definirCliente,
-    pedindoClientePara,
-    setPedindoClientePara,
     estandeAtual,
     linhaAtual,
     statusAtual,

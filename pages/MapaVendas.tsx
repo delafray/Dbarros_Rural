@@ -9,7 +9,6 @@ import MapaSvg from "../components/mapa/MapaSvg";
 import PainelEstande from "../components/mapa/PainelEstande";
 import LegendaCores from "../components/mapa/LegendaCores";
 import ResumoFamilias from "../components/mapa/ResumoFamilias";
-import ClienteSelectorPopup from "../components/ClienteSelectorPopup";
 
 const CHAVE_RESUMO_ABERTO = "mapa-vendas:resumo-aberto";
 
@@ -63,8 +62,6 @@ const MapaVendas: React.FC = () => {
     setEstandeSelecionado,
     alternarStatus,
     definirCliente,
-    pedindoClientePara,
-    setPedindoClientePara,
     estandeAtual,
     linhaAtual,
     statusAtual,
@@ -195,17 +192,6 @@ const MapaVendas: React.FC = () => {
         </div>
       </div>
 
-      {/* Clique pediu RESERVADO num estande sem cliente: escolhe o cliente e reserva em seguida. */}
-      {pedindoClientePara && !isVisitor && (
-        <ClienteSelectorPopup
-          onSelect={(clienteId, nomeLivre) => {
-            const codigo = pedindoClientePara;
-            setPedindoClientePara(null);
-            void definirCliente(codigo, clienteId, nomeLivre, { reservar: true });
-          }}
-          onClose={() => setPedindoClientePara(null)}
-        />
-      )}
     </Layout>
   );
 };

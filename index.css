@@ -45,14 +45,3 @@ input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
-
-/* Planilha: cliente anotado sem marca nenhuma (erro a corrigir) — só o nome oscila
-   devagar de preto para cinza; o fundo da célula não muda (pedido do usuário 18/09). */
-@keyframes planilha-sem-status {
-  0%, 100% { color: #0F172A; }
-  50%      { color: #A3A3A3; }
-}
-td.planilha-cliente-sem-status span {
-  animation: planilha-sem-status 3.2s ease-in-out infinite;
-  color: #0F172A !important;
-}

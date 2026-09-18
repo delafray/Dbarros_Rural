@@ -108,7 +108,7 @@ export const useDashboardExportPDF = (setDocModal: React.Dispatch<React.SetState
                 totals.desconto = addMonetario(totals.desconto, c.desconto);
                 totals.totalVenda = addMonetario(totals.totalVenda, c.totalVenda);
                 const isSt = (getCategoria(row.stand_nr) as any)?.is_stand !== false;
-                const reservado = row.tipo_venda === 'RESERVADO*'; // vale zero; não é venda nem cortesia de combo
+                const reservado = row.tipo_venda.startsWith('RESERVADO '); // vale zero; não é venda nem cortesia de combo
                 if (row.tipo_venda !== 'DISPONÍVEL' && !reservado && isSt) vendasCount++;
                 const base = row.tipo_venda.replace('*', '').trim();
                 if (!row.tipo_venda.endsWith('*') && row.tipo_venda !== 'DISPONÍVEL' && isSt)

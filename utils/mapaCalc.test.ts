@@ -3,7 +3,7 @@ import {
     normalizarCodigo, codigoDaPlanta, statusDoEstande, indexarPlanilha, linhaDoEstande,
     resumoPorFamilia, resumoGeral, estandesForaDoMapa, parseViewBox, pontosParaAtributo,
     nomeClienteDaLinha, bboxDePontos, tamanhoFonteRotulo, clampZoom, zoomComRoda, panParaZoomNoPonto,
-    proximoTipoVenda, statusAposClique, transicaoCliqueMapa, STAND_PADRAO, RESERVADO,
+    proximoTipoVenda, statusAposClique, transicaoCliqueMapa, STAND_PADRAO,
     ESTILO_STATUS, ORDEM_STATUS, type EstandeMapa, type LinhaPlanilhaMapa, type ClienteNome,
 } from './mapaCalc';
 
@@ -54,9 +54,9 @@ describe('statusDoEstande (marcas da planilha)', () => {
         expect(statusDoEstande({ stand_nr: 'P 01', tipo_venda: 'STAND PADRÃO*' })).toBe('cortesia');
         expect(statusDoEstande({ stand_nr: 'P 01', tipo_venda: 'COMBO 01*' })).toBe('cortesia');
     });
-    it('RESERVADO* → reservado (status de verdade, vale zero por causa do *)', () => {
-        expect(statusDoEstande({ stand_nr: 'P 01', tipo_venda: 'RESERVADO*', cliente_id: 'c1' })).toBe('reservado');
-        expect(statusDoEstande({ stand_nr: 'P 01', tipo_venda: RESERVADO })).toBe('reservado');
+    it('RESERVADO <rótulo>* → reservado (status de verdade, vale zero por causa do *)', () => {
+        expect(statusDoEstande({ stand_nr: 'P 01', tipo_venda: 'RESERVADO COMBO 01*', cliente_id: 'c1' })).toBe('reservado');
+        expect(statusDoEstande({ stand_nr: 'P 01', tipo_venda: 'RESERVADO STAND PADRÃO*' })).toBe('reservado');
     });
     it('cliente anotado sem marca nenhuma → cliente_sem_status (ERRO a corrigir), id ou nome livre', () => {
         expect(statusDoEstande({ stand_nr: 'P 01', tipo_venda: 'DISPONÍVEL', cliente_id: 'c1' })).toBe('cliente_sem_status');
@@ -69,81 +69,59 @@ describe('statusDoEstande (marcas da planilha)', () => {
 });
 
 describe('proximoTipoVenda / statusAposClique (clique de novo no estande selecionado)', () => {
-    it('vazio ou DISPONÍVEL → RESERVADO*; RESERVADO* → STAND PADRÃO (vendido)', () => {
-        expect(proximoTipoVenda(null)).toBe(RESERVADO);
-        expect(proximoTipoVenda('')).toBe(RESERVADO);
-        expect(proximoTipoVenda('DISPONÍVEL')).toBe(RESERVADO);
-        expect(proximoTipoVenda('  DISPONÍVEL ')).toBe(RESERVADO);
-        expect(proximoTipoVenda(RESERVADO)).toBe(STAND_PADRAO);
+    it('vazio ou DISPONÍVEL → STAND PADRÃO (x); x → reservado do mesmo rótulo', () => {
+        expect(proximoTipoVenda(null)).toBe(STAND_PADRAO);
+        expect(proximoTipoVenda('')).toBe(STAND_PADRAO);
+        expect(proximoTipoVenda('DISPONÍVEL')).toBe(STAND_PADRAO);
+        expect(proximoTipoVenda('  DISPONÍVEL ')).toBe(STAND_PADRAO);
+        expect(proximoTipoVenda('STAND PADRÃO')).toBe('RESERVADO STAND PADRÃO*');
+        expect(proximoTipoVenda('COMBO 02')).toBe('RESERVADO COMBO 02*');
     });
-    it('vendido → cortesia (mesmo rótulo com *)', () => {
-        expect(proximoTipoVenda('STAND PADRÃO')).toBe('STAND PADRÃO*');
-        expect(proximoTipoVenda('COMBO 02')).toBe('COMBO 02*');
+    it('reservado → cortesia (mesmo rótulo com *)', () => {
+        expect(proximoTipoVenda('RESERVADO STAND PADRÃO*')).toBe('STAND PADRÃO*');
+        expect(proximoTipoVenda('RESERVADO COMBO 02*')).toBe('COMBO 02*');
     });
     it('cortesia → DISPONÍVEL (fecha o ciclo, igual à célula da planilha)', () => {
         expect(proximoTipoVenda('STAND PADRÃO*')).toBe('DISPONÍVEL');
         expect(proximoTipoVenda('COMBO 02*')).toBe('DISPONÍVEL');
     });
-    it('ciclo completo: livre → reservado → vendido → cortesia → livre', () => {
+    it('ciclo completo: livre → vendido → reservado → cortesia → livre', () => {
         const l = { stand_nr: 'P 01', tipo_venda: 'DISPONÍVEL', cliente_id: 'c1' };
         const t1 = proximoTipoVenda(l.tipo_venda);
         const t2 = proximoTipoVenda(t1);
         const t3 = proximoTipoVenda(t2);
         const t4 = proximoTipoVenda(t3);
-        expect(statusDoEstande({ ...l, tipo_venda: t1 })).toBe('reservado');
-        expect(statusDoEstande({ ...l, tipo_venda: t2 })).toBe('vendido');
+        expect(statusDoEstande({ ...l, tipo_venda: t1 })).toBe('vendido');
+        expect(statusDoEstande({ ...l, tipo_venda: t2 })).toBe('reservado');
         expect(statusDoEstande({ ...l, tipo_venda: t3 })).toBe('cortesia');
         expect(t4).toBe('DISPONÍVEL');
     });
-    it('livre SEM cliente e sem espera → precisaCliente (abre o modal antes de reservar); tooltip promete reservado', () => {
+    it('status não exige cliente: livre sem cliente → vendido direto (cliente vem depois)', () => {
         const l = { stand_nr: 'P 01', tipo_venda: 'DISPONÍVEL' };
-        const t = transicaoCliqueMapa(l, null);
-        expect(t.precisaCliente).toBe(true);
-        expect(t.updates).toEqual({});
-        expect(statusAposClique(l, null)).toBe('reservado');
+        expect(transicaoCliqueMapa(l).updates).toEqual({ tipo_venda: 'STAND PADRÃO' });
+        expect(statusAposClique(l)).toBe('vendido');
     });
-    it('cliente sem status (erro) → reservado direto, mantendo o cliente', () => {
+    it('cliente sem status (erro) → vendido direto, mantendo o cliente', () => {
         const l = { stand_nr: 'P 01', tipo_venda: 'DISPONÍVEL', cliente_nome_livre: 'Fulano' };
-        const t = transicaoCliqueMapa(l, null);
-        expect(t.updates).toEqual({ tipo_venda: RESERVADO });
-        expect(t.precisaCliente).toBeUndefined();
-        expect(statusAposClique(l)).toBe('reservado');
+        expect(transicaoCliqueMapa(l).updates).toEqual({ tipo_venda: 'STAND PADRÃO' });
+        expect(statusAposClique(l)).toBe('vendido');
     });
-    it('reservado → vendido mantém o cliente; cortesia → LIVRE (azul), cliente vai para espera', () => {
-        const l = { stand_nr: 'P 01', tipo_venda: RESERVADO, cliente_id: 'c1' };
-        expect(statusDoEstande(l)).toBe('reservado');
-        const t1 = transicaoCliqueMapa(l, null);
-        expect(t1.updates).toEqual({ tipo_venda: 'STAND PADRÃO' });
-        expect(t1.emEspera).toBeNull();
-        const v = { ...l, ...t1.updates };
-        expect(statusDoEstande(v)).toBe('vendido');
-        const t2 = transicaoCliqueMapa(v, null);
-        const c = { ...v, ...t2.updates };
-        expect(statusDoEstande(c)).toBe('cortesia');
-        expect(statusAposClique(c)).toBe('livre');
-        const t3 = transicaoCliqueMapa(c, null);
-        expect(t3.updates).toEqual({ tipo_venda: 'DISPONÍVEL', cliente_id: null, cliente_nome_livre: null });
-        expect(t3.emEspera).toEqual({ cliente_id: 'c1', cliente_nome_livre: null });
-        expect(statusDoEstande({ ...c, ...t3.updates })).toBe('livre');
-    });
-    it('reservar de novo pelo mapa um estande livre traz o cliente em espera de volta (e consome a espera)', () => {
-        const livre = { stand_nr: 'P 01', tipo_venda: 'DISPONÍVEL' };
-        const t = transicaoCliqueMapa(livre, { cliente_id: null, cliente_nome_livre: 'Fulano' });
-        expect(t.updates).toEqual({ tipo_venda: RESERVADO, cliente_id: null, cliente_nome_livre: 'Fulano' });
-        expect(t.emEspera).toBeNull();
-        expect(statusAposClique(livre, { cliente_id: 'c9', cliente_nome_livre: null })).toBe('reservado');
-    });
-    it('cliente em espera NÃO sobrescreve cliente já escolhido na linha', () => {
-        const semStatus = { stand_nr: 'P 01', tipo_venda: 'DISPONÍVEL', cliente_id: 'novo' };
-        const t = transicaoCliqueMapa(semStatus, { cliente_id: 'velho', cliente_nome_livre: null });
-        expect(t.updates).toEqual({ tipo_venda: RESERVADO });
-        expect(t.emEspera).toEqual({ cliente_id: 'velho', cliente_nome_livre: null });
-    });
-    it('livre sem cliente → livre de novo não mexe na espera nem em cliente', () => {
-        const cortesia = { stand_nr: 'P 01', tipo_venda: 'STAND PADRÃO*' };
-        const t = transicaoCliqueMapa(cortesia, { cliente_id: 'c1', cliente_nome_livre: null });
+    it('o clique NUNCA toca no cliente: cortesia com cliente → livre vira cliente_sem_status (oscila até limpar no modal)', () => {
+        const c = { stand_nr: 'P 01', tipo_venda: 'STAND PADRÃO*', cliente_id: 'c1' };
+        const t = transicaoCliqueMapa(c);
         expect(t.updates).toEqual({ tipo_venda: 'DISPONÍVEL' });
-        expect(t.emEspera).toEqual({ cliente_id: 'c1', cliente_nome_livre: null });
+        expect('cliente_id' in t.updates).toBe(false);
+        expect(statusAposClique(c)).toBe('cliente_sem_status');
+    });
+    it('ciclo inteiro com cliente: vendido → reservado → cortesia, cliente intacto em todos', () => {
+        const l = { stand_nr: 'P 01', tipo_venda: 'STAND PADRÃO', cliente_id: 'c1' };
+        const t1 = transicaoCliqueMapa(l);
+        expect(t1.updates).toEqual({ tipo_venda: 'RESERVADO STAND PADRÃO*' });
+        const v = { ...l, ...t1.updates };
+        expect(statusDoEstande(v)).toBe('reservado');
+        const c = { ...v, ...transicaoCliqueMapa(v).updates };
+        expect(statusDoEstande(c)).toBe('cortesia');
+        expect(c.cliente_id).toBe('c1');
     });
     it('sem linha na planilha → não há próximo status', () => {
         expect(statusAposClique(undefined)).toBe('sem_planilha');
@@ -171,7 +149,7 @@ describe('índice e resumos', () => {
     const linhas: LinhaPlanilhaMapa[] = [
         { stand_nr: 'P 01', tipo_venda: 'STAND PADRÃO' },
         { stand_nr: 'P 02', tipo_venda: 'COMBO 01*' },
-        { stand_nr: 'P 03', tipo_venda: 'RESERVADO*', cliente_nome_livre: 'Reserva' },
+        { stand_nr: 'P 03', tipo_venda: 'RESERVADO STAND PADRÃO*', cliente_nome_livre: 'Reserva' },
         { stand_nr: 'L 01', tipo_venda: 'DISPONÍVEL' },
         { stand_nr: 'L 99', tipo_venda: 'DISPONÍVEL' }, // só na planilha
     ];

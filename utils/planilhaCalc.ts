@@ -23,17 +23,29 @@ export interface CategoriaCalc {
 
 /**
  * Marcas de `tipo_venda` (planilha é o cérebro; mapa e relatórios só leem):
- *   'DISPONÍVEL'      → livre
- *   '<rótulo>'        → venda (x) — ÚNICA marca que gera valor
- *   '<rótulo>*'       → cortesia/permuta (*), vale zero
- *   'RESERVADO*'      → reservado (18/09): estande segurado para um cliente, vale zero (leva * por isso)
- * Cliente anotado SEM marca nenhuma = pendência a corrigir (pisca no mapa e na planilha).
+ *   'DISPONÍVEL'               → livre
+ *   '<rótulo>'                 → venda (x) — ÚNICA marca que gera valor
+ *   '<rótulo>*'                → cortesia/permuta (*), vale zero
+ *   'RESERVADO <rótulo>*'      → reservado (18/09), amarrado à coluna clicada; vale zero (leva * por isso)
+ * Cliente anotado SEM marca nenhuma = pendência a corrigir (pisca no mapa).
+ * Ciclo do clique na célula/estande: vazio → x → reservado → * → vazio.
  */
 export const TIPO_DISPONIVEL = 'DISPONÍVEL';
-export const TIPO_RESERVADO = 'RESERVADO*';
+export const PREFIXO_RESERVADO = 'RESERVADO ';
 
+/** 'COMBO 01' → 'RESERVADO COMBO 01*' */
+export function reservadoDe(rotulo: string): string {
+    return `${PREFIXO_RESERVADO}${rotulo}*`;
+}
 export function isReservado(tipoVenda: string | null | undefined): boolean {
-    return (tipoVenda || '').trim() === TIPO_RESERVADO;
+    const t = (tipoVenda || '').trim();
+    return t.startsWith(PREFIXO_RESERVADO) && t.endsWith('*');
+}
+/** Rótulo (coluna) de uma marca: 'RESERVADO COMBO 01*' → 'COMBO 01'; 'COMBO 01*' → 'COMBO 01'; 'COMBO 01' → 'COMBO 01'. */
+export function rotuloDaMarca(tipoVenda: string | null | undefined): string {
+    let t = (tipoVenda || '').trim();
+    if (t.startsWith(PREFIXO_RESERVADO)) t = t.slice(PREFIXO_RESERVADO.length);
+    return t.replace('*', '').trim();
 }
 /** Marca presente (venda, cortesia ou reservado) — o estande não está livre. */
 export function ocupaEstande(tipoVenda: string | null | undefined): boolean {
