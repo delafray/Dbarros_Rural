@@ -137,9 +137,9 @@ const MapaSvg: React.FC<MapaSvgProps> = ({ viewBox, fundoUrl, itens, selecionado
             const estilo = ESTILO_STATUS[status];
             const isSelecionado = estande.codigo === selecionado;
             const fonte = tamanhoFonteRotulo(estande.pontos);
-            // Modo "Nomes": estande ocupado com cliente mostra o nome abreviado, na direção em que cabe.
-            const ocupado = status === "vendido" || status === "reservado" || status === "cortesia";
-            const nome = mostrarNomes && ocupado && rotuloMapa ? layoutNomeEstande(estande.pontos, rotuloMapa) : null;
+            // Modo "Nomes": todo estande COM cliente mostra o nome abreviado, na direção em que cabe
+            // (inclusive "cliente sem status", que continua piscando para chamar atenção).
+            const nome = mostrarNomes && rotuloMapa ? layoutNomeEstande(estande.pontos, rotuloMapa) : null;
             const editavel = !!onAlternarStatus && proximoStatus !== null && proximoStatus !== "sem_planilha";
             const dica = !editavel
               ? null
